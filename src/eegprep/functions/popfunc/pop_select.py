@@ -391,19 +391,22 @@ def _pop_select_apply(EEG, **kwargs):
                 # rare case: epoched flagged but data is 2D with trials meta
                 data = data[:, a - 1 : b]
             EEG['data'] = data
-            EEG['xmin'] = tmin
-            EEG['xmax'] = tmax
+            EEG['xmin'] = xmin + (a - 1) / srate
+            EEG['xmax'] = xmin + (b - 1) / srate
+            old_pnts = pnts
             EEG['pnts'] = data.shape[1]
             pnts = EEG['pnts']
+            if _has_content(EEG.get('icaact')):
+                EEG['icaact'] = EEG['icaact'][:, a - 1 : b, :]
 
             if _has_content(EEG.get('event')):
                 newevents = []
                 for ev in EEG['event']:
                     if 'epoch' in ev and 'latency' in ev:
-                        # within-epoch latency shift by (a-1) samples
-                        ev['latency'] = ev['latency'] - (a - 1)
-                        # keep only events that remain inside the cropped window
-                        if 1 <= ev['latency'] <= pnts * len(g['trial']):
+                        epoch_offset = int(ev['epoch']) - 1
+                        local_latency = float(ev['latency']) - epoch_offset * old_pnts
+                        if a <= local_latency <= b:
+                            ev['latency'] = local_latency - (a - 1) + epoch_offset * pnts
                             newevents.append(ev)
                 EEG['event'] = newevents
 
@@ -587,9 +590,8 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
     chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
     channel_labels = tuple(str(chan.get("labels", "")) for chan in chanlocs if isinstance(chan, dict))
     channel_types = tuple(
-        value
-        for value in dict.fromkeys(
-            str(chan.get("type", "")) for chan in chanlocs if isinstance(chan, dict) and chan.get("type", "") != ""
+        dict.fromkeys(
+            value for chan in chanlocs if isinstance(chan, dict) and (value := _channel_type_text(chan.get("type")))
         )
     )
     type_enabled = bool(channel_types)
@@ -683,6 +685,10 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
             ControlSpec("spacer"),
         ),
     )
+
+
+def _channel_type_text(value) -> str:
+    return "".join(str(part) for part in np.asarray(value).reshape(-1) if part is not None).strip()
 
 
 def _scroll_dataset_enabled(EEG) -> bool:

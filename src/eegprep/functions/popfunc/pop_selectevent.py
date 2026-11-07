@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any
+import warnings
 
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec, field_text
 from eegprep.functions.popfunc._event_utils import (
     event_field_names,
     events_as_list,
@@ -44,6 +45,7 @@ def pop_selectevent(
         if result is None:
             return (EEG, "") if return_com else (EEG, [])
         options.update(result)
+    options = _numeric_type_criteria(EEG, options)
     if isinstance(EEG, list):
         outputs = []
         indices = []
@@ -56,6 +58,28 @@ def pop_selectevent(
     output, selected = _apply_selectevent_one(EEG, options)
     command = _history_command(options)
     return (output, command) if return_com else (output, selected)
+
+
+def _numeric_type_criteria(EEG, options):
+    datasets = EEG if isinstance(EEG, list) else [EEG]
+    event_types = [
+        event.get("type")
+        for dataset in datasets
+        for event in events_as_list(dataset.get("event"))
+        if not is_boundary_event(event)
+    ]
+    if not event_types or not all(isinstance(value, (int, float, np.number)) for value in event_types):
+        return options
+    options = dict(options)
+    for key in ("type", "omittype"):
+        if key not in options:
+            continue
+        value = options[key]
+        if isinstance(value, (list, tuple, np.ndarray)):
+            options[key] = [number if (number := _to_float(item)) is not None else item for item in value]
+        elif (number := _to_float(value)) is not None:
+            options[key] = number
+    return options
 
 
 def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
@@ -71,7 +95,7 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     ]
     geometry: list[tuple[float, ...]] = [(0.6, 0.8, 2.1, 0.8)]
     for field in fields:
-        description = _field_description(EEG, fields, field)
+        description = _field_description(EEG, field)
         if field in {"latency", "duration"}:
             controls.extend(
                 [
@@ -238,6 +262,13 @@ def _apply_selectevent_one(EEG: dict[str, Any], options: dict[str, Any]) -> tupl
     selected -= omitted
     if str(options.get("select", "normal")).lower() in {"inverse", "remove"}:
         selected = set(range(len(events))) - selected
+    if not selected:
+        warnings.warn(
+            "pop_selectevent: no events matched the selection. Check event type names or numeric codes "
+            "and widen the field ranges, or clear the selection filters.",
+            UserWarning,
+            stacklevel=3,
+        )
     boundary = {index for index, event in enumerate(events) if is_boundary_event(event)}
     if int(EEG.get("trials", 1) or 1) == 1 and str(options.get("deleteevents", "off")).lower() in {"on", "yes"}:
         selected |= boundary
@@ -353,17 +384,17 @@ def _display_field_label(EEG: dict[str, Any], field: str) -> str:
     return field
 
 
-def _field_description(EEG: dict[str, Any], fields: list[str], field: str) -> str:
+def _field_description(EEG: dict[str, Any], field: str) -> str:
     descriptions = EEG.get("eventdescription")
     if isinstance(descriptions, dict):
-        text = descriptions.get(field, "")
-        return str(text) if text else "No description"
+        return field_text(descriptions.get(field)) or "No description"
     if isinstance(descriptions, np.ndarray):
         descriptions = descriptions.tolist()
+    fields = event_field_names(EEG.get("event"), include_urevent=True)
     if isinstance(descriptions, list) and field in fields:
         index = fields.index(field)
-        if index < len(descriptions) and descriptions[index]:
-            return str(descriptions[index])
+        if index < len(descriptions):
+            return field_text(descriptions[index]) or "No description"
     return "No description"
 
 

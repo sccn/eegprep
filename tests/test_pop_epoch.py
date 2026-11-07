@@ -8,6 +8,7 @@ MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 
 import os
 import numpy as np
+import pytest
 import unittest
 import tempfile
 
@@ -18,6 +19,29 @@ from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_epoch import pop_epoch, pop_epoch_dialog_spec
 from eegprep.functions.sigprocfunc.floatwrite import floatwrite
 from tests.eeglab_tests import eeglab_test
+from tests.fixtures import create_test_eeg
+
+
+@pytest.mark.gui
+def test_epoch_type_picker_selects_multiple_event_types(qt_dialogs):
+    eeg = create_test_eeg(n_channels=2, n_samples=300, srate=100)
+    eeg["event"] = [{"type": "oddball", "latency": 100}, {"type": "standard", "latency": 200}]
+    qt_dialogs.answers["chansel"] = ([1, 2], 1, "")
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            widgets = qt_dialogs.build(spec)
+            widgets["eventtypes_button"].click()
+            assert "oddball" in widgets["events"].text()
+            assert "standard" in widgets["events"].text()
+            widgets["limits"].setText("-0.1 0.1")
+            return {tag: qt_dialogs.qt._read_widget(widget) for tag, widget in widgets.items()}
+
+    out, command = pop_epoch(eeg, renderer=Renderer(), return_com=True)
+    assert out["trials"] == 2
+    assert {event["type"] for event in out["event"]} == {"oddball", "standard"}
+    assert "'oddball' 'standard'" in command
+    assert qt_dialogs.calls[0][1]["selectionmode"] == "multiple"
 
 
 @eeglab_test("unittesting_popfunc/pop_epoch/popfunc_pop_epoch_wrapperTest.m", "test_test_pop_epoch")

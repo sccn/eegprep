@@ -93,9 +93,9 @@ def _comments_to_text(value: Any) -> str:
     if isinstance(value, bytes):
         return value.decode("utf-8")
     if isinstance(value, str):
-        return value.rstrip()
+        return value.rstrip(" \t")
     if isinstance(value, (list, tuple)):
-        return "\n".join(_comments_to_text(item) for item in value).rstrip()
+        return "\n".join(_comments_to_text(item) for item in value)
     return str(value).rstrip()
 
 

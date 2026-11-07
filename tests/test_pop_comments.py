@@ -7,7 +7,27 @@ import numpy.testing as npt
 import pytest
 
 from eegprep.functions.popfunc.pop_comments import pop_comments
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import eeglab_test
+from tests.fixtures import SAMPLE_DATASET_PATH
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("filename", ["eeglab_data.set", "eeglab_data_epochs_ica.set"])
+def test_tutorial_comments_preserve_lines_in_widget_and_saved_text(qt_dialogs, filename):
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH.with_name(filename)))
+    expected = "\n".join(str(row).rstrip() for row in eeg["comments"])
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            widgets = qt_dialogs.build(spec)
+            assert widgets["comments"].toPlainText() == expected
+            return {"comments": widgets["comments"].toPlainText()}
+
+    out, command = pop_comments(eeg, renderer=Renderer(), return_com=True)
+    assert out["comments"] == expected
+    assert "\n" in out["comments"]
+    assert "{" in command
 
 
 def _eeg():

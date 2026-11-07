@@ -9,6 +9,8 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
 from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
+from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu, pop_rejmenu_dialog_spec
+from eegprep.functions.sigprocfunc.eegplot import eegplot2trial, winrej_to_array
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
@@ -28,6 +30,109 @@ def _epoched_ica_eeg():
         "rejthreshE": np.zeros((3, 3), dtype=bool),
     }
     return eeg
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("icacomp", [1, 0])
+def test_rejmenu_buttons_are_connected_and_fit_screen(qt_dialogs, icacomp):
+    spec = pop_rejmenu_dialog_spec(_epoched_ica_eeg(), icacomp)
+    widgets = qt_dialogs.build(spec)
+    dialog = qt_dialogs.dialogs[-1]
+    dialog.show()
+    qt_dialogs.qt.QtWidgets.QApplication.processEvents()
+
+    assert dialog.height() <= 1200
+    for control in spec.controls:
+        if control.style == "pushbutton":
+            assert control.tag, control.string
+            button = widgets[control.tag]
+            assert button.isEnabled(), control.tag
+            assert button.receivers(qt_dialogs.qt.QtCore.SIGNAL("clicked(bool)")) > 0, control.tag
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("icacomp", [1, 0])
+@pytest.mark.parametrize("method,field", [("ent", "rejjp"), ("kurt", "rejkurt")])
+def test_rejmenu_calculate_updates_marks_counts_and_history(qt_dialogs, icacomp, method, field):
+    eeg = _epoched_ica_eeg()
+    eeg["data"] = np.random.default_rng(81).normal(size=(3, 40, 3))
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            widgets = qt_dialogs.build(spec)
+            widgets[f"{method}loc"].setText("0.1")
+            widgets[f"{method}glob"].setText("0.1")
+            widgets[f"calculate_{method}"].click()
+            assert not qt_dialogs.messages
+            assert int(widgets[f"{method}trial"].text()) > 0
+            return {tag: qt_dialogs.qt._read_widget(widget) for tag, widget in widgets.items()}
+
+    out, command = pop_rejmenu(eeg, icacomp, renderer=Renderer(), return_com=True)
+    prefix = "" if icacomp else "ica"
+    assert out["reject"][prefix + field].any()
+    assert out["trials"] == eeg["trials"]
+    assert "pop_jointprob" in command if method == "ent" else "pop_rejkurt" in command
+    assert "eeg_rejsuperpose" in command
+    assert prefix + field not in eeg["reject"]
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("icacomp", [1, 0])
+@pytest.mark.parametrize("method,field", [("ent", "rejjp"), ("kurt", "rejkurt")])
+def test_rejmenu_plot_opens_browser_with_calculated_marks(qt_dialogs, icacomp, method, field):
+    eeg = _epoched_ica_eeg()
+    eeg["data"] = np.random.default_rng(81).normal(size=(3, 40, 3))
+    eeg["icaweights"] = 3 * np.eye(3)
+    eeg["reject"] = {}
+    widgets = qt_dialogs.build(pop_rejmenu_dialog_spec(eeg, icacomp))
+    widgets[f"{method}loc"].setText("0.1")
+    widgets[f"{method}glob"].setText("0.1")
+
+    widgets[f"plot_{method}"].click()
+
+    assert not qt_dialogs.messages
+    prefix = "" if icacomp else "ica"
+    marks = eeg["reject"][prefix + field]
+    assert marks.any()
+    assert int(widgets[f"{method}trial"].text()) == marks.sum()
+    browsers = [
+        window
+        for window in qt_dialogs.qt.QtWidgets.QApplication.topLevelWidgets()
+        if window.objectName() == "eegbrowser" and window.isVisible()
+    ]
+    assert len(browsers) == 1
+    browser = browsers[0]
+    try:
+        np.testing.assert_array_equal(browser.model.data.data, eeg["data"] * (1 if icacomp else 3))
+        rows = winrej_to_array(browser.model.state.winrej, eeg["nbchan"])
+        trial_marks, row_marks = eegplot2trial(rows, eeg["pnts"], eeg["trials"])
+        np.testing.assert_array_equal(trial_marks, marks)
+        np.testing.assert_array_equal(row_marks, eeg["reject"][prefix + field + "E"])
+    finally:
+        browser.close()
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("icacomp", [1, 0])
+@pytest.mark.parametrize("method,field", [("thresh", "rejthresh"), ("const", "rejconst"), ("freq", "rejfreq")])
+def test_rejmenu_calc_plot_opens_browser_with_calculated_marks(qt_dialogs, icacomp, method, field):
+    eeg = _epoched_ica_eeg()
+    eeg["data"] = np.random.default_rng(81).normal(size=(3, 40, 3))
+    widgets = qt_dialogs.build(pop_rejmenu_dialog_spec(eeg, icacomp))
+
+    widgets[f"scroll_{method}"].click()
+
+    assert not qt_dialogs.messages
+    prefix = "" if icacomp else "ica"
+    assert eeg["reject"][prefix + field].shape == (3,)
+    browsers = [
+        window
+        for window in qt_dialogs.qt.QtWidgets.QApplication.topLevelWidgets()
+        if window.objectName() == "eegbrowser" and window.isVisible()
+    ]
+    assert browsers
+    for browser in browsers:
+        browser.close()
 
 
 @pytest.mark.gui

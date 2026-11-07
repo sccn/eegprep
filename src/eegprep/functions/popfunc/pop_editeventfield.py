@@ -11,7 +11,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec, field_text
 from eegprep.functions.popfunc._event_utils import (
     event_field_names,
     events_as_list,
@@ -61,7 +61,8 @@ def pop_editeventfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     """Return the EEGLAB-like ``pop_editeventfield`` dialog spec."""
     fields = event_field_names(EEG.get("event"))
     field_choices = "|".join(["No field selected", *fields])
-    descriptions = _description_list(EEG.get("eventdescription"), fields)
+    all_fields = event_field_names(EEG.get("event"), include_urevent=True)
+    descriptions = dict(zip(all_fields, _description_list(EEG.get("eventdescription"), all_fields)))
     controls: list[ControlSpec] = [
         ControlSpec("text", "Event fields", font_weight="bold"),
         ControlSpec("text", "Description", font_weight="bold"),
@@ -75,9 +76,9 @@ def pop_editeventfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         controls.extend(
             [
                 ControlSpec("text", _display_field_label(field)),
-                ControlSpec("pushbutton", descriptions[fields.index(field)], enabled=False),
+                _description_button(f"description_{field}", descriptions[field], field),
                 ControlSpec("edit", tag=f"value_{field}", value=""),
-                ControlSpec("pushbutton", "...", tag=f"browse_{field}", enabled=False),
+                _browse_button(f"browse_{field}", f"value_{field}"),
                 ControlSpec("popupmenu", "Char|Num", tag=f"type_{field}", value=_field_type_index(EEG, field)),
                 ControlSpec("checkbox", tag=f"delete_{field}", value=False),
             ]
@@ -86,9 +87,9 @@ def pop_editeventfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     controls.extend(
         [
             ControlSpec("edit", tag="newfield_name", value=""),
-            ControlSpec("pushbutton", "", tag="newfield_description", enabled=False),
+            _description_button("newfield_description", "", "new field"),
             ControlSpec("edit", tag="newfield_values", value=""),
-            ControlSpec("pushbutton", "...", tag="newfield_browse", enabled=False),
+            _browse_button("newfield_browse", "newfield_values"),
             ControlSpec("popupmenu", "Char|Num", tag="newfield_type", value=1),
             ControlSpec("spacer"),
             ControlSpec("text", "Rename field", font_weight="bold"),
@@ -109,8 +110,37 @@ def pop_editeventfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         help_text="pophelp('pop_editeventfield')",
         geometry=tuple(geometry),
         controls=tuple(controls),
-        known_differences=(
-            "EEGPrep supports EEGLAB's visible field table; file-array picker buttons are visible but disabled.",
+    )
+
+
+def _description_button(tag: str, description: str, field: str) -> ControlSpec:
+    return ControlSpec(
+        "pushbutton",
+        description.split("\n", 1)[0],
+        tag=tag,
+        value=description,
+        tooltip=description,
+        callback=CallbackSpec(
+            "edit_text",
+            params={
+                "button": tag,
+                "value": description,
+                "title": f"Comments on event field: {field}",
+                "label": "Description",
+                "label_first_line": True,
+            },
+        ),
+    )
+
+
+def _browse_button(tag: str, target: str) -> ControlSpec:
+    return ControlSpec(
+        "pushbutton",
+        "...",
+        tag=tag,
+        callback=CallbackSpec(
+            "select_file",
+            params={"button": tag, "target": target, "caption": "Select a text file"},
         ),
     )
 
@@ -121,6 +151,8 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
         return None
     options: list[tuple[str, Any]] = []
     fields = event_field_names(EEG.get("event"))
+    all_fields = event_field_names(EEG.get("event"), include_urevent=True)
+    descriptions = dict(zip(all_fields, _description_list(EEG.get("eventdescription"), all_fields)))
     for field in fields:
         if result.get(f"delete_{field}"):
             options.append((field, []))
@@ -131,10 +163,16 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
         field_type = int(result.get(f"type_{field}") or _field_type_index(EEG, field))
         if field_type != _field_type_index(EEG, field):
             options.append((f"{field}type", "Char" if field_type == 1 else "Num"))
+        description = field_text(result.get(f"description_{field}", descriptions[field]))
+        if description != descriptions[field]:
+            options.append((f"{field}info", description))
     new_field = str(result.get("newfield_name") or "").strip()
     if new_field:
         options.append((new_field, _parse_value_text(result.get("newfield_values"))))
         options.append((f"{new_field}type", "Char" if int(result.get("newfield_type") or 1) == 1 else "Num"))
+        description = field_text(result.get("newfield_description"))
+        if description:
+            options.append((f"{new_field}info", description))
     rename_index = int(result.get("rename_field") or 1)
     rename_as = str(result.get("rename_as") or "").strip()
     if rename_index > 1 and rename_as and rename_index - 2 < len(fields):
@@ -172,15 +210,15 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
                 _rename_field(urevents, str(value), [])
                 output["urevent"] = urevents
             continue
+        if lower_key.endswith("info") and lower_key != "info":
+            _set_description(events, eventdescription, key_text[:-4], field_text(value))
+            continue
         if _is_empty(value):
             _delete_field(events, key_text, eventdescription)
             urevents = events_as_list(output.get("urevent"))
             if urevents:
                 _delete_field(urevents, key_text, [])
                 output["urevent"] = urevents
-            continue
-        if lower_key.endswith("info") and lower_key != "info":
-            _set_description(events, eventdescription, key_text[:-4], str(value))
             continue
         if lower_key.endswith("type") and lower_key != "type":
             _convert_field_type(events, key_text[:-4], str(value))
@@ -239,11 +277,11 @@ def _history_command(options: list[tuple[str, Any]]) -> str:
 
 def _description_list(value: Any, fields: list[str]) -> list[str]:
     if isinstance(value, dict):
-        return [str(value.get(field, "")) for field in fields]
+        return [field_text(value.get(field)) for field in fields]
     if isinstance(value, np.ndarray):
         value = value.tolist()
     if isinstance(value, list):
-        return [str(item) for item in value]
+        return [field_text(value[index]) if index < len(value) else "" for index in range(len(fields))]
     return ["" for _field in fields]
 
 
@@ -348,6 +386,8 @@ def _parse_value_text(value: Any) -> Any:
     text = str(value or "").strip()
     if not text:
         return ""
+    if Path(text).is_file():
+        return text
     values = parse_text_tokens(text, parse_ints=False)
     if len(values) > 1:
         return [_to_number(item) for item in values]

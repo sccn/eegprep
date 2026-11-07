@@ -239,9 +239,12 @@ class QtDialogRenderer:
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
         elif style == "textarea":
-            widget = QtWidgets.QTextEdit("" if value is None else str(value))
+            widget = QtWidgets.QTextEdit()
+            widget.setPlainText("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
+            if value is not None:
+                widget.setProperty(_VALUE_PROPERTY, value)
         elif style == "checkbox":
             widget = QtWidgets.QCheckBox(control.string)
             widget.setChecked(bool(value))
@@ -395,6 +398,15 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._open_rejection_browser(source, widgets, params))
+        elif callback.name == "run_dialog_action":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: _run_dialog_action(source, widgets, params))
+        elif callback.name == "show_help":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: pophelp(params["function"], parent=source))
+        elif callback.name == "select_color":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: _select_color(source, params))
         elif callback.name == "set_value":
             source = widgets.get(params["source"])
             target = widgets.get(params["target"])
@@ -1148,7 +1160,12 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
     fcutoff = _widget_vector(widgets.get(params.get("fcutoff", "")))
     ftrans = _widget_number(widgets.get(params.get("ftrans", "")))
     if not fcutoff or ftrans is None:
-        qt_widgets.QMessageBox.warning(button, "Warning", "Cutoff frequencies and transition width are required")
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_firpm",
+            "pop_firpm: cutoff frequencies and transition width are missing. "
+            "Enter both in Hz, then click Estimate again.",
+        )
         return
     srate = _widget_number(widgets.get(params.get("srate", "")))
     if srate is None:
@@ -1156,9 +1173,16 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
     ftype = _combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
     try:
         edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype, srate)
-        order, wtpass, wtstop = pop_firpmord(edges, amplitudes, _firpm_default_devs(amplitudes), srate)
+        order, wtpass, wtstop = pop_firpmord(edges, amplitudes, fs=srate, gui=True)
     except ValueError as exc:
-        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_firpmord",
+            f"pop_firpmord: {exc} Enter numeric passband ripple and "
+            "stopband attenuation in dB, and check the cutoff and transition values in Hz.",
+        )
+        return
+    if order is None:
         return
     for tag, value in (
         (params.get("forder"), order),
@@ -1440,6 +1464,31 @@ def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
         qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
 
 
+def _run_dialog_action(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    def update(values: Mapping[str, Any]) -> None:
+        for tag, value in values.items():
+            _set_widget_display_value(widgets[tag], value)
+
+    try:
+        params["action"]({tag: _read_widget(widget) for tag, widget in widgets.items()}, update)
+    except ValueError as exc:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(parent, params["function"], str(exc))
+
+
+def _select_color(parent: Any, params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    dialog = qt_widgets.QColorDialog(parent)
+    color = dialog.currentColor()
+    color.setRgbF(*params["eeg"].get("reject", {}).get(params["field"], params["default"]))
+    dialog.setCurrentColor(color)
+    if dialog.exec() != qt_widgets.QDialog.Accepted:
+        return
+    color = dialog.currentColor()
+    params["eeg"].setdefault("reject", {})[params["field"]] = [color.redF(), color.greenF(), color.blueF()]
+    parent.setStyleSheet(f"background-color: {color.name()};")
+
+
 def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
     eeg = params.get("eeg")
     if not isinstance(eeg, dict):
@@ -1452,6 +1501,8 @@ def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Map
         def accept(eeg_out: dict[str, Any], _command: str) -> None:
             eeg.clear()
             eeg.update(eeg_out)
+            if _command and "commands" in params:
+                params["commands"].append(_command)
             for tag in params.get("count_tags", ()):
                 widget = widgets.get(tag)
                 field = params.get("count_fields", {}).get(tag)
@@ -1573,6 +1624,9 @@ def _edit_text(parent: Any, target: Any, params: Mapping[str, Any]) -> None:
     )
     if accepted:
         target.setProperty(_VALUE_PROPERTY, str(value))
+        if params.get("label_first_line"):
+            target.setText(str(value).split("\n", 1)[0])
+            target.setToolTip(str(value))
 
 
 def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
@@ -1830,10 +1884,6 @@ def _firpm_order_shape(
     if ftype not in desired_by_type:
         raise ValueError("Unknown filter type.")
     return edges.tolist(), desired_by_type[ftype]
-
-
-def _firpm_default_devs(amplitudes: list[float]) -> list[float]:
-    return [0.01 if value == 1 else 0.001 for value in amplitudes]
 
 
 _QT_RENDERER_STATIC_HELPERS = (

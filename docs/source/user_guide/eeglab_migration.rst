@@ -32,6 +32,43 @@ What Carries Over
 What Changes
 ============
 
+``pop_select`` and ``pop_selectevent`` preserve the input data precision.
+Selecting imported BDF data in float64 does not round it to float32. Embedded
+``.set`` save precision is a separate serialization policy; two-file ``.fdt``
+storage uses float32. Release-readiness F50's embedded-save policy is assigned
+to stream S1, outside the selection fixes.
+
+Event selection accepts numeric codes and their textual spelling, such as
+``255`` and ``'255'``. For a dataset with numeric event types, its history
+records numeric criteria, avoiding EEGLAB's silent mismatch with a string cell
+selector. Numeric-looking string event types remain strings. When cropping
+introduces a text ``boundary`` event, event consistency can convert all types
+to strings, as in EEGLAB.
+
+Epoch cropping with ``pop_select`` includes both endpoints, as its time and
+point range documentation specifies. EEGLAB ``pop_select.m`` calls ``epoch``
+with an upper-exclusive window and drops the final sample. For the tutorial
+``eeglab_data_epochs_ica.set``, selecting epochs ``[1, 3, 5, 7, 9]`` and time
+``[-0.5, 0.5]`` therefore retains 129 points and 8 events in EEGPrep, with
+``xmax=0.5``. The recorded EEGLAB 8ac485f6 result is 128 points and 8 events,
+with ``xmax=0.4921875``. EEGPrep retains each event only if its position within
+its original epoch is inside the crop, then recalculates its concatenated
+latency using the new epoch length.
+
+``pop_selectevent`` emits a warning when no events match the selection, with
+instructions to check type names/codes and field ranges. Continuous data can
+still be returned with no events (or only retained boundary events). EEGLAB
+can return this empty selection silently; EEGPrep deliberately reports it.
+
+The data and ICA rejection menus calculate marks, open scrolling data for
+inspection, and retain the calculation commands when you choose **Close (keep
+marks)**. The probability and kurtosis **PLOT** buttons calculate marks and open
+the same scrolling rejection browser as **Scroll Data** or **Scroll Acts.**,
+where you can inspect and change epoch marks interactively. EEGLAB's **PLOT**
+opens the interactive ``rejstatepoch`` viewer, which has not been ported to
+EEGPrep. Edit thresholds in the rejection menu and calculate again to change
+the limits. Cancelling the menu discards its changes.
+
 .. list-table::
    :header-rows: 1
 

@@ -773,12 +773,79 @@ def test_sorttrial_off_keeps_the_first_copy_of_a_duplicate():
     assert out['data'][0, 0, :].tolist() == [5, 4, 3, 2, 1]
 
 
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_selection_preserves_input_precision(dtype):
+    eeg = create_test_eeg(n_channels=2, n_samples=20, srate=10)
+    eeg["data"] = np.linspace(-1000, 1000, 40, dtype=dtype).reshape(2, 20)
+
+    out = pop_select(eeg, time=[0.2, 0.6], channel=[0])
+
+    assert out["data"].dtype == dtype
+    np.testing.assert_array_equal(out["data"], eeg["data"][:1, 2:7])
+
+
 def test_notime_inside_an_epoch_names_the_fix():
     eeg = create_test_eeg(n_channels=1, n_samples=8, srate=100.0, n_trials=2)
     eeg['xmin'] = -0.04
     eeg['xmax'] = 0.03
     with pytest.raises(ValueError, match="pop_select: notime on epoched data"):
         pop_select(eeg, notime=[[-0.02, 0.01]])
+
+
+def test_tutorial_epoch_crop_keeps_inclusive_end_and_all_eight_events():
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH.with_name("eeglab_data_epochs_ica.set")))
+
+    out = pop_select(eeg, time=[-0.5, 0.5], trial=[1, 3, 5, 7, 9])
+
+    # F44 recorded EEGLAB 8ac485f6: 128 points, 8 events, xmax=0.4921875.
+    assert out["pnts"] == 128 + 1
+    assert len(out["event"]) == 8
+    assert out["xmax"] == 0.4921875 + 1 / 128
+    assert out["xmin"] == -0.5
+    np.testing.assert_array_equal(out["data"], eeg["data"][:, 64:193, [0, 2, 4, 6, 8]])
+    assert [event["epoch"] for event in out["event"]] == [1, 2, 2, 3, 4, 4, 5, 5]
+    assert [event["type"] for event in out["event"]] == [
+        "square",
+        "square",
+        "rt",
+        "square",
+        "square",
+        "rt",
+        "square",
+        "rt",
+    ]
+    assert [len(epoch["event"]) for epoch in out["epoch"]] == [1, 2, 1, 2, 2]
+
+
+@pytest.mark.parametrize("trials", [[1, 2], [2]])
+def test_epoch_crop_event_endpoints_and_cached_ica(trials):
+    eeg = create_test_eeg(n_channels=1, n_samples=6, n_trials=2, srate=10)
+    eeg.update(
+        xmin=-0.2,
+        xmax=0.3,
+        icaweights=np.eye(1),
+        icasphere=np.eye(1),
+        icawinv=np.eye(1),
+        icachansind=np.array([0]),
+        icaact=eeg["data"].copy(),
+    )
+    eeg["event"] = [
+        {"type": label, "latency": point + epoch * 6, "epoch": epoch + 1}
+        for epoch in range(2)
+        for point, label in [(1, "before"), (2, "left"), (4, "right"), (5, "after")]
+    ]
+
+    out = pop_select(eeg, time=[-0.1, 0.1], trial=trials)
+
+    assert out["pnts"] == 3
+    assert [event["type"] for event in out["event"]] == ["left", "right"] * len(trials)
+    assert [event["latency"] for event in out["event"]] == [
+        point + 3 * epoch for epoch in range(len(trials)) for point in [1, 3]
+    ]
+    expected_ica = eeg["icaact"][:, 1:4, np.asarray(trials) - 1]
+    if len(trials) == 1:
+        expected_ica = expected_ica[:, :, 0]
+    np.testing.assert_array_equal(out["icaact"], expected_ica)
 
 
 if __name__ == '__main__':
