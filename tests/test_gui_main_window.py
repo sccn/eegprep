@@ -20,6 +20,7 @@ from eegprep.functions.guifunc.menu_actions import (
 from eegprep.functions.guifunc.long_task import LongTaskHandle
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
 def _child(menu, label):
@@ -597,7 +598,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertEqual(session.EEG["filename"], "recording.set")
             self.assertEqual(session.EEG["saved"], "yes")
             self.assertNotIn("savemode", session.LASTCOM)
-            self.assertIn(f"'filename', {destination.name!r}, 'filepath', {str(destination.parent)!r}", session.LASTCOM)
+            self.assertIn(f"'filename', {format_history_value(destination.name)}, 'filepath', {format_history_value(str(destination.parent))}", session.LASTCOM)
 
     def test_save_as_creates_missing_folder_and_failed_save_is_not_recorded(self):
         import tempfile
@@ -622,7 +623,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertTrue(destination.is_file())
             self.assertEqual(session.EEG["saved"], "yes")
             self.assertEqual(session.EEG["filename"], "x.set")
-            self.assertIn(f"'filename', {destination.name!r}, 'filepath', {str(destination.parent)!r}", session.LASTCOM)
+            self.assertIn(f"'filename', {format_history_value(destination.name)}, 'filepath', {format_history_value(str(destination.parent))}", session.LASTCOM)
 
             blocker = Path(tmp) / "notdir"
             blocker.write_text("x", encoding="utf-8")
@@ -718,7 +719,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertNotEqual(written.read_bytes(), original)
             self.assertEqual(typed.read_bytes(), b"edf-bytes")
             self.assertEqual(session.EEG["saved"], "yes")
-            self.assertIn(f"'filename', {written.name!r}, 'filepath', {str(written.parent)!r}", session.LASTCOM)
+            self.assertIn(f"'filename', {format_history_value(written.name)}, 'filepath', {format_history_value(str(written.parent))}", session.LASTCOM)
 
     def test_delete_dataset_asks_for_confirmation_and_can_cancel(self):
         session = EEGPrepSession()
