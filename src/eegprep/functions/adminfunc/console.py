@@ -24,6 +24,7 @@ from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 
 
 WORKSPACE_NAMES = ("EEG", "ALLEEG", "CURRENTSET", "ALLCOM", "LASTCOM", "STUDY", "CURRENTSTUDY")
@@ -852,6 +853,10 @@ def _matlab_multi_assign_to_python(text: str) -> str:
     if not match:
         return text
     names = ", ".join(match.group(1).split())
+    if names == "ALLEEG, EEG, CURRENTSET" and re.match(
+        r"\s*(?:eegprep\.)?pop_(?:newset|copyset)\s*\(", text[match.end() :]
+    ):
+        names += ", LASTCOM"
     return f"{names} =" + text[match.end() :]
 
 
@@ -896,6 +901,8 @@ def _format_matlab_list_content(content: str, original: str) -> str:
     rows = [row.strip() for row in content.split(";")]
     if not all(_is_matlab_list_row(row) for row in rows):
         return original
+    if len(rows) == 1 and (expression := _matlab_colon_range(content)) is not None:
+        return expression
     formatted_rows = [_comma_join_matlab_row(row) for row in rows]
     if len(formatted_rows) == 1:
         return f"[{formatted_rows[0]}]"
@@ -939,11 +946,34 @@ def _string_end(text: str, start: int) -> int:
 def _is_matlab_list_row(row: str) -> bool:
     if not row:
         return True
-    return all(_is_python_literal_token(token) for token in row.replace(",", " ").split())
+    return all(
+        _is_python_literal_token(token) or _matlab_colon_range(token) is not None
+        for token in row.replace(",", " ").split()
+    )
 
 
 def _comma_join_matlab_row(row: str) -> str:
-    return ", ".join(row.replace(",", " ").split())
+    values = []
+    for token in row.replace(",", " ").split():
+        expression = _matlab_colon_range(token)
+        values.append(f"*{expression}" if expression is not None else token)
+    return ", ".join(values)
+
+
+def _matlab_colon_range(token: str) -> str | None:
+    parts = token.split(":")
+    if len(parts) not in (2, 3) or not all(
+        re.fullmatch(r"[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?", part) for part in parts
+    ):
+        return None
+    if all(re.fullmatch(r"[+-]?\d+", part) for part in parts):
+        values = [int(part) for part in parts]
+        start, step, stop = (values[0], 1, values[1]) if len(values) == 2 else values
+        if step == 0:
+            raise ValueError("Console history: colon range step must be nonzero.")
+        end = stop + (1 if step > 0 else -1)
+        return f"list(range({start}, {end}, {step}))"
+    return repr(parse_numeric_sequence(token))
 
 
 def _is_python_literal_token(token: str) -> bool:
@@ -1057,7 +1087,29 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
                 node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
 
     def _zero_base_channel_arg(self, node: ast.AST) -> ast.AST:
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "list"
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Call)
+            and isinstance(node.args[0].func, ast.Name)
+            and node.args[0].func.id == "range"
+            and len(node.args[0].args) == 3
+        ):
+            bounds = node.args[0].args
+            self.changed = True
+            bounds[:2] = [ast.BinOp(left=bound, op=ast.Sub(), right=ast.Constant(value=1)) for bound in bounds[:2]]
+            return node
         if isinstance(node, ast.List):
+            if any(isinstance(item, ast.Starred) for item in node.elts):
+                node.elts = [
+                    ast.Starred(value=self._zero_base_channel_arg(item.value), ctx=ast.Load())
+                    if isinstance(item, ast.Starred)
+                    else self._zero_base_channel_arg(item)
+                    for item in node.elts
+                ]
+                return node
             values = [_numeric_ast_constant_value(item) for item in node.elts]
             if not all(value is not None for value in values):
                 return node

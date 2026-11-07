@@ -141,6 +141,7 @@ class EEGPrepSession:
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
     _command_echo_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
     _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
+    _gui_action_stack: list[str] = field(default_factory=list, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
@@ -174,13 +175,19 @@ class EEGPrepSession:
 
     def begin_gui_action(self, action: str) -> None:
         """Notify listeners that a GUI action is about to run."""
+        self._gui_action_stack.append(action)
         for listener in list(self._gui_action_listeners):
             listener("begin", action)
 
     def end_gui_action(self, action: str) -> None:
         """Notify listeners that a GUI action has finished."""
+        self._gui_action_stack.pop()
         for listener in list(self._gui_action_listeners):
             listener("end", action)
+
+    def active_gui_action(self) -> str:
+        """Return the action responsible for the current GUI operation."""
+        return self._gui_action_stack[-1] if self._gui_action_stack else ""
 
     @contextmanager
     def gui_action(self, action: str) -> Iterator[None]:
