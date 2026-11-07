@@ -32,6 +32,16 @@ What Carries Over
 What Changes
 ============
 
+Epoch cropping with ``pop_select`` includes both endpoints, as its time and
+point range documentation specifies. EEGLAB ``pop_select.m`` calls ``epoch``
+with an upper-exclusive window and drops the final sample. For the tutorial
+``eeglab_data_epochs_ica.set``, selecting epochs ``[1, 3, 5, 7, 9]`` and time
+``[-0.5, 0.5]`` therefore retains 129 points and 8 events in EEGPrep, with
+``xmax=0.5``. The recorded EEGLAB 8ac485f6 result is 128 points and 8 events,
+with ``xmax=0.4921875``. EEGPrep retains each event only if its position within
+its original epoch is inside the crop, then recalculates its concatenated
+latency using the new epoch length.
+
 ``pop_selectevent`` emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can
 still be returned with no events (or only retained boundary events). EEGLAB

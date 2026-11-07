@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Cropping epoched data recalculates event latencies per epoch and preserves
+  cached ICA alignment. The tutorial selection retains 129 inclusive samples
+  and 8 events; the documented EEGLAB endpoint difference remains intentional
+  (F44, #548).
 - Select events warns when no events match and explains how to adjust the
   selection, including when boundary events are retained (F40, #548).
 - About this dataset preserves comment line breaks, including blank lines, in
