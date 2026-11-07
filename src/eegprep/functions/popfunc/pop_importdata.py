@@ -15,7 +15,9 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc._file_io import eeg_from_data, infer_dataformat, load_data_array
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
-from eegprep.functions.popfunc.pop_editset import pop_editset
+from eegprep.functions.popfunc.pop_editset import _history_value, pop_editset
+
+_DATA_FORMATS = ('array', 'ascii', 'float32le', 'float32be', 'matlab', 'auto')
 
 
 def pop_importdata(
@@ -24,14 +26,15 @@ def pop_importdata(
     """Import data from an array or supported file into an EEG dataset."""
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if gui is True or (gui is None and not options):
-        result = inputgui(pop_importdata_dialog_spec(datasets), initial_values=options, renderer=renderer)
+        initial = dict(options)
+        if 'dataformat' in initial:
+            initial['dataformat'] = _DATA_FORMATS.index(initial['dataformat']) + 1
+        result = inputgui(pop_importdata_dialog_spec(datasets), initial_values=initial, renderer=renderer)
         if result is None:
             empty = eeg_emptyset()
             return (empty, '') if return_com else empty
         options = {key: value for key, value in result.items() if value != ''}
-        options['dataformat'] = ('array', 'ascii', 'float32le', 'float32be', 'matlab', 'auto')[
-            int(result['dataformat']) - 1
-        ]
+        options['dataformat'] = _DATA_FORMATS[int(result['dataformat']) - 1]
         for key in ('srate', 'xmin'):
             options[key] = float(result[key] or 0)
         for key in ('nbchan', 'pnts'):
@@ -132,7 +135,7 @@ def _history_command(options: dict[str, Any], dataformat: str) -> str:
         "icasphere",
     ]:
         if key in values and _history_value_present(values[key]):
-            pieces.extend([format_history_value(key), format_history_value(values[key])])
+            pieces.extend([format_history_value(key), _history_value(values[key])])
     return f"EEG = pop_importdata({', '.join(pieces)});"
 
 

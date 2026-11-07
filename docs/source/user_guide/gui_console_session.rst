@@ -258,6 +258,19 @@ each epoch. The GUI defaults to seconds; the direct API retains its samples
 leaves them unchanged. Use ``return_com=True`` from a script to obtain the
 same command, or ``gui=True`` to open the options form.
 
+Presentation import selects a LOG file, then offers event-type, latency, and
+duration columns. The GUI defaults to ``Event Type``, ``Time``, and no duration;
+the direct API defaults to ``Code`` and ``Time``. History records the choices
+and timestamp units so the console can replay them.
+Undefined numeric options use Python's ``float('nan')`` in recorded commands.
+
+ERPLAB import takes an event list (numeric code, quoted label, event index)
+and a bin-definition file. It adds labels and simple/contrast bin membership
+to existing events while retaining their types and latencies. Use
+``pop_importerplab(EEG, "events.txt", "bins.txt", True)`` to also import
+non-contrast bins. Ordinary type/latency tables belong in ``pop_importevent``.
+Cancel in either form preserves the shared dataset and history.
+
 Stream 9 audit dispositions
 ---------------------------
 

@@ -44,6 +44,7 @@ def pop_loadcnt(
         )
         if result['lddur'].strip():
             options['lddur'] = float(result['lddur'])
+    history_options = dict(options)
     keystroke = _toggle(options.pop("keystroke", "off"), "keystroke")
     path = Path(filename).expanduser()
     cnt = loadcnt(path, **options)
@@ -62,7 +63,6 @@ def pop_loadcnt(
     for index, event in enumerate(events):
         event["urevent"] = index
     eeg["event"] = np.asarray(events, dtype=object)
-    history_options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     command = _history_command(path, history_options)
     eeg["history"] = command
     return (eeg, command) if return_com else eeg

@@ -4,6 +4,10 @@ import numpy as np
 import pytest
 
 from eegprep import pop_chanevent, pop_importdata, pop_importepoch, pop_importevent
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.popfunc.pop_importerplab import pop_importerplab
+from eegprep.functions.popfunc.pop_importpres import pop_importpres
 from tests.test_pop_loadset import _singleton_eeg
 
 
@@ -59,8 +63,6 @@ def test_f22_epoch_import_requires_field_mapping(tmp_path):
 
 
 def test_f10_erplab_maps_event_list_and_contrast_bins(tmp_path):
-    from eegprep.functions.popfunc.pop_importerplab import pop_importerplab
-
     event_list = tmp_path / 'events.txt'
     event_list.write_text('11 "Left target" 1\n12 "Right target" 2\n13 "Other" 3\n')
     bins = tmp_path / 'bins.txt'
@@ -77,12 +79,24 @@ def test_f10_erplab_maps_event_list_and_contrast_bins(tmp_path):
 
 
 def test_f10_presentation_history_retains_selected_fields(tmp_path):
-    from eegprep.functions.popfunc.pop_importpres import pop_importpres
-
     path = tmp_path / 'events.log'
     path.write_text('Presentation export\n\nEvent Type\tCode\tTime\tDuration\nPicture\tstim\t100\t20\n')
     eeg = _singleton_eeg(np.zeros((2, 100)))
-    out, command = pop_importpres(eeg, path, typefield='Event Type', latfield='Time', durfield='Duration', return_com=True)
+    out, command = pop_importpres(
+        eeg, path, typefield='Event Type', latfield='Time', durfield='Duration', return_com=True
+    )
     assert out['event'][0]['type'] == 'Picture'
     assert out['event'][0]['latency'] == 2
     assert "'Event Type', 'Time', 'Duration'" in command
+
+
+def test_f21_channel_metadata_history_replays():
+    eeg, command = pop_importdata(
+        data=np.arange(12).reshape(2, 6), chanlocs=[{'labels': 'Fz'}, {'labels': 'Cz'}], return_com=True
+    )
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True, command=command)
+    workspace = EEGPrepConsoleWorkspace(session)
+    workspace.execute_history_command(command)
+    assert [channel['labels'] for channel in session.EEG['chanlocs']] == ['Fz', 'Cz']
+    np.testing.assert_array_equal(session.EEG['data'], eeg['data'])

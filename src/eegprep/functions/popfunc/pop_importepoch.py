@@ -290,6 +290,8 @@ def pop_importepoch_dialog_spec(EEG) -> DialogSpec:
         function_name='pop_importepoch',
         help_text='pop_importepoch',
         eeglab_source='functions/popfunc/pop_importepoch.m',
-        geometry=([1, 1, 1.86], 1, [1, 0.66], *[[2.5, 1, 0.6]] * 3, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.17, 0.86]),
+        geometry=([1, 1, 1.86], 1, [1, 0.66], *[[2.5, 1, 1]] * 3, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.3, 0.7]),
         controls=tuple(controls),
+        weighted_columns=True,
+        size=(820, 350),
     )

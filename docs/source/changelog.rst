@@ -23,6 +23,11 @@ Unreleased
   Epoch-file import requires explicit column names and header-line counts
   (F19/F22). Channel-event extraction retains both types when falling and
   rising edges coincide (F20).
+- Presentation import offers type, latency, and duration column selection
+  and records the choices for replay. ERPLAB import maps event lists and
+  bin definitions onto existing events, with safe cancellation (F10/F31).
+  CNT history retains the selected start and duration; ASCII history can
+  replay imported channel metadata (F10/F21/F23).
 
 - MFF import selects the recording folder, and the MNE extra installs the XML
   parser required by its MFF reader (F18).

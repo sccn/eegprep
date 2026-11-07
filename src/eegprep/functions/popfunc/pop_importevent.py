@@ -80,7 +80,9 @@ def _import_event_records(
     fields = _fields(options.get("fields"))
     records = _load_records(event_source, fields, options)
     if any(
-        key.lower() in {'latency', 'type', 'duration'} and key != key.lower() for record in records for key in record
+        key.lower() in {'latency', 'type'} and key != key.lower() and key.lower() not in record
+        for record in records
+        for key in record
     ):
         raise ValueError(
             "pop_importevent: event keywords must be lowercase. Supply fields=['type', 'latency'] "
@@ -357,8 +359,14 @@ def _history_command(event_source: Any, options: dict[str, Any]) -> str:
         "optimmeas",
     ]:
         if key in options:
-            pieces.extend([format_history_value(key), format_history_value(options[key])])
+            pieces.extend(
+                [format_history_value(key), format_history_value(options[key], number_formatter=_history_number)]
+            )
     return f"EEG = pop_importevent(EEG, {', '.join(pieces)});"
+
+
+def _history_number(value: Any) -> str:
+    return "float('nan')" if math.isnan(value) else format_history_value(value)
 
 
 def _append_history(history: str, command: str) -> str:
@@ -387,7 +395,11 @@ def pop_importevent_dialog_spec(EEG) -> DialogSpec:
         ('Align event latencies to data events', 'align', '0' if len(EEG.get('event', [])) else 'NaN', 'See Help'),
     ]:
         controls.extend(
-            [ControlSpec('text', label), ControlSpec('edit', tag=tag, value=value), ControlSpec('text', hint)]
+            [
+                ControlSpec('text', label, font_weight='bold' if tag == 'fields' else None),
+                ControlSpec('edit', tag=tag, value=value),
+                ControlSpec('text', hint),
+            ]
         )
     controls.extend(
         [
@@ -403,4 +415,6 @@ def pop_importevent_dialog_spec(EEG) -> DialogSpec:
         eeglab_source='functions/popfunc/pop_importevent.m',
         geometry=([1, 1.1, 1.1, 1], [1, 1, 2], [1, 1, 2], *[[1.2, 1, 1]] * 4, [1.2, 0.2, 1.8]),
         controls=tuple(controls),
+        weighted_columns=True,
+        size=(1030, 310),
     )

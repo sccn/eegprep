@@ -272,4 +272,6 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         eeglab_source='functions/popfunc/pop_chanevent.m',
         geometry=tuple([[2, 1, 0.5]] * 8),
         controls=tuple(controls),
+        weighted_columns=True,
+        size=(640, 276),
     )

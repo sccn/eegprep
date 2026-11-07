@@ -672,6 +672,10 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
             eeg_out, command = pop_importevent(selection, gui=True, return_com=True)
+        elif action == "pop_importerplab":
+            from eegprep.functions.popfunc.pop_importerplab import pop_importerplab
+
+            eeg_out, command = pop_importerplab(selection, gui=True, return_com=True)
         else:
             filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
                 parent,
@@ -682,18 +686,10 @@ class MenuActionDispatcher:
             )
             if not filename:
                 return
-            if action == "pop_importepoch":
-                from eegprep.functions.popfunc.pop_importepoch import pop_importepoch
-
-                eeg_out, command = pop_importepoch(selection, filename, return_com=True)
-            elif action == "pop_importpres":
+            if action == "pop_importpres":
                 from eegprep.functions.popfunc.pop_importpres import pop_importpres
 
-                eeg_out, command = pop_importpres(selection, filename, return_com=True)
-            elif action == "pop_importerplab":
-                from eegprep.functions.popfunc.pop_importerplab import pop_importerplab
-
-                eeg_out, command = pop_importerplab(selection, filename, return_com=True)
+                eeg_out, command = pop_importpres(selection, filename, gui=True, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
