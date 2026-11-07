@@ -239,7 +239,8 @@ class QtDialogRenderer:
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
         elif style == "textarea":
-            widget = QtWidgets.QTextEdit("" if value is None else str(value))
+            widget = QtWidgets.QTextEdit()
+            widget.setPlainText("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
             if value is not None:

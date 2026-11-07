@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- About this dataset preserves comment line breaks, including blank lines, in
+  the editor and saved comments (F48, #548).
 - Extract epochs supports selecting several event types together in its picker
   (F124, #548).
 - Parks–McClellan Estimate opens the ripple/attenuation sub-dialog and leaves
