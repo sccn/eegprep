@@ -5,15 +5,23 @@ from __future__ import annotations
 from copy import deepcopy
 import logging
 import math
+from numbers import Real
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from scipy.optimize import fmin
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._file_io import events_to_records, read_table_records
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_text_tokens
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    parse_key_value_args,
+    parse_text_tokens,
+    parse_numeric_sequence,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -23,6 +31,8 @@ def pop_importevent(
     EEG: dict[str, Any],
     *args: Any,
     return_com: bool = False,
+    gui: bool | None = None,
+    renderer: Any = None,
     **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Import events from a text table or record array.
@@ -32,6 +42,17 @@ def pop_importevent(
     them. ``indices`` contains EEGLAB-facing 1-based event indices to update.
     """
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
+    if gui is True or (gui is None and not options):
+        result = inputgui(pop_importevent_dialog_spec(EEG), initial_values=options, renderer=renderer)
+        if result is None:
+            return (EEG, "") if return_com else EEG
+        options = {key: value for key, value in result.items() if value != ""}
+        options['append'] = 'yes' if result['append'] else 'no'
+        options['optimalign'] = 'on' if result['optimalign'] else 'off'
+        options['indices'] = parse_numeric_sequence(result.get('indices', ''), dtype=int)
+        options['skipline'] = int(result['skipline'])
+        options['timeunit'] = float(result['timeunit'])
+        options['align'] = float(result['align'])
     event_source = options.get("event", options.get("filename"))
     if event_source is None:
         raise ValueError("pop_importevent requires an event file or event records")
@@ -59,6 +80,15 @@ def _import_event_records(
 ) -> list[dict[str, Any]]:
     fields = _fields(options.get("fields"))
     records = _load_records(event_source, fields, options)
+    if any(
+        key.lower() in {'latency', 'type'} and key != key.lower() and key.lower() not in record
+        for record in records
+        for key in record
+    ):
+        raise ValueError(
+            "pop_importevent: event keywords must be lowercase. Supply fields=['type', 'latency'] "
+            "in column order and skipline=1 for a header, or rename the header fields."
+        )
     old_events = events_to_records(oldevent)
     indices = _event_indices(options.get("indices"), len(old_events))
     append = _is_on(options.get("append", "yes")) or bool(indices)
@@ -73,6 +103,11 @@ def _import_event_records(
             logger.warning("importevent: alignment and append were both requested; applying EEGLAB behavior")
 
     events, imported_indices = _merge_records(old_events, records, append=append, indices=indices)
+    if any('latency' not in event for event in events):
+        raise ValueError(
+            "pop_importevent: imported events need a lowercase latency field. "
+            "Set fields in column order and skipline to the number of header lines."
+        )
     _recompute_latencies(
         events,
         imported_indices,
@@ -325,9 +360,62 @@ def _history_command(event_source: Any, options: dict[str, Any]) -> str:
         "optimmeas",
     ]:
         if key in options:
-            pieces.extend([format_history_value(key), format_history_value(options[key])])
+            pieces.extend(
+                [format_history_value(key), format_history_value(options[key], number_formatter=_history_number)]
+            )
     return f"EEG = pop_importevent(EEG, {', '.join(pieces)});"
+
+
+def _history_number(value: Any) -> str:
+    return "float('nan')" if isinstance(value, Real) and math.isnan(value) else format_history_value(value)
 
 
 def _append_history(history: str, command: str) -> str:
     return command if not history else f"{history.rstrip()}\n{command}"
+
+
+def pop_importevent_dialog_spec(EEG) -> DialogSpec:
+    """Return the event-file options from pop_importevent.m."""
+    browse = CallbackSpec('select_file', {'button': 'browse', 'target': 'event', 'caption': 'Select a text file'})
+    controls = [
+        ControlSpec('text', 'Event indices', font_weight='bold'),
+        ControlSpec('text', 'Append events?', font_weight='bold'),
+        ControlSpec('text', 'Event file or array', font_weight='bold'),
+        ControlSpec('pushbutton', 'Browse', tag='browse', callback=browse),
+        ControlSpec('edit', tag='indices'),
+        ControlSpec('checkbox', tag='append', value=False),
+        ControlSpec('edit', tag='event'),
+        ControlSpec('spacer'),
+        ControlSpec('text', 'Unchecked = overwrite'),
+        ControlSpec('spacer'),
+    ]
+    for label, tag, value, hint in [
+        ('Input field (column) names', 'fields', '', 'Ex: type latency duration'),
+        ('Number of file header lines', 'skipline', '0', '(lowercase latency field required)'),
+        ('Time unit (sec)', 'timeunit', '1', 'If ms, 1E-3; if points, NaN'),
+        ('Align event latencies to data events', 'align', '0' if len(EEG.get('event', [])) else 'NaN', 'See Help'),
+    ]:
+        controls.extend(
+            [
+                ControlSpec('text', label, font_weight='bold' if tag == 'fields' else None),
+                ControlSpec('edit', tag=tag, value=value),
+                ControlSpec('text', hint),
+            ]
+        )
+    controls.extend(
+        [
+            ControlSpec('text', 'Auto adjust new events sampling rate'),
+            ControlSpec('checkbox', tag='optimalign', value=True),
+            ControlSpec('spacer'),
+        ]
+    )
+    return DialogSpec(
+        title='Import event info -- pop_importevent()',
+        function_name='pop_importevent',
+        help_text='pop_importevent',
+        eeglab_source='functions/popfunc/pop_importevent.m',
+        geometry=([1, 1.1, 1.1, 1], [1, 1, 2], [1, 1, 2], *[[1.2, 1, 1]] * 4, [1.2, 0.2, 1.8]),
+        controls=tuple(controls),
+        weighted_columns=True,
+        size=(1030, 310),
+    )

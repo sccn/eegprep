@@ -4,23 +4,26 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+import struct
+from typing import Any
 
 import numpy as np
 import scipy.io
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.extras import import_optional_dependency
 
-if TYPE_CHECKING:
-    import mne
-
-from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.popfunc._file_io import eeg_from_data, mne_raw_to_eeg
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_importdata import pop_importdata
 from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
 from eegprep.functions.popfunc.pop_loadset import _is_hdf5_file, pop_loadset
 from eegprep.functions.popfunc.pop_select import pop_select
+from eegprep.functions.popfunc.pop_readegi import pop_readegi
+from eegprep.functions.sigprocfunc.loadeeg import _detect_format, loadeeg
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,8 @@ def pop_fileio(
     filename: str | Path,
     *args: Any,
     return_com: bool = False,
+    gui: bool = False,
+    renderer: Any = None,
     feature: str = "pop_fileio",
     **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
@@ -40,14 +45,28 @@ def pop_fileio(
     ``blockrange``, ``channels``, ``samples``, ``trials``, and reader options
     may be keywords or positional name/value pairs.
     """
-    path = Path(filename)
+    source_path = Path(filename)
+    path = source_path
     suffix = path.suffix.lower()
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    if gui:
+        result = inputgui(pop_fileio_dialog_spec(), renderer=renderer)
+        if result is None:
+            return ({}, '') if return_com else {}
+        for key in ('channels', 'samples', 'trials'):
+            if result[key].strip():
+                options[key] = parse_numeric_sequence(result[key], dtype=int)
     history_options = dict(options)
     blockrange = options.pop("blockrange", None)
     channels = options.pop("channels", None)
     samples = options.pop("samples", None)
     trials = options.pop("trials", None)
+    if suffix == '.eeg':
+        for header_suffix in ('.vhdr', '.ahdr'):
+            header = path.with_suffix(header_suffix)
+            if header.is_file():
+                path, suffix = header, header_suffix
+                break
     if suffix == ".set":
         eeg = pop_loadset(str(path))
     elif suffix == ".mat" and options.get("dataformat") != "matlab-array":
@@ -65,8 +84,32 @@ def pop_fileio(
             options["t1"] = start
             options["lddur"] = stop - start
         eeg = pop_loadcnt(path, **options)
-    elif suffix == ".vhdr" and blockrange is None:
-        eeg = pop_loadbv(path, srange=samples, chans=channels)
+    elif suffix == ".eeg":
+        eeg = _read_neuroscan_epochs(path, **options)
+    elif suffix == ".raw":
+        eeg = pop_readegi(path, **options)
+    elif suffix in {".vhdr", ".ahdr"}:
+        srange = samples
+        if blockrange is not None:
+            start, stop = _blockrange_values(blockrange)
+            metadata = pop_loadbv(path, metadata=True)
+            srate = metadata["srate"]
+            point_count = metadata["pnts"] * metadata["trials"]
+            first = round(start * srate)
+            last = min(round(stop * srate), point_count)
+            if first >= last:
+                raise ValueError(
+                    "pop_fileio: blockrange contains no samples. Choose a time range within the recording."
+                )
+            srange = [first + 1, last]
+            if samples is not None:
+                sample_first, sample_last = _inclusive_bounds(samples, "samples")
+                if sample_last > last - first:
+                    raise ValueError(
+                        "pop_fileio: samples exceed the blockrange. Choose sample indices within the time window."
+                    )
+                srange = [first + sample_first, first + sample_last]
+        eeg = pop_loadbv(path, srange=srange, chans=channels)
         channels = None
         samples = None
     else:
@@ -76,7 +119,7 @@ def pop_fileio(
             _crop_raw_to_blockrange(raw, blockrange)
         eeg = mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))
     eeg = _select_imported_data(eeg, channels=channels, samples=samples, trials=trials)
-    command = _history_command(path, history_options)
+    command = _history_command(source_path, history_options)
     eeg["history"] = command
     return (eeg, command) if return_com else eeg
 
@@ -101,18 +144,15 @@ def _reader_for_suffix(suffix: str, feature: str):
         return mne.io.read_raw_bdf
     if suffix == ".gdf":
         return mne.io.read_raw_gdf
-    if suffix == ".vhdr":
-        return mne.io.read_raw_brainvision
     if suffix == ".mff":
+        import_optional_dependency("defusedxml", feature=feature)
         return mne.io.read_raw_egi
     if suffix == ".cnt":
         return mne.io.read_raw_cnt
-    if suffix == ".eeg":
-        return mne.io.read_raw_brainvision
     raise ValueError(f"Unsupported File-IO import format: {suffix or '<none>'}")
 
 
-def _crop_raw_to_blockrange(raw: mne.io.BaseRaw, blockrange: Any) -> None:
+def _crop_raw_to_blockrange(raw: Any, blockrange: Any) -> None:
     start, stop = _blockrange_values(blockrange)
     recording_stop = raw.n_times / float(raw.info["sfreq"])
     if start >= recording_stop:
@@ -159,3 +199,65 @@ def _history_command(path: Path, options: dict[str, Any]) -> str:
     for key, value in options.items():
         pieces.extend([format_history_value(key), format_history_value(value, cell_for_sequence=None)])
     return f"EEG = pop_fileio({', '.join(pieces)});"
+
+
+def _read_neuroscan_epochs(path: Path, *, format="auto"):
+    signal, accepts, types, reaction_times, responses, labels, points, trials, rate, xmin, _ = loadeeg(
+        path,
+        format=format,
+    )
+    if not trials:
+        raise ValueError(f"pop_fileio: {path} has no complete Neuroscan sweeps. Restore an intact .EEG file.")
+    data = signal.reshape(len(labels), trials, points).transpose(0, 2, 1).astype(np.float32)
+    eeg = eeg_from_data(
+        data,
+        nbchan=len(labels),
+        srate=rate,
+        xmin=round(xmin * rate) / rate,
+        setname=path.stem,
+        filename=path.name,
+        filepath=str(path.parent),
+        chanlocs=[{"labels": label} for label in labels],
+    )
+    events = []
+    with path.open('rb') as stream:
+        data_format = _detect_format(stream) if format == "auto" else format
+        sample_size = 4 if data_format == "int32" else 2
+        for trial in range(trials):
+            stream.seek(900 + 75 * len(labels) + trial * (13 + points * len(labels) * sample_size) + 3)
+            correct = struct.unpack('<H', stream.read(2))[0]
+            values = (types[trial], accepts[trial], correct, responses[trial], reaction_times[trial])
+            for kind, value in zip(("trial", "accept", "correct", "response", "rt"), values):
+                events.append(
+                    {
+                        "type": kind,
+                        "value": float(value),
+                        "latency": trial * points + 1,
+                        "duration": points,
+                        "epoch": trial + 1,
+                        "offset": round(xmin * rate),
+                        "urevent": len(events),
+                    }
+                )
+    eeg['event'] = events
+    eeg['urevent'] = [{key: value for key, value in event.items() if key != 'urevent'} for event in events]
+    return eeg_checkset(eeg)
+
+
+def pop_fileio_dialog_spec() -> DialogSpec:
+    """Return File-IO channel, sample, and trial selections."""
+    return DialogSpec(
+        title='Import data using File-IO -- pop_fileio()',
+        function_name='pop_fileio',
+        help_text='pop_fileio',
+        eeglab_source='plugins/fileio/pop_fileio.m',
+        geometry=tuple([[2, 1]] * 3),
+        controls=(
+            ControlSpec('text', 'Channel list (default all)'),
+            ControlSpec('edit', tag='channels'),
+            ControlSpec('text', 'Sample range [first last] (default all)'),
+            ControlSpec('edit', tag='samples'),
+            ControlSpec('text', 'Trial range [first last] (default all)'),
+            ControlSpec('edit', tag='trials'),
+        ),
+    )

@@ -77,7 +77,11 @@ unless ``append="no"`` is supplied. Alignment can anchor imported rows to the
 existing event stream and optionally compensate for small clock-rate drift;
 ``indices`` uses 1-based event numbers when updating selected rows.
 
-``pop_importepoch`` accepts one row per epoch. It preserves the row metadata in
+``pop_importepoch`` accepts one row per epoch. Text files require ``fieldlist``
+in column order and ``headerlines=1`` when the first row contains column names.
+For example, a one-column TSV headed ``condition`` uses
+``pop_importepoch(EEG, "epochs.tsv", fieldlist=["condition"], headerlines=1)``.
+It preserves the row metadata in
 ``EEG["epoch"]`` and creates time-locking and latency-field events in
 ``EEG["event"]``. Event latencies are stored as 1-based absolute samples, and
 durations are stored as sample counts.

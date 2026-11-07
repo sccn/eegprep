@@ -590,14 +590,20 @@ def test_pop_importevent_replaces_sample_events_from_table(tmp_path, sample_eeg)
     assert "pop_importevent" in command
 
 
-def test_pop_importerplab_imports_sample_event_table(tmp_path, sample_eeg):
+def test_pop_importerplab_maps_sample_events(tmp_path, sample_eeg):
+    sample_eeg['event'] = [dict(event, type=index + 1) for index, event in enumerate(sample_eeg['event'])]
     event_file = tmp_path / "erplab_events.txt"
-    event_file.write_text("12 erpstim\n", encoding="utf-8")
+    codes = sorted({float(event['type']) for event in sample_eeg['event']})
+    event_file.write_text('\n'.join(f'{code} "Event {code}" {index}' for index, code in enumerate(codes, 1)))
+    bin_file = tmp_path / 'bins.txt'
+    bin_file.write_text('b1 = (1) label First\n')
 
-    imported, command = pop_importerplab(sample_eeg, event_file, return_com=True)
+    imported, command = pop_importerplab(sample_eeg, event_file, bin_file, return_com=True)
 
-    assert imported["event"][0]["type"] == "erpstim"
-    assert imported["event"][0]["latency"] == 12
+    assert len(imported['event']) == len(sample_eeg['event'])
+    assert imported["event"][0]["type"] == sample_eeg['event'][0]['type']
+    assert imported["event"][0]["latency"] == sample_eeg['event'][0]['latency']
+    assert imported['event'][0]['newtype'] == f"Event {float(sample_eeg['event'][0]['type'])}"
     assert "pop_importerplab" in command
 
 
@@ -618,7 +624,7 @@ def test_pop_importepoch_updates_sample_epoch_metadata(tmp_path, sample_eeg):
     rows = ["condition"] + [f"square_{index}" for index in range(1, int(epoched["trials"]) + 1)]
     epoch_file.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
-    imported, command = pop_importepoch(epoched, epoch_file, return_com=True)
+    imported, command = pop_importepoch(epoched, epoch_file, ['condition'], headerlines=1, return_com=True)
 
     assert len(imported["epoch"]) == epoched["trials"]
     assert imported["epoch"][0]["condition"] == "square_1"

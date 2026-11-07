@@ -7,9 +7,11 @@ from typing import Any, Sequence
 
 import numpy as np
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._file_io import eeg_from_data
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.sigprocfunc.readegi import readegi
 from eegprep.functions.sigprocfunc.readegilocs import readegilocs
@@ -22,6 +24,8 @@ def pop_readegi(
     fileloc: str | Path | None = "auto",
     *,
     return_com: bool = False,
+    gui: bool = False,
+    renderer: Any = None,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Import an EGI Simple Binary file.
 
@@ -34,6 +38,13 @@ def pop_readegi(
     ``epoc`` latency is the last sample of one of those trials, the pauses
     become the trial boundaries and the ``epoc`` events are removed.
     """
+    if gui:
+        result = inputgui(pop_readegi_dialog_spec(), renderer=renderer)
+        if result is None:
+            return ({}, '') if return_com else {}
+        datachunks = parse_numeric_sequence(result['datachunks'], dtype=int) or None
+        forceversion = int(result['forceversion']) if result['forceversion'].strip() else None
+        fileloc = result['fileloc'] or None
     path = Path(filename)
     header, trial_data, event_data, categories = readegi(path, datachunks, forceversion)
     command = _history_command(path, datachunks, forceversion, fileloc)
@@ -283,3 +294,22 @@ def _history_command(
 
 
 __all__ = ["pop_readegi"]
+
+
+def pop_readegi_dialog_spec() -> DialogSpec:
+    """Return EGI Simple Binary frame and location options."""
+    return DialogSpec(
+        title='Import EGI Simple Binary -- pop_readegi()',
+        function_name='pop_readegi',
+        help_text='pop_readegi',
+        eeglab_source='functions/popfunc/pop_readegi.m',
+        geometry=tuple([[2, 1]] * 3),
+        controls=(
+            ControlSpec('text', 'Frames or segments (default all)'),
+            ControlSpec('edit', tag='datachunks'),
+            ControlSpec('text', 'Force file version (blank = auto)'),
+            ControlSpec('edit', tag='forceversion'),
+            ControlSpec('text', 'Channel locations (auto, filename, or blank)'),
+            ControlSpec('edit', tag='fileloc', value='auto'),
+        ),
+    )
