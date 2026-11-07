@@ -994,58 +994,62 @@ MATLAB is not configured:
         outcome = run_repro("tests/fuzz/repros/pop_reref-numeric-1e-3.json")
         assert not outcome.diverged
 
-Open baseline precision finding (#542)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Baseline summation-order roundoff (#542)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`Finding #542 <https://github.com/sccn/eegprep/issues/542>`_ remains open.
-The `seed 20261105 artifact
-<https://github.com/sccn/eegprep/actions/runs/42081213810>`_ reports
-``pipeline|pop_rmbase:numeric`` with maximum absolute difference
-``7.105427357601002e-15``, maximum relative difference
-``4.739599671157742e-12``, and maximum-error finite index 3821.
-No baseline implementation, numerical tolerance, or baseline divergence
-classifier was changed during this investigation.
+`Finding #542 <https://github.com/sccn/eegprep/issues/542>`_ was settled as
+platform-specific baseline-mean summation roundoff in the
+`MATLAB capture and acceptance decision
+<https://github.com/sccn/eegprep/issues/542#issuecomment-6700428397>`_.
+EEGPrep keeps its existing ``rmbase`` and ``pop_rmbase`` reductions;
+the fuzz harness accepts only tightly bounded numeric differences for this
+target. The stored ``pop_rmbase`` absolute and relative tolerances remain
+zero, and other targets retain their existing comparisons.
 
-In EEGLAB ``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``,
-``pop_rmbase.m`` lines 162-167 select both time endpoints.
-For epoched data, lines 201-203 compute
-``mean(double(EEG.data(indc,pointrange,:)),2)`` per channel and then
-subtract the replicated mean. This branch does not call ``rmbase.m``.
-The latter loops over epochs and channels, computes ``nan_mean`` of
-double-precision baseline samples, and subtracts once. EEGPrep routes
-epoched data through ``rmbase``, which uses ``np.nanmean`` with a float64
-accumulator and subtracts once into the input floating dtype. With finite
-data these express the same calculation, but the MATLAB source does not
-specify the internal summation order of ``mean``.
+On jamming's MATLAB R2025b Update 1 / MKL 2024.1 / AVX2 CNR build,
+EEGLAB ``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``
+``pop_rmbase.m:201-203`` computes and subtracts per-channel means.
+The oracle-advanced input was bit-identical on both sides, with shape
+``(30, 192, 13)`` and baseline samples 1–65 (−500 through 0 ms).
+The first mean was ``-7.421567849802465`` in Python and
+``-7.421567849802467`` in MATLAB, a 2-ULP gap. Substituting MATLAB's
+means made all 74,880 corrected samples bit-identical.
 
-The saved crop has shape ``(32, 3840)``. Running the saved clean, reference,
-and epoch steps in Python produces float64 data of shape
-``(30, 192, 13)``. The baseline contains 65 samples, zero-based indices
-0 through 64, spanning -500 through 0 ms inclusively.
-Sequential float64 summation along those samples, division by 65, and
-subtraction exactly matches the current Python result. A contiguous
-baseline array with samples on the last axis, reduced by ``np.mean``,
-changes the result by at most ``7.105427357601002e-15``. Its maximum
-relative difference is ``9.479199340877801e-12`` and maximum-error finite
-index is 3299. These differ from the nightly report.
+The observed MATLAB reduction was sequential below 44 samples and used four
+interleaved accumulators from 44 samples onward. That rule reproduced all
+390 captured means and 16,560 probe means across 276 lengths and 1/2/4/8
+threads. It is not a portable reduction contract, so EEGPrep does not copy
+this implementation detail. The capture reproduced maximum absolute error
+``7.105427357601002e-15`` at finite index 3821. Maximum relative error was
+``9.479199342225629e-12`` versus the nightly report's
+``4.739599671157742e-12``; the nightly intermediate input was not saved.
 
-That experiment supports a reduction-order hypothesis; it does not
-establish MATLAB's order or show that the difference cannot be eliminated.
-The artifact stores the initial crop, not MATLAB's intermediate baseline
-input or means. The nightly pipeline advances from each oracle result,
-whereas the Python-only probe advances from Python results. Choosing a
-matching reduction order still requires MATLAB's input immediately before
-``pop_rmbase``, its time vector, selected points, per-channel ``tmpmean``,
-and output on that same input.
+After the ordinary comparison reports a numeric difference, the shared
+success comparator uses ``_rmbase_roundoff_is_known`` for ``pop_rmbase``
+only. Let ``M`` be the larger finite absolute output magnitude across both
+sides, with a floor of 1. The classifier accepts when
+``max_abs <= 4 * np.finfo(np.float64).eps * M``. The captured gap was
+less than ``eps * M``; a factor of four allows a few rounding steps without
+a fixed absolute allowance. On the capture, ``M = 65.51950259320964``
+and the bound is ``5.819300827277519e-14``.
 
-``test_rmbase_542_double_mean_and_inclusive_baseline`` locks exact,
-analytically known means for float32 and float64 inputs, both baseline
-endpoints, separate epochs, and a channel subset. Its 65-sample baseline
-contains ``2**24``, ``-2**24``, and 63 values of 65, so the mean is exactly
-63 before channel/epoch offsets. No error allowance is needed.
-``test_rmbase_542_finite_difference_is_still_reported`` ensures a finite
-difference of the reported magnitude remains a numeric finding in both
-standalone and pipeline comparisons at the unchanged tolerances.
+Both calls must succeed, shapes and finite masks must match, and non-finite
+values must agree (including NaN placement and infinity signs).
+Sampling rate, events, metadata, and any selected mask/extra comparisons
+still run. Accepted results retain their measured errors and identify
+platform-specific baseline-mean roundoff with ``#542`` in the detail.
+Standalone and pipeline comparisons share this rule; pipelines continue
+from the oracle EEG as usual.
+
+``test_rmbase_542_roundoff_acceptance`` accepts the captured-size gap and
+rejects ``1e-12`` on the same fixture in both paths. Bound tests cover
+below, exactly at, and above the threshold at multiple magnitudes, and
+verify that other targets still report the difference. Additional checks
+preserve structural, non-finite, metadata, event, sampling-rate, and
+exception findings. The existing
+``test_rmbase_542_double_mean_and_inclusive_baseline`` continues to check
+exact means, inclusive endpoints, float32/float64 output, and channel
+selection without changing the processing implementation.
 
 Full-Pipeline Parity Harness
 ----------------------------

@@ -1365,52 +1365,55 @@ MATLAB is not configured:</p>
     <span class="k">assert</span> <span class="ow">not</span> <span class="n">outcome</span><span class="o">.</span><span class="n">diverged</span>
 </pre></div>
 </div>
-<section id="open-baseline-precision-finding-542">
-<h4>Open baseline precision finding (#542)<a class="headerlink" href="#open-baseline-precision-finding-542" title="Link to this heading">#</a></h4>
-<p><a class="reference external" href="https://github.com/sccn/eegprep/issues/542">Finding #542</a> remains open.
-The <a class="reference external" href="https://github.com/sccn/eegprep/actions/runs/42081213810">seed 20261105 artifact</a> reports
-<code class="docutils literal notranslate"><span class="pre">pipeline|pop_rmbase:numeric</span></code> with maximum absolute difference
-<code class="docutils literal notranslate"><span class="pre">7.105427357601002e-15</span></code>, maximum relative difference
-<code class="docutils literal notranslate"><span class="pre">4.739599671157742e-12</span></code>, and maximum-error finite index 3821.
-No baseline implementation, numerical tolerance, or baseline divergence
-classifier was changed during this investigation.</p>
-<p>In EEGLAB <code class="docutils literal notranslate"><span class="pre">8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba</span></code>,
-<code class="docutils literal notranslate"><span class="pre">pop_rmbase.m</span></code> lines 162-167 select both time endpoints.
-For epoched data, lines 201-203 compute
-<code class="docutils literal notranslate"><span class="pre">mean(double(EEG.data(indc,pointrange,:)),2)</span></code> per channel and then
-subtract the replicated mean. This branch does not call <code class="docutils literal notranslate"><span class="pre">rmbase.m</span></code>.
-The latter loops over epochs and channels, computes <code class="docutils literal notranslate"><span class="pre">nan_mean</span></code> of
-double-precision baseline samples, and subtracts once. EEGPrep routes
-epoched data through <code class="docutils literal notranslate"><span class="pre">rmbase</span></code>, which uses <code class="docutils literal notranslate"><span class="pre">np.nanmean</span></code> with a float64
-accumulator and subtracts once into the input floating dtype. With finite
-data these express the same calculation, but the MATLAB source does not
-specify the internal summation order of <code class="docutils literal notranslate"><span class="pre">mean</span></code>.</p>
-<p>The saved crop has shape <code class="docutils literal notranslate"><span class="pre">(32,</span> <span class="pre">3840)</span></code>. Running the saved clean, reference,
-and epoch steps in Python produces float64 data of shape
-<code class="docutils literal notranslate"><span class="pre">(30,</span> <span class="pre">192,</span> <span class="pre">13)</span></code>. The baseline contains 65 samples, zero-based indices
-0 through 64, spanning -500 through 0 ms inclusively.
-Sequential float64 summation along those samples, division by 65, and
-subtraction exactly matches the current Python result. A contiguous
-baseline array with samples on the last axis, reduced by <code class="docutils literal notranslate"><span class="pre">np.mean</span></code>,
-changes the result by at most <code class="docutils literal notranslate"><span class="pre">7.105427357601002e-15</span></code>. Its maximum
-relative difference is <code class="docutils literal notranslate"><span class="pre">9.479199340877801e-12</span></code> and maximum-error finite
-index is 3299. These differ from the nightly report.</p>
-<p>That experiment supports a reduction-order hypothesis; it does not
-establish MATLAB’s order or show that the difference cannot be eliminated.
-The artifact stores the initial crop, not MATLAB’s intermediate baseline
-input or means. The nightly pipeline advances from each oracle result,
-whereas the Python-only probe advances from Python results. Choosing a
-matching reduction order still requires MATLAB’s input immediately before
-<code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code>, its time vector, selected points, per-channel <code class="docutils literal notranslate"><span class="pre">tmpmean</span></code>,
-and output on that same input.</p>
-<p><code class="docutils literal notranslate"><span class="pre">test_rmbase_542_double_mean_and_inclusive_baseline</span></code> locks exact,
-analytically known means for float32 and float64 inputs, both baseline
-endpoints, separate epochs, and a channel subset. Its 65-sample baseline
-contains <code class="docutils literal notranslate"><span class="pre">2**24</span></code>, <code class="docutils literal notranslate"><span class="pre">-2**24</span></code>, and 63 values of 65, so the mean is exactly
-63 before channel/epoch offsets. No error allowance is needed.
-<code class="docutils literal notranslate"><span class="pre">test_rmbase_542_finite_difference_is_still_reported</span></code> ensures a finite
-difference of the reported magnitude remains a numeric finding in both
-standalone and pipeline comparisons at the unchanged tolerances.</p>
+<section id="baseline-summation-order-roundoff-542">
+<h4>Baseline summation-order roundoff (#542)<a class="headerlink" href="#baseline-summation-order-roundoff-542" title="Link to this heading">#</a></h4>
+<p><a class="reference external" href="https://github.com/sccn/eegprep/issues/542">Finding #542</a> was settled as
+platform-specific baseline-mean summation roundoff in the
+<a class="reference external" href="https://github.com/sccn/eegprep/issues/542#issuecomment-6700428397">MATLAB capture and acceptance decision</a>.
+EEGPrep keeps its existing <code class="docutils literal notranslate"><span class="pre">rmbase</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code> reductions;
+the fuzz harness accepts only tightly bounded numeric differences for this
+target. The stored <code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code> absolute and relative tolerances remain
+zero, and other targets retain their existing comparisons.</p>
+<p>On jamming’s MATLAB R2025b Update 1 / MKL 2024.1 / AVX2 CNR build,
+EEGLAB <code class="docutils literal notranslate"><span class="pre">d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4</span></code>
+<code class="docutils literal notranslate"><span class="pre">pop_rmbase.m:201-203</span></code> computes and subtracts per-channel means.
+The oracle-advanced input was bit-identical on both sides, with shape
+<code class="docutils literal notranslate"><span class="pre">(30,</span> <span class="pre">192,</span> <span class="pre">13)</span></code> and baseline samples 1–65 (−500 through 0 ms).
+The first mean was <code class="docutils literal notranslate"><span class="pre">-7.421567849802465</span></code> in Python and
+<code class="docutils literal notranslate"><span class="pre">-7.421567849802467</span></code> in MATLAB, a 2-ULP gap. Substituting MATLAB’s
+means made all 74,880 corrected samples bit-identical.</p>
+<p>The observed MATLAB reduction was sequential below 44 samples and used four
+interleaved accumulators from 44 samples onward. That rule reproduced all
+390 captured means and 16,560 probe means across 276 lengths and 1/2/4/8
+threads. It is not a portable reduction contract, so EEGPrep does not copy
+this implementation detail. The capture reproduced maximum absolute error
+<code class="docutils literal notranslate"><span class="pre">7.105427357601002e-15</span></code> at finite index 3821. Maximum relative error was
+<code class="docutils literal notranslate"><span class="pre">9.479199342225629e-12</span></code> versus the nightly report’s
+<code class="docutils literal notranslate"><span class="pre">4.739599671157742e-12</span></code>; the nightly intermediate input was not saved.</p>
+<p>After the ordinary comparison reports a numeric difference, the shared
+success comparator uses <code class="docutils literal notranslate"><span class="pre">_rmbase_roundoff_is_known</span></code> for <code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code>
+only. Let <code class="docutils literal notranslate"><span class="pre">M</span></code> be the larger finite absolute output magnitude across both
+sides, with a floor of 1. The classifier accepts when
+<code class="docutils literal notranslate"><span class="pre">max_abs</span> <span class="pre">&lt;=</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">np.finfo(np.float64).eps</span> <span class="pre">*</span> <span class="pre">M</span></code>. The captured gap was
+less than <code class="docutils literal notranslate"><span class="pre">eps</span> <span class="pre">*</span> <span class="pre">M</span></code>; a factor of four allows a few rounding steps without
+a fixed absolute allowance. On the capture, <code class="docutils literal notranslate"><span class="pre">M</span> <span class="pre">=</span> <span class="pre">65.51950259320964</span></code>
+and the bound is <code class="docutils literal notranslate"><span class="pre">5.819300827277519e-14</span></code>.</p>
+<p>Both calls must succeed, shapes and finite masks must match, and non-finite
+values must agree (including NaN placement and infinity signs).
+Sampling rate, events, metadata, and any selected mask/extra comparisons
+still run. Accepted results retain their measured errors and identify
+platform-specific baseline-mean roundoff with <code class="docutils literal notranslate"><span class="pre">#542</span></code> in the detail.
+Standalone and pipeline comparisons share this rule; pipelines continue
+from the oracle EEG as usual.</p>
+<p><code class="docutils literal notranslate"><span class="pre">test_rmbase_542_roundoff_acceptance</span></code> accepts the captured-size gap and
+rejects <code class="docutils literal notranslate"><span class="pre">1e-12</span></code> on the same fixture in both paths. Bound tests cover
+below, exactly at, and above the threshold at multiple magnitudes, and
+verify that other targets still report the difference. Additional checks
+preserve structural, non-finite, metadata, event, sampling-rate, and
+exception findings. The existing
+<code class="docutils literal notranslate"><span class="pre">test_rmbase_542_double_mean_and_inclusive_baseline</span></code> continues to check
+exact means, inclusive endpoints, float32/float64 output, and channel
+selection without changing the processing implementation.</p>
 </section>
 </section>
 <section id="full-pipeline-parity-harness">
@@ -1861,7 +1864,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-discovery">Test Discovery</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#continuous-integration">Continuous Integration</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nightly-differential-fuzzing">Nightly differential fuzzing</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#open-baseline-precision-finding-542">Open baseline precision finding (#542)</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#baseline-summation-order-roundoff-542">Baseline summation-order roundoff (#542)</a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-pipeline-parity-harness">Full-Pipeline Parity Harness</a><ul class="nav section-nav flex-column">
