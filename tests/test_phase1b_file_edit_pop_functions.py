@@ -310,6 +310,23 @@ def test_pop_selectevent_matches_nonnumeric_event_types_without_selecting_every_
     assert [event["type"] for event in out["event"]] == ["target"]
 
 
+@pytest.mark.parametrize("criterion", [255, "255", ["255"], "255.0"])
+def test_numeric_event_selection_records_numeric_history(criterion):
+    eeg = _eeg()
+    eeg["event"][0]["type"] = 255.0
+    eeg["event"][1]["type"] = 254.0
+
+    out, command = pop_selectevent(eeg, type=criterion, deleteevents="on", return_com=True)
+
+    assert [event["type"] for event in out["event"]] == [255.0]
+    assert "'255'" not in command and "'255.0'" not in command
+    namespace = {"EEG": eeg, "pop_selectevent": lambda *args, **kwargs: pop_selectevent(*args, **kwargs)[0]}
+    exec(_console_python_command(command), namespace)
+    assert [event["type"] for event in namespace["EEG"]["event"]] == [255.0]
+    np.testing.assert_array_equal(out["data"], eeg["data"])
+    assert out["data"].dtype == eeg["data"].dtype
+
+
 @pytest.mark.parametrize("with_boundary", [False, True])
 def test_pop_selectevent_warns_when_no_events_match(with_boundary):
     eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
@@ -322,6 +339,17 @@ def test_pop_selectevent_warns_when_no_events_match(with_boundary):
     assert len(out["event"]) == int(with_boundary)
     assert len(selected) == int(with_boundary)
     np.testing.assert_array_equal(out["data"], eeg["data"])
+
+
+def test_numeric_looking_string_event_types_keep_text_history():
+    eeg = _eeg()
+    eeg["event"][0]["type"] = "255"
+    eeg["event"][1]["type"] = "254"
+
+    out, command = pop_selectevent(eeg, type="255", deleteevents="on", return_com=True)
+
+    assert [event["type"] for event in out["event"]] == ["255"]
+    assert "'type', '255'" in command
 
 
 def test_pop_selectevent_renames_selected_types_and_keeps_old_type_field():

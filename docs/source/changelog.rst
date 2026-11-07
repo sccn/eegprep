@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Event selection records numeric criteria for numeric event codes and preserves
+  string codes as text. Data selection preserves input precision; embedded
+  save precision remains with the S1 stream (F50, #548).
 - Cropping epoched data recalculates event latencies per epoch and preserves
   cached ICA alignment. The tutorial selection retains 129 inclusive samples
   and 8 events; the documented EEGLAB endpoint difference remains intentional

@@ -45,6 +45,7 @@ def pop_selectevent(
         if result is None:
             return (EEG, "") if return_com else (EEG, [])
         options.update(result)
+    options = _numeric_type_criteria(EEG, options)
     if isinstance(EEG, list):
         outputs = []
         indices = []
@@ -57,6 +58,28 @@ def pop_selectevent(
     output, selected = _apply_selectevent_one(EEG, options)
     command = _history_command(options)
     return (output, command) if return_com else (output, selected)
+
+
+def _numeric_type_criteria(EEG, options):
+    datasets = EEG if isinstance(EEG, list) else [EEG]
+    event_types = [
+        event.get("type")
+        for dataset in datasets
+        for event in events_as_list(dataset.get("event"))
+        if not is_boundary_event(event)
+    ]
+    if not event_types or not all(isinstance(value, (int, float, np.number)) for value in event_types):
+        return options
+    options = dict(options)
+    for key in ("type", "omittype"):
+        if key not in options:
+            continue
+        value = options[key]
+        if isinstance(value, (list, tuple, np.ndarray)):
+            options[key] = [number if (number := _to_float(item)) is not None else item for item in value]
+        elif (number := _to_float(value)) is not None:
+            options[key] = number
+    return options
 
 
 def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:

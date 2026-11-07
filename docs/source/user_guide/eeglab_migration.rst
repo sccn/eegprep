@@ -32,6 +32,19 @@ What Carries Over
 What Changes
 ============
 
+``pop_select`` and ``pop_selectevent`` preserve the input data precision.
+Selecting imported BDF data in float64 does not round it to float32. Embedded
+``.set`` save precision is a separate serialization policy; two-file ``.fdt``
+storage uses float32. Release-readiness F50's embedded-save policy is assigned
+to stream S1, outside the selection fixes.
+
+Event selection accepts numeric codes and their textual spelling, such as
+``255`` and ``'255'``. For a dataset with numeric event types, its history
+records numeric criteria, avoiding EEGLAB's silent mismatch with a string cell
+selector. Numeric-looking string event types remain strings. When cropping
+introduces a text ``boundary`` event, event consistency can convert all types
+to strings, as in EEGLAB.
+
 Epoch cropping with ``pop_select`` includes both endpoints, as its time and
 point range documentation specifies. EEGLAB ``pop_select.m`` calls ``epoch``
 with an upper-exclusive window and drops the final sample. For the tutorial
