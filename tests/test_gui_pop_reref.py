@@ -4,7 +4,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
-from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.functions.popfunc.pop_reref import pop_reref, pop_reref_dialog_spec
 
 
 class PopRerefGuiSpecTests(unittest.TestCase):
@@ -111,3 +111,18 @@ class PopRerefGuiSpecTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_reref_qt_validation_accepts_last_channel_and_rejects_zero():
+
+    renderer = QtDialogRenderer()
+    spec = pop_reref_dialog_spec(channel_labels=("A", "B", "C"))
+    _app, dialog, widgets = renderer.build_dialog(spec)
+    try:
+        widgets["exclude"].setText("3")
+        assert renderer._validate_pop_reref_dialog(spec, widgets) is None
+        widgets["exclude"].setText("0")
+        message = renderer._validate_pop_reref_dialog(spec, widgets)
+        assert "pop_reref" in message and "1..3" in message
+    finally:
+        dialog.close()
