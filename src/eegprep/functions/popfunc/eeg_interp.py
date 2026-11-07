@@ -23,7 +23,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
     bad_chans : list, array-like, or list of dicts
-        Channel names, channel indices, or channel-location dictionaries.
+        Channel names, 1-based channel indices (channel 1 is the first
+        channel, as in EEGLAB), or channel-location dictionaries.
         When channel-location dictionaries are provided, the function can
         return unchanged data for identical locations, append new channels when
         no existing locations overlap, or remap data when existing channels are
@@ -106,11 +107,11 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         location_channels = True
         EEG, bad_idx = _handle_chanloc_interpolation(EEG, bad_chans)
         locs = EEG['chanlocs']
-    elif isinstance(bad_chans, list) and len(bad_chans) > 0 and isinstance(bad_chans[0], str):
+    elif np.size(bad_chans) > 0 and isinstance(np.ravel(bad_chans)[0], str):
         labels = [ch['labels'] for ch in locs]
-        bad_idx = [labels.index(lbl) for lbl in bad_chans]
+        bad_idx = [labels.index(lbl) for lbl in np.ravel(bad_chans)]
     else:
-        bad_idx = sorted(bad_chans)
+        bad_idx = _zero_based_channels(bad_chans, EEG['nbchan'])
 
     # If no channels to interpolate, return as-is
     if len(bad_idx) == 0:
@@ -185,6 +186,29 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         # Original was 3D epoched data or needs to be 3D
         EEG['data'] = full.reshape(EEG['nbchan'], EEG['pnts'], EEG['trials'])
     return EEG
+
+
+def _zero_based_channels(bad_chans, nbchan):
+    values = np.asarray([] if bad_chans is None else bad_chans)
+    if values.size == 0:
+        return []
+    if values.dtype.kind not in {"i", "u", "f"}:
+        raise ValueError(
+            f"eeg_interp: bad_chans must be channel numbers from 1 to {nbchan}, channel labels, "
+            "or channel-location dictionaries."
+        )
+    flat = values.astype(float, copy=False).reshape(-1)
+    if np.any(~np.isfinite(flat)) or np.any(flat != np.trunc(flat)):
+        raise ValueError(
+            f"eeg_interp: channel indices must be whole numbers from 1 to {nbchan}. Channel 1 is the first channel."
+        )
+    indices = flat.astype(int)
+    outside = indices[(indices < 1) | (indices > nbchan)]
+    if outside.size:
+        raise ValueError(
+            f"eeg_interp: channel index {int(outside[0])} is outside 1..{nbchan}. Channel 1 is the first channel."
+        )
+    return sorted((indices - 1).tolist())
 
 
 def _sample_times_ms(EEG: dict, pnts: int) -> np.ndarray:

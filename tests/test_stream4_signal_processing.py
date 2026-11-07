@@ -158,8 +158,8 @@ def test_f58_plotfresp_names_the_function_for_a_nonlinear_filter():
 
 def test_f59_full_range_list_does_not_restore_the_second_to_last_sample():
     eeg = _continuous()
-    listed = eeg_interp(eeg, [0], method="spherical", t_range=[eeg["xmin"], eeg["xmax"]])
-    whole = eeg_interp(eeg, [0], method="spherical")
+    listed = eeg_interp(eeg, [1], method="spherical", t_range=[eeg["xmin"], eeg["xmax"]])
+    whole = eeg_interp(eeg, [1], method="spherical")
     np.testing.assert_array_equal(listed["data"], whole["data"])
     assert not np.array_equal(listed["data"][0, -2], eeg["data"][0, -2])
 
@@ -179,18 +179,18 @@ def test_eeg_interp_time_range_requires_sample_times():
     eeg = _continuous()
     del eeg["times"]
     with pytest.raises(ValueError, match="eeg_checkset"):
-        eeg_interp(eeg, [0], method="spherical", t_range=(0.2, 0.5))
+        eeg_interp(eeg, [1], method="spherical", t_range=(0.2, 0.5))
     eeg = _continuous()
     eeg["times"] = eeg["times"][:-1]
     with pytest.raises(ValueError, match="eeg_checkset"):
-        eeg_interp(eeg, [0], method="spherical", t_range=(0.2, 0.5))
+        eeg_interp(eeg, [1], method="spherical", t_range=(0.2, 0.5))
 
 
 def test_f59_partial_range_includes_both_endpoints_and_keeps_the_final_sample():
     eeg = _continuous()
     start, end = 0.2, 0.5
-    partial = eeg_interp(eeg, [0], method="spherical", t_range=(start, end))
-    whole = eeg_interp(eeg, [0], method="spherical")
+    partial = eeg_interp(eeg, [1], method="spherical", t_range=(start, end))
+    whole = eeg_interp(eeg, [1], method="spherical")
     times = eeg["times"]
     outside = (times < start * 1000.0) | (times > end * 1000.0)
     inside = ~outside
@@ -206,7 +206,7 @@ def test_f59_epoched_range_restores_every_trial():
     eeg["trials"] = 3
     eeg["data"] = np.random.default_rng(3).normal(size=(8, eeg["pnts"], 3))
     start, end = 0.2, 0.5
-    partial = eeg_interp(eeg, [0], method="spherical", t_range=(start, end))
+    partial = eeg_interp(eeg, [1], method="spherical", t_range=(start, end))
     outside = (eeg["times"] < start * 1000.0) | (eeg["times"] > end * 1000.0)
     np.testing.assert_array_equal(partial["data"][0, outside, :], eeg["data"][0, outside, :])
 
@@ -231,13 +231,15 @@ def test_f60_pop_interp_honours_a_scripted_time_range():
     assert "line 61" in help_text
 
 
-def test_pop_interp_channel_indices_are_one_based():
+@pytest.mark.parametrize("interp", [pop_interp, eeg_interp])
+def test_interp_channel_indices_are_one_based(interp):
     eeg = _continuous()
-    interpolated = pop_interp(eeg, [2], "spherical")
+    interpolated = interp(eeg, [2], "spherical")
     np.testing.assert_array_equal(interpolated["data"][0], eeg["data"][0])
     assert not np.array_equal(interpolated["data"][1], eeg["data"][1])
-    with pytest.raises(ValueError, match="pop_interp: channel index 0"):
-        pop_interp(eeg, [0], "spherical")
+    for outside in (0, 9):
+        with pytest.raises(ValueError, match=rf"channel index {outside} is outside 1\.\.8"):
+            interp(eeg, [outside], "spherical")
 
 
 def test_f69_kurtosis_subset_uses_fix_rand_on_the_twister_stream():

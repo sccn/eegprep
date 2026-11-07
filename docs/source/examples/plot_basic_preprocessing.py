@@ -245,7 +245,7 @@ if len(bad_channels) > 0:
         'chanlocs': chanlocs,
         'etc': {},
     }
-    EEG_interp_result = eegprep.eeg_interp(EEG_interp_dict, bad_chans=bad_channels)
+    EEG_interp_result = eegprep.eeg_interp(EEG_interp_dict, bad_chans=bad_channels + 1)
     interpolated_data = EEG_interp_result['data']
     print(f"Interpolated data shape: {interpolated_data.shape}")
 else:
