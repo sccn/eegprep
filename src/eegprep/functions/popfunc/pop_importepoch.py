@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._file_io import events_to_records, read_table_records
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_text_tokens
@@ -19,6 +21,8 @@ def pop_importepoch(
     fieldlist: list[str] | tuple[str, ...] | str | None = None,
     *args: Any,
     return_com: bool = False,
+    gui: bool | None = None,
+    renderer: Any = None,
     **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Import per-epoch metadata and construct its corresponding events.
@@ -27,12 +31,26 @@ def pop_importepoch(
     events at epoch-relative times, while ``typefield`` names the time-locking
     event at zero. Latencies and durations are stored in samples.
     """
-    if filename is None:
-        filename = kwargs.pop("filename", None)
-    if filename is None:
-        raise ValueError("pop_importepoch requires an epoch info file")
+    filename = filename if filename is not None else kwargs.pop('filename', None)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
+    if gui is True or (gui is None and filename is None):
+        initial = dict(options, filename=str(filename or ''), fieldlist=' '.join(_tokens(fieldlist) or []))
+        result = inputgui(pop_importepoch_dialog_spec(EEG), initial_values=initial, renderer=renderer)
+        if result is None:
+            return (EEG, '') if return_com else EEG
+        filename, fieldlist = result.pop('filename'), result.pop('fieldlist')
+        options = {key: value for key, value in result.items() if value != ''}
+        options['clearevents'] = 'on' if result['clearevents'] else 'off'
+        options['timeunit'] = float(result['timeunit'])
+        options['headerlines'] = int(result['headerlines'])
+    if filename is None or (isinstance(filename, str) and not filename):
+        raise ValueError('pop_importepoch: epoch file is missing. Select a file and enter its field names.')
     fields = _tokens(fieldlist)
+    if isinstance(filename, (str, Path)) and not fields:
+        raise ValueError(
+            "pop_importepoch: field names are required for an epoch file. "
+            "Supply fieldlist in column order and headerlines=1 when the file has a header."
+        )
     records = _load_records(filename, fields, headerlines=_scalar_int(options.get("headerlines", 0)))
     if fields is None:
         fields = list(records[0]) if records else []
@@ -234,3 +252,44 @@ def _history_command(filename: Any, fields: list[str] | None, options: dict[str,
         if key in options:
             pieces.extend([format_history_value(key), format_history_value(options[key])])
     return f"EEG = pop_importepoch(EEG, {', '.join(pieces)});"
+
+
+def pop_importepoch_dialog_spec(EEG) -> DialogSpec:
+    """Return the epoch-file fields and event conversion options."""
+    browse = CallbackSpec('select_file', {'button': 'browse', 'target': 'filename', 'caption': 'Select a text file'})
+    controls = [
+        ControlSpec('text', 'Epoch file or array', font_weight='bold'),
+        ControlSpec('pushbutton', 'Browse', tag='browse', callback=browse),
+        ControlSpec('edit', tag='filename'),
+        ControlSpec('spacer'),
+        ControlSpec('text', 'File input field (col.) names', font_weight='bold'),
+        ControlSpec('edit', tag='fieldlist'),
+    ]
+    for label, tag, hint in [
+        ('Field name(s) containing event latencies', 'latencyfields', '(Ex: RT)'),
+        ('Field name(s) containing event durations', 'durationfields', '0 = no duration'),
+        ('Field containing time-locking event type(s)', 'typefield', 'Default: TLE'),
+    ]:
+        controls.extend([ControlSpec('text', label), ControlSpec('edit', tag=tag), ControlSpec('text', hint)])
+    controls.extend(
+        [
+            ControlSpec('spacer'),
+            ControlSpec('text', 'Time unit (sec)'),
+            ControlSpec('edit', tag='timeunit', value='1'),
+            ControlSpec('spacer'),
+            ControlSpec('text', 'Number of file header lines'),
+            ControlSpec('edit', tag='headerlines', value='0'),
+            ControlSpec('spacer'),
+            ControlSpec('text', 'Remove old epoch and event info (set = yes)'),
+            ControlSpec('checkbox', tag='clearevents', value=not len(EEG.get('event', []))),
+            ControlSpec('spacer'),
+        ]
+    )
+    return DialogSpec(
+        title='Import epoch info (data epochs only) -- pop_importepoch()',
+        function_name='pop_importepoch',
+        help_text='pop_importepoch',
+        eeglab_source='functions/popfunc/pop_importepoch.m',
+        geometry=([1, 1, 1.86], 1, [1, 0.66], *[[2.5, 1, 0.6]] * 3, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.17, 0.86]),
+        controls=tuple(controls),
+    )

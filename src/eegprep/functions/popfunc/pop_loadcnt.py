@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
@@ -20,6 +22,8 @@ def pop_loadcnt(
     filename: str | Path,
     *args: Any,
     return_com: bool = False,
+    gui: bool = False,
+    renderer: Any = None,
     **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Load a Neuroscan CNT recording into an EEG dictionary.
@@ -29,6 +33,17 @@ def pop_loadcnt(
     response-only events are retained when ``keystroke="on"``.
     """
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
+    if gui:
+        result = inputgui(pop_loadcnt_dialog_spec(), renderer=renderer)
+        if result is None:
+            return ({}, '') if return_com else {}
+        options.update(
+            dataformat=('auto', 'int16', 'int32')[int(result['dataformat']) - 1],
+            t1=float(result['t1']),
+            keystroke='on' if result['keystroke'] else 'off',
+        )
+        if result['lddur'].strip():
+            options['lddur'] = float(result['lddur'])
     keystroke = _toggle(options.pop("keystroke", "off"), "keystroke")
     path = Path(filename).expanduser()
     cnt = loadcnt(path, **options)
@@ -139,3 +154,24 @@ def _toggle(value: Any, name: str) -> bool:
 
 
 __all__ = ["pop_loadcnt"]
+
+
+def pop_loadcnt_dialog_spec() -> DialogSpec:
+    """Return Neuroscan CNT precision, range, and event options."""
+    return DialogSpec(
+        title='Load Neuroscan CNT file -- pop_loadcnt()',
+        function_name='pop_loadcnt',
+        help_text='pop_loadcnt',
+        eeglab_source='plugins/neuroscanio/pop_loadcnt.m',
+        geometry=tuple([[2, 1]] * 4),
+        controls=(
+            ControlSpec('text', 'Data format'),
+            ControlSpec('popupmenu', 'Auto detect|16 bit|32 bit', tag='dataformat', value=1),
+            ControlSpec('text', 'Start time (seconds)'),
+            ControlSpec('edit', tag='t1', value='0'),
+            ControlSpec('text', 'Duration (seconds; blank = all)'),
+            ControlSpec('edit', tag='lddur'),
+            ControlSpec('text', 'Import keyboard responses'),
+            ControlSpec('checkbox', tag='keystroke', value=False),
+        ),
+    )

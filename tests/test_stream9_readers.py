@@ -1,6 +1,12 @@
 """Importer routing regressions for F18/F23/F119."""
 
 import struct
+from eegprep.functions.popfunc.pop_biosig import pop_biosig
+from tests.test_bids_load_frombids_helpers import _write_edf_bids_dataset
+from eegprep.functions.popfunc.pop_fileio import _reader_for_suffix
+from defusedxml.ElementTree import fromstring
+from eegprep import pop_loadbv
+from tests.test_pop_loadbv import _write_binary_brainvision
 
 import numpy as np
 import pytest
@@ -35,3 +41,38 @@ def test_f119_neuroscan_selection_keeps_trial_metadata(tmp_path):
     assert eeg['data'].shape[:2] == (1, 3)
     assert eeg['chanlocs'][0]['labels'] == 'Cz'
     assert eeg['event'][0]['value'] == 12
+
+
+def test_f10_biosig_reference_range_and_event_controls(tmp_path):
+
+    path = _write_edf_bids_dataset(tmp_path)
+    original = pop_biosig(path)
+    selected, command = pop_biosig(
+        path, blockrange=[0, 1], ref=[2], importevent='off', importannot='off', return_com=True
+    )
+    expected = original['data'][:, : int(original['srate'])] - original['data'][[1], : int(original['srate'])]
+    np.testing.assert_allclose(selected['data'], expected)
+    assert len(selected['event']) == 0
+    assert "'ref', [2]" in command
+
+
+def test_f18_mff_reader_has_xml_dependency():
+
+    assert fromstring('<mff><version>3</version></mff>').findtext('version') == '3'
+    assert _reader_for_suffix('.mff', 'pop_fileio').__name__ == 'read_raw_egi'
+
+
+def test_f23_brainvision_returns_single_precision(tmp_path):
+
+    path = _write_binary_brainvision(tmp_path, 'test', np.arange(10).reshape(2, 5))
+    eeg = pop_loadbv(path)
+    assert eeg['data'].dtype == np.float32
+    np.testing.assert_array_equal(eeg['data'], np.arange(10).reshape(2, 5))
+
+
+def test_f10_edf_annotations_are_independent_of_marker_events(tmp_path):
+    path = _write_edf_bids_dataset(tmp_path)
+    original = pop_biosig(path)
+    annotations = pop_biosig(path, importevent='off')
+    assert len(original['event']) > 0
+    assert [event['type'] for event in annotations['event']] == [event['type'] for event in original['event']]

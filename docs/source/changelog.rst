@@ -10,6 +10,20 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Import dialogs expose data shape, sampling, metadata, channel selection,
+  ranges, event fields, units, alignment, and epoch options. Cancel preserves
+  the dataset and history; accepted imports update the GUI and console
+  together (F10/F19/F21/F22). CNT and EGI Simple Binary imports use their
+  native readers; BrainVision import returns float32 samples (F23).
+- ASCII imports transpose samples-by-channels input, use float32 samples,
+  keep channel locations and the dataset name empty unless supplied, and
+  record the effective sampling rate. Epoch reshaping keeps consecutive
+  samples together (F21).
+- Event import rejects capitalized reserved fields with correction advice.
+  Epoch-file import requires explicit column names and header-line counts
+  (F19/F22). Channel-event extraction retains both types when falling and
+  rising edges coincide (F20).
+
 - MFF import selects the recording folder, and the MNE extra installs the XML
   parser required by its MFF reader (F18).
 - Neuroscan ``.EEG`` import uses the native epoch reader and retains sweep

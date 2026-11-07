@@ -1062,7 +1062,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         ):
             dispatcher.dispatch("pop_fileio_brainvision")
 
-        loadbv.assert_called_once_with("/tmp/recording.vhdr", return_com=True)
+        loadbv.assert_called_once_with("/tmp/recording.vhdr", gui=True, return_com=True)
         self.assertEqual(session.EEG["setname"], "brainvision")
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], command)

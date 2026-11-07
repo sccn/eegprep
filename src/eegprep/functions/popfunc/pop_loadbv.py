@@ -9,8 +9,10 @@ import warnings
 
 import numpy as np
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -39,6 +41,8 @@ def pop_loadbv(
     chans: Any = None,
     metadata: bool = False,
     *,
+    gui: bool = False,
+    renderer: Any = None,
     return_com: Literal[False] = False,
 ) -> dict[str, Any]: ...
 
@@ -51,6 +55,8 @@ def pop_loadbv(
     chans: Any = None,
     metadata: bool = False,
     *,
+    gui: bool = False,
+    renderer: Any = None,
     return_com: Literal[True],
 ) -> tuple[dict[str, Any], str]: ...
 
@@ -62,6 +68,8 @@ def pop_loadbv(
     chans: Any = None,
     metadata: bool = False,
     *,
+    gui: bool = False,
+    renderer: Any = None,
     return_com: bool = False,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Load a BrainVision ``.vhdr`` recording.
@@ -82,6 +90,12 @@ def pop_loadbv(
         original BrainVision unit and resolution remain available as
         ``chanlocs[*]["bvunit"]`` and ``chanlocs[*]["bvresolution"]``.
     """
+    if gui:
+        result = inputgui(pop_loadbv_dialog_spec(), renderer=renderer)
+        if result is None:
+            return ({}, '') if return_com else {}
+        srange = parse_numeric_sequence(result['srange'], dtype=int) or None
+        chans = parse_numeric_sequence(result['chans'], dtype=int) or None
     header_path = _header_path(path, hdrfile)
     header = _read_configuration(header_path, expected_prefix=_HEADER_PREFIX)
     common = _section(header, "common infos")
@@ -130,6 +144,8 @@ def pop_loadbv(
         data = np.asarray(ascii_data[np.ix_(selected_channels, np.arange(first, stop))], dtype=float)
         data *= scales[:, np.newaxis]
 
+    if not metadata:
+        data = data.astype(np.float32)
     events = _read_events(
         header_path,
         common,
@@ -167,7 +183,7 @@ def _header_path(path: str | Path, hdrfile: str | Path | None) -> Path:
             candidate = base / candidate
     if candidate.suffix.lower() in {".eeg", ".dat"}:
         candidate = candidate.with_suffix(".vhdr")
-    if candidate.suffix.lower() != ".vhdr":
+    if candidate.suffix.lower() not in {".vhdr", ".ahdr"}:
         raise ValueError("pop_loadbv requires a BrainVision .vhdr header")
     resolved = _case_insensitive_file(candidate)
     if resolved is None:
@@ -633,7 +649,9 @@ def _referenced_file(header_path: Path, filename: str, *, fallback_suffixes: tup
         resolved = _case_insensitive_file(header_path.with_suffix(suffix))
         if resolved is not None:
             if resolved.resolve().parent != header_path.parent.resolve():
-                raise ValueError("pop_loadbv: companion link leaves the header directory. Copy the file beside the header.")
+                raise ValueError(
+                    "pop_loadbv: companion link leaves the header directory. Copy the file beside the header."
+                )
             return resolved
     raise FileNotFoundError(f"BrainVision referenced file not found: {candidate}")
 
@@ -779,3 +797,20 @@ def _history_selection(value: Any, name: str) -> str:
 
 
 __all__ = ["pop_loadbv"]
+
+
+def pop_loadbv_dialog_spec() -> DialogSpec:
+    """Return BrainVision channel and inclusive sample selections."""
+    return DialogSpec(
+        title='Load BrainVision data -- pop_loadbv()',
+        function_name='pop_loadbv',
+        help_text='pop_loadbv',
+        eeglab_source='plugins/bva-io/pop_loadbv.m',
+        geometry=([2, 1], [2, 1]),
+        controls=(
+            ControlSpec('text', 'Data range [first last] (default all samples)'),
+            ControlSpec('edit', tag='srange'),
+            ControlSpec('text', 'Channel list (default all)'),
+            ControlSpec('edit', tag='chans'),
+        ),
+    )

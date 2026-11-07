@@ -11,6 +11,8 @@ from typing import Any
 import numpy as np
 import scipy.io
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.extras import import_optional_dependency
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
@@ -34,6 +36,8 @@ def pop_fileio(
     filename: str | Path,
     *args: Any,
     return_com: bool = False,
+    gui: bool = False,
+    renderer: Any = None,
     feature: str = "pop_fileio",
     **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
@@ -45,6 +49,13 @@ def pop_fileio(
     path = Path(filename)
     suffix = path.suffix.lower()
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    if gui:
+        result = inputgui(pop_fileio_dialog_spec(), renderer=renderer)
+        if result is None:
+            return ({}, '') if return_com else {}
+        for key in ('channels', 'samples', 'trials'):
+            if result[key].strip():
+                options[key] = parse_numeric_sequence(result[key], dtype=int)
     history_options = dict(options)
     blockrange = options.pop("blockrange", None)
     channels = options.pop("channels", None)
@@ -214,3 +225,22 @@ def _read_neuroscan_epochs(path: Path, *, format="auto"):
     eeg['event'] = events
     eeg['urevent'] = [{key: value for key, value in event.items() if key != 'urevent'} for event in events]
     return eeg_checkset(eeg)
+
+
+def pop_fileio_dialog_spec() -> DialogSpec:
+    """Return File-IO channel, sample, and trial selections."""
+    return DialogSpec(
+        title='Import data using File-IO -- pop_fileio()',
+        function_name='pop_fileio',
+        help_text='pop_fileio',
+        eeglab_source='plugins/fileio/pop_fileio.m',
+        geometry=tuple([[2, 1]] * 3),
+        controls=(
+            ControlSpec('text', 'Channel list (default all)'),
+            ControlSpec('edit', tag='channels'),
+            ControlSpec('text', 'Sample range [first last] (default all)'),
+            ControlSpec('edit', tag='samples'),
+            ControlSpec('text', 'Trial range [first last] (default all)'),
+            ControlSpec('edit', tag='trials'),
+        ),
+    )

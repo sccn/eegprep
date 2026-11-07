@@ -7,7 +7,11 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
+from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from eegprep.functions.sigprocfunc.openbdf import openbdf
 from eegprep.functions.sigprocfunc.readbdf import readbdf
@@ -26,7 +30,7 @@ _EPOCH_END = 0xFFFE
 
 
 def pop_biosig(
-    filename: str | Path, *args: Any, return_com: bool = False, **kwargs: Any
+    filename: str | Path, *args: Any, return_com: bool = False, gui: bool = False, renderer: Any = None, **kwargs: Any
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Import BIOSIG-style EDF/BDF/GDF files, optionally over a time range.
 
@@ -42,12 +46,27 @@ def pop_biosig(
             "pop_biosig supports EDF, BDF, and GDF files. Use pop_fileio or pop_loadset for other formats."
         )
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    if gui:
+        result = inputgui(pop_biosig_dialog_spec(), renderer=renderer)
+        if result is None:
+            return ({}, '') if return_com else {}
+        for key in ('channels', 'ref', 'blockrange'):
+            if result[key].strip():
+                options[key] = parse_numeric_sequence(result[key], dtype=float if key == 'blockrange' else int)
+        options['bdfeventmode'] = int(result['bdfeventmode'])
+        for key in ('importevent', 'importannot', 'rmeventchan', 'memorymapped'):
+            options[key] = 'on' if result[key] else 'off'
     history_options = dict(options)
+    reference = parse_numeric_sequence(options.pop('ref', None), dtype=int)
+    import_annotations = _on_off('importannot', options.pop('importannot', 'on'))
+    memory_mapped = _on_off('memorymapped', options.pop('memorymapped', 'off'))
     event_mode = _bdf_event_mode(options.pop("bdfeventmode", 4))
     remove_event_channel = _on_off("rmeventchan", options.pop("rmeventchan", "on"))
     import_events = _on_off("importevent", options.pop("importevent", "on"))
     blockrange = options.get("blockrange")
     eeg, _command = pop_fileio(filename, return_com=True, feature="pop_biosig", **options)
+    if not import_annotations or (path.suffix.lower() == '.gdf' and not import_events):
+        eeg['event'], eeg['urevent'], eeg['epoch'] = [], [], []
     if path.suffix.lower() == ".bdf":
         eeg = _import_bdf_status_channel(
             eeg,
@@ -57,6 +76,15 @@ def pop_biosig(
             import_events=import_events,
             remove_event_channel=remove_event_channel,
         )
+    if reference is not None and len(reference):
+        indices = np.asarray(reference, dtype=int) - 1
+        if np.any(indices < 0) or np.any(indices >= eeg['nbchan']):
+            raise ValueError(
+                'pop_biosig: reference indices exceed the loaded channels. Enter 1-based indices in the selected channel list.'
+            )
+        eeg = pop_reref(eeg, indices, keepref='on' if len(indices) == 1 else 'off', gui=False)
+    if memory_mapped:
+        eeg['data'] = MemmapData.from_array(eeg['data'])
     arguments = [format_history_value(path)]
     for key, value in history_options.items():
         arguments.extend([format_history_value(key), format_history_value(value)])
@@ -343,3 +371,33 @@ def _drop_channel(eeg: dict[str, Any], index: int) -> None:
         eeg["chanlocs"] = np.asarray(locations, dtype=object)
     else:
         eeg["chanlocs"] = locations
+
+
+def pop_biosig_dialog_spec() -> DialogSpec:
+    """Return BIOSIG import selections supported by the Python readers."""
+    controls = []
+    for label, tag, default in [
+        ('Channel list (default all):', 'channels', ''),
+        ('Data range (in seconds) to read (default all)', 'blockrange', ''),
+        ('Reference chan(s) indices - recommended for BIOSEMI', 'ref', ''),
+        ('Event mode import (see bdf2biosig_events help)', 'bdfeventmode', '4'),
+    ]:
+        controls.extend([ControlSpec('text', label), ControlSpec('edit', tag=tag, value=default)])
+    for label, tag, default in [
+        ('Extract event from marker channel', 'importevent', True),
+        ('Remove marker channel', 'rmeventchan', True),
+        ('Import as memory mapped file', 'memorymapped', False),
+        ('Import EDF+ annotations', 'importannot', True),
+    ]:
+        controls.append(ControlSpec('checkbox', label, tag=tag, value=default))
+    return DialogSpec(
+        title='Load data using BIOSIG -- pop_biosig()',
+        function_name='pop_biosig',
+        help_text='pop_biosig',
+        eeglab_source='functions/popfunc/pop_biosig.m',
+        geometry=(*[[3, 1]] * 4, 1, 1, 1, 1),
+        controls=tuple(controls),
+        known_differences=(
+            'Python readers use calibrated continuous data; BIOSIG mexSLOAD, overflow and uncalibrated switches do not apply.',
+        ),
+    )

@@ -58,7 +58,11 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
             EEG = _read_set_h5(file_path)
         else:
             loaded = scipy.io.loadmat(
-                file_path, struct_as_record=False, squeeze_me=False, appendmat=False, mat_dtype=True,
+                file_path,
+                struct_as_record=False,
+                squeeze_me=False,
+                appendmat=False,
+                mat_dtype=True,
             )
             EEG = dataset_from_mat(loaded)
     except (ValueError, OSError, TypeError) as exc:

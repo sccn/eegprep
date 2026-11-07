@@ -590,20 +590,17 @@ class MenuActionDispatcher:
             self._refresh()
             return
         else:
-            filename = self._open_import_filename(action, parent)
-            if not filename:
+            filename = "" if action == "pop_importdata" else self._open_import_filename(action, parent)
+            if not filename and action != "pop_importdata":
                 return
             if action == "pop_importdata":
-                srate = self._ask_float(parent, "Import data", "Data sampling rate (Hz)", 1.0)
-                if srate is None:
-                    return
                 from eegprep.functions.popfunc.pop_importdata import pop_importdata
 
-                eeg_out, command = pop_importdata("data", filename, "srate", srate, return_com=True)
+                eeg_out, command = pop_importdata(gui=True, datasets=self.session.ALLEEG, return_com=True)
             elif action == "pop_biosig":
                 from eegprep.functions.popfunc.pop_biosig import pop_biosig
 
-                eeg_out, command = pop_biosig(filename, return_com=True)
+                eeg_out, command = pop_biosig(filename, gui=True, return_com=True)
             elif action == "pop_fileio_brainvision_mat":
                 from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
 
@@ -611,11 +608,21 @@ class MenuActionDispatcher:
             elif action == "pop_fileio_brainvision":
                 from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 
-                eeg_out, command = pop_loadbv(filename, return_com=True)
+                eeg_out, command = pop_loadbv(filename, gui=True, return_com=True)
+            elif action == "pop_fileio_cnt":
+                from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
+
+                eeg_out, command = pop_loadcnt(filename, gui=True, return_com=True)
+            elif Path(filename).suffix.lower() == ".raw":
+                from eegprep.functions.popfunc.pop_readegi import pop_readegi
+
+                eeg_out, command = pop_readegi(filename, gui=True, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
-                eeg_out, command = pop_fileio(filename, return_com=True)
+                eeg_out, command = pop_fileio(filename, gui=True, return_com=True)
+        if not command:
+            return
         self._store_current_from_gui(eeg_out, new=True, command=command)
         self._refresh()
 
@@ -623,7 +630,9 @@ class MenuActionDispatcher:
         qt_widgets = _require_qt_widgets()
         if action == "pop_fileio_mff":
             return qt_widgets.QFileDialog.getExistingDirectory(
-                parent, "Select an EGI MFF folder", "",
+                parent,
+                "Select an EGI MFF folder",
+                "",
                 **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
             )
         filters = {
@@ -631,7 +640,7 @@ class MenuActionDispatcher:
             "pop_biosig": "BIOSIG files (*.bdf *.edf *.gdf);;All files (*)",
             "pop_fileio_mff": "EGI MFF (*.mff);;All files (*)",
             "pop_fileio_cnt": "Neuroscan CNT (*.cnt);;All files (*)",
-            "pop_fileio_eeg": "Neuroscan/BrainVision EEG (*.eeg);;All files (*)",
+            "pop_fileio_eeg": "Neuroscan EEG (*.eeg *.EEG);;All files (*)",
             "pop_fileio_brainvision": "BrainVision header (*.vhdr);;All files (*)",
             "pop_fileio_brainvision_mat": "BrainVision Analyzer MATLAB (*.mat);;All files (*)",
         }
@@ -639,7 +648,9 @@ class MenuActionDispatcher:
             parent,
             "Import data",
             "",
-            filters.get(action, "EEG files (*.set *.edf *.bdf *.gdf *.vhdr *.mff *.cnt *.eeg);;All files (*)"),
+            filters.get(
+                action, "EEG files (*.set *.edf *.bdf *.gdf *.vhdr *.ahdr *.mff *.cnt *.eeg *.EEG *.raw);;All files (*)"
+            ),
             **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
         )
         return filename
@@ -650,12 +661,17 @@ class MenuActionDispatcher:
             return
         qt_widgets = _require_qt_widgets()
         if action == "pop_chanevent":
-            channel, ok = qt_widgets.QInputDialog.getInt(parent, "Import event info", "Event channel index", 1, 1)
-            if not ok:
-                return
             from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 
-            eeg_out, command = pop_chanevent(selection, channel, return_com=True)
+            eeg_out, command = pop_chanevent(selection, gui=True, return_com=True)
+        elif action == "pop_importepoch":
+            from eegprep.functions.popfunc.pop_importepoch import pop_importepoch
+
+            eeg_out, command = pop_importepoch(selection, gui=True, return_com=True)
+        elif action == "pop_importevent":
+            from eegprep.functions.popfunc.pop_importevent import pop_importevent
+
+            eeg_out, command = pop_importevent(selection, gui=True, return_com=True)
         else:
             filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
                 parent,
@@ -682,6 +698,8 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
                 eeg_out, command = pop_importevent(selection, "event", filename, "append", "no", return_com=True)
+        if not command:
+            return
         self._store_current_from_gui(eeg_out, command=command)
         self._refresh()
 

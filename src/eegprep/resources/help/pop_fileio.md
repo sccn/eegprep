@@ -30,3 +30,5 @@ Use the more specific File menu entries when you want format-specific file
 filters in the GUI.
 
 See also: POP_BIOSIG, POP_IMPORTDATA, POP_LOADSET
+
+Use `gui=True` to select channels and inclusive sample/trial ranges with 1-based indices. Neuroscan `.EEG` uses the native epoch reader; EGI `.raw` uses `pop_readegi`. MFF recordings are directories; select the `.mff` folder itself and install `pip install "eegprep[mne]"`.
