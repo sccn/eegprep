@@ -245,14 +245,16 @@ Events: extract event onsets from a stimulus channel instead of a file.
 
 Epoch info: attach one metadata value per epoch.
 
-.. GENERATED FROM PYTHON SOURCE LINES 130-136
+.. GENERATED FROM PYTHON SOURCE LINES 130-138
 
 .. code-block:: Python
 
 
     epoch_file = tmpdir / "epochinfo.tsv"
     epoch_file.write_text("condition\n" + "rare\n" * epoched["trials"], encoding="utf-8")
-    with_epochinfo = eegprep.pop_importepoch(epoched, str(epoch_file), return_com=False)
+    with_epochinfo = eegprep.pop_importepoch(
+        epoched, str(epoch_file), fieldlist=["condition"], headerlines=1, return_com=False
+    )
     print("epoch fields:", sorted(with_epochinfo["epoch"][0].keys()))
 
 
@@ -268,12 +270,12 @@ Epoch info: attach one metadata value per epoch.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 137-139
+.. GENERATED FROM PYTHON SOURCE LINES 139-141
 
 Channel locations: read a packaged montage, then load locations into a
 dataset through ``pop_chanedit``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 139-159
+.. GENERATED FROM PYTHON SOURCE LINES 141-161
 
 .. code-block:: Python
 
@@ -313,11 +315,11 @@ dataset through ``pop_chanedit``.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 160-161
+.. GENERATED FROM PYTHON SOURCE LINES 162-163
 
 BIDS: export a dataset to a BIDS folder and import it back.
 
-.. GENERATED FROM PYTHON SOURCE LINES 161-170
+.. GENERATED FROM PYTHON SOURCE LINES 163-172
 
 .. code-block:: Python
 
@@ -344,11 +346,11 @@ BIDS: export a dataset to a BIDS folder and import it back.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 171-172
+.. GENERATED FROM PYTHON SOURCE LINES 173-174
 
 Clean up the temporary directory used by this example.
 
-.. GENERATED FROM PYTHON SOURCE LINES 172-174
+.. GENERATED FROM PYTHON SOURCE LINES 174-176
 
 .. code-block:: Python
 
@@ -364,7 +366,7 @@ Clean up the temporary directory used by this example.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.186 seconds)
+   **Total running time of the script:** (0 minutes 2.616 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_import_data.py:

@@ -525,7 +525,7 @@ The runtime does not depend on EEGLAB’s MATLAB <code class="docutils literal n
 classes.</p>
 <section id="two-file-set-fdt-datasets">
 <h2>Two-File <code class="docutils literal notranslate"><span class="pre">.set</span></code> / <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> Datasets<a class="headerlink" href="#two-file-set-fdt-datasets" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> saves one-file <code class="docutils literal notranslate"><span class="pre">.set</span></code> files by default. To write a two-file
+<p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> saves new datasets as one-file <code class="docutils literal notranslate"><span class="pre">.set</span></code> files by default. To write a two-file
 <code class="docutils literal notranslate"><span class="pre">.set</span></code> header plus float32 data sidecar, pass <code class="docutils literal notranslate"><span class="pre">savemode=&quot;twofiles&quot;</span></code> or set
 <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS[&quot;option_savetwofiles&quot;]</span> <span class="pre">=</span> <span class="pre">1</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
@@ -559,9 +559,16 @@ file is left unchanged. File &gt; Save current dataset as asks before replacing
 the <code class="docutils literal notranslate"><span class="pre">.set</span></code> file that will be written. If the parent folder cannot be created or the
 <code class="docutils literal notranslate"><span class="pre">.set</span></code> file is not written, <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> raises an error and does not
 mark the dataset saved. A missing parent folder is created when that is
-possible. A plain save without
-<code class="docutils literal notranslate"><span class="pre">savemode</span></code> follows the current <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code> setting; if that
-option is disabled, the data is saved inline in the <code class="docutils literal notranslate"><span class="pre">.set</span></code> file.</p>
+possible. Save as also preserves a loaded dataset’s two-file layout, naming
+both files after the new target. Use <code class="docutils literal notranslate"><span class="pre">savemode=&quot;onefile&quot;</span></code> to embed samples
+explicitly. New datasets follow <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code>.</p>
+<p>MATLAB v7.3 datasets load through the same API, preserving complete Unicode
+labels and event types, nested metadata, and empty events. Companion references
+in the header must be bare filenames without directories, drives, or path
+separators. The named files must sit beside the header, but may be symlinks
+to data elsewhere, as in DataLad/git-annex OpenNeuro checkouts. Keep the
+<code class="docutils literal notranslate"><span class="pre">.set</span></code> and <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> names together when moving a dataset. BrainVision
+headers apply the same rule to their sample and marker files.</p>
 </section>
 <section id="memory-mapped-data">
 <h2>Memory-Mapped Data<a class="headerlink" href="#memory-mapped-data" title="Link to this heading">#</a></h2>
@@ -648,6 +655,26 @@ and clears ICA fields that no longer describe the selected channel matrix.</p>
 layer, and EEGPrep does not provide multi-process write coordination for shared
 <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> files.</p>
 </section>
+<section id="importing-mff-and-neuroscan-recordings">
+<h2>Importing MFF and Neuroscan recordings<a class="headerlink" href="#importing-mff-and-neuroscan-recordings" title="Link to this heading">#</a></h2>
+<p>For EGI MFF, select the <code class="docutils literal notranslate"><span class="pre">.mff</span></code> folder itself. Install the reader and XML
+support with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[mne]&quot;</span></code>. For <code class="docutils literal notranslate"><span class="pre">.eeg</span></code> and <code class="docutils literal notranslate"><span class="pre">.EEG</span></code> files,
+<code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> first looks for a sibling <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> or <code class="docutils literal notranslate"><span class="pre">.ahdr</span></code> header and
+uses the BrainVision reader when one exists. Without a sibling header it
+uses the native Neuroscan epoch reader, which does not require MNE.
+Each sweep retains trial, accept, correct, response, and reaction-time events,
+including rejected sweeps. That matches EEGLAB’s <code class="docutils literal notranslate"><span class="pre">loadeeg</span></code> /
+<code class="docutils literal notranslate"><span class="pre">pop_loadeeg</span></code> default (<code class="docutils literal notranslate"><span class="pre">accepttype='all'</span></code>), which also keeps rejected
+sweeps and exposes the per-sweep <code class="docutils literal notranslate"><span class="pre">accept</span></code> field (0 rejected, 1 accepted)
+so callers can filter later.</p>
+<p>The F119 audit’s File-IO comparison reports 1,193 trials and 5,960 events.
+The same recording contains 1,200 sweeps, including seven marked rejected.
+FieldTrip’s <code class="docutils literal notranslate"><span class="pre">read_ns_hdr</span></code> uses the accepted-count field at byte 364 as
+<code class="docutils literal notranslate"><span class="pre">nsweeps</span></code>; its reader then reads that many leading sweeps. EEGPrep uses the
+total-sweep field at byte 362 and retains all complete sweeps and their
+acceptance metadata, matching EEGLAB rather than FieldTrip. This
+source-based difference from FieldTrip is regression-tested.</p>
+</section>
 </section>
 
 
@@ -701,6 +728,7 @@ layer, and EEGPrep does not provide multi-process write coordination for shared
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-mapped-data">Memory-Mapped Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storedisk-sessions">Storedisk Sessions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#selective-loading">Selective Loading</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#importing-mff-and-neuroscan-recordings">Importing MFF and Neuroscan recordings</a></li>
 </ul>
   </nav></div>
 

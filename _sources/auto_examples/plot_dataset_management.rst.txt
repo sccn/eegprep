@@ -259,7 +259,7 @@ float32 ``.fdt`` sidecar.
 
  .. code-block:: none
 
-    one-file: ['dataset_mgmt_one.set']
+    one-file: ['dataset_mgmt_one.fdt', 'dataset_mgmt_one.set']
     two-file: ['dataset_mgmt_two.fdt', 'dataset_mgmt_two.set']
     reloaded: tutorial 64 Hz (renamed) (32, 15252)
 
@@ -299,7 +299,7 @@ numbers; trailing empty slots are dropped.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.172 seconds)
+   **Total running time of the script:** (0 minutes 0.204 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_dataset_management.py:

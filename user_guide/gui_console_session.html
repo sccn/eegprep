@@ -714,6 +714,66 @@ not a substitute for saving files.</p></li>
 fields that workflow needs. For example, component-review menus need ICA fields,
 and Study plotting menus need an active <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> with precomputed measures.</p>
 </section>
+<section id="importer-options-and-command-history">
+<h2>Importer options and command history<a class="headerlink" href="#importer-options-and-command-history" title="Link to this heading">#</a></h2>
+<p>File &gt; Import data opens an options dialog after selecting a recording.
+ASCII/array import includes its file selector in the options form. Set the
+sampling rate, channel count, epoch length, start time, dataset name, subject,
+condition, session, group, reference metadata, channel locations, and optional
+ICA matrices there. <code class="docutils literal notranslate"><span class="pre">From</span> <span class="pre">other</span> <span class="pre">dataset</span></code> selects channel or ICA information
+from the datasets in the shared session. Array input in the form accepts a
+Python numeric literal; scripts can pass NumPy arrays directly. ASCII data
+with more rows than columns are transposed unless <code class="docutils literal notranslate"><span class="pre">nbchan</span></code> specifies the
+orientation. Samples are float32; absent channel locations and names remain
+empty. A sampling rate of zero uses 1 Hz, which is also recorded in history.</p>
+<p>BIOSIG import exposes channels, a time range in seconds, reference channels,
+BDF event decoding, EDF+ annotations, and memory mapping. Channel and reference
+indices are 1-based; references index the loaded channel list after removing
+the Status channel. Marker events and EDF+ annotations have independent
+switches. The Python readers use calibrated continuous data; MATLAB-only
+BIOSIG mexSLOAD, overflow, and uncalibrated-reader switches are absent.
+BrainVision uses inclusive 1-based sample ranges and channel indices. CNT
+exposes precision, start time, duration, and keyboard-response import. EGI
+Simple Binary exposes frame/segment selection, format version, and locations.</p>
+<p>File &gt; Import event info includes column names, header lines, time units,
+append/overwrite, event indices, alignment, and automatic rate adjustment.
+Reserved field names are lowercase: <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">latency</span></code>, and <code class="docutils literal notranslate"><span class="pre">duration</span></code>.
+For a capitalized header, enter the lowercase fields in column order and set
+header lines to 1. A time unit of 1 means seconds; <code class="docutils literal notranslate"><span class="pre">NaN</span></code> means sample
+positions. Channel-event import exposes channel indices, the preprocessing
+comparison, edge direction, transition length, duration, and deletion options.
+Duration is enabled for leading edges. Both coincident edges retain their
+own event values, matching the pinned EEGLAB source.</p>
+<p>File &gt; Import epoch info requires field names and the number of header lines.
+Optional latency, duration, and type fields determine the events generated for
+each epoch. The GUI defaults to seconds; the direct API retains its samples
+(default <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">EEG['srate']</span></code>) convention. Accepted imports update <code class="docutils literal notranslate"><span class="pre">EEG</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>, and history through the shared session. Cancel
+leaves them unchanged. Use <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> from a script to obtain the
+same command, or <code class="docutils literal notranslate"><span class="pre">gui=True</span></code> to open the options form.</p>
+<p>Presentation import selects a LOG file, then offers event-type, latency, and
+duration columns. The GUI defaults to <code class="docutils literal notranslate"><span class="pre">Event</span> <span class="pre">Type</span></code>, <code class="docutils literal notranslate"><span class="pre">Time</span></code>, and no duration;
+the direct API defaults to <code class="docutils literal notranslate"><span class="pre">Code</span></code> and <code class="docutils literal notranslate"><span class="pre">Time</span></code>. History records the choices
+and timestamp units so the console can replay them.
+Undefined numeric options use Python’s <code class="docutils literal notranslate"><span class="pre">float('nan')</span></code> in recorded commands.</p>
+<p>ERPLAB import takes an event list (numeric code, quoted label, event index)
+and a bin-definition file. It adds labels and simple/contrast bin membership
+to existing events while retaining their types and latencies. Use
+<code class="docutils literal notranslate"><span class="pre">pop_importerplab(EEG,</span> <span class="pre">&quot;events.txt&quot;,</span> <span class="pre">&quot;bins.txt&quot;,</span> <span class="pre">True)</span></code> to also import
+non-contrast bins. Ordinary type/latency tables belong in <code class="docutils literal notranslate"><span class="pre">pop_importevent</span></code>.
+Cancel in either form preserves the shared dataset and history.</p>
+<section id="stream-9-audit-dispositions">
+<h3>Stream 9 audit dispositions<a class="headerlink" href="#stream-9-audit-dispositions" title="Link to this heading">#</a></h3>
+<p>F8 was resolved at EEGLAB commit <code class="docutils literal notranslate"><span class="pre">8ac485f65</span></code>: import menu labels and order
+are unchanged by these fixes. F31 records an EEGLAB Cancel error in ERPLAB;
+EEGPrep cancellation preserves the session without that error. F32 was an
+unverified last-folder observation. EEGPrep passes an empty initial folder
+to Qt, leaving last-folder behavior to the native picker; no custom
+last-folder policy is introduced. Tests cover these dispositions and the
+import options. Fresh MATLAB numerical and side-by-side GUI verification
+remain a human follow-up. BIDS metadata issue #538 belongs to Stream 10.</p>
+</section>
+</section>
 </section>
 
 
@@ -771,6 +831,10 @@ and Study plotting menus need an active <code class="docutils literal notranslat
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-you-can-reuse">History You Can Reuse</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#practical-rules">Practical Rules</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-state">Troubleshooting State</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#importer-options-and-command-history">Importer options and command history</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#stream-9-audit-dispositions">Stream 9 audit dispositions</a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 
