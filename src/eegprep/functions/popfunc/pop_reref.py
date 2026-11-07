@@ -50,7 +50,8 @@ def pop_reref(
 ):
     """Convert an EEG dataset to average or common-reference data.
 
-    Numeric channel indices are 1-based, matching EEGLAB. String channel labels are resolved case-insensitively
+    Numeric channel indices are 1-based, matching EEGLAB. String channel labels
+    are resolved case-insensitively
     against ``EEG["chanlocs"]``. Calling ``pop_reref(EEG)`` launches the GUI;
     pass ``ref=[]`` or ``ref=None`` for command-line average reference. A NaN
     stays on a channel only when that channel's sample or its reference is NaN.
@@ -359,21 +360,26 @@ def _resolve_channels(EEG: dict, channels: Any) -> list[int]:
         if isinstance(value, str) and not _is_int_text(value):
             matches = [idx for idx, label in enumerate(labels) if label == value.strip().lower()]
             if not matches:
-                raise ValueError(f"Channel '{value}' not found")
+                raise ValueError(
+                    f"pop_reref: channel '{value}' was not found. Use a label from EEG['chanlocs'] or a number in 1..{nchan}."
+                )
             indices.extend(matches)
             continue
         indices.append(_channel_index(value, nchan))
     return sorted(set(indices))
 
 
-
 def _channel_index(value: Any, length: int) -> int:
     number = float(value)
     if not np.isfinite(number) or not number.is_integer():
-        raise ValueError(f"pop_reref: channel indices must be whole numbers in 1..{length}. Use channel 1 for the first channel.")
+        raise ValueError(
+            f"pop_reref: channel indices must be whole numbers in 1..{length}. Use channel 1 for the first channel."
+        )
     index = int(number)
     if index < 1 or index > length:
-        raise ValueError(f"pop_reref: channel index {index} is outside 1..{length}. Use channel 1 for the first channel.")
+        raise ValueError(
+            f"pop_reref: channel index {index} is outside 1..{length}. Use channel 1 for the first channel."
+        )
     return index - 1
 
 
@@ -522,7 +528,9 @@ def _resolve_locs_from_identifiers(
         if isinstance(value, str) and not _is_int_text(value):
             matches = [idx for idx, loc_label in enumerate(labels) if loc_label == value.lower()]
             if not matches:
-                raise ValueError(f"{label.capitalize()} '{value}' not found")
+                raise ValueError(
+                    f"pop_reref: {label} '{value}' was not found. Use a listed label or a number in 1..{len(locs)}."
+                )
             out.extend(copy.deepcopy(locs[idx]) for idx in matches)
         else:
             out.append(copy.deepcopy(locs[_channel_index(value, len(locs))]))

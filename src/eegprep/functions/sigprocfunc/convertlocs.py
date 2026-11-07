@@ -12,6 +12,7 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 
 _DEFAULT_HEAD_RADIUS = 85.0
 
+
 def convertlocs(chans: Any, command: str = "auto", *args: Any, verbose: str = "off", **kwargs: Any) -> Any:
     """Return channel locations with requested coordinate fields filled in.
 
