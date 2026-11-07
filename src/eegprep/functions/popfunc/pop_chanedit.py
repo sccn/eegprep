@@ -130,7 +130,7 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any], *, renderer: Any | None = None
         if field == "urchan":
             value = current.get("urchan", "")
         elif field == "datachan":
-            value = bool(current.get("datachan", True))
+            value = _is_data_location(current)
         else:
             value = _display_channel_value(current, field)
         controls.extend(
@@ -516,7 +516,7 @@ def _channel_field_displays(chan: dict[str, Any], field_rows: list[tuple[str, st
         if field == "urchan":
             values["field_urchan"] = _display_value(chan.get("urchan", ""))
         elif field == "datachan":
-            values["field_datachan"] = bool(chan.get("datachan", True))
+            values["field_datachan"] = _is_data_location(chan)
         else:
             values[f"field_{field}"] = _display_channel_value(chan, field)
     return values
@@ -545,6 +545,12 @@ def _nosedir_index(value: Any) -> int:
         return 1
 
 
+def _is_data_location(loc: dict[str, Any]) -> bool:
+    if "datachan" in loc:
+        return bool(loc["datachan"])
+    return str(loc.get("type", "")).strip().lower() not in {"fid", "ignore"}
+
+
 def _apply_chanedit(
     chans: dict[str, Any] | list[dict[str, Any]],
     options: list[tuple[str, Any]],
@@ -558,8 +564,8 @@ def _apply_chanedit(
 
     chanlocs.extend({**loc, "datachan": 0} for loc in chanlocs_as_list(chaninfo.pop("nodatchans", [])))
     chanlocs, chaninfo, urchans = _edit_locations(chanlocs, chaninfo, urchans, options)
-    data_locs = [loc for loc in chanlocs if loc.get("datachan", True)]
-    chaninfo["nodatchans"] = [loc for loc in chanlocs if not loc.get("datachan", True)]
+    data_locs = [loc for loc in chanlocs if _is_data_location(loc)]
+    chaninfo["nodatchans"] = [loc for loc in chanlocs if not _is_data_location(loc)]
     if eeg is not None and "data" in eeg and len(data_locs) != np.asarray(eeg["data"]).shape[0]:
         raise ValueError(
             "pop_chanedit: location count does not match data channels. Use pop_select to remove data channels, or mark added reference locations as non-data channels."
@@ -749,7 +755,7 @@ def _lookup_chanlocs(chanlocs: list[dict[str, Any]], value: Any) -> list[dict[st
         label = str(channel.get("labels") or "")
         output = {
             "labels": label,
-            "datachan": channel.get("datachan", True),
+            "datachan": _is_data_location(channel),
             "type": channel.get("type", ""),
             "urchan": index + 1,
             "ref": "",

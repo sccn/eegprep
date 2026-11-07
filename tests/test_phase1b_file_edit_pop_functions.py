@@ -482,6 +482,43 @@ def test_pop_chanedit_changes_fields_converts_coordinates_and_round_trips_files(
     assert loaded["chanlocs"][0]["labels"] == "Fz"
 
 
+@pytest.mark.parametrize("lookup", [False, True])
+def test_pop_chanedit_load_separates_sfp_fiducials_from_data_channels(tmp_path, lookup):
+    eeg = _eeg()
+    loc_file = tmp_path / "fiducials.sfp"
+    loc_file.write_text("FidNz 0 1 0\nFidT9 -1 0 0\nFidT10 1 0 0\nCz 0 0 1\nPz 0 -1 0\n")
+    options = ["load", loc_file]
+    if lookup:
+        options.extend(["lookup", loc_file])
+
+    loaded = pop_chanedit(eeg, *options)
+
+    assert loaded["nbchan"] == eeg["nbchan"] == 2
+    assert [loc["labels"] for loc in loaded["chanlocs"]] == ["Cz", "Pz"]
+    assert len(loaded["chaninfo"]["nodatchans"]) == 3
+    assert [loc["labels"] for loc in loaded["chaninfo"]["nodatchans"]] == ["FidNz", "FidT9", "FidT10"]
+    np.testing.assert_array_equal(loaded["data"], eeg["data"])
+
+
+@pytest.mark.parametrize("location_type", [" FiD ", " iGnOrE "])
+def test_pop_chanedit_classifies_location_types_unless_datachan_is_explicit(location_type):
+    eeg = _eeg()
+    eeg["chanlocs"][0].update(type=location_type, datachan=1)
+    eeg["chanlocs"].extend(
+        [
+            {"labels": "Landmark", "type": location_type},
+            {"labels": "Reference", "type": "EEG", "datachan": 0},
+        ]
+    )
+
+    edited = pop_chanedit(eeg, changefield=[1, "labels", "X"])
+
+    assert edited["nbchan"] == 2
+    assert [loc["labels"] for loc in edited["chanlocs"]] == ["X", "Pz"]
+    assert [loc["labels"] for loc in edited["chaninfo"]["nodatchans"]] == ["Landmark", "Reference"]
+    np.testing.assert_array_equal(edited["data"], eeg["data"])
+
+
 def test_pop_chanedit_applies_same_edit_to_selected_datasets():
     first = _eeg("first")
     second = _eeg("second")
