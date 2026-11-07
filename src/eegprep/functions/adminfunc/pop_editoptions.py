@@ -141,8 +141,9 @@ def load_eegprep_options(options_path: str | Path | None = None) -> None:
 
 def pop_editoptions_dialog_spec(options: dict[str, Any], path: Path | None = None) -> DialogSpec:
     """Return the memory-options dialog, including advanced preferences."""
+    option_file = str(path or eegprep_options_path())
     controls = [
-        ControlSpec("text", f"Option file: {path or eegprep_options_path()}"),
+        ControlSpec("text", f"Option file: {option_file}", tooltip=option_file),
         ControlSpec("text", "Disabled preferences are not supported in EEGPrep; see Help for details."),
     ]
     geometry: list[tuple[float, ...]] = [(1,), (1,)]
@@ -182,6 +183,7 @@ def pop_editoptions_dialog_spec(options: dict[str, Any], path: Path | None = Non
         geometry=tuple(geometry),
         size=(1050, 620),
         scrollable=True,
+        weighted_columns=True,
         geomvert=(1,) * len(geometry),
     )
 

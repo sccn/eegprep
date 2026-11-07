@@ -1304,7 +1304,8 @@ class _PromptSafeStream:
         return len(message)
 
     def flush(self) -> None:
-        self.stream.flush()
+        if self.stream is not None:
+            self.stream.flush()
 
     def isatty(self) -> bool:
         return bool(getattr(self.stream, "isatty", lambda: False)())
@@ -1325,10 +1326,17 @@ def _install_prompt_safe_logging() -> Callable[[], None]:
     patched: list[tuple[logging.StreamHandler[Any], Any]] = []
     for logger in _logging_tree():
         for handler in logger.handlers:
-            if isinstance(handler, logging.StreamHandler) and not isinstance(handler.stream, _PromptSafeStream):
-                original_stream = handler.stream
-                handler.setStream(_PromptSafeStream(original_stream))
-                patched.append((handler, original_stream))
+            if not isinstance(handler, logging.StreamHandler):
+                continue
+            original_stream = handler.stream
+            if (
+                original_stream is None
+                or getattr(original_stream, "closed", False)
+                or isinstance(original_stream, _PromptSafeStream)
+            ):
+                continue
+            handler.setStream(_PromptSafeStream(original_stream))
+            patched.append((handler, original_stream))
     original_emit = logging.StreamHandler.emit
 
     def emit(handler: logging.StreamHandler[Any], record: logging.LogRecord) -> None:

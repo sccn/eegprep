@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Long preference-file paths no longer push Preferences controls offscreen;
+  the full path is available in the option-file tooltip (F89, #556).
+- Console startup tolerates missing or closed logging streams and restores
+  active handlers after the console exits (#556).
+- Copying rejection marks between data and ICA fields does not require an ICA
+  decomposition. Component processing and plots retain their ICA preconditions
+  (F64/F81, #556).
 - Saved preferences load in the interactive launchers. Imports and window or
   workspace constructors preserve in-process options, including when opening
   another GUI from a running console (F89, #556).

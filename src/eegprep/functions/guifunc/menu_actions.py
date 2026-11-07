@@ -298,7 +298,7 @@ class MenuActionDispatcher:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
         needs_ica = (
-            variant in {"components", "ica", "reject_ica", "data_to_ica", "ica_to_data"}
+            variant in {"components", "ica", "reject_ica"}
             or base in {"pop_subcomp", "pop_selectcomps", "pop_iclabel", "pop_icflag", "pop_envtopo"}
             or (base in {"pop_topoplot", "pop_headplot"} and variant != "erp")
         )
