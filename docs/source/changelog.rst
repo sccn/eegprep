@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Select data opens tutorial datasets whose channel types are empty MATLAB
+  arrays. The channel-type picker is disabled when all types are absent or blank
+  (release-readiness F37, #548).
 - The Select data dialog validates channel numbers before conversion to
   Python indices. Range errors preserve the entered numbers and give the
   valid one-based range.

@@ -587,9 +587,8 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
     chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
     channel_labels = tuple(str(chan.get("labels", "")) for chan in chanlocs if isinstance(chan, dict))
     channel_types = tuple(
-        value
-        for value in dict.fromkeys(
-            str(chan.get("type", "")) for chan in chanlocs if isinstance(chan, dict) and chan.get("type", "") != ""
+        dict.fromkeys(
+            value for chan in chanlocs if isinstance(chan, dict) and (value := _channel_type_text(chan.get("type")))
         )
     )
     type_enabled = bool(channel_types)
@@ -683,6 +682,10 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
             ControlSpec("spacer"),
         ),
     )
+
+
+def _channel_type_text(value) -> str:
+    return "".join(str(part) for part in np.asarray(value).reshape(-1) if part is not None).strip()
 
 
 def _scroll_dataset_enabled(EEG) -> bool:
