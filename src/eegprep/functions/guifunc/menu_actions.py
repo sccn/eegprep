@@ -614,8 +614,7 @@ class MenuActionDispatcher:
         if resave and not prompted:
             command = "EEG = pop_saveset(EEG, 'savemode', 'resave');"
         else:
-            # Emit the runnable EEGLAB filename/filepath form here (F27), not via a
-            # later string rewrite in _store_current_from_gui.
+            # EEGLAB history form: separate 'filename' and 'filepath' (F27).
             first = datasets[0]
             command = (
                 f"EEG = pop_saveset(EEG, 'filename', {format_history_value(first['filename'])}, "
