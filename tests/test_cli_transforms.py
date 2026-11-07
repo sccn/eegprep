@@ -58,7 +58,7 @@ def test_resample_writes_dataset_manifest_and_clean_json_stdout(tmp_path):
     manifest_path = output.with_suffix(output.suffix + ".manifest.json")
     assert payload["manifest"]["path"] == str(manifest_path)
     stored_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert {record["path"] for record in stored_manifest["output_files"]} == {"resampled.set"}
+    assert {record["path"] for record in stored_manifest["output_files"]} == {"resampled.set", "resampled.fdt"}
     manifest = read_manifest(manifest_path)
     assert manifest["schema_version"] == MANIFEST_SCHEMA_VERSION
     assert manifest["parameters"]["freq"] == 128

@@ -5,6 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 import logging
 import math
+from numbers import Real
 from pathlib import Path
 from typing import Any
 
@@ -366,7 +367,7 @@ def _history_command(event_source: Any, options: dict[str, Any]) -> str:
 
 
 def _history_number(value: Any) -> str:
-    return "float('nan')" if math.isnan(value) else format_history_value(value)
+    return "float('nan')" if isinstance(value, Real) and math.isnan(value) else format_history_value(value)
 
 
 def _append_history(history: str, command: str) -> str:

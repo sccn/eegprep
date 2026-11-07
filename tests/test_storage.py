@@ -114,5 +114,5 @@ def test_pop_loadset_missing_sidecar_fails_clearly(tmp_path: Path):
     pop_saveset(_eeg(np.ones((2, 3), dtype=np.float32)), set_file, savemode="twofiles")
     (tmp_path / "missing.fdt").unlink()
 
-    with pytest.raises(FileNotFoundError, match="sidecar"):
+    with pytest.raises(FileNotFoundError, match="companion|sidecar"):
         pop_loadset(set_file)

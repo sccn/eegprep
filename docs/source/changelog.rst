@@ -20,6 +20,7 @@ Unreleased
   record the effective sampling rate. Epoch reshaping keeps consecutive
   samples together (F21).
 - Event import rejects capitalized reserved fields with correction advice.
+  History accepts NumPy arrays of field names and preserves NaN options.
   Epoch-file import requires explicit column names and header-line counts
   (F19/F22). Channel-event extraction retains both types when falling and
   rising edges coincide (F20).
