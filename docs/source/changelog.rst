@@ -13,9 +13,10 @@ Unreleased
 - The Select data dialog validates channel numbers before conversion to
   Python indices. Range errors preserve the entered numbers and give the
   valid one-based range.
-- Baseline investigation (#542) adds tests for inclusive endpoints,
-  float32/float64 output dtype, and float64 mean behavior. The finding
-  remains open; the implementation and tolerances are unchanged.
+- The fuzz harness accepts platform-specific baseline-mean summation roundoff
+  for ``pop_rmbase`` (#542) within four float64 eps times the largest finite
+  output magnitude (floored at one). Larger gaps and other mismatch types
+  remain findings. Baseline processing and stored tolerances are unchanged.
 - The fuzz adapter converts EEGLAB's 1-based channel indices to Python
   ``pop_select``'s 0-based indices (#543). Duplicate-channel draws use the
   cropped channel count. Python out-of-range errors name ``pop_select``, the

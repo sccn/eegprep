@@ -721,9 +721,58 @@ def test_rmbase_mean_nan_spread_is_not_filed():
 
 
 @pytest.mark.parametrize("pipeline", [False, True])
-def test_rmbase_542_finite_difference_is_still_reported(pipeline):
+@pytest.mark.parametrize("gap, accepted", [(7.105427357601002e-15, True), (1e-12, False)])
+def test_rmbase_542_roundoff_acceptance(pipeline, gap, accepted):
     eeg = create_test_eeg(n_channels=1, n_samples=4, srate=128, n_trials=2)
-    eeg["data"] = np.arange(8, dtype=np.float64).reshape(1, 4, 2)
+    eeg["data"] = 8 * np.arange(8, dtype=np.float64).reshape(1, 4, 2)
+    params = freeze_params({"pointrange": [1, 2]})
+    case = FuzzCase(
+        "pipeline" if pipeline else "pop_rmbase",
+        _spec(),
+        freeze_params({}) if pipeline else params,
+        pipeline=(("pop_rmbase", params),) if pipeline else (),
+    )
+
+    def oracle(_case, dataset):
+        output = pop_rmbase(dataset, pointrange=[1, 2], gui=False)
+        output["data"][0, 0, 0] += gap
+        return output
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
+
+    assert outcome.diverged is not accepted
+    if accepted:
+        assert outcome.error_class == "match"
+        assert "platform-specific" in outcome.detail
+        assert "#542" in outcome.detail
+        assert outcome.max_abs == gap
+    else:
+        assert outcome.error_class == ("pop_rmbase:numeric" if pipeline else "numeric")
+
+
+@pytest.mark.parametrize("function", ["pop_rmbase", "pop_select"])
+@pytest.mark.parametrize("magnitude", [1e-6, 1.0, 64.0])
+@pytest.mark.parametrize("eps_factor", [3.5, 4.0, 4.5])
+def test_rmbase_542_bound_and_target(function, magnitude, eps_factor):
+    data = np.array([[-magnitude, 0.0, magnitude]])
+    shifted = data.copy()
+    shifted[0, 1] = eps_factor * np.finfo(np.float64).eps * max(1.0, magnitude)
+    python = side_from_eeg({"data": data, "srate": 128.0})
+    oracle = side_from_eeg({"data": shifted, "srate": 128.0})
+    case = FuzzCase(function, _spec(), freeze_params({}))
+
+    outcome = judge(python, oracle, Tolerance(0.0, 0.0), case, "bound")
+
+    assert outcome.diverged is not (function == "pop_rmbase" and eps_factor <= 4)
+    assert compare_data(data, shifted, 128.0, 128.0, Tolerance(0.0, 0.0))[0]
+
+
+@pytest.mark.parametrize("pipeline", [False, True])
+@pytest.mark.parametrize("mismatch", ["shape", "nan-mask", "srate", "events", "meta", "exception"])
+def test_rmbase_542_roundoff_keeps_other_mismatches(pipeline, mismatch):
+    eeg = create_test_eeg(n_channels=1, n_samples=4, srate=128, n_trials=2)
+    eeg["data"] = 8 * np.arange(8, dtype=np.float64).reshape(1, 4, 2)
+    eeg["event"] = []
     params = freeze_params({"pointrange": [1, 2]})
     case = FuzzCase(
         "pipeline" if pipeline else "pop_rmbase",
@@ -735,13 +784,36 @@ def test_rmbase_542_finite_difference_is_still_reported(pipeline):
     def oracle(_case, dataset):
         output = pop_rmbase(dataset, pointrange=[1, 2], gui=False)
         output["data"][0, 0, 0] += 7.105427357601002e-15
+        if mismatch == "shape":
+            output["data"] = output["data"][:, :2, :]
+        elif mismatch == "nan-mask":
+            output["data"][0, 1, 0] = np.nan
+        elif mismatch == "srate":
+            output["srate"] = 256.0
+        elif mismatch == "events":
+            output["event"] = [{"type": "stim", "latency": 1.0}]
+        elif mismatch == "meta":
+            output["nbchan"] = 2
+        else:
+            raise RuntimeError("baseline failed")
         return output
 
     outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
 
     assert outcome.diverged
-    assert outcome.error_class == ("pop_rmbase:numeric" if pipeline else "numeric")
-    assert outcome.max_abs == 7.105427357601002e-15
+    expected = {"exception": "oracle-only:RuntimeError", "events": "event-count"}.get(mismatch, mismatch)
+    assert outcome.error_class == (f"pop_rmbase:{expected}" if pipeline else expected)
+
+
+@pytest.mark.parametrize("nonfinite, accepted", [(np.nan, True), (np.inf, False), (-np.inf, False)])
+def test_rmbase_542_matching_nonfinite_values(nonfinite, accepted):
+    python = side_from_eeg({"data": np.array([[np.nan, 1.0]]), "srate": 128.0})
+    oracle = side_from_eeg({"data": np.array([[nonfinite, np.nextafter(1.0, 2.0)]]), "srate": 128.0})
+    case = FuzzCase("pop_rmbase", _spec(), freeze_params({}))
+
+    outcome = judge(python, oracle, Tolerance(0.0, 0.0), case, "nonfinite")
+
+    assert outcome.diverged is not accepted
 
 
 def test_int64_event_type_matches_float_type():
