@@ -62,11 +62,12 @@ can return this empty selection silently; EEGPrep deliberately reports it.
 
 The data and ICA rejection menus calculate marks, open scrolling data for
 inspection, and retain the calculation commands when you choose **Close (keep
-marks)**. The probability and kurtosis **PLOT** buttons display compact plots of
-the calculated local and global statistics with threshold lines. EEGLAB opens
-the interactive ``rejstatepoch`` viewer instead. In EEGPrep, edit thresholds in
-the rejection menu and calculate again; use **Scroll Data** or **Scroll Acts.**
-to change epoch marks interactively. Cancelling the menu discards its changes.
+marks)**. The probability and kurtosis **PLOT** buttons calculate marks and open
+the same scrolling rejection browser as **Scroll Data** or **Scroll Acts.**,
+where you can inspect and change epoch marks interactively. EEGLAB's **PLOT**
+opens the interactive ``rejstatepoch`` viewer, which has not been ported to
+EEGPrep. Edit thresholds in the rejection menu and calculate again to change
+the limits. Cancelling the menu discards its changes.
 
 .. list-table::
    :header-rows: 1

@@ -182,6 +182,11 @@ you choose **Close (keep marks)**. Closing stores the marks and calculation
 commands in the shared session, where you can inspect ``EEG['reject']`` and
 ``LASTCOM`` from the console. Cancel discards the dialog's edits.
 
+The probability and kurtosis **PLOT** buttons calculate marks and open the
+same browser as **Scroll Data** or **Scroll Acts.**, with the calculated marks
+ready for review. EEGLAB's **PLOT** opens ``rejstatepoch``, an interactive
+statistics viewer that has not been ported to EEGPrep.
+
 * Prefer ``eegprep-console --full`` while learning or reviewing data.
 * Use the GUI for inspection-heavy actions and the console for quick checks,
   summaries, and repeatable commands.

@@ -29,7 +29,8 @@ Unreleased
   file pickers for existing and new fields, including paths with spaces (F100, #548).
 - Data and ICA rejection menus fit within 1073×994 pixels and enable calculation,
   plotting, Help, and color controls. Calculated marks and history are retained
-  when closing the menu (F102/F105, #548).
+  when closing the menu. Probability and kurtosis PLOT open the scrolling
+  rejection browser with calculated marks (F102/F105, #548).
 - Select epochs or events opens tutorial datasets with MATLAB array descriptions
   and displays each readable description beside its corresponding field (F39, #548).
 - Select data opens tutorial datasets whose channel types are empty MATLAB

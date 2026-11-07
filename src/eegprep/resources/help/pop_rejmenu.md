@@ -7,8 +7,9 @@ Usage:
 
 Use Calc / Plot to calculate threshold, trend, or spectral marks and inspect
 them in the scrolling browser. Calculate updates probability or kurtosis marks;
-PLOT displays their local/global statistics and threshold lines. Edit limits in
-the menu and calculate again to change thresholds.
+PLOT calculates those marks and opens the same scrolling rejection browser as
+Scroll Data or Scroll Acts. Edit limits in the menu and calculate again to
+change thresholds.
 
 Close (keep marks) retains calculations and their command history, then combines
 checked mark families into `EEG.reject.rejglobal` with `eeg_rejsuperpose`.
