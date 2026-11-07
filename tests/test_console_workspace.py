@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from eegprep.functions.popfunc.pop_reref import pop_reref
+
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.extensions import (
     ExtensionPopFunction,
@@ -1428,7 +1430,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_comments(EEG, plottitle='', newcomments='sample notes')",
         "comments = pop_comments(EEG=comments, plottitle='', newcomments=['second', 'third'], concat=1)",
         "EEG = pop_editset(EEG, setname='edited', subject='S01')",
-        "EEG = pop_reref(EEG, ref=[0], exclude=[3])",
+        "EEG = pop_reref(EEG, ref=[1], exclude=[4])",
         "EEG = pop_reref(EEG, ref=[], huber=25)",
         "STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='demo')",
         "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
@@ -1641,3 +1643,14 @@ def test_console_study_in_place_update_syncs_state_and_history_once():
     assert session.ALLCOM == [source]
     notifications.assert_called_once_with(session)
     refresh.assert_called_once()
+
+
+def test_reref_history_replay_preserves_one_based_reference_and_exclusion():
+    eeg = _demo_eeg()
+    eeg["data"] = np.arange(40, dtype=float).reshape(4, 10)
+    eeg.update(nbchan=4, pnts=10, trials=1, chanlocs=[{"labels": f"Ch{i + 1}"} for i in range(4)])
+    out, command = pop_reref(eeg, [1], exclude=[4], keepref="on", return_com=True)
+    namespace = {"EEG": eeg, "pop_reref": pop_reref}
+    exec(console_module._console_python_command(command), namespace)
+    np.testing.assert_array_equal(namespace["EEG"]["data"], out["data"])
+    np.testing.assert_array_equal(out["data"][3], eeg["data"][3])
