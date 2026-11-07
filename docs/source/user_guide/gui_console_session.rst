@@ -17,6 +17,11 @@ GUI and Console Together
    The console translates displayed commands to Python while preserving the
    MATLAB form in ``ALLCOM`` and dataset history.
 
+   Replaying MATLAB vectors such as ``[1:32]`` or ``[1:2:7]`` expands inclusive
+   colon ranges in Python. Channel selections still cross the MATLAB 1-based
+   to Python 0-based boundary. Dataset selection and copy commands also handle
+   Python's extra returned history value without changing the saved commands.
+
 
 EEGPrep is designed for a mixed interactive workflow. You can load and review
 data from the GUI, inspect the live workspace in ``eegprep-console``, run a
@@ -114,6 +119,11 @@ GUI actions should update state through session helpers such as
 ``store_current()``, ``add_history()``, ``set_study()``, and
 ``notify_changed()``. They should not mutate a GUI-only copy of ``EEG`` that
 the console cannot see.
+
+Wrap menu operations in ``session.gui_action(action)`` so errors can identify
+the active function through ``active_gui_action()`` and console output stays
+associated with the operation. The context restores the previous action when
+the operation exits, including on errors.
 
 Long-running GUI actions use the same session boundary. For example,
 GUI-launched ICA opens the EEGLAB-like ``pop_runica`` options dialog on the main

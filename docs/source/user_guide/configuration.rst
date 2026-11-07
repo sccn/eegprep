@@ -91,12 +91,21 @@ an EEGPrep file; it does not modify MATLAB's ``eeg_options.m``. Cancel leaves
 both the current options and the file unchanged. Scripted changes stay in the
 current process unless you pass ``persist=True`` to ``pop_editoptions``.
 
-The dialog includes storage, ICA, folder, menu, boundary-event, update, and
-cache options. Enable Show advanced options and reopen Preferences to see
-precision and memory-mapping controls. MATLAB's parallel toolbox, MATLAB EEG
-object, and MATLAB toolbox-path switches are disabled because EEGPrep runs
-without MATLAB. Processing functions continue to honor their explicit
-arguments; options apply only in the workflows that support them.
+The dialog follows the memory-options layout and exposes working controls for
+storing inactive datasets on disk, saving two-file datasets, boundary events,
+menu visibility, and native file dialogs. Enable Show advanced options and
+reopen Preferences to access memory mapping.
+
+Some preferences are visible but disabled because their global switches are
+not connected to EEGPrep workflows: single precision, ICA precomputation and
+RMS scaling, remembered folders, startup update checks, STUDY cache size,
+MATLAB save-version/struct choices, pending plugins, and HTML in graphics.
+Their registry values are retained for scripts, but changing those values
+does not change runtime behavior. Use explicit processing arguments where
+available and Help > Check for EEGPrep updates for a manual update check.
+MATLAB's parallel toolbox, EEG object, and toolbox-path switches are also
+disabled because EEGPrep runs without MATLAB. These are current standalone
+limitations, rather than implemented equivalents of the EEGLAB preferences.
 
 Preprocessing Parameters
 ========================
