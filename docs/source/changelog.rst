@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Parks–McClellan Estimate opens the ripple/attenuation sub-dialog and leaves
+  the filter settings unchanged on Cancel (F101, #548).
 - Event fields displays readable descriptions, supports editing them, and opens
   file pickers for existing and new fields, including paths with spaces (F100, #548).
 - Data and ICA rejection menus fit within 1073×994 pixels and enable calculation,

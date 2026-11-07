@@ -1159,7 +1159,12 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
     fcutoff = _widget_vector(widgets.get(params.get("fcutoff", "")))
     ftrans = _widget_number(widgets.get(params.get("ftrans", "")))
     if not fcutoff or ftrans is None:
-        qt_widgets.QMessageBox.warning(button, "Warning", "Cutoff frequencies and transition width are required")
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_firpm",
+            "pop_firpm: cutoff frequencies and transition width are missing. "
+            "Enter both in Hz, then click Estimate again.",
+        )
         return
     srate = _widget_number(widgets.get(params.get("srate", "")))
     if srate is None:
@@ -1167,9 +1172,16 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
     ftype = _combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
     try:
         edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype, srate)
-        order, wtpass, wtstop = pop_firpmord(edges, amplitudes, _firpm_default_devs(amplitudes), srate)
+        order, wtpass, wtstop = pop_firpmord(edges, amplitudes, fs=srate, gui=True)
     except ValueError as exc:
-        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_firpmord",
+            f"pop_firpmord: {exc} Enter numeric passband ripple and "
+            "stopband attenuation in dB, and check the cutoff and transition values in Hz.",
+        )
+        return
+    if order is None:
         return
     for tag, value in (
         (params.get("forder"), order),
@@ -1871,10 +1883,6 @@ def _firpm_order_shape(
     if ftype not in desired_by_type:
         raise ValueError("Unknown filter type.")
     return edges.tolist(), desired_by_type[ftype]
-
-
-def _firpm_default_devs(amplitudes: list[float]) -> list[float]:
-    return [0.01 if value == 1 else 0.001 for value in amplitudes]
 
 
 _QT_RENDERER_STATIC_HELPERS = (
