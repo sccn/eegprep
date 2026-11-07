@@ -848,7 +848,7 @@ def test_eeg_store_retrieve_newset_and_delset_use_sample_dataset_indices(sample_
     assert retrieved["data"].shape == sample_eeg["data"].shape
     assert retrieved_set == 1
     assert newset_command == (
-        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'Stored sample', 'overwrite', 'on');"
+        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'setname', 'Stored sample', 'overwrite', 'on', 'gui', 'off');"
     )
     assert alleeg == []
     assert del_command == "ALLEEG = pop_delset( ALLEEG, [1] );"
@@ -866,7 +866,7 @@ def test_pop_editoptions_and_bids_metadata_helpers_are_history_recording(sample_
     assert eeg["etc"]["bids"]["task"]["TaskName"] == "sample-task"
     assert eeg["etc"]["bids"]["participant"]["participant_id"] == "sub-01"
     assert eeg["etc"]["bids"]["event"]["trial_type"] == "square"
-    assert edit_command == "LASTCOM = pop_editoptions();"
+    assert edit_command == "pop_editoptions('option_allmenus', 1);"
     assert "pop_taskinfo" in task_command
     assert "pop_participantinfo" in participant_command
     assert "pop_eventinfo" in event_command
