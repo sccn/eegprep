@@ -395,6 +395,15 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._open_rejection_browser(source, widgets, params))
+        elif callback.name == "run_dialog_action":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: _run_dialog_action(source, widgets, params))
+        elif callback.name == "show_help":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: pophelp(params["function"], parent=source))
+        elif callback.name == "select_color":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: _select_color(source, params))
         elif callback.name == "set_value":
             source = widgets.get(params["source"])
             target = widgets.get(params["target"])
@@ -1440,6 +1449,31 @@ def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
         qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
 
 
+def _run_dialog_action(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    def update(values: Mapping[str, Any]) -> None:
+        for tag, value in values.items():
+            _set_widget_display_value(widgets[tag], value)
+
+    try:
+        params["action"]({tag: _read_widget(widget) for tag, widget in widgets.items()}, update)
+    except ValueError as exc:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(parent, params["function"], str(exc))
+
+
+def _select_color(parent: Any, params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    dialog = qt_widgets.QColorDialog(parent)
+    color = dialog.currentColor()
+    color.setRgbF(*params["eeg"].get("reject", {}).get(params["field"], params["default"]))
+    dialog.setCurrentColor(color)
+    if dialog.exec() != qt_widgets.QDialog.Accepted:
+        return
+    color = dialog.currentColor()
+    params["eeg"].setdefault("reject", {})[params["field"]] = [color.redF(), color.greenF(), color.blueF()]
+    parent.setStyleSheet(f"background-color: {color.name()};")
+
+
 def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
     eeg = params.get("eeg")
     if not isinstance(eeg, dict):
@@ -1452,6 +1486,8 @@ def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Map
         def accept(eeg_out: dict[str, Any], _command: str) -> None:
             eeg.clear()
             eeg.update(eeg_out)
+            if _command and "commands" in params:
+                params["commands"].append(_command)
             for tag in params.get("count_tags", ()):
                 widget = widgets.get(tag)
                 field = params.get("count_fields", {}).get(tag)
