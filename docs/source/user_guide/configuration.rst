@@ -68,7 +68,7 @@ For storage details, see :ref:`large_dataset_storage`.
 Set Options From GUI or Console
 ===============================
 
-Use the Options menu in the GUI, or call ``pop_editoptions`` from
+Use File > Preferences in the GUI, or call ``pop_editoptions`` from
 ``eegprep-console``:
 
 .. code-block:: python
@@ -85,8 +85,18 @@ In a shared GUI/console session, the menu refresh uses the same
 
 Pass ``native_file_dialogs=True`` or ``False`` to ``eeglab()`` or ``gui()`` to
 override the global option for that window. The override also applies to file
-panels opened from nested GUI callbacks. ``EEG_OPTIONS`` is process-local; it
-does not persist across application restarts.
+panels opened from nested GUI callbacks. GUI preferences are saved to
+``~/.eegprep/options.json`` and loaded on the next GUI/console launch. This is
+an EEGPrep file; it does not modify MATLAB's ``eeg_options.m``. Cancel leaves
+both the current options and the file unchanged. Scripted changes stay in the
+current process unless you pass ``persist=True`` to ``pop_editoptions``.
+
+The dialog includes storage, ICA, folder, menu, boundary-event, update, and
+cache options. Enable Show advanced options and reopen Preferences to see
+precision and memory-mapping controls. MATLAB's parallel toolbox, MATLAB EEG
+object, and MATLAB toolbox-path switches are disabled because EEGPrep runs
+without MATLAB. Processing functions continue to honor their explicit
+arguments; options apply only in the workflows that support them.
 
 Preprocessing Parameters
 ========================
@@ -211,5 +221,5 @@ again with ``option_memmapdata`` enabled.
 Menu Entries Did Not Change
 ---------------------------
 
-After changing ``option_allmenus`` in a running GUI, reopen or refresh the main
-window so menu status is rebuilt from the current option dictionary.
+Changes to ``option_allmenus`` in Preferences apply immediately. Scripted changes
+apply on the next GUI refresh. A saved menu choice is restored on restart.
