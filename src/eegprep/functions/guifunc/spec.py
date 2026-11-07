@@ -9,6 +9,22 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
+
+
+def field_text(value: Any) -> str:
+    """Render MATLAB field text as stripped, nonempty lines for a dialog."""
+    if value is None:
+        return ""
+    if isinstance(value, np.ndarray):
+        if value.ndim == 2 and value.dtype.kind in "US":
+            value = ["".join(str(part) for part in row) for row in value]
+        else:
+            value = value.tolist()
+    if isinstance(value, (list, tuple)):
+        return "\n".join(text for part in value if (text := field_text(part)))
+    return str(value).strip()
+
 
 @dataclass(frozen=True)
 class CallbackSpec:

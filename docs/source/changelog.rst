@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Select epochs or events opens tutorial datasets with MATLAB array descriptions
+  and displays each readable description beside its corresponding field (F39, #548).
 - Select data opens tutorial datasets whose channel types are empty MATLAB
   arrays. The channel-type picker is disabled when all types are absent or blank
   (release-readiness F37, #548).

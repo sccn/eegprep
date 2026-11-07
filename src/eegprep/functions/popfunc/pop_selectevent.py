@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec, field_text
 from eegprep.functions.popfunc._event_utils import (
     event_field_names,
     events_as_list,
@@ -71,7 +71,7 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     ]
     geometry: list[tuple[float, ...]] = [(0.6, 0.8, 2.1, 0.8)]
     for field in fields:
-        description = _field_description(EEG, fields, field)
+        description = _field_description(EEG, field)
         if field in {"latency", "duration"}:
             controls.extend(
                 [
@@ -353,17 +353,17 @@ def _display_field_label(EEG: dict[str, Any], field: str) -> str:
     return field
 
 
-def _field_description(EEG: dict[str, Any], fields: list[str], field: str) -> str:
+def _field_description(EEG: dict[str, Any], field: str) -> str:
     descriptions = EEG.get("eventdescription")
     if isinstance(descriptions, dict):
-        text = descriptions.get(field, "")
-        return str(text) if text else "No description"
+        return field_text(descriptions.get(field)) or "No description"
     if isinstance(descriptions, np.ndarray):
         descriptions = descriptions.tolist()
+    fields = event_field_names(EEG.get("event"), include_urevent=True)
     if isinstance(descriptions, list) and field in fields:
         index = fields.index(field)
-        if index < len(descriptions) and descriptions[index]:
-            return str(descriptions[index])
+        if index < len(descriptions):
+            return field_text(descriptions[index]) or "No description"
     return "No description"
 
 

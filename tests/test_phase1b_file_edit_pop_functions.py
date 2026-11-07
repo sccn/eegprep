@@ -20,10 +20,24 @@ from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
-from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
+from eegprep.functions.popfunc.pop_selectevent import pop_selectevent, pop_selectevent_dialog_spec
 from tests.eeglab_tests import assert_matlab_equal, eeglab_test
 from tests.eeglab_tests.assertions import assert_matlab_struct_near, matlab_field_concat
 from tests.fixtures import SAMPLE_DATASET_PATH, matlab_engine_available
+
+
+@pytest.mark.parametrize("filename", ["eeglab_data.set", "eeglab_data_epochs_ica.set"])
+def test_tutorial_event_selection_descriptions(filename):
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH.with_name(filename)))
+
+    spec = pop_selectevent_dialog_spec(eeg)
+
+    descriptions = [control.string for control in spec.controls if control.style == "pushbutton"]
+    assert "Event type\nHere, either 'square' or 'rt'" in descriptions
+    assert "Stimulus position\n(Here, either position 1 or 2, both in the left hemifield)." in descriptions
+    latency_index = next(index for index, control in enumerate(spec.controls) if control.string.startswith("latency ("))
+    assert spec.controls[latency_index + 1].string == "Event latency\nin the continuous data (seconds)."
+    assert not any("array(" in text for text in descriptions)
 
 
 def _reference_selection_eeg(eeglab_backend):
