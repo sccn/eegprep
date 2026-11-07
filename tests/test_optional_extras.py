@@ -40,7 +40,7 @@ def test_base_install_keeps_plotting_and_edf_and_moves_heavy_libraries() -> None
     assert set(STILL_REQUIRED) <= base
     assert {"oct2py", "mne", "pybids", "python-picard", "neo"}.isdisjoint(base)
     assert _requirement_names(extras["eeglab"]) == {"oct2py"}
-    assert _requirement_names(extras["mne"]) == {"mne"}
+    assert _requirement_names(extras["mne"]) == {"mne", "defusedxml"}
     assert _requirement_names(extras["pybids"]) == {"pybids"}
     assert _requirement_names(extras["picard"]) == {"python-picard"}
     assert set(extras["full"]) == {"eegprep[eeglab]", "eegprep[mne]", "eegprep[pybids]", "eegprep[picard]"}
