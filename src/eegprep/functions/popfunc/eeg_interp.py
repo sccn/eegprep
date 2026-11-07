@@ -23,7 +23,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
     bad_chans : list, array-like, or list of dicts
-        Channel names, channel indices, or channel-location dictionaries.
+        Channel names, 1-based channel indices, or channel-location dictionaries.
+        Channel 1 is the first channel, as in ``pop_interp`` and EEGLAB.
         When channel-location dictionaries are provided, the function can
         return unchanged data for identical locations, append new channels when
         no existing locations overlap, or remap data when existing channels are
@@ -46,6 +47,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     EEG : dict
         Updated EEG structure with interpolated channels
     """
+    bad_chans = _zero_based_channels(bad_chans, int(EEG["nbchan"]))
     EEG = deepcopy(EEG)
     if dtype is None:
         data_dtype = np.asarray(EEG['data']).dtype
@@ -110,7 +112,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         labels = [ch['labels'] for ch in locs]
         bad_idx = [labels.index(lbl) for lbl in bad_chans]
     else:
-        bad_idx = sorted(bad_chans)
+        bad_idx = sorted(set(bad_chans))
 
     # If no channels to interpolate, return as-is
     if len(bad_idx) == 0:
@@ -509,3 +511,30 @@ def computeg(x, y, z, xelec, yelec, zelec, params):
         g += ((2 * n + 1) / (n**m * (n + 1) ** m)) * Pn
 
     return g / (4 * np.pi)
+
+
+def _zero_based_channels(bad_elec, nbchan):
+    if isinstance(bad_elec, dict):
+        return bad_elec
+    if isinstance(bad_elec, np.ndarray) and bad_elec.dtype == object:
+        bad_elec = bad_elec.reshape(-1).tolist()
+    if isinstance(bad_elec, (list, tuple)) and bad_elec and isinstance(bad_elec[0], (dict, str)):
+        return list(bad_elec) if isinstance(bad_elec, tuple) else bad_elec
+    values = np.asarray([] if bad_elec is None else bad_elec)
+    if values.size == 0:
+        return []
+    if values.dtype.kind not in {"i", "u", "f"}:
+        return bad_elec
+    flat = values.astype(float, copy=False).reshape(-1)
+    if np.any(~np.isfinite(flat)) or np.any(flat != np.trunc(flat)):
+        raise ValueError(
+            f"eeg_interp: channel indices must be whole numbers from 1 to {nbchan}. Channel 1 is the first channel."
+        )
+    indices = flat.astype(int)
+    outside = indices[(indices < 1) | (indices > nbchan)]
+    if outside.size:
+        raise ValueError(
+            f"eeg_interp: channel index {int(outside[0])} is outside 1..{nbchan}. Channel 1 is the first channel."
+        )
+    return (indices - 1).tolist()
+

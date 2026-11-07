@@ -75,7 +75,6 @@ def pop_interp(
     method = "spherical" if method is None else method
     t_range = _normalise_t_range_argument(t_range)
     EEG_in = _remove_interpolated_removed_channels(EEG, bad_elec)
-    bad_elec = _zero_based_channels(bad_elec, int(EEG_in.get("nbchan", 0) or 0))
     EEG_out = eeg_interp(EEG_in, bad_elec, method=method, t_range=t_range)
     return (EEG_out, com) if return_com else EEG_out
 
@@ -290,31 +289,6 @@ def _gui_channels_as_one_based(chans: Any) -> Any:
         return [int(channel) + 1 for channel in chans]
     return chans
 
-
-def _zero_based_channels(bad_elec: Any, nbchan: int) -> Any:
-    if isinstance(bad_elec, dict):
-        return bad_elec
-    if isinstance(bad_elec, np.ndarray) and bad_elec.dtype == object:
-        bad_elec = bad_elec.reshape(-1).tolist()
-    if isinstance(bad_elec, (list, tuple)) and bad_elec and isinstance(bad_elec[0], (dict, str)):
-        return list(bad_elec) if isinstance(bad_elec, tuple) else bad_elec
-    values = np.asarray([] if bad_elec is None else bad_elec)
-    if values.size == 0:
-        return []
-    if values.dtype.kind not in {"i", "u", "f"}:
-        return bad_elec
-    flat = values.astype(float, copy=False).reshape(-1)
-    if np.any(~np.isfinite(flat)) or np.any(flat != np.trunc(flat)):
-        raise ValueError(
-            f"pop_interp: channel indices must be whole numbers from 1 to {nbchan}. Channel 1 is the first channel."
-        )
-    indices = flat.astype(int)
-    outside = indices[(indices < 1) | (indices > nbchan)]
-    if outside.size:
-        raise ValueError(
-            f"pop_interp: channel index {int(outside[0])} is outside 1..{nbchan}. Channel 1 is the first channel."
-        )
-    return (indices - 1).tolist()
 
 
 def _gui_t_range(EEG: dict, value: Any) -> list[float]:
