@@ -12,7 +12,7 @@ except ImportError:
     pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, run_console
 from eegprep.functions.adminfunc.eeglab import eeglab
 from eegprep.functions.adminfunc.pop_editoptions import (
     pop_editoptions,
@@ -20,7 +20,7 @@ from eegprep.functions.adminfunc.pop_editoptions import (
 )
 from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.qt import QtDialogRenderer
-from eegprep.functions.guifunc.session import EEGPrepSession
+from tests.test_console_workspace import _FakeShell
 from tests.test_stream11_datasets import accept, dialogs as dialogs
 from tests.test_stream11_menus import qapp as qapp
 
@@ -65,7 +65,7 @@ def test_f89_preferences_apply_immediately_and_reload(options, qapp, dialogs):
         assert EEG_OPTIONS["option_savetwofiles"] == 1
         assert json.loads(options.read_text())["option_allmenus"] == 1
         EEG_OPTIONS.update(option_allmenus=0, option_savetwofiles=0)
-        restarted = build_main_window(include_plugins=False)
+        restarted = eeglab(show=False, include_plugins=False)
         assert restarted.all_menus
         assert EEG_OPTIONS["option_savetwofiles"] == 1
         restarted.window.close()
@@ -84,26 +84,74 @@ def test_importing_pop_editoptions_does_not_load_saved_preferences(options):
     assert EEG_OPTIONS == before
 
 
-@pytest.mark.parametrize("startup", ["main_window", "eeglab", "console"])
+@pytest.mark.parametrize("startup", ["eeglab", "console"])
 def test_interactive_startup_loads_saved_preferences(options, qapp, startup):
     EEG_OPTIONS["option_allmenus"] = 0
     options.parent.mkdir()
     options.write_text(json.dumps({"option_allmenus": 1}))
 
     if startup == "console":
-        workspace = EEGPrepConsoleWorkspace(EEGPrepSession())
-        try:
+
+        def shell_factory(namespace, _banner):
             assert EEG_OPTIONS["option_allmenus"] == 1
-        finally:
-            workspace.close()
+            assert namespace["window"].all_menus
+            namespace["window"].window.close()
+            return _FakeShell()
+
+        assert run_console(["--no-plugins"], shell_factory=shell_factory) == 0
         return
-    window = (
-        eeglab(show=False, include_plugins=False) if startup == "eeglab" else build_main_window(include_plugins=False)
-    )
+    window = eeglab(show=False, include_plugins=False)
     try:
         assert EEG_OPTIONS["option_allmenus"] == 1
         assert window.all_menus
     finally:
+        window.window.close()
+
+
+@pytest.mark.parametrize("constructor", ["main_window", "console_workspace"])
+def test_constructors_preserve_scripted_options(options, qapp, constructor):
+    pop_editoptions(option_allmenus=1, persist=True)
+    first = eeglab(show=False, include_plugins=False)
+    pop_editoptions(option_allmenus=0, persist=False)
+    try:
+        if constructor == "console_workspace":
+            workspace = EEGPrepConsoleWorkspace(first.session)
+            try:
+                assert EEG_OPTIONS["option_allmenus"] == 0
+            finally:
+                workspace.close()
+        else:
+            second = build_main_window(first.session, include_plugins=False)
+            try:
+                assert EEG_OPTIONS["option_allmenus"] == 0
+                assert not second.all_menus
+            finally:
+                second.window.close()
+    finally:
+        first.window.close()
+
+
+@pytest.mark.parametrize("launcher", ["gui", "eeglab", "eegprep.gui", "eegprep.eeglab", "imported_gui"])
+def test_console_gui_commands_preserve_scripted_options(options, qapp, launcher):
+    pop_editoptions(option_allmenus=1, persist=True)
+    window = eeglab(show=False, include_plugins=False)
+    workspace = EEGPrepConsoleWorkspace(window.session, window=window)
+    try:
+        workspace.namespace["pop_editoptions"](option_allmenus=0, persist=False)
+        if launcher == "imported_gui":
+            source = "from eegprep import gui as imported_gui"
+            exec(source, workspace.namespace)
+            workspace.after_execute(source)
+        second = eval(f"{launcher}(show=False, include_plugins=False)", workspace.namespace)
+        try:
+            assert EEG_OPTIONS["option_allmenus"] == 0
+            assert not second.all_menus
+            assert second.session is workspace.session
+            assert json.loads(options.read_text())["option_allmenus"] == 1
+        finally:
+            second.window.close()
+    finally:
+        workspace.close()
         window.window.close()
 
 

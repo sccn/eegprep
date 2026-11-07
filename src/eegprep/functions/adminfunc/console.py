@@ -13,6 +13,7 @@ import sys
 import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping
+from functools import partial
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -41,6 +42,7 @@ _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-
 _ALLEEG_ASSIGNMENT_PATTERN = re.compile(r"^\s*ALLEEG\s*=")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
+_SESSION_LAUNCHERS = {"gui", "eeglab"}
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_autorej",
     "pop_eegthresh",
@@ -275,6 +277,8 @@ class ConsoleEEGPrepModule:
             return self._bridge.pop_wrapper(name)
         if name == "eegh":
             return self._bridge.namespace["eegh"]
+        if name in _SESSION_LAUNCHERS:
+            return partial(getattr(eegprep, name), session=self._bridge.session)
         return getattr(eegprep, name)
 
     def __dir__(self) -> list[str]:
@@ -350,7 +354,6 @@ class EEGPrepConsoleWorkspace:
         exports: Mapping[str, Any] | None = None,
         extension_runtime: ExtensionRuntime | None = None,
     ) -> None:
-        load_eegprep_options()
         self.session = session
         self.window = window
         self.refresh = refresh or getattr(window, "refresh", None)
@@ -544,6 +547,9 @@ class EEGPrepConsoleWorkspace:
                 self.namespace[name] = eegprep.__version__
             elif name == "eegh":
                 continue
+            elif name in _SESSION_LAUNCHERS:
+                function = getattr(eegprep, name) if exports is None else exports[name]
+                self.namespace[name] = partial(function, session=self.session)
             elif name.startswith("pop_"):
                 wrapped = ConsolePopFunction(name, self, None if exports is None else exports[name])
                 self._wrapped_pop_exports[name] = wrapped
@@ -590,6 +596,8 @@ class EEGPrepConsoleWorkspace:
                 self.namespace[local_name] = self._eegprep_proxy
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
+            elif export_name in _SESSION_LAUNCHERS:
+                self.namespace[local_name] = partial(getattr(eegprep, export_name), session=self.session)
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True
@@ -675,6 +683,7 @@ def run_console(
     )
     args = parser.parse_args(argv)
 
+    load_eegprep_options()
     session = EEGPrepSession()
     try:
         window = gui_launcher(
@@ -1609,7 +1618,7 @@ def _eegprep_import_aliases(source: str) -> dict[str, str]:
                     aliases[alias.asname or "eegprep"] = "eegprep"
         elif isinstance(node, ast.ImportFrom) and node.module == "eegprep":
             for alias in node.names:
-                if alias.name.startswith("pop_"):
+                if alias.name.startswith("pop_") or alias.name in _SESSION_LAUNCHERS:
                     aliases[alias.asname or alias.name] = alias.name
     return aliases
 
