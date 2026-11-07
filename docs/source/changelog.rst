@@ -276,6 +276,9 @@ Unreleased
   and a regression test record that difference.
 - ``pop_interp`` channel indices are 1-based. Channel 1 is the first channel.
   Replayed history keeps those indices.
+- ``eeg_interp`` channel indices are 1-based, matching ``pop_interp`` and
+  ``eeg_interp.m``. Scripts that passed 0-based indices must add 1. Indices
+  outside ``1..nbchan`` raise an error naming the valid range (#569).
 - ``runica`` extended kurtosis draws ``fix(rand*datalength)`` on the
   ``RandomState(5489)`` stream and divides by ``m2`` (``runica.m`` lines
   890-903). With ``posact`` off, component order uses sphered-channel energy

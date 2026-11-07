@@ -304,7 +304,8 @@ EEG_dict = {
 }
 
 # Perform interpolation
-EEG_interp = eegprep.eeg_interp(EEG_dict, bad_chans=bad_channel_indices)
+# eeg_interp takes 1-based channel numbers; channel 1 is the first channel.
+EEG_interp = eegprep.eeg_interp(EEG_dict, bad_chans=[i + 1 for i in bad_channel_indices])
 interpolated_data = EEG_interp['data']
 
 print("Interpolation complete!")
