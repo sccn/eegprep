@@ -773,6 +773,17 @@ def test_sorttrial_off_keeps_the_first_copy_of_a_duplicate():
     assert out['data'][0, 0, :].tolist() == [5, 4, 3, 2, 1]
 
 
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_selection_preserves_input_precision(dtype):
+    eeg = create_test_eeg(n_channels=2, n_samples=20, srate=10)
+    eeg["data"] = np.linspace(-1000, 1000, 40, dtype=dtype).reshape(2, 20)
+
+    out = pop_select(eeg, time=[0.2, 0.6], channel=[0])
+
+    assert out["data"].dtype == dtype
+    np.testing.assert_array_equal(out["data"], eeg["data"][:1, 2:7])
+
+
 def test_notime_inside_an_epoch_names_the_fix():
     eeg = create_test_eeg(n_channels=1, n_samples=8, srate=100.0, n_trials=2)
     eeg['xmin'] = -0.04
