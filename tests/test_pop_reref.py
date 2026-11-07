@@ -870,9 +870,11 @@ def test_reref_gui_excludes_exactly_the_typed_channels_and_records_them():
     eeg["data"] = np.arange(320, dtype=float).reshape(8, 40)
     eeg["nbchan"] = 8
     eeg["chanlocs"] = [{"labels": f"Ch{i + 1}"} for i in range(8)]
+
     class Renderer:
         def run(self, spec, initial_values=None):
             return {"ave": True, "exclude": "2 6"}
+
     out, command = pop_reref(eeg, gui=True, renderer=Renderer(), return_com=True)
     included = [0, 2, 3, 4, 6, 7]
     expected = eeg["data"].copy()
@@ -889,10 +891,12 @@ def test_reref_empty_reference_header_is_unknown(empty):
     eeg["ref"] = empty
     for loc in eeg["chanlocs"]:
         loc["ref"] = empty
+
     class Renderer:
         def run(self, spec, initial_values=None):
             assert spec.controls[0].string == "Current data reference state is: unknown"
             return None
+
     pop_reref(eeg, gui=True, renderer=Renderer())
 
 

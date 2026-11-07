@@ -96,10 +96,19 @@ def test_transform_refuses_existing_output_without_overwrite(tmp_path):
 
 def test_rereference_keeps_one_based_cli_reference_and_exclusion():
     data = np.arange(40, dtype=float).reshape(4, 10)
-    eeg = {"data": data, "nbchan": 4, "pnts": 10, "trials": 1, "srate": 100.0,
-           "xmin": 0, "xmax": 0.09, "chanlocs": [{"labels": f"Ch{i + 1}"} for i in range(4)]}
-    args = argparse.Namespace(method="channels", channels=["1", "2"], exclude=["4"],
-                              keep_ref=True, huber=None, refica="on")
+    eeg = {
+        "data": data,
+        "nbchan": 4,
+        "pnts": 10,
+        "trials": 1,
+        "srate": 100.0,
+        "xmin": 0,
+        "xmax": 0.09,
+        "chanlocs": [{"labels": f"Ch{i + 1}"} for i in range(4)],
+    }
+    args = argparse.Namespace(
+        method="channels", channels=["1", "2"], exclude=["4"], keep_ref=True, huber=None, refica="on"
+    )
     result = transforms._rereference(eeg, args)
     expected = data.copy()
     expected[:3] -= data[:2].mean(axis=0)
