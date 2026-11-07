@@ -476,6 +476,32 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Event selection records numeric criteria for numeric event codes and preserves
+string codes as text. Data selection preserves input precision; embedded
+save precision remains with the S1 stream (F50, #548).</p></li>
+<li><p>Cropping epoched data recalculates event latencies per epoch and preserves
+cached ICA alignment. The tutorial selection retains 129 inclusive samples
+and 8 events; the documented EEGLAB endpoint difference remains intentional
+(F44, #548).</p></li>
+<li><p>Select events warns when no events match and explains how to adjust the
+selection, including when boundary events are retained (F40, #548).</p></li>
+<li><p>About this dataset preserves comment line breaks, including blank lines, in
+the editor and saved comments (F48, #548).</p></li>
+<li><p>Extract epochs supports selecting several event types together in its picker
+(F124, #548).</p></li>
+<li><p>Parks–McClellan Estimate opens the ripple/attenuation sub-dialog and leaves
+the filter settings unchanged on Cancel (F101, #548).</p></li>
+<li><p>Event fields displays readable descriptions, supports editing them, and opens
+file pickers for existing and new fields, including paths with spaces (F100, #548).</p></li>
+<li><p>Data and ICA rejection menus fit within 1073×994 pixels and enable calculation,
+plotting, Help, and color controls. Calculated marks and history are retained
+when closing the menu. Probability and kurtosis PLOT open the scrolling
+rejection browser with calculated marks (F102/F105, #548).</p></li>
+<li><p>Select epochs or events opens tutorial datasets with MATLAB array descriptions
+and displays each readable description beside its corresponding field (F39, #548).</p></li>
+<li><p>Select data opens tutorial datasets whose channel types are empty MATLAB
+arrays. The channel-type picker is disabled when all types are absent or blank
+(release-readiness F37, #548).</p></li>
 <li><p>The Select data dialog validates channel numbers before conversion to
 Python indices. Range errors preserve the entered numbers and give the
 valid one-based range.</p></li>

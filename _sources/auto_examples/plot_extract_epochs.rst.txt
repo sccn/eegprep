@@ -217,7 +217,7 @@ event refers to.
 
  .. code-block:: none
 
-    position 1 epochs: (32, 193, 21) trials: 21
+    position 1 epochs: (32, 193, 40) trials: 40
     EEG = pop_selectevent( EEG, 'type', {'square'}, 'position', 1, 'deleteepochs', 'on', 'deleteevents', 'off');
 
 
@@ -226,7 +226,7 @@ event refers to.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.051 seconds)
+   **Total running time of the script:** (0 minutes 0.056 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_extract_epochs.py:

@@ -678,6 +678,14 @@ them out of the console, keep explicit return values:</p>
 </section>
 <section id="practical-rules">
 <h2>Practical Rules<a class="headerlink" href="#practical-rules" title="Link to this heading">#</a></h2>
+<p>The data and ICA rejection menus keep calculations in the open dialog until
+you choose <strong>Close (keep marks)</strong>. Closing stores the marks and calculation
+commands in the shared session, where you can inspect <code class="docutils literal notranslate"><span class="pre">EEG['reject']</span></code> and
+<code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> from the console. Cancel discards the dialog’s edits.</p>
+<p>The probability and kurtosis <strong>PLOT</strong> buttons calculate marks and open the
+same browser as <strong>Scroll Data</strong> or <strong>Scroll Acts.</strong>, with the calculated marks
+ready for review. EEGLAB’s <strong>PLOT</strong> opens <code class="docutils literal notranslate"><span class="pre">rejstatepoch</span></code>, an interactive
+statistics viewer that has not been ported to EEGPrep.</p>
 <ul class="simple">
 <li><p>Prefer <code class="docutils literal notranslate"><span class="pre">eegprep-console</span> <span class="pre">--full</span></code> while learning or reviewing data.</p></li>
 <li><p>Use the GUI for inspection-heavy actions and the console for quick checks,

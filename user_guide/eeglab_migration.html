@@ -555,6 +555,38 @@ Python ports or explicit standalone boundaries.</p></td>
 </section>
 <section id="what-changes">
 <h2>What Changes<a class="headerlink" href="#what-changes" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">pop_select</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_selectevent</span></code> preserve the input data precision.
+Selecting imported BDF data in float64 does not round it to float32. Embedded
+<code class="docutils literal notranslate"><span class="pre">.set</span></code> save precision is a separate serialization policy; two-file <code class="docutils literal notranslate"><span class="pre">.fdt</span></code>
+storage uses float32. Release-readiness F50’s embedded-save policy is assigned
+to stream S1, outside the selection fixes.</p>
+<p>Event selection accepts numeric codes and their textual spelling, such as
+<code class="docutils literal notranslate"><span class="pre">255</span></code> and <code class="docutils literal notranslate"><span class="pre">'255'</span></code>. For a dataset with numeric event types, its history
+records numeric criteria, avoiding EEGLAB’s silent mismatch with a string cell
+selector. Numeric-looking string event types remain strings. When cropping
+introduces a text <code class="docutils literal notranslate"><span class="pre">boundary</span></code> event, event consistency can convert all types
+to strings, as in EEGLAB.</p>
+<p>Epoch cropping with <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> includes both endpoints, as its time and
+point range documentation specifies. EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_select.m</span></code> calls <code class="docutils literal notranslate"><span class="pre">epoch</span></code>
+with an upper-exclusive window and drops the final sample. For the tutorial
+<code class="docutils literal notranslate"><span class="pre">eeglab_data_epochs_ica.set</span></code>, selecting epochs <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">3,</span> <span class="pre">5,</span> <span class="pre">7,</span> <span class="pre">9]</span></code> and time
+<code class="docutils literal notranslate"><span class="pre">[-0.5,</span> <span class="pre">0.5]</span></code> therefore retains 129 points and 8 events in EEGPrep, with
+<code class="docutils literal notranslate"><span class="pre">xmax=0.5</span></code>. The recorded EEGLAB 8ac485f6 result is 128 points and 8 events,
+with <code class="docutils literal notranslate"><span class="pre">xmax=0.4921875</span></code>. EEGPrep retains each event only if its position within
+its original epoch is inside the crop, then recalculates its concatenated
+latency using the new epoch length.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_selectevent</span></code> emits a warning when no events match the selection, with
+instructions to check type names/codes and field ranges. Continuous data can
+still be returned with no events (or only retained boundary events). EEGLAB
+can return this empty selection silently; EEGPrep deliberately reports it.</p>
+<p>The data and ICA rejection menus calculate marks, open scrolling data for
+inspection, and retain the calculation commands when you choose <strong>Close (keep
+marks)</strong>. The probability and kurtosis <strong>PLOT</strong> buttons calculate marks and open
+the same scrolling rejection browser as <strong>Scroll Data</strong> or <strong>Scroll Acts.</strong>,
+where you can inspect and change epoch marks interactively. EEGLAB’s <strong>PLOT</strong>
+opens the interactive <code class="docutils literal notranslate"><span class="pre">rejstatepoch</span></code> viewer, which has not been ported to
+EEGPrep. Edit thresholds in the rejection menu and calculate again to change
+the limits. Cancelling the menu discards its changes.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Topic</p></th>
