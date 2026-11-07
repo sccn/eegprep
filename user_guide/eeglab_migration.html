@@ -569,19 +569,30 @@ Python ports or explicit standalone boundaries.</p></td>
 <td><p>Keep channel, component, dataset, and epoch numbers one-based in GUI
 dialogs and command strings unless a function documents otherwise.</p></td>
 </tr>
-<tr class="row-even"><td><p>Globals</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pop_select</span></code> channel arguments</p></td>
+<td><p>Python <code class="docutils literal notranslate"><span class="pre">channel</span></code>, <code class="docutils literal notranslate"><span class="pre">nochannel</span></code>, and <code class="docutils literal notranslate"><span class="pre">rmchannel</span></code> use zero-based
+indices from <code class="docutils literal notranslate"><span class="pre">0</span></code> through <code class="docutils literal notranslate"><span class="pre">EEG['nbchan']</span> <span class="pre">-</span> <span class="pre">1</span></code>. Subtract 1 from
+EEGLAB channel numbers before passing them to Python, or use labels
+such as <code class="docutils literal notranslate"><span class="pre">channel=['Cz',</span> <span class="pre">'Pz']</span></code>. The GUI uses one-based numbers
+from <code class="docutils literal notranslate"><span class="pre">1</span></code> through <code class="docutils literal notranslate"><span class="pre">EEG['nbchan']</span></code>. After cropping channels, use
+the current dataset’s channel count. Python range errors report
+the invalid indices, current count, and both valid ranges. GUI
+errors preserve the entered channel numbers and give the valid
+one-based range.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Globals</p></td>
 <td><p>EEGPrep functions take explicit inputs. The shared console namespace is
 session state, not a hidden global dependency.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Runtime EEGLAB checkout</p></td>
+<tr class="row-even"><td><p>Runtime EEGLAB checkout</p></td>
 <td><p>Installed EEGPrep does not read from <code class="docutils literal notranslate"><span class="pre">src/eegprep/eeglab</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p>Optional toolboxes</p></td>
+<tr class="row-odd"><td><p>Optional toolboxes</p></td>
 <td><p>MATLAB-only LIMO, FieldTrip STUDY source statistics, MRI BEM creation,
 AFNI atlas clipping, and unavailable ICLabel network artifacts fail
 clearly instead of being faked.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Scripts</p></td>
+<tr class="row-even"><td><p>Scripts</p></td>
 <td><p>Assign return values explicitly outside <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>.</p></td>
 </tr>
 </tbody>

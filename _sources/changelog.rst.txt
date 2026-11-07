@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- The Select data dialog validates channel numbers before conversion to
+  Python indices. Range errors preserve the entered numbers and give the
+  valid one-based range.
+- Baseline investigation (#542) adds tests for inclusive endpoints,
+  float32/float64 output dtype, and float64 mean behavior. The finding
+  remains open; the implementation and tolerances are unchanged.
+- The fuzz adapter converts EEGLAB's 1-based channel indices to Python
+  ``pop_select``'s 0-based indices (#543). Duplicate-channel draws use the
+  cropped channel count. Python out-of-range errors name ``pop_select``, the
+  invalid indices, ``nbchan``, and the valid Python and EEGLAB/GUI ranges.
 - Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
   with ``return_study`` on, so the console rebuilds the same study.
   ``pop_importbids.m`` always returns ``STUDY`` and ``ALLEEG``. The direct

@@ -1320,6 +1320,15 @@ Both sides
 raising on a <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> input whose fit width rounds to 1 or less is
 a match. The MATLAB copy replaces <code class="docutils literal notranslate"><span class="pre">None</span></code> <code class="docutils literal notranslate"><span class="pre">chaninfo</span></code> fields, including
 <code class="docutils literal notranslate"><span class="pre">plotrad</span></code> and <code class="docutils literal notranslate"><span class="pre">shrink</span></code>, with <code class="docutils literal notranslate"><span class="pre">[]</span></code> before <code class="docutils literal notranslate"><span class="pre">savemat</span></code>.</p>
+<p>Channel selections in fuzz cases use EEGLAB’s one-based indices. The
+Python <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> adapter subtracts 1 from numeric <code class="docutils literal notranslate"><span class="pre">channel</span></code>,
+<code class="docutils literal notranslate"><span class="pre">nochannel</span></code>, and <code class="docutils literal notranslate"><span class="pre">rmchannel</span></code> values; labels and trial numbers are
+unchanged. Duplicate-channel draws use the cropped channel count.
+<a class="reference external" href="https://github.com/sccn/eegprep/issues/543">Finding #543</a> used the
+original count of 32 on a 26-channel crop and omitted that conversion.
+Both implementations rejected the saved selection. The harness now matches
+their channel-index range errors by semantic markers while preserving
+EEGPrep’s corrective error message.</p>
 <p>Per-function absolute and relative tolerances live in
 <code class="docutils literal notranslate"><span class="pre">tests/fuzz/tolerances.toml</span></code>. They are changed only by reviewed human pull
 requests. Sections for the event-aware targets are proposals until that
@@ -1356,6 +1365,53 @@ MATLAB is not configured:</p>
     <span class="k">assert</span> <span class="ow">not</span> <span class="n">outcome</span><span class="o">.</span><span class="n">diverged</span>
 </pre></div>
 </div>
+<section id="open-baseline-precision-finding-542">
+<h4>Open baseline precision finding (#542)<a class="headerlink" href="#open-baseline-precision-finding-542" title="Link to this heading">#</a></h4>
+<p><a class="reference external" href="https://github.com/sccn/eegprep/issues/542">Finding #542</a> remains open.
+The <a class="reference external" href="https://github.com/sccn/eegprep/actions/runs/42081213810">seed 20261105 artifact</a> reports
+<code class="docutils literal notranslate"><span class="pre">pipeline|pop_rmbase:numeric</span></code> with maximum absolute difference
+<code class="docutils literal notranslate"><span class="pre">7.105427357601002e-15</span></code>, maximum relative difference
+<code class="docutils literal notranslate"><span class="pre">4.739599671157742e-12</span></code>, and maximum-error finite index 3821.
+No baseline implementation, numerical tolerance, or baseline divergence
+classifier was changed during this investigation.</p>
+<p>In EEGLAB <code class="docutils literal notranslate"><span class="pre">8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pop_rmbase.m</span></code> lines 162-167 select both time endpoints.
+For epoched data, lines 201-203 compute
+<code class="docutils literal notranslate"><span class="pre">mean(double(EEG.data(indc,pointrange,:)),2)</span></code> per channel and then
+subtract the replicated mean. This branch does not call <code class="docutils literal notranslate"><span class="pre">rmbase.m</span></code>.
+The latter loops over epochs and channels, computes <code class="docutils literal notranslate"><span class="pre">nan_mean</span></code> of
+double-precision baseline samples, and subtracts once. EEGPrep routes
+epoched data through <code class="docutils literal notranslate"><span class="pre">rmbase</span></code>, which uses <code class="docutils literal notranslate"><span class="pre">np.nanmean</span></code> with a float64
+accumulator and subtracts once into the input floating dtype. With finite
+data these express the same calculation, but the MATLAB source does not
+specify the internal summation order of <code class="docutils literal notranslate"><span class="pre">mean</span></code>.</p>
+<p>The saved crop has shape <code class="docutils literal notranslate"><span class="pre">(32,</span> <span class="pre">3840)</span></code>. Running the saved clean, reference,
+and epoch steps in Python produces float64 data of shape
+<code class="docutils literal notranslate"><span class="pre">(30,</span> <span class="pre">192,</span> <span class="pre">13)</span></code>. The baseline contains 65 samples, zero-based indices
+0 through 64, spanning -500 through 0 ms inclusively.
+Sequential float64 summation along those samples, division by 65, and
+subtraction exactly matches the current Python result. A contiguous
+baseline array with samples on the last axis, reduced by <code class="docutils literal notranslate"><span class="pre">np.mean</span></code>,
+changes the result by at most <code class="docutils literal notranslate"><span class="pre">7.105427357601002e-15</span></code>. Its maximum
+relative difference is <code class="docutils literal notranslate"><span class="pre">9.479199340877801e-12</span></code> and maximum-error finite
+index is 3299. These differ from the nightly report.</p>
+<p>That experiment supports a reduction-order hypothesis; it does not
+establish MATLAB’s order or show that the difference cannot be eliminated.
+The artifact stores the initial crop, not MATLAB’s intermediate baseline
+input or means. The nightly pipeline advances from each oracle result,
+whereas the Python-only probe advances from Python results. Choosing a
+matching reduction order still requires MATLAB’s input immediately before
+<code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code>, its time vector, selected points, per-channel <code class="docutils literal notranslate"><span class="pre">tmpmean</span></code>,
+and output on that same input.</p>
+<p><code class="docutils literal notranslate"><span class="pre">test_rmbase_542_double_mean_and_inclusive_baseline</span></code> locks exact,
+analytically known means for float32 and float64 inputs, both baseline
+endpoints, separate epochs, and a channel subset. Its 65-sample baseline
+contains <code class="docutils literal notranslate"><span class="pre">2**24</span></code>, <code class="docutils literal notranslate"><span class="pre">-2**24</span></code>, and 63 values of 65, so the mean is exactly
+63 before channel/epoch offsets. No error allowance is needed.
+<code class="docutils literal notranslate"><span class="pre">test_rmbase_542_finite_difference_is_still_reported</span></code> ensures a finite
+difference of the reported magnitude remains a numeric finding in both
+standalone and pipeline comparisons at the unchanged tolerances.</p>
+</section>
 </section>
 <section id="full-pipeline-parity-harness">
 <h3>Full-Pipeline Parity Harness<a class="headerlink" href="#full-pipeline-parity-harness" title="Link to this heading">#</a></h3>
@@ -1804,7 +1860,10 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-discovery">Test Discovery</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#continuous-integration">Continuous Integration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nightly-differential-fuzzing">Nightly differential fuzzing</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nightly-differential-fuzzing">Nightly differential fuzzing</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#open-baseline-precision-finding-542">Open baseline precision finding (#542)</a></li>
+</ul>
+</li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-pipeline-parity-harness">Full-Pipeline Parity Harness</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#why-it-is-not-part-of-tests">Why it is not part of <code class="docutils literal notranslate"><span class="pre">tests/</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#running-it">Running it</a></li>
