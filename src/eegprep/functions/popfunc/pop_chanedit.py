@@ -74,7 +74,9 @@ def pop_chanedit(
 def pop_chanedit_dialog_spec(EEG: dict[str, Any], *, renderer: Any | None = None) -> DialogSpec:
     """Return the EEGLAB-like ``pop_chanedit`` dialog spec."""
     chanlocs = deepcopy(chanlocs_as_list(EEG.get("chanlocs")))
-    chanlocs.extend(deepcopy(chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", []))))
+    chanlocs.extend(
+        {**loc, "datachan": 0} for loc in deepcopy(chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", [])))
+    )
     current = chanlocs[0] if chanlocs else {}
     field_rows = [
         ('Channel label ("label")', "labels", "Opt. head center"),
@@ -554,7 +556,7 @@ def _apply_chanedit(
     chaninfo = deepcopy(eeg.get("chaninfo", {})) if eeg is not None else {}
     urchans = chanlocs_as_list(eeg.get("urchanlocs")) if eeg is not None else []
 
-    chanlocs.extend(chanlocs_as_list(chaninfo.pop("nodatchans", [])))
+    chanlocs.extend({**loc, "datachan": 0} for loc in chanlocs_as_list(chaninfo.pop("nodatchans", [])))
     chanlocs, chaninfo, urchans = _edit_locations(chanlocs, chaninfo, urchans, options)
     data_locs = [loc for loc in chanlocs if loc.get("datachan", True)]
     chaninfo["nodatchans"] = [loc for loc in chanlocs if not loc.get("datachan", True)]

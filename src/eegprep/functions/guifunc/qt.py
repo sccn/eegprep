@@ -98,7 +98,6 @@ class QtDialogRenderer:
     _validate_pop_reref_dialog: Any
     _validate_pop_interp_dialog: Any
     _callback_channels: Any
-    _validate_channel_text: Any
     _parse_channel_text: Any
     _parse_numeric_text: Any
     _widget_number: Any
@@ -999,20 +998,6 @@ def _callback_channels(spec: DialogSpec, tag: str) -> tuple[str, ...]:
     return ()
 
 
-def _validate_channel_text(text: str, labels: tuple[str, ...], label: str) -> str | None:
-    values = _parse_channel_text(text)
-    lower_labels = [value.lower() for value in labels]
-    for value in values:
-        if _is_int_text(value):
-            index = int(value)
-            if index < 0 or index >= len(labels):
-                return f"{label} index out of range"
-            continue
-        if value.lower() not in lower_labels:
-            return f"{label} '{value}' not found"
-    return None
-
-
 def _parse_channel_text(text: str) -> list[str]:
     text = text.strip()
     if text.startswith("[") and text.endswith("]"):
@@ -1896,7 +1881,6 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_validate_pop_reref_dialog",
     "_validate_pop_interp_dialog",
     "_callback_channels",
-    "_validate_channel_text",
     "_parse_channel_text",
     "_parse_numeric_text",
     "_widget_number",

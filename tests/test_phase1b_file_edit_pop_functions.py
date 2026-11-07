@@ -19,6 +19,7 @@ from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_readlocs import pop_readlocs
+from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
 from eegprep.functions.popfunc.pop_selectevent import pop_selectevent, pop_selectevent_dialog_spec
@@ -489,6 +490,37 @@ def test_pop_chanedit_applies_same_edit_to_selected_datasets():
 
     assert [output["chanlocs"][0]["type"] for output in outputs] == ["EEG", "EEG"]
     _assert_python_echo_is_parseable(command)
+
+
+@pytest.mark.parametrize("gui", [False, True])
+def test_pop_chanedit_preserves_removed_reference_as_nondata_location(gui):
+    eeg = _eeg()
+    eeg["data"] = np.arange(500, dtype=float).reshape(5, 100)
+    eeg["nbchan"] = 5
+    eeg["chanlocs"] = [{**eeg["chanlocs"][0], "labels": f"Ch{index}"} for index in range(1, 6)]
+    referenced = pop_reref(eeg, 5)
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            controls = controls_by_tag(spec)
+            displays = controls["next1"].callback.params["field_displays"]
+            assert displays[-1]["field_labels"] == "Ch5"
+            assert displays[-1]["field_datachan"] is False
+            result = {tag: control.value for tag, control in controls.items()}
+            result["field_labels"] = "X"
+            return result
+
+    if gui:
+        edited = pop_chanedit(referenced, gui=True, renderer=Renderer())
+    else:
+        edited = pop_chanedit(referenced, changefield=[1, "labels", "X"])
+
+    assert [loc["labels"] for loc in edited["chanlocs"]] == ["X", "Ch2", "Ch3", "Ch4"]
+    assert edited["nbchan"] == 4
+    np.testing.assert_array_equal(edited["data"], referenced["data"])
+    assert edited["chaninfo"]["nodatchans"][0]["labels"] == "Ch5"
+    assert edited["chaninfo"]["nodatchans"][0]["datachan"] == 0
+    assert "datachan" not in referenced["chaninfo"]["nodatchans"][0]
 
 
 def test_pop_chanedit_gui_unchanged_submission_does_not_emit_history():
