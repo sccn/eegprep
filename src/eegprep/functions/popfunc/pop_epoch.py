@@ -127,6 +127,7 @@ def pop_epoch_dialog_spec(EEG: dict[str, Any], *, multiple: bool = False) -> Dia
                         "button": "eventtypes_button",
                         "target": "events",
                         "event_types": event_types,
+                        "selectionmode": "multiple",
                     },
                     matlab_callback="pop_chansel(unique({ EEG.event.type }))",
                 ),
