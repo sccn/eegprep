@@ -31,10 +31,11 @@ The Datasets menu remains available if the current dataset has no samples, so
 you can return to another loaded dataset. Component commands check for an ICA
 decomposition when invoked, before opening their settings dialogs.
 
-The summary uses the most frequent channel reference (or ``unknown``), formats
-both epoch limits with the same precision, and distinguishes mixed ICA status
-across a selection. Dataset size includes arrays, ICA results, events, and
-metadata. It measures Python memory, including container overhead and shared
+The summary uses the most frequent ``chanlocs.ref`` value, choosing the first
+in sorted order on ties and displaying ``unknown`` only when that value is
+empty. It formats both epoch limits with the same precision and distinguishes
+mixed ICA status across a selection. Dataset size includes arrays, ICA results,
+events, and metadata. It measures Python memory, including container overhead and shared
 array storage once; it can differ from MATLAB's ``whos`` byte count.
 
 Actions that are not implemented yet are marked as coming soon and are backed

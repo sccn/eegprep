@@ -90,6 +90,8 @@ panels opened from nested GUI callbacks. GUI preferences are saved to
 an EEGPrep file; it does not modify MATLAB's ``eeg_options.m``. Cancel leaves
 both the current options and the file unchanged. Scripted changes stay in the
 current process unless you pass ``persist=True`` to ``pop_editoptions``.
+Importing ``pop_editoptions`` does not load preferences or change
+``EEG_OPTIONS``; loading happens when a main window or console workspace starts.
 
 The dialog follows the memory-options layout and exposes working controls for
 storing inactive datasets on disk, saving two-file datasets, boundary events,

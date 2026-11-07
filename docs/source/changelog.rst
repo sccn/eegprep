@@ -10,13 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Saved preferences load explicitly at GUI/console startup, so importing
+  ``pop_editoptions`` leaves the process's options unchanged (F89, #556).
 - Console history replay expands MATLAB colon ranges, including stepped ranges,
   and accepts the three-output dataset commands stored for EEGLAB. Stored
   history remains unchanged (Stream 2 handover and F27/F49/F94, #556).
-- Component actions check for ICA before opening dialogs. Errors identify the
-  failing operation and fields with recovery guidance, Help renders Markdown,
-  updates are checked in-app, and File > Quit asks before discarding unsaved
-  datasets (F47/F64/F81/F96/F97 and Quit audit, #556).
+- Component actions check for ICA before opening dialogs. Warnings identify the
+  failing operation and preserve source errors; ICA and empty-result
+  preconditions provide recovery guidance at the failure site. Help renders
+  Markdown, updates are checked in-app, and File > Quit asks before discarding
+  unsaved datasets (F47/F64/F81/F96/F97 and Quit audit, #556).
 - Preferences exposes memory/storage and advanced options, saves GUI choices
   to ``~/.eegprep/options.json``, restores them on launch, and updates menu
   visibility immediately. Unsupported global preferences are disabled and

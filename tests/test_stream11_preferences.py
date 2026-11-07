@@ -1,5 +1,6 @@
 """Preferences and persistence regressions for F29/F89."""
 
+import importlib
 import json
 from pathlib import Path
 
@@ -11,13 +12,15 @@ except ImportError:
     pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.adminfunc.eeglab import eeglab
 from eegprep.functions.adminfunc.pop_editoptions import (
-    load_eegprep_options,
     pop_editoptions,
     pop_editoptions_dialog_spec,
 )
 from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.qt import QtDialogRenderer
+from eegprep.functions.guifunc.session import EEGPrepSession
 from tests.test_stream11_datasets import accept, dialogs as dialogs
 from tests.test_stream11_menus import qapp as qapp
 
@@ -62,11 +65,44 @@ def test_f89_preferences_apply_immediately_and_reload(options, qapp, dialogs):
         assert EEG_OPTIONS["option_savetwofiles"] == 1
         assert json.loads(options.read_text())["option_allmenus"] == 1
         EEG_OPTIONS.update(option_allmenus=0, option_savetwofiles=0)
-        load_eegprep_options(options)
         restarted = build_main_window(include_plugins=False)
         assert restarted.all_menus
         assert EEG_OPTIONS["option_savetwofiles"] == 1
         restarted.window.close()
+    finally:
+        window.window.close()
+
+
+def test_importing_pop_editoptions_does_not_load_saved_preferences(options):
+    EEG_OPTIONS["option_allmenus"] = 0
+    before = dict(EEG_OPTIONS)
+    options.parent.mkdir()
+    options.write_text(json.dumps({"option_allmenus": 1}))
+
+    importlib.reload(importlib.import_module("eegprep.functions.adminfunc.pop_editoptions"))
+
+    assert EEG_OPTIONS == before
+
+
+@pytest.mark.parametrize("startup", ["main_window", "eeglab", "console"])
+def test_interactive_startup_loads_saved_preferences(options, qapp, startup):
+    EEG_OPTIONS["option_allmenus"] = 0
+    options.parent.mkdir()
+    options.write_text(json.dumps({"option_allmenus": 1}))
+
+    if startup == "console":
+        workspace = EEGPrepConsoleWorkspace(EEGPrepSession())
+        try:
+            assert EEG_OPTIONS["option_allmenus"] == 1
+        finally:
+            workspace.close()
+        return
+    window = (
+        eeglab(show=False, include_plugins=False) if startup == "eeglab" else build_main_window(include_plugins=False)
+    )
+    try:
+        assert EEG_OPTIONS["option_allmenus"] == 1
+        assert window.all_menus
     finally:
         window.window.close()
 
