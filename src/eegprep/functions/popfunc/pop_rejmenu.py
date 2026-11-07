@@ -6,7 +6,6 @@ from functools import partial
 from typing import Any
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
@@ -402,9 +401,7 @@ def _run_method(EEG, icacomp, method, mode, commands, values, update):
             "and limits, then calculate again."
         ) from exc
     store(output, command)
-    if mode == "plot":
-        _plot_statistics(EEG, icacomp, method, options)
-    if mode == "scroll":
+    if mode in {"plot", "scroll"}:
         EEG["reject"]["disprej"] = [family for family in DEFAULT_REJECTION_COLORS if values.get(family)]
         data, _row_count = rejection_data(EEG, icacomp)
         open_epoched_rejection_browser(
@@ -418,30 +415,6 @@ def _run_method(EEG, icacomp, method, mode, commands, values, update):
             command="",
             command_callback=store,
         )
-
-
-def _plot_statistics(EEG, icacomp, method, options):
-    field = ("" if icacomp else "ica") + ("jp" if method == "ent" else "kurt")
-    title = "Joint probability" if method == "ent" else "Kurtosis"
-    figure, axes = plt.subplots(2, 1, sharex=True, figsize=(9, 6), layout="constrained")
-    figure.suptitle(f"{title} — {EEG.get('setname', '')}")
-    trials = np.arange(1, int(EEG["trials"]) + 1)
-    for axis, scores, limits, label in (
-        (
-            axes[0],
-            np.asarray(EEG["stats"][field + "E"]).T,
-            options["locthresh"],
-            "Single-channel" if icacomp else "Single-component",
-        ),
-        (axes[1], EEG["stats"][field], options["globthresh"], "All channels" if icacomp else "All components"),
-    ):
-        axis.plot(trials, scores, ".-")
-        for limit in [-abs(limits[0]), abs(limits[0])] if len(limits) == 1 else limits:
-            axis.axhline(limit, color="red", linestyle="--")
-        axis.set_ylabel(f"{label}\n(std. dev.)")
-        axis.grid(True, alpha=0.3)
-    axes[1].set_xlabel("Epoch (1-based)")
-    plt.show(block=False)
 
 
 def _count(value: Any) -> int:

@@ -3,7 +3,6 @@ from unittest import mock
 
 import numpy as np
 import pytest
-from matplotlib import pyplot as plt
 
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
@@ -11,6 +10,7 @@ from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
 from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
 from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu, pop_rejmenu_dialog_spec
+from eegprep.functions.sigprocfunc.eegplot import eegplot2trial, winrej_to_array
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
@@ -78,22 +78,38 @@ def test_rejmenu_calculate_updates_marks_counts_and_history(qt_dialogs, icacomp,
 
 @pytest.mark.gui
 @pytest.mark.parametrize("icacomp", [1, 0])
-@pytest.mark.parametrize("method,score", [("ent", "jp"), ("kurt", "kurt")])
-def test_rejmenu_plot_shows_calculated_statistics(qt_dialogs, icacomp, method, score):
+@pytest.mark.parametrize("method,field", [("ent", "rejjp"), ("kurt", "rejkurt")])
+def test_rejmenu_plot_opens_browser_with_calculated_marks(qt_dialogs, icacomp, method, field):
     eeg = _epoched_ica_eeg()
     eeg["data"] = np.random.default_rng(81).normal(size=(3, 40, 3))
+    eeg["icaweights"] = 3 * np.eye(3)
+    eeg["reject"] = {}
     widgets = qt_dialogs.build(pop_rejmenu_dialog_spec(eeg, icacomp))
+    widgets[f"{method}loc"].setText("0.1")
+    widgets[f"{method}glob"].setText("0.1")
 
     widgets[f"plot_{method}"].click()
 
     assert not qt_dialogs.messages
-    assert len(plt.get_fignums()) == 1
-    figure = plt.gcf()
-    assert len(figure.axes) == 2
     prefix = "" if icacomp else "ica"
-    np.testing.assert_array_equal(figure.axes[1].lines[0].get_ydata(), eeg["stats"][prefix + score])
-    np.testing.assert_array_equal(figure.axes[0].lines[0].get_ydata(), eeg["stats"][prefix + score + "E"][0])
-    plt.close(figure)
+    marks = eeg["reject"][prefix + field]
+    assert marks.any()
+    assert int(widgets[f"{method}trial"].text()) == marks.sum()
+    browsers = [
+        window
+        for window in qt_dialogs.qt.QtWidgets.QApplication.topLevelWidgets()
+        if window.objectName() == "eegbrowser" and window.isVisible()
+    ]
+    assert len(browsers) == 1
+    browser = browsers[0]
+    try:
+        np.testing.assert_array_equal(browser.model.data.data, eeg["data"] * (1 if icacomp else 3))
+        rows = winrej_to_array(browser.model.state.winrej, eeg["nbchan"])
+        trial_marks, row_marks = eegplot2trial(rows, eeg["pnts"], eeg["trials"])
+        np.testing.assert_array_equal(trial_marks, marks)
+        np.testing.assert_array_equal(row_marks, eeg["reject"][prefix + field + "E"])
+    finally:
+        browser.close()
 
 
 @pytest.mark.gui
