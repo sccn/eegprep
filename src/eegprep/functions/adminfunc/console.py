@@ -21,6 +21,7 @@ import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
+from eegprep.functions.adminfunc.pop_editoptions import load_eegprep_options
 from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
@@ -349,6 +350,7 @@ class EEGPrepConsoleWorkspace:
         exports: Mapping[str, Any] | None = None,
         extension_runtime: ExtensionRuntime | None = None,
     ) -> None:
+        load_eegprep_options()
         self.session = session
         self.window = window
         self.refresh = refresh or getattr(window, "refresh", None)

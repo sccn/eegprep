@@ -13,6 +13,7 @@ import numpy as np
 
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+from eegprep.functions.adminfunc.pop_editoptions import load_eegprep_options
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
@@ -60,6 +61,7 @@ class EEGPrepMainWindow:
         native_file_dialogs: bool | None = None,
     ) -> None:
         qt_core, qt_gui, qt_widgets = _require_qt()
+        load_eegprep_options()
         self._qt_core = qt_core
         self._qt_gui = qt_gui
         self._qt_widgets = qt_widgets

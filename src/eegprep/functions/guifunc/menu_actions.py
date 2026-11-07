@@ -1867,19 +1867,7 @@ class MenuActionDispatcher:
     def _warn(self, parent: Any | None, message: str) -> None:
         action = self.session.active_gui_action().partition(":")[0]
         if action and not message.startswith(action):
-            if action in {"pop_editset", "pop_resample"} and ("float" in message or "number" in message):
-                message = (
-                    f"{action}: invalid numeric metadata (srate, pnts, nbchan, or xmin). "
-                    "Enter a positive sampling rate (srate) in Hz, whole sample/channel counts, "
-                    f"and an epoch start (xmin) in seconds.\n{message}"
-                )
-            elif "Channels not found" in message:
-                message = f"{action}: unknown channel labels. Use labels in Edit > Channel locations, or valid 1-based channel numbers.\n{message}"
-            elif "trial range" in message.lower():
-                eeg = self.session.current_eeg()
-                trials = eeg.get("trials", 1) if isinstance(eeg, dict) else min(item["trials"] for item in eeg)
-                message = f"{action}: trial selection is outside the dataset. Enter trial indices from 1 to {trials}.\n{message}"
-            elif action in {"pop_loadset", "pop_fileio", "pop_fileio_eeg", "pop_biosig"}:
+            if action in {"pop_loadset", "pop_fileio", "pop_fileio_eeg", "pop_biosig"}:
                 message = f"{action}: could not read the selected data file. Check the filename and file format; re-export the file if it is damaged.\n{message}"
             else:
                 message = f"{action}: {message}"

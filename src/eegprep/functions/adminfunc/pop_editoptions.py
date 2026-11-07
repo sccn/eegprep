@@ -200,6 +200,3 @@ def _validate_options(target: dict[str, Any], options: dict[str, Any]) -> dict[s
             raise ValueError(f"pop_editoptions: {key} must be {expected}; enter a valid value.") from exc
         validated[key] = int(numeric)
     return validated
-
-
-load_eegprep_options()
