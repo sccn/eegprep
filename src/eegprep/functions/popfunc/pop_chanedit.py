@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.adminfunc.eeg_checkchanlocs import eeg_checkchanlocs
+from eegprep.functions.adminfunc.eeg_checkchanlocs import _NO_DATA_TYPES, eeg_checkchanlocs
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
@@ -548,7 +548,7 @@ def _nosedir_index(value: Any) -> int:
 def _is_data_location(loc: dict[str, Any]) -> bool:
     if "datachan" in loc:
         return bool(loc["datachan"])
-    return str(loc.get("type", "")).strip().lower() not in {"fid", "ignore"}
+    return str(loc.get("type", "")).strip().lower() not in _NO_DATA_TYPES
 
 
 def _apply_chanedit(
