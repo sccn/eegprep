@@ -69,6 +69,7 @@ class EEGPrepMainWindow:
         self.app.setApplicationDisplayName(APP_NAME)
         self.session = session or EEGPrepSession()
         self.all_menus = bool(EEG_OPTIONS.get("option_allmenus", 0)) if all_menus is None else bool(all_menus)
+        self._menu_option = bool(EEG_OPTIONS["option_allmenus"])
         self.include_plugins = include_plugins
         self.extension_runtime = (
             extension_runtime
@@ -89,7 +90,6 @@ class EEGPrepMainWindow:
             native_file_dialogs=native_file_dialogs,
             extension_runtime=self.extension_runtime,
         )
-        # Keep Python wrappers alive while Qt runs nested dialog event loops.
         self._menu_refs: list[Any] = []
         self._build_central_widget()
         self.refresh()
@@ -108,6 +108,10 @@ class EEGPrepMainWindow:
 
     def refresh(self) -> None:
         """Refresh menus and summary text from session state."""
+        option = bool(EEG_OPTIONS["option_allmenus"])
+        if option != self._menu_option:
+            self.all_menus = option
+            self._menu_option = option
         self._build_menus()
         self._update_summary()
 

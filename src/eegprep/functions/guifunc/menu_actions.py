@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
+import urllib.request
 import webbrowser
 from collections.abc import Callable, Mapping
 from functools import wraps
 from pathlib import Path
 from typing import Any
+from importlib.metadata import version
+from packaging.version import Version
 
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs, native_file_dialog_override
 from eegprep.functions.guifunc.long_task import LongTaskHandle, run_long_task
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
-from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
+from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data, _ica_absent
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.functions.popfunc._coming_soon import coming_soon
 from eegprep.functions.popfunc.pop_newset import pop_newset
@@ -293,11 +297,39 @@ class MenuActionDispatcher:
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
+        needs_ica = (
+            variant in {"components", "ica", "reject_ica", "data_to_ica", "ica_to_data"}
+            or base in {"pop_subcomp", "pop_selectcomps", "pop_iclabel", "pop_icflag", "pop_envtopo"}
+            or (base in {"pop_topoplot", "pop_headplot"} and variant != "erp")
+        )
+        if needs_ica:
+            selection = self.session.current_eeg()
+            datasets = selection if isinstance(selection, list) else [selection]
+            if any(_ica_absent(eeg) for eeg in datasets):
+                self._warn(
+                    parent,
+                    f"{base}: EEG.icaweights is empty for a selected dataset. "
+                    "Run Tools > Decompose data by ICA (pop_runica) first, or select a dataset with ICA.",
+                )
+                return
         if action_kind(action, extension_runtime=self.extension_runtime) == "placeholder":
             self.show_coming_soon(action, parent)
             return
         if base == "quit":
             if parent is not None:
+                unsaved = [eeg for eeg in self.session.ALLEEG if eeg and eeg.get("saved") != "yes"]
+                if unsaved:
+                    qt_widgets = _require_qt_widgets()
+                    choice = qt_widgets.QMessageBox.question(
+                        parent,
+                        "Quit EEGPrep",
+                        "There are unsaved datasets. Cancel and use File > Save current dataset as to save them, "
+                        "or discard the unsaved changes and quit.",
+                        qt_widgets.QMessageBox.Discard | qt_widgets.QMessageBox.Cancel,
+                        qt_widgets.QMessageBox.Cancel,
+                    )
+                    if choice != qt_widgets.QMessageBox.Discard:
+                        return
                 parent.close()
             return
         if base == "clear_study":
@@ -326,7 +358,24 @@ class MenuActionDispatcher:
             webbrowser.open(_tutorial_url())
             return
         if base == "updates":
-            webbrowser.open(f"{EEGPREP_REPO_URL}/releases")
+            installed = version("eegprep")
+            try:
+                with urllib.request.urlopen("https://pypi.org/pypi/eegprep/json", timeout=5) as response:
+                    latest = str(json.load(response)["info"]["version"])
+                if Version(latest) > Version(installed):
+                    message = (
+                        f"EEGPrep {latest} is available. You are using {installed}.\n"
+                        "Update with: pip install --upgrade eegprep"
+                    )
+                else:
+                    message = f"You are using the latest version of EEGPrep ({installed})."
+            except (OSError, ValueError, KeyError) as exc:
+                self._warn(
+                    parent,
+                    f"Check for updates: could not read the release version. Check your connection and try again.\n{exc}",
+                )
+                return
+            self._info(parent, message)
             return
         if base == "pop_loadset":
             self._loadset(parent)
@@ -1816,6 +1865,24 @@ class MenuActionDispatcher:
         return None
 
     def _warn(self, parent: Any | None, message: str) -> None:
+        action = self.session.active_gui_action().partition(":")[0]
+        if action and not message.startswith(action):
+            if action in {"pop_editset", "pop_resample"} and ("float" in message or "number" in message):
+                message = (
+                    f"{action}: invalid numeric metadata (srate, pnts, nbchan, or xmin). "
+                    "Enter a positive sampling rate (srate) in Hz, whole sample/channel counts, "
+                    f"and an epoch start (xmin) in seconds.\n{message}"
+                )
+            elif "Channels not found" in message:
+                message = f"{action}: unknown channel labels. Use labels in Edit > Channel locations, or valid 1-based channel numbers.\n{message}"
+            elif "trial range" in message.lower():
+                eeg = self.session.current_eeg()
+                trials = eeg.get("trials", 1) if isinstance(eeg, dict) else min(item["trials"] for item in eeg)
+                message = f"{action}: trial selection is outside the dataset. Enter trial indices from 1 to {trials}.\n{message}"
+            elif action in {"pop_loadset", "pop_fileio", "pop_fileio_eeg", "pop_biosig"}:
+                message = f"{action}: could not read the selected data file. Check the filename and file format; re-export the file if it is damaged.\n{message}"
+            else:
+                message = f"{action}: {message}"
         qt_widgets = _qt_widgets()
         if qt_widgets is not None:
             qt_widgets.QMessageBox.warning(parent, "EEGPrep", message)
