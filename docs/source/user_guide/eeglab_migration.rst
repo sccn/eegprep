@@ -185,6 +185,27 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 
    * - Topic
      - What EEGPrep does
+   * - Channel-coordinate validation
+     - ``pop_chanedit`` rejects non-numeric or non-finite coordinates with
+       an error naming the field; blank values remain allowed. In the audited
+       EEGLAB pin ``8ac485f6``, ``pop_chanedit.m`` uses ``str2num`` followed
+       by ``reformat``/``eval`` without rejecting non-numeric text (lines
+       681-685 and 1119-1124).
+   * - Channel-coordinate transforms
+     - ``pop_chanedit`` accepts only numeric assignments supported by its
+       restricted syntax-tree parser, such as ``X=-Y`` or
+       ``TMP=X; X=-Y; Y=TMP``. Imports, attributes, function calls, and indexed
+       assignments raise ``ValueError`` without changing the input locations.
+       The audited EEGLAB pin ``8ac485f6`` uses unrestricted ``eval`` on the
+       transform string (``pop_chanedit.m`` lines 599-643).
+   * - Channel-location count mismatch
+     - ``pop_chanedit`` raises ``ValueError`` when the number of data-channel
+       locations differs from the data's channel count, leaving the input
+       unchanged. Use ``pop_select`` to remove data channels, or mark added
+       reference locations as non-data channels. In the audited EEGLAB pin
+       ``8ac485f6``, a count differing from the original ``nbchan`` causes
+       edits to be ignored with a console warning (``pop_chanedit.m`` lines
+       1095-1110); GUI **Ok** also warns about the mismatch (lines 485-492).
    * - BIDS TSV bytes
      - TSV sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed.
        A file that is not valid UTF-8 is decoded as Latin-1, so ``0xB5`` stays

@@ -946,6 +946,24 @@ def test_chanedit_transform_and_repeated_fields_replay_in_order():
         assert after["Y"] == before["X"]
 
 
+@pytest.mark.parametrize(
+    "expression",
+    ["__import__('os')", "X=Y.real", "X=abs(Y)", "X[0]=1", "chans(1)=1"],
+    ids=["import", "attribute", "call", "python-indexed-assignment", "matlab-indexed-assignment"],
+)
+def test_chanedit_transform_rejects_arbitrary_code(expression):
+    eeg = _eeg()
+    original = deepcopy(eeg)
+    with pytest.raises(
+        ValueError,
+        match="pop_chanedit: invalid coordinate transform.*numeric assignments.*X=-Y.*TMP=X; X=-Y; Y=TMP",
+    ):
+        pop_chanedit(eeg, changefield=[1, "labels", "Changed"], transform=f"X=-Y; {expression}")
+
+    assert eeg["chanlocs"] == original["chanlocs"]
+    np.testing.assert_array_equal(eeg["data"], original["data"])
+
+
 def test_chanedit_insert_delete_and_save_actions_keep_edits_on_their_channel(tmp_path):
     pytest.importorskip("PySide6")
     from eegprep.functions.guifunc.qt import QtDialogRenderer
@@ -985,6 +1003,20 @@ def test_chanedit_cannot_delete_a_data_channel_or_overwrite_data():
     with pytest.raises(ValueError, match="pop_chanedit:.*pop_select"):
         pop_chanedit(eeg, delete=1)
     np.testing.assert_array_equal(eeg["data"], _eeg()["data"])
+
+
+def test_chanedit_insert_data_channel_count_mismatch_raises():
+    eeg = _eeg()
+    original = deepcopy(eeg)
+    with pytest.raises(
+        ValueError,
+        match="pop_chanedit: location count does not match data channels.*pop_select.*non-data channels",
+    ):
+        pop_chanedit(eeg, changefield=[1, "labels", "Changed"], insert=[2, {"labels": "Extra", "datachan": True}])
+
+    assert eeg["nbchan"] == original["nbchan"]
+    assert eeg["chanlocs"] == original["chanlocs"]
+    np.testing.assert_array_equal(eeg["data"], original["data"])
 
 
 @pytest.mark.parametrize(
