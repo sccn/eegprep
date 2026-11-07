@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Main-window menus retain their Qt objects across dataset refreshes and nested
+  dialogs, including failed imports (F54/F121/F30, #556).
+- The main window shows channel-reference consensus, consistent epoch-time
+  precision, total dataset memory, and mixed ICA status. Single-dataset selection
+  and empty-result recovery keep the Datasets menu usable; component scrolling
+  and ICLabel menus follow EEGLAB availability (F1/F95/F2/F3/F4/F5/F38/F93, #556).
 - Event selection records numeric criteria for numeric event codes and preserves
   string codes as text. Data selection preserves input precision; embedded
   save precision remains with the S1 stream (F50, #548).

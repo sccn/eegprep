@@ -26,6 +26,17 @@ and Datasets become available when the shared session contains a compatible
 dataset or STUDY. The Datasets menu reflects ``ALLEEG`` and ``CURRENTSET`` and
 can select one or more loaded datasets.
 
+``Select multiple datasets`` is available even when only one dataset is loaded.
+The Datasets menu remains available if the current dataset has no samples, so
+you can return to another loaded dataset. Component commands check for an ICA
+decomposition when invoked, before opening their settings dialogs.
+
+The summary uses the most frequent channel reference (or ``unknown``), formats
+both epoch limits with the same precision, and distinguishes mixed ICA status
+across a selection. Dataset size includes arrays, ICA results, events, and
+metadata. It measures Python memory, including container overhead and shared
+array storage once; it can differ from MATLAB's ``whos`` byte count.
+
 Actions that are not implemented yet are marked as coming soon and are backed
 by machine-readable placeholder metadata. EEGBrowser/eegplot-style scrolling
 workflows are implemented as packaged EEGPrep runtime code and are covered by
