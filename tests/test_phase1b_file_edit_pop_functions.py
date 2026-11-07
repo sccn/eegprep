@@ -4,6 +4,7 @@ import ast
 import os
 from copy import deepcopy
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 import pytest
@@ -962,6 +963,48 @@ def test_chanedit_transform_rejects_arbitrary_code(expression):
 
     assert eeg["chanlocs"] == original["chanlocs"]
     np.testing.assert_array_equal(eeg["data"], original["data"])
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        pytest.param("X=9**9**9**9", id="power-tower"),
+        pytest.param("X='a'*10**9", id="string-allocation"),
+        pytest.param("X='boom'", id="string"),
+        pytest.param("X=b'123'", id="bytes"),
+        pytest.param("X=True", id="boolean"),
+        pytest.param("X=None", id="none"),
+        pytest.param("X=1j", id="complex"),
+        pytest.param("X=1e309", id="infinite"),
+        pytest.param("X=" + "9" * 400, id="huge-integer"),
+        pytest.param("X=9007199254740993", id="inexact-integer"),
+        pytest.param("X=2**13", id="large-exponent"),
+        pytest.param("X=Y**-13", id="negative-large-exponent"),
+        pytest.param("TMP=13; X=Y**TMP", id="variable-exponent"),
+        pytest.param("X=((9**12)**12)**12", id="nested-power-overflow"),
+    ],
+)
+def test_chanedit_transform_rejects_expensive_expressions(expression):
+    eeg = _eeg()
+    original = deepcopy(eeg)
+    start = perf_counter()
+    with pytest.raises(ValueError, match="pop_chanedit: invalid coordinate transform.*numeric assignments.*X=-Y"):
+        pop_chanedit(eeg, changefield=[1, "labels", "Changed"], transform=f"X=-Y; {expression}")
+
+    assert perf_counter() - start < 1.0
+    assert eeg["chanlocs"] == original["chanlocs"]
+    np.testing.assert_array_equal(eeg["data"], original["data"])
+
+
+@pytest.mark.parametrize("exponent", ["2", "+2", "-2", "0.5", "12", "-12"])
+def test_chanedit_transform_accepts_bounded_numeric_powers(exponent):
+    eeg = _eeg()
+    eeg["chanlocs"][0]["Y"] = 2.0
+    eeg["chanlocs"][1]["Y"] = 3.0
+
+    out = pop_chanedit(eeg, transform=f"X=Y**{exponent}")
+
+    np.testing.assert_allclose([loc["X"] for loc in out["chanlocs"]], np.array([2.0, 3.0]) ** float(exponent))
 
 
 def test_chanedit_insert_delete_and_save_actions_keep_edits_on_their_channel(tmp_path):

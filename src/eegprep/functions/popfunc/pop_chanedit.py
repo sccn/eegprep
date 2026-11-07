@@ -32,6 +32,8 @@ from eegprep.functions.sigprocfunc.writelocs import writelocs
 
 _CHANNEL_FIELDS = ("labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type", "ref")
 _LOCATION_FIELDS = ("theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius")
+_MAX_POWER_EXPONENT = 12
+_MAX_EXACT_INTEGER = 2**53
 
 
 def pop_chanedit(
@@ -479,8 +481,21 @@ def _transform_locations(locs, expression):
             ast.USub,
             ast.UAdd,
         )
-        if any(not isinstance(node, allowed) for node in ast.walk(tree)):
-            raise ValueError("unsupported expression")
+        for node in ast.walk(tree):
+            if not isinstance(node, allowed):
+                raise ValueError("unsupported expression")
+            if isinstance(node, ast.Constant):
+                if type(node.value) not in (int, float):
+                    raise ValueError("constants must be numeric")
+                if isinstance(node.value, int) and abs(node.value) > _MAX_EXACT_INTEGER:
+                    raise ValueError("integer constant exceeds the exact float range")
+                node.value = float(node.value)
+                if not np.isfinite(node.value):
+                    raise ValueError("constants must be finite")
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+                exponent = ast.literal_eval(node.right)
+                if type(exponent) not in (int, float) or abs(exponent) > _MAX_POWER_EXPONENT:
+                    raise ValueError(f"power exponents must be numeric constants within +/-{_MAX_POWER_EXPONENT}")
         coordinates = {
             field: np.array([loc.get(field, np.nan) for loc in locs], dtype=float) for field in _LOCATION_FIELDS
         }
@@ -496,7 +511,7 @@ def _transform_locations(locs, expression):
         field = changed[-1]
         mode = "cart2all" if field in "XYZ" else "sph2all" if field.startswith("sph_") else "topo2all"
         return convertlocs(locs, mode)
-    except (SyntaxError, ValueError, TypeError, NameError, ZeroDivisionError) as exc:
+    except (SyntaxError, ValueError, TypeError, NameError, ZeroDivisionError, OverflowError) as exc:
         raise ValueError(
             "pop_chanedit: invalid coordinate transform. Use numeric assignments such as X=-Y or TMP=X; X=-Y; Y=TMP."
         ) from exc
