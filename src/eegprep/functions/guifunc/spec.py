@@ -28,7 +28,12 @@ def field_text(value: Any) -> str:
 
 @dataclass(frozen=True)
 class CallbackSpec:
-    """Declarative callback metadata for a GUI control."""
+    """Declarative callback metadata for a GUI control.
+
+    ``run_dialog_action`` calls ``params['action'](values, update)`` with the
+    tagged form values and an ``update({tag: value})`` callback. Actions can
+    refresh the form immediately or after a child window accepts changes.
+    """
 
     name: str
     params: dict[str, Any] = field(default_factory=dict)

@@ -177,6 +177,11 @@ them out of the console, keep explicit return values:
 Practical Rules
 ===============
 
+The data and ICA rejection menus keep calculations in the open dialog until
+you choose **Close (keep marks)**. Closing stores the marks and calculation
+commands in the shared session, where you can inspect ``EEG['reject']`` and
+``LASTCOM`` from the console. Cancel discards the dialog's edits.
+
 * Prefer ``eegprep-console --full`` while learning or reviewing data.
 * Use the GUI for inspection-heavy actions and the console for quick checks,
   summaries, and repeatable commands.
