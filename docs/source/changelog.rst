@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Event fields displays readable descriptions, supports editing them, and opens
+  file pickers for existing and new fields, including paths with spaces (F100, #548).
 - Data and ICA rejection menus fit within 1073×994 pixels and enable calculation,
   plotting, Help, and color controls. Calculated marks and history are retained
   when closing the menu (F102/F105, #548).

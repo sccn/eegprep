@@ -242,6 +242,8 @@ class QtDialogRenderer:
             widget = QtWidgets.QTextEdit("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
+            if value is not None:
+                widget.setProperty(_VALUE_PROPERTY, value)
         elif style == "checkbox":
             widget = QtWidgets.QCheckBox(control.string)
             widget.setChecked(bool(value))
@@ -1609,6 +1611,9 @@ def _edit_text(parent: Any, target: Any, params: Mapping[str, Any]) -> None:
     )
     if accepted:
         target.setProperty(_VALUE_PROPERTY, str(value))
+        if params.get("label_first_line"):
+            target.setText(str(value).split("\n", 1)[0])
+            target.setToolTip(str(value))
 
 
 def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
