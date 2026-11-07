@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Select events warns when no events match and explains how to adjust the
+  selection, including when boundary events are retained (F40, #548).
 - About this dataset preserves comment line breaks, including blank lines, in
   the editor and saved comments (F48, #548).
 - Extract epochs supports selecting several event types together in its picker

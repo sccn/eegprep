@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any
+import warnings
 
 import numpy as np
 
@@ -238,6 +239,13 @@ def _apply_selectevent_one(EEG: dict[str, Any], options: dict[str, Any]) -> tupl
     selected -= omitted
     if str(options.get("select", "normal")).lower() in {"inverse", "remove"}:
         selected = set(range(len(events))) - selected
+    if not selected:
+        warnings.warn(
+            "pop_selectevent: no events matched the selection. Check event type names or numeric codes "
+            "and widen the field ranges, or clear the selection filters.",
+            UserWarning,
+            stacklevel=3,
+        )
     boundary = {index for index, event in enumerate(events) if is_boundary_event(event)}
     if int(EEG.get("trials", 1) or 1) == 1 and str(options.get("deleteevents", "off")).lower() in {"on", "yes"}:
         selected |= boundary

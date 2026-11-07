@@ -32,6 +32,11 @@ What Carries Over
 What Changes
 ============
 
+``pop_selectevent`` emits a warning when no events match the selection, with
+instructions to check type names/codes and field ranges. Continuous data can
+still be returned with no events (or only retained boundary events). EEGLAB
+can return this empty selection silently; EEGPrep deliberately reports it.
+
 The data and ICA rejection menus calculate marks, open scrolling data for
 inspection, and retain the calculation commands when you choose **Close (keep
 marks)**. The probability and kurtosis **PLOT** buttons display compact plots of

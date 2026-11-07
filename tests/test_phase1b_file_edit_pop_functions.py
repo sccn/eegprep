@@ -310,6 +310,20 @@ def test_pop_selectevent_matches_nonnumeric_event_types_without_selecting_every_
     assert [event["type"] for event in out["event"]] == ["target"]
 
 
+@pytest.mark.parametrize("with_boundary", [False, True])
+def test_pop_selectevent_warns_when_no_events_match(with_boundary):
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    if with_boundary:
+        eeg["event"] = [*eeg["event"], {"type": "boundary", "latency": 100.5, "duration": 10}]
+
+    with pytest.warns(UserWarning, match="pop_selectevent: no events matched.*Check event type"):
+        out, selected = pop_selectevent(eeg, type="absent", deleteevents="on")
+
+    assert len(out["event"]) == int(with_boundary)
+    assert len(selected) == int(with_boundary)
+    np.testing.assert_array_equal(out["data"], eeg["data"])
+
+
 def test_pop_selectevent_renames_selected_types_and_keeps_old_type_field():
     out, command = pop_selectevent(
         _eeg(),
