@@ -30,10 +30,10 @@ def pop_rejchanspec(
     working = copy.deepcopy(EEG)
     if str(options.get("averef", "off")).lower() == "on":
         include = set(int(index) for index in options["elec"])
-        exclude_zero_based = [
-            index - 1 for index in range(1, int(working.get("nbchan", 0) or 0) + 1) if index not in include
+        excluded = [
+            index for index in range(1, int(working.get("nbchan", 0) or 0) + 1) if index not in include
         ]
-        working = pop_reref(working, [], exclude=exclude_zero_based, gui=False)
+        working = pop_reref(working, [], exclude=excluded, gui=False)
     specdata, specfreqs = _spectrum(working, options)
     rejected = _rejected_channels(specdata, specfreqs, options)
     out = copy.deepcopy(EEG)
