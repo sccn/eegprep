@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- MFF import selects the recording folder, and the MNE extra installs the XML
+  parser required by its MFF reader (F18).
+- Neuroscan ``.EEG`` import uses the native epoch reader and retains sweep
+  events, channel calibration, and rejected sweeps (F119). Generic File-IO
+  also recognizes EGI Simple Binary ``.raw`` files (F23).
+
 - MATLAB v7.3 datasets preserve complete labels, nested references, empty
   events, and channel-major data even when dimensions coincide (F15, #497).
 - Dataset and BrainVision readers reject companion references outside the

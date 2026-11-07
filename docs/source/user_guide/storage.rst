@@ -157,3 +157,19 @@ and clears ICA fields that no longer describe the selected channel matrix.
 Derived caches such as ``icaact`` are not managed by a separate lazy-storage
 layer, and EEGPrep does not provide multi-process write coordination for shared
 ``.fdt`` files.
+
+Importing MFF and Neuroscan recordings
+======================================
+
+For EGI MFF, select the ``.mff`` folder itself. Install the reader and XML
+support with ``pip install "eegprep[mne]"``. Neuroscan epoched ``.EEG`` files
+load through ``pop_fileio`` without MNE. Each sweep retains trial, accept,
+correct, response, and reaction-time events, including rejected sweeps.
+
+The F119 audit's File-IO comparison reports 1,193 trials and 5,960 events.
+The same recording contains 1,200 sweeps, including seven marked rejected.
+FieldTrip's ``read_ns_hdr`` uses the accepted-count field at byte 364 as
+``nsweeps``; its reader then reads that many leading sweeps. EEGPrep uses the
+total-sweep field at byte 362 and retains all complete sweeps and their
+acceptance metadata. This source-based difference is regression-tested;
+MATLAB comparison remains a human verification step.

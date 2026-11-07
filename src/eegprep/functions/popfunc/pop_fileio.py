@@ -4,23 +4,25 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+import struct
+from importlib import import_module
+from typing import Any
 
 import numpy as np
 import scipy.io
 
 from eegprep.extras import import_optional_dependency
 
-if TYPE_CHECKING:
-    import mne
-
-from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.popfunc._file_io import eeg_from_data, mne_raw_to_eeg
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_importdata import pop_importdata
 from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
 from eegprep.functions.popfunc.pop_loadset import _is_hdf5_file, pop_loadset
 from eegprep.functions.popfunc.pop_select import pop_select
+from eegprep.functions.popfunc.pop_readegi import pop_readegi
+from eegprep.functions.sigprocfunc.loadeeg import _detect_format, loadeeg
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +67,11 @@ def pop_fileio(
             options["t1"] = start
             options["lddur"] = stop - start
         eeg = pop_loadcnt(path, **options)
-    elif suffix == ".vhdr" and blockrange is None:
+    elif suffix == ".eeg":
+        eeg = _read_neuroscan_epochs(path, **options)
+    elif suffix == ".raw":
+        eeg = pop_readegi(path, **options)
+    elif suffix in {".vhdr", ".ahdr"} and blockrange is None:
         eeg = pop_loadbv(path, srange=samples, chans=channels)
         channels = None
         samples = None
@@ -104,15 +110,19 @@ def _reader_for_suffix(suffix: str, feature: str):
     if suffix == ".vhdr":
         return mne.io.read_raw_brainvision
     if suffix == ".mff":
+        try:
+            import_module("defusedxml")
+        except ImportError as exc:
+            raise ImportError(
+                f'{feature}: MFF XML support is missing. Install it with pip install "eegprep[mne]".'
+            ) from exc
         return mne.io.read_raw_egi
     if suffix == ".cnt":
         return mne.io.read_raw_cnt
-    if suffix == ".eeg":
-        return mne.io.read_raw_brainvision
     raise ValueError(f"Unsupported File-IO import format: {suffix or '<none>'}")
 
 
-def _crop_raw_to_blockrange(raw: mne.io.BaseRaw, blockrange: Any) -> None:
+def _crop_raw_to_blockrange(raw: Any, blockrange: Any) -> None:
     start, stop = _blockrange_values(blockrange)
     recording_stop = raw.n_times / float(raw.info["sfreq"])
     if start >= recording_stop:
@@ -159,3 +169,48 @@ def _history_command(path: Path, options: dict[str, Any]) -> str:
     for key, value in options.items():
         pieces.extend([format_history_value(key), format_history_value(value, cell_for_sequence=None)])
     return f"EEG = pop_fileio({', '.join(pieces)});"
+
+
+def _read_neuroscan_epochs(path: Path, *, format="auto"):
+    signal, accepts, types, reaction_times, responses, labels, points, trials, rate, xmin, _ = loadeeg(
+        path,
+        format=format,
+    )
+    if not trials:
+        raise ValueError(f"pop_fileio: {path} has no complete Neuroscan sweeps. Restore an intact .EEG file.")
+    data = signal.reshape(len(labels), trials, points).transpose(0, 2, 1).astype(np.float32)
+    eeg = eeg_from_data(
+        data,
+        nbchan=len(labels),
+        srate=rate,
+        xmin=round(xmin * rate) / rate,
+        setname=path.stem,
+        filename=path.name,
+        filepath=str(path.parent),
+        chanlocs=[{"labels": label} for label in labels],
+    )
+    events = []
+    # loadeeg exposes every sweep, including rejected ones; FieldTrip reads the
+    # accepted-count header as a file length, truncating the tail of such files.
+    with path.open('rb') as stream:
+        data_format = _detect_format(stream) if format == "auto" else format
+        sample_size = 4 if data_format == "int32" else 2
+        for trial in range(trials):
+            stream.seek(900 + 75 * len(labels) + trial * (13 + points * len(labels) * sample_size) + 3)
+            correct = struct.unpack('<H', stream.read(2))[0]
+            values = (types[trial], accepts[trial], correct, responses[trial], reaction_times[trial])
+            for kind, value in zip(("trial", "accept", "correct", "response", "rt"), values):
+                events.append(
+                    {
+                        "type": kind,
+                        "value": float(value),
+                        "latency": trial * points + 1,
+                        "duration": points,
+                        "epoch": trial + 1,
+                        "offset": round(xmin * rate),
+                        "urevent": len(events),
+                    }
+                )
+    eeg['event'] = events
+    eeg['urevent'] = [{key: value for key, value in event.items() if key != 'urevent'} for event in events]
+    return eeg_checkset(eeg)

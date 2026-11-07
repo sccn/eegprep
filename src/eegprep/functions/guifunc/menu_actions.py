@@ -621,6 +621,11 @@ class MenuActionDispatcher:
 
     def _open_import_filename(self, action: str, parent: Any | None) -> str:
         qt_widgets = _require_qt_widgets()
+        if action == "pop_fileio_mff":
+            return qt_widgets.QFileDialog.getExistingDirectory(
+                parent, "Select an EGI MFF folder", "",
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
+            )
         filters = {
             "pop_importdata": "Data arrays (*.txt *.csv *.tsv *.mat *.npy *.npz *.fdt);;All files (*)",
             "pop_biosig": "BIOSIG files (*.bdf *.edf *.gdf);;All files (*)",
