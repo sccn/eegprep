@@ -23,16 +23,19 @@ EEG = pop_fileio("epochs.set", channels="1:16", trials=[2, 50])
 EEG = pop_fileio("epochs.set", "channels", "1:16", "trials", [2, 50])
 ```
 
-For MNE-backed continuous formats, `blockrange=[start, stop]` imports a
-half-open interval measured in seconds. BrainVision data-file paths use the
-same channel, sample, and time-range options as their header paths; history
-retains the filename supplied by the caller.
+For BrainVision and MNE-backed continuous formats, `blockrange=[start, stop]`
+imports a half-open interval measured in seconds. BrainVision always uses
+`pop_loadbv`, including `.ahdr` headers and time-range imports, without requiring
+MNE. Time bounds round to the nearest sample using the header's sampling rate;
+the stop is clipped to the recording length. When combined with `blockrange`,
+`samples` selects within that time window. BrainVision data-file paths use the
+same options as their header paths; history retains the filename supplied by
+the caller.
 
 `channels` accepts 1-based channel numbers. `samples=[start, stop]` and
 `trials=[start, stop]` are inclusive, 1-based ranges matching File-IO and
-EEGLAB history commands. The resulting channel, point, and trial selection is
-performed with `pop_select`, so dataset dimensions, events, and ICA metadata
-are updated consistently.
+EEGLAB history commands. Selections update dataset dimensions, events, and ICA
+metadata consistently.
 
 Use the more specific File menu entries when you want format-specific file
 filters in the GUI.

@@ -461,17 +461,61 @@ def test_pop_fileio_detects_brainvision_data_from_sibling_header(tmp_path, data_
 
 
 @pytest.mark.parametrize('header_suffix', ['.vhdr', '.ahdr'])
-def test_pop_fileio_brainvision_data_path_retains_blockrange(tmp_path, header_suffix):
-    pytest.importorskip('mne')
+@pytest.mark.parametrize('input_kind', ['header', 'data'])
+@pytest.mark.parametrize('sampling_interval', [4000, 2000])
+def test_pop_fileio_brainvision_blockrange_uses_same_layout(tmp_path, header_suffix, input_kind, sampling_interval):
     raw = np.arange(40, dtype=np.int16).reshape(2, 20)
-    header = _write_binary_brainvision(tmp_path, 'recording', raw, data_suffix='.eeg')
-    header.rename(header.with_suffix(header_suffix))
-    path = header.with_suffix('.eeg')
-    if header_suffix == '.ahdr':
-        # MNE's BrainAmp AHDR reader expects an additional unlabelled sample channel.
-        np.vstack([raw, np.zeros((1, raw.shape[1]), dtype=raw.dtype)]).T.tofile(path)
+    srate = 1_000_000 / sampling_interval
+    first, stop = round(0.004 * srate), round(0.016 * srate)
+    header = _write_binary_brainvision(
+        tmp_path,
+        'recording',
+        raw,
+        data_suffix='.eeg',
+        sampling_interval=sampling_interval,
+        markers=[f'Mk1=Stimulus,start,{first + 1},1,0', f'Mk2=Stimulus,stop,{stop + 1},1,0'],
+    )
+    header = header.rename(header.with_suffix(header_suffix))
+    path = header if input_kind == 'header' else header.with_suffix('.eeg')
+
+    _assert_continuous_eeg(pop_fileio(path), raw, srate)
 
     loaded, command = pop_fileio(path, blockrange=[0.004, 0.016], channels=[2], return_com=True)
-    np.testing.assert_array_equal(loaded['data'], raw[[1], 1:4])
+    _assert_continuous_eeg(loaded, raw[[1], first:stop], srate)
+    assert loaded['data'].dtype == np.float32
     assert loaded['chanlocs'][0]['labels'] == 'Ch2'
+    assert [(event['type'], event['latency']) for event in loaded['event']] == [('start', 1)]
     assert command == f"EEG = pop_fileio('{path.as_posix()}', 'blockrange', [0.004 0.016], 'channels', [2]);"
+
+    selected = pop_fileio(path, blockrange=[0.004, 0.016], channels=[2], samples=[2, 3])
+    np.testing.assert_array_equal(selected['data'], raw[[1], first + 1 : first + 3])
+
+
+@pytest.mark.parametrize('header_suffix', ['.vhdr', '.ahdr'])
+@pytest.mark.parametrize(
+    'blockrange,first,stop',
+    [([0, 0.08], 0, 20), ([0.072, 1], 18, 20), ([0.076, 0.08], 19, 20), ([0.0048, 0.0152], 1, 4)],
+)
+def test_pop_fileio_brainvision_blockrange_sample_boundaries(tmp_path, header_suffix, blockrange, first, stop):
+    raw = np.arange(40, dtype=np.int16).reshape(2, 20)
+    header = _write_binary_brainvision(tmp_path, 'bounds', raw)
+    header = header.rename(header.with_suffix(header_suffix))
+
+    loaded = pop_fileio(header, blockrange=blockrange)
+
+    _assert_continuous_eeg(loaded, raw[:, first:stop], 250)
+
+
+@pytest.mark.parametrize('blockrange', [[0.08, 0.09], [0, 0.001]])
+def test_pop_fileio_brainvision_rejects_blockrange_without_samples(tmp_path, blockrange):
+    header = _write_binary_brainvision(tmp_path, 'empty', np.zeros((2, 20), dtype=np.int16))
+
+    with pytest.raises(ValueError, match='blockrange'):
+        pop_fileio(header, blockrange=blockrange)
+
+
+def test_pop_fileio_brainvision_rejects_samples_outside_blockrange(tmp_path):
+    header = _write_binary_brainvision(tmp_path, 'bounds', np.zeros((2, 20), dtype=np.int16))
+
+    with pytest.raises(ValueError, match='samples.*blockrange'):
+        pop_fileio(header, blockrange=[0.004, 0.016], samples=[2, 5])

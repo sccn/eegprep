@@ -88,8 +88,28 @@ def pop_fileio(
         eeg = _read_neuroscan_epochs(path, **options)
     elif suffix == ".raw":
         eeg = pop_readegi(path, **options)
-    elif suffix in {".vhdr", ".ahdr"} and blockrange is None:
-        eeg = pop_loadbv(path, srange=samples, chans=channels)
+    elif suffix in {".vhdr", ".ahdr"}:
+        srange = samples
+        if blockrange is not None:
+            start, stop = _blockrange_values(blockrange)
+            metadata = pop_loadbv(path, metadata=True)
+            srate = metadata["srate"]
+            point_count = metadata["pnts"] * metadata["trials"]
+            first = round(start * srate)
+            last = min(round(stop * srate), point_count)
+            if first >= last:
+                raise ValueError(
+                    "pop_fileio: blockrange contains no samples. Choose a time range within the recording."
+                )
+            srange = [first + 1, last]
+            if samples is not None:
+                sample_first, sample_last = _inclusive_bounds(samples, "samples")
+                if sample_last > last - first:
+                    raise ValueError(
+                        "pop_fileio: samples exceed the blockrange. Choose sample indices within the time window."
+                    )
+                srange = [first + sample_first, first + sample_last]
+        eeg = pop_loadbv(path, srange=srange, chans=channels)
         channels = None
         samples = None
     else:
@@ -124,8 +144,6 @@ def _reader_for_suffix(suffix: str, feature: str):
         return mne.io.read_raw_bdf
     if suffix == ".gdf":
         return mne.io.read_raw_gdf
-    if suffix in {".vhdr", ".ahdr"}:
-        return mne.io.read_raw_brainvision
     if suffix == ".mff":
         import_optional_dependency("defusedxml", feature=feature)
         return mne.io.read_raw_egi

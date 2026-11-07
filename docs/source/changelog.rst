@@ -38,6 +38,9 @@ Unreleased
   also recognizes EGI Simple Binary ``.raw`` files (F23). Files ending in
   ``.eeg`` or ``.EEG`` use BrainVision when a sibling ``.vhdr`` or ``.ahdr``
   exists, including channel/sample selections and time-range imports.
+  BrainVision time ranges use the same native reader and channel layout as
+  full imports; ``blockrange`` converts seconds to samples at the header's
+  sampling rate without requiring MNE.
 
 - MATLAB v7.3 datasets preserve complete labels, nested references, empty
   events, and channel-major data even when dimensions coincide (F15, #497).
