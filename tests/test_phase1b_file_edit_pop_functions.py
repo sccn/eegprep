@@ -520,7 +520,7 @@ def test_pop_chanedit_gui_submits_change_for_navigated_channel():
 
     assert output["chanlocs"][0]["labels"] == "Cz"
     assert output["chanlocs"][1]["labels"] == "Oz"
-    assert "'changefield', [2 'labels' 'Oz']" in command
+    assert "'changefield', {2 'labels' 'Oz'}" in command
 
 
 def test_qt_renderer_navigation_updates_channel_and_fields():
@@ -795,3 +795,48 @@ def test_pop_mergeset_default_indices_skip_deleted_slots():
     assert _default_indices_text([_eeg("first"), {}, _eeg("third")], None) == "1 3"
     assert _default_indices_text([{}, _eeg("second")], None) == "2"
     assert _default_indices_text([_eeg("only"), {}], None) == "1"
+
+
+@pytest.mark.parametrize("extension", ["elc", "elp"])
+def test_chanedit_standard_lookup_orientation_and_matching(tmp_path, extension):
+    path = tmp_path / f"standard_1005.{extension}"
+    if extension == "elc":
+        path.write_text("NumberPositions 1\nUnitPosition mm\nPositions\n-29.44 83.92 -6.99\nLabels\nFp1\n")
+        expected = [83.92, 29.44, -6.99]
+    else:
+        path.write_text("1\nEEG Fp1 -92.698 -72.074 85\n")
+        expected = [
+            85 * np.cos(np.deg2rad(2.698)) * np.cos(np.deg2rad(17.926)),
+            85 * np.cos(np.deg2rad(2.698)) * np.sin(np.deg2rad(17.926)),
+            -85 * np.sin(np.deg2rad(2.698)),
+        ]
+    eeg = _eeg()
+    eeg["chanlocs"][0]["labels"] = "fp1"
+    out = pop_chanedit(eeg, lookup=path)
+    np.testing.assert_allclose([out["chanlocs"][0][axis] for axis in "XYZ"], expected, atol=1e-10)
+    assert out["chaninfo"]["nosedir"] == "+X"
+
+
+def test_chanedit_lookup_without_matches_preserves_locations(tmp_path):
+    path = tmp_path / "unmatched.locs"
+    path.write_text("1 0 0.5 Other\n")
+    eeg = _eeg()
+    out = pop_chanedit(eeg, lookup=path)
+    for before, after in zip(eeg["chanlocs"], out["chanlocs"]):
+        for field in ("labels", "X", "Y", "Z"):
+            assert after[field] == before[field]
+
+
+@pytest.mark.parametrize("field", ["theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius"])
+def test_chanedit_rejects_nonnumeric_coordinates(field):
+    eeg = _eeg()
+    with pytest.raises(ValueError, match=f"pop_chanedit:.*{field}.*numeric"):
+        pop_chanedit(eeg, changefield=[1, field, "abc"])
+    assert eeg["chanlocs"][0].get(field) != "abc"
+
+
+def test_chanedit_history_uses_separate_matlab_cell_arguments():
+    out, command = pop_chanedit(_eeg(), changefield=[[1, "labels", "C3x"], [2, "type", "EOG"]], return_com=True)
+    assert command == "EEG = pop_chanedit(EEG, 'changefield', {1 'labels' 'C3x'}, 'changefield', {2 'type' 'EOG'});"
+    assert out["chanlocs"][0]["labels"] == "C3x"
+    _assert_python_echo_is_parseable(command)

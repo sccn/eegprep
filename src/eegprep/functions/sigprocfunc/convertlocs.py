@@ -10,6 +10,8 @@ import numpy as np
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 
 
+_DEFAULT_HEAD_RADIUS = 85.0
+
 def convertlocs(chans: Any, command: str = "auto", *args: Any, verbose: str = "off", **kwargs: Any) -> Any:
     """Return channel locations with requested coordinate fields filled in.
 
@@ -144,7 +146,8 @@ def _sph_to_cart(loc: dict[str, Any]) -> None:
         return
     theta = np.radians(float(loc["sph_theta"]))
     phi = np.radians(float(loc["sph_phi"]))
-    radius = float(loc.get("sph_radius", 1.0) or 1.0)
+    radius = _DEFAULT_HEAD_RADIUS if _is_empty(loc.get("sph_radius")) else float(loc["sph_radius"])
+    loc["sph_radius"] = radius
     loc["X"] = float(radius * np.cos(phi) * np.cos(theta))
     loc["Y"] = float(radius * np.cos(phi) * np.sin(theta))
     loc["Z"] = float(radius * np.sin(phi))
@@ -155,7 +158,8 @@ def _sph_to_topo(loc: dict[str, Any]) -> None:
         return
     loc["theta"] = _wrap_degrees(-float(loc["sph_theta"]))
     loc["radius"] = float(0.5 - float(loc["sph_phi"]) / 180.0)
-    loc.setdefault("sph_radius", 1.0)
+    if _is_empty(loc.get("sph_radius")):
+        loc["sph_radius"] = _DEFAULT_HEAD_RADIUS
 
 
 def _topo_to_sph(loc: dict[str, Any]) -> None:
@@ -163,7 +167,8 @@ def _topo_to_sph(loc: dict[str, Any]) -> None:
         return
     loc["sph_theta"] = _wrap_degrees(-float(loc["theta"]))
     loc["sph_phi"] = float((0.5 - float(loc["radius"])) * 180.0)
-    loc.setdefault("sph_radius", 1.0)
+    if _is_empty(loc.get("sph_radius")):
+        loc["sph_radius"] = _DEFAULT_HEAD_RADIUS
 
 
 def _sph_besa_to_sph(loc: dict[str, Any]) -> None:
@@ -174,7 +179,8 @@ def _sph_besa_to_sph(loc: dict[str, Any]) -> None:
     angle = 90.0 - phi_besa if theta_besa >= 0 else -90.0 - phi_besa
     loc["sph_theta"] = _wrap_degrees(-angle)
     loc["sph_phi"] = 90.0 - abs(theta_besa)
-    loc.setdefault("sph_radius", 1.0)
+    if _is_empty(loc.get("sph_radius")):
+        loc["sph_radius"] = _DEFAULT_HEAD_RADIUS
 
 
 def _sph_to_sph_besa(loc: dict[str, Any]) -> None:

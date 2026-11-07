@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.eeg_checkchanlocs import eeg_checkchanlocs
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
@@ -307,7 +308,9 @@ def _apply_chanedit(
             chanlocs = _lookup_chanlocs(chanlocs, value)
             chaninfo["filename"] = str(_channel_location_path(value))
             lookup_name = chaninfo["filename"].lower()
-            chaninfo["nosedir"] = "+Y" if "standard_10" in lookup_name and lookup_name.endswith(".elc") else "+X"
+            chaninfo["nosedir"] = "+X"
+            if "standard_10" in lookup_name and lookup_name.endswith(".elc"):
+                chaninfo["originalnosedir"] = "+Y"
         elif key == "save":
             _write_chanloc_file(value, chanlocs)
         elif key == "headrad":
@@ -346,7 +349,8 @@ def _change_field(chanlocs: list[dict[str, Any]], item: Any) -> None:
     if not isinstance(item, (list, tuple)) or len(item) != 3:
         raise ValueError("changefield requires [channel, field, value]")
     index = _single_index(item[0], len(chanlocs))
-    chanlocs[index][str(item[1])] = item[2]
+    field = str(item[1])
+    chanlocs[index][field] = _validated_field_value(field, item[2])
 
 
 def _change_channel(chanlocs: list[dict[str, Any]], value: Any) -> None:
@@ -354,7 +358,19 @@ def _change_channel(chanlocs: list[dict[str, Any]], value: Any) -> None:
         raise ValueError("changechan requires [channel, label, ...]")
     index = _single_index(value[0], len(chanlocs))
     for field, item in zip(_CHANNEL_FIELDS, value[1:]):
-        chanlocs[index][field] = item
+        chanlocs[index][field] = _validated_field_value(field, item)
+
+
+def _validated_field_value(field: str, value: Any) -> Any:
+    if field not in _LOCATION_FIELDS or _is_blank(value):
+        return value
+    try:
+        number = float(value)
+    except (ValueError, TypeError):
+        number = np.nan
+    if not np.isfinite(number):
+        raise ValueError(f"pop_chanedit: {field} must be numeric and finite. Enter a number or leave the field blank.")
+    return number
 
 
 def _new_channel_args(value: Any) -> tuple[int, dict[str, Any]]:
@@ -411,11 +427,16 @@ def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
 
 def _lookup_chanlocs(chanlocs: list[dict[str, Any]], value: Any) -> list[dict[str, Any]]:
     template = _read_chanloc_file(value)
+    lookup_name = str(_channel_location_path(value)).lower()
+    if "standard_10" in lookup_name and lookup_name.endswith(".elc"):
+        _, _, template = eeg_checkchanlocs(template, {"nosedir": "+Y"})
     by_label: dict[str, dict[str, Any]] = {}
     for channel in template:
         label = str(channel.get("labels") or "")
         if label.strip():
             by_label.setdefault(label.casefold(), channel)
+    if not any(str(channel.get("labels") or "").casefold() in by_label for channel in chanlocs):
+        return deepcopy(chanlocs)
     looked_up: list[dict[str, Any]] = []
     for index, channel in enumerate(chanlocs):
         label = str(channel.get("labels") or "")
@@ -423,7 +444,7 @@ def _lookup_chanlocs(chanlocs: list[dict[str, Any]], value: Any) -> list[dict[st
             "labels": label,
             "datachan": channel.get("datachan", True),
             "type": channel.get("type", ""),
-            "urchan": index,
+            "urchan": index + 1,
             "ref": "",
         }
         match = by_label.get(label.casefold())
@@ -521,6 +542,10 @@ def _history_command(options: dict[str, Any]) -> str:
         return ""
     pieces = []
     for key, value in options.items():
+        if key == "changefield":
+            for item in _as_command_list(value):
+                pieces.extend(["'changefield'", "{" + " ".join(format_history_value(part) for part in item) + "}"])
+            continue
         pieces.append(format_history_value(key))
         pieces.append(format_history_value(value, cell_for_sequence="any_strings"))
     return f"EEG = pop_chanedit(EEG, {', '.join(pieces)});"
