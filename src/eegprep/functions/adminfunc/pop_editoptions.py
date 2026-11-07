@@ -50,6 +50,24 @@ _DEFAULT_OPTIONS = {
     "option_native_dialogs",
 }
 _MATLAB_ONLY_OPTIONS = {"option_parallel", "option_eegobject", "option_donotusetoolboxes"}
+_SUPPORTED_OPTIONS = {
+    "option_storedisk",
+    "option_savetwofiles",
+    "option_memmapdata",
+    "option_showadvanced",
+    "option_boundary99",
+    "option_allmenus",
+    "option_native_dialogs",
+}
+_OPTION_SECTIONS = {
+    "option_storedisk": "STUDY and file options",
+    "option_single": "Memory options",
+    "option_computeica": "ICA options",
+    "option_rememberfolder": "Folder options",
+    "option_donotusetoolboxes": "Toolbox options",
+    "option_showadvanced": "EEGPrep connectivity and support",
+    "option_native_dialogs": "EEGPrep interface",
+}
 
 
 def eegprep_options_path() -> Path:
@@ -100,7 +118,9 @@ def pop_editoptions(
             finally:
                 temporary.unlink(missing_ok=True)
     target.update(validated)
-    arguments = ", ".join(f"{format_history_value(key)}, {value}" for key, value in validated.items())
+    arguments = ", ".join(
+        f"{format_history_value(key)}, {value}" for key, value in validated.items() if key != "option_native_dialogs"
+    )
     return f"pop_editoptions({arguments});" if arguments else ""
 
 
@@ -121,21 +141,34 @@ def load_eegprep_options(options_path: str | Path | None = None) -> None:
 
 def pop_editoptions_dialog_spec(options: dict[str, Any], path: Path | None = None) -> DialogSpec:
     """Return the memory-options dialog, including advanced preferences."""
-    controls = [ControlSpec("text", f"Option file: {path or eegprep_options_path()}")]
-    geometry: list[tuple[float, ...]] = [(1,)]
+    controls = [
+        ControlSpec("text", f"Option file: {path or eegprep_options_path()}"),
+        ControlSpec("text", "Disabled preferences are not supported in EEGPrep; see Help for details."),
+    ]
+    geometry: list[tuple[float, ...]] = [(1,), (1,)]
     for key, label in _OPTION_LABELS.items():
         if key not in _DEFAULT_OPTIONS and not options["option_showadvanced"]:
             continue
-        enabled = key not in _MATLAB_ONLY_OPTIONS
+        if key in _OPTION_SECTIONS:
+            controls.append(ControlSpec("text", _OPTION_SECTIONS[key], font_weight="bold"))
+            geometry.append((1,))
+        enabled = key in _SUPPORTED_OPTIONS
+        tooltip = None
+        if not enabled:
+            tooltip = (
+                "Requires MATLAB; unavailable in standalone EEGPrep."
+                if key in _MATLAB_ONLY_OPTIONS
+                else "This preference is not yet supported in EEGPrep."
+            )
         controls.extend(
             [
-                ControlSpec("text", label),
+                ControlSpec("text", label, enabled=enabled),
                 ControlSpec(
                     "edit" if key == "option_cachesize" else "checkbox",
                     tag=key,
                     value=str(options[key]) if key == "option_cachesize" else bool(options[key]),
                     enabled=enabled,
-                    tooltip=None if enabled else "Requires MATLAB; unavailable in standalone EEGPrep.",
+                    tooltip=tooltip,
                 ),
             ]
         )
@@ -147,8 +180,9 @@ def pop_editoptions_dialog_spec(options: dict[str, Any], path: Path | None = Non
         help_text="pophelp('pop_editoptions')",
         controls=tuple(controls),
         geometry=tuple(geometry),
-        size=(830, 560),
+        size=(1050, 620),
         scrollable=True,
+        geomvert=(1,) * len(geometry),
     )
 
 

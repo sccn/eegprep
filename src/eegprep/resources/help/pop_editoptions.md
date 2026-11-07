@@ -2,11 +2,17 @@
 
 `pop_editoptions` updates EEGPrep's EEGLAB-style option registry.
 
-File > Preferences opens memory, storage, ICA, folder, menu, boundary-event,
-update, and cache settings. Show advanced options reveals the precision and
-memory-mapping controls when you reopen the dialog. Options affect workflows
-that support them; processing functions retain their explicit parameters.
-MATLAB-only toolbox and EEG-object switches are disabled in standalone EEGPrep.
+File > Preferences controls disk storage of inactive datasets, two-file saves,
+menu visibility, numerical boundary events, and native file dialogs. Show
+advanced options reveals memory mapping when you reopen the dialog.
+
+Disabled preferences have no runtime connection yet: precision, ICA caching
+and RMS scaling, remembered folders, startup update checks, STUDY cache size,
+save-version/struct choices, pending plugins, and HTML in graphics. Their
+registry values remain available to scripts but do not change these workflows.
+Use explicit function arguments where available. Use Help > Check for EEGPrep
+updates to check manually. MATLAB-only toolbox and EEG-object switches are
+also disabled in standalone EEGPrep.
 
 GUI changes are saved to `~/.eegprep/options.json` and restored on the next
 launch. Cancel leaves current and saved preferences unchanged. Menu visibility
