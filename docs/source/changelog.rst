@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- MATLAB v7.3 datasets preserve complete labels, nested references, empty
+  events, and channel-major data even when dimensions coincide (F15, #497).
+- Dataset and BrainVision readers reject companion references outside the
+  header directory, including symlinks and Windows paths (#561). Invalid
+  datasets and missing sample files give recovery instructions (F34).
+- Save as preserves the two-file layout of loaded datasets and appends
+  ``.set`` to extensionless names; ``savemode="onefile"`` explicitly embeds
+  samples (F26). BIDS ``None`` channel metadata (#538) belongs to Stream 10.
+
 - Event selection records numeric criteria for numeric event codes and preserves
   string codes as text. Data selection preserves input precision; embedded
   save precision remains with the S1 stream (F50, #548).

@@ -2,7 +2,7 @@
 
 import logging
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import h5py
 import numpy as np
@@ -12,7 +12,7 @@ from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
 from eegprep.functions.popfunc._matlab_fields import dataset_from_mat
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
-from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
+from eegprep.functions.popfunc.pop_loadset_h5 import _read_set_h5
 
 logger = logging.getLogger(__name__)
 
@@ -53,18 +53,24 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     # MAT v7.3 files are HDF5; older v5/v7 files are not.
     # Dispatch on the real format instead of treating every scipy error as "must be HDF5".
     loaded_with_h5 = _is_hdf5_file(file_path)
-    if loaded_with_h5:
-        EEG = pop_loadset_h5(file_path)
-    else:
-        # pop_loadset.m loads with MATLAB load, which keeps singleton dimensions.
-        loaded = scipy.io.loadmat(
-            file_path,
-            struct_as_record=False,
-            squeeze_me=False,
-            appendmat=False,
-            mat_dtype=True,
+    try:
+        if loaded_with_h5:
+            EEG = _read_set_h5(file_path)
+        else:
+            loaded = scipy.io.loadmat(
+                file_path, struct_as_record=False, squeeze_me=False, appendmat=False, mat_dtype=True,
+            )
+            EEG = dataset_from_mat(loaded)
+    except (ValueError, OSError, TypeError) as exc:
+        raise ValueError(
+            f"pop_loadset: {file_path!r} is not a valid MATLAB .set dataset (MAT file). "
+            "Re-export the dataset from its source or restore an intact copy."
+        ) from exc
+    if not {'data', 'nbchan', 'pnts', 'srate'}.issubset(EEG):
+        raise ValueError(
+            f"pop_loadset: {file_path!r} is not a valid EEG .set dataset (required fields are missing). "
+            "Re-export the dataset from its source."
         )
-        EEG = dataset_from_mat(loaded)
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -79,12 +85,12 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
 
     # Convert MATLAB-loaded 1-based doubles to EEGPrep's 0-based integer indices.
     if 'icachansind' in EEG:
-        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
+        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=True)
 
     info_data = None
     if info_only:
         info_data = _info_mode_data(EEG, Path(file_path))
-    elif not loaded_with_h5:
+    else:
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
     # 1-based urchan/urevent become 0-based before eeg_checkset copies
@@ -93,9 +99,7 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         if isinstance(EEG.get(key), dict):
             EEG[key] = [EEG[key]]
 
-    # pop_loadset_h5 already did this.
-    if not loaded_with_h5:
-        ur_indices_to_zero_based(EEG)
+    ur_indices_to_zero_based(EEG)
 
     EEG = eeg_checkset(EEG)
     if info_data is not None:
@@ -182,6 +186,11 @@ def _load_sidecar_data(EEG, file_path: Path, *, use_memmap: bool) -> None:
     if not data_name or data_name == "in set file":
         return
     sidecar = _sidecar_path(data_name, file_path)
+    if not sidecar.is_file():
+        raise FileNotFoundError(
+            f"pop_loadset: companion sample file {sidecar} is missing. "
+            "Restore the .fdt beside the .set file with the name recorded in the dataset."
+        )
     EEG["datfile"] = sidecar.name
     EEG["data"] = memmap_fdt(sidecar, EEG) if use_memmap else read_fdt(sidecar, EEG)
 
@@ -204,10 +213,14 @@ def _info_mode_data(EEG, file_path: Path) -> str | None:
 
 
 def _sidecar_path(datfile: str, file_path: Path) -> Path:
-    path = Path(datfile)
-    if path.is_absolute():
-        return path
-    return file_path.parent / path.name
+    path = Path(datfile.replace("\\", "/"))
+    candidate = path if path.is_absolute() else file_path.parent / path
+    if PureWindowsPath(datfile).drive or candidate.resolve().parent != file_path.parent.resolve():
+        raise ValueError(
+            f"pop_loadset: sample reference {datfile!r} leaves the dataset directory. "
+            "Keep the .set and .fdt together and use the companion filename in the header."
+        )
+    return candidate
 
 
 def _is_numeric_data(value) -> bool:

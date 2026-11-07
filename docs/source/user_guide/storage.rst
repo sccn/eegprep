@@ -12,7 +12,7 @@ classes.
 Two-File ``.set`` / ``.fdt`` Datasets
 =====================================
 
-``pop_saveset`` saves one-file ``.set`` files by default. To write a two-file
+``pop_saveset`` saves new datasets as one-file ``.set`` files by default. To write a two-file
 ``.set`` header plus float32 data sidecar, pass ``savemode="twofiles"`` or set
 ``EEG_OPTIONS["option_savetwofiles"] = 1``:
 
@@ -49,9 +49,15 @@ file is left unchanged. File > Save current dataset as asks before replacing
 the ``.set`` file that will be written. If the parent folder cannot be created or the
 ``.set`` file is not written, ``pop_saveset`` raises an error and does not
 mark the dataset saved. A missing parent folder is created when that is
-possible. A plain save without
-``savemode`` follows the current ``option_savetwofiles`` setting; if that
-option is disabled, the data is saved inline in the ``.set`` file.
+possible. Save as also preserves a loaded dataset's two-file layout, naming
+both files after the new target. Use ``savemode="onefile"`` to embed samples
+explicitly. New datasets follow ``option_savetwofiles``.
+
+MATLAB v7.3 datasets load through the same API, preserving complete Unicode
+labels and event types, nested metadata, and empty events. Companion sample
+files must resolve beside the dataset header; references outside that directory
+are rejected. Keep the ``.set`` and ``.fdt`` together when moving a dataset.
+BrainVision headers apply the same rule to their sample and marker files.
 
 Memory-Mapped Data
 ==================
