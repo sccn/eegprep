@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Dataset processing warns before overwriting multiple selections, rejects empty
+  results, and opens Dataset info after merging. Session scripts and copy/select/
+  store commands use runnable EEGLAB forms and concrete indices; saved file
+  history separates filename and filepath (F27/F38/F42/F49/F90/F94, #556).
 - Main-window menus retain their Qt objects across dataset refreshes and nested
   dialogs, including failed imports (F54/F121/F30, #556).
 - The main window shows channel-reference consensus, consistent epoch-time

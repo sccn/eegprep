@@ -4,6 +4,20 @@
 GUI and Console Together
 ========================
 
+.. note::
+
+   Processing a selection of multiple datasets first asks whether to overwrite
+   those datasets. Cancel leaves the selection and history unchanged. Appending
+   datasets opens Dataset info so you can name or save the merged result. An
+   empty processing result is rejected before replacing the current dataset.
+
+   Saved session history scripts use MATLAB commands, including dataset storage,
+   concrete selection indices, and ``eeglab redraw``. These scripts are for
+   EEGLAB; File > History scripts > Run script executes Python ``.py`` files.
+   The console translates displayed commands to Python while preserving the
+   MATLAB form in ``ALLCOM`` and dataset history.
+
+
 EEGPrep is designed for a mixed interactive workflow. You can load and review
 data from the GUI, inspect the live workspace in ``eegprep-console``, run a
 Python command, then return to the GUI without manually copying datasets between
