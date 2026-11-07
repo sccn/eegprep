@@ -3,8 +3,6 @@
 import struct
 from eegprep.functions.popfunc.pop_biosig import pop_biosig
 from tests.test_bids_load_frombids_helpers import _write_edf_bids_dataset
-from eegprep.functions.popfunc.pop_fileio import _reader_for_suffix
-from defusedxml.ElementTree import fromstring
 from eegprep import pop_loadbv
 from tests.test_pop_loadbv import _write_binary_brainvision
 
@@ -54,12 +52,6 @@ def test_f10_biosig_reference_range_and_event_controls(tmp_path):
     np.testing.assert_allclose(selected['data'], expected)
     assert len(selected['event']) == 0
     assert "'ref', [2]" in command
-
-
-def test_f18_mff_reader_has_xml_dependency():
-
-    assert fromstring('<mff><version>3</version></mff>').findtext('version') == '3'
-    assert _reader_for_suffix('.mff', 'pop_fileio').__name__ == 'read_raw_egi'
 
 
 def test_f23_brainvision_returns_single_precision(tmp_path):

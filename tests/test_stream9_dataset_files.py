@@ -71,12 +71,23 @@ def test_f15_h5_dereferences_strings_vectors_and_empty_structs(tmp_path, shape, 
 
 @pytest.mark.parametrize('field', ['data', 'datfile'])
 @pytest.mark.parametrize(
-    'reference', ['../outside.fdt', '/tmp/outside.fdt', r'C:\outside.fdt', r'..\outside.fdt', 'link.fdt']
+    'reference',
+    [
+        '../outside.fdt',
+        '/tmp/outside.fdt',
+        r'C:\outside.fdt',
+        'C:outside.fdt',
+        r'..\outside.fdt',
+        'subdir/data.fdt',
+        r'subdir\data.fdt',
+        './data.fdt',
+        'subdir/../data.fdt',
+        '..',
+    ],
 )
 def test_561_loadset_refuses_escaping_sidecars(tmp_path, field, reference):
     eeg = _singleton_eeg(np.zeros((1, 4)))
     eeg.update(data=reference if field == 'data' else 'in set file', datfile=reference)
-    (tmp_path / 'link.fdt').symlink_to(tmp_path.parent / 'outside.fdt')
     path = tmp_path / 'unsafe.set'
     scipy.io.savemat(path, eeg)
     with pytest.raises(ValueError, match=r'pop_loadset.*directory'):
@@ -85,15 +96,65 @@ def test_561_loadset_refuses_escaping_sidecars(tmp_path, field, reference):
 
 @pytest.mark.parametrize('field', ['DataFile', 'MarkerFile'])
 @pytest.mark.parametrize(
-    'reference', ['../outside.dat', '/tmp/outside.dat', r'C:\outside.dat', r'..\outside.dat', 'link.dat']
+    'reference',
+    [
+        '../outside.dat',
+        '/tmp/outside.dat',
+        r'C:\outside.dat',
+        'C:outside.dat',
+        r'..\outside.dat',
+        'subdir/test.dat',
+        r'subdir\test.dat',
+        './test.dat',
+        'subdir/../test.dat',
+        '..',
+    ],
 )
 def test_561_loadbv_refuses_escaping_references_before_fallback(tmp_path, field, reference):
     path = _write_binary_brainvision(tmp_path, 'test', np.zeros((2, 8)))
-    (tmp_path / 'link.dat').symlink_to(tmp_path.parent / 'outside.dat')
     old = 'test.dat' if field == 'DataFile' else 'test.vmrk'
     path.write_text(path.read_text().replace(f'{field}={old}', f'{field}={reference}'))
     with pytest.raises(ValueError, match=r'pop_loadbv.*directory'):
         pop_loadbv(path)
+
+
+@pytest.mark.parametrize('field', ['data', 'datfile'])
+@pytest.mark.parametrize('memmap', [False, True])
+def test_561_loadset_accepts_adjacent_annex_symlink(tmp_path, field, memmap):
+    data = np.arange(12, dtype=np.float32).reshape(2, 6)
+    annex = tmp_path / '.git' / 'annex' / 'objects'
+    annex.mkdir(parents=True)
+    samples = annex / 'sample-object'
+    data.T.tofile(samples)
+    (tmp_path / 'data.fdt').symlink_to(samples.relative_to(tmp_path))
+    eeg = _singleton_eeg(data)
+    eeg.update(data='data.fdt' if field == 'data' else 'in set file', datfile='data.fdt')
+    path = tmp_path / 'dataset.set'
+    scipy.io.savemat(path, eeg)
+
+    loaded = pop_loadset(path, memmap=memmap)
+    np.testing.assert_array_equal(loaded['data'], data)
+    assert loaded['datfile'] == 'data.fdt'
+
+
+@pytest.mark.parametrize('reference', ['exact', 'different_case', 'fallback'])
+def test_561_loadbv_accepts_adjacent_annex_symlinks(tmp_path, reference):
+    data = np.arange(12).reshape(2, 6)
+    path = _write_binary_brainvision(tmp_path, 'test', data, data_suffix='.eeg', markers=['Mk1=Stimulus,S 1,2,1,0'])
+    annex = tmp_path / '.git' / 'annex' / 'objects'
+    annex.mkdir(parents=True)
+    for suffix in ('.eeg', '.vmrk'):
+        companion = path.with_suffix(suffix)
+        target = annex / ('object' + suffix)
+        companion.rename(target)
+        companion.symlink_to(target.relative_to(tmp_path))
+    if reference != 'exact':
+        stem = 'TEST' if reference == 'different_case' else 'old_name'
+        path.write_text(path.read_text().replace('test.eeg', stem + '.eeg').replace('test.vmrk', stem + '.vmrk'))
+
+    loaded = pop_loadbv(path)
+    np.testing.assert_array_equal(loaded['data'], data)
+    assert [(event['type'], event['latency']) for event in loaded['event']] == [('S 1', 2)]
 
 
 def test_f26_save_as_preserves_two_files_and_adds_extension(tmp_path):

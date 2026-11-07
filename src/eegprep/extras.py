@@ -15,6 +15,7 @@ from types import ModuleType
 OPTIONAL_LIBRARIES: dict[str, str] = {
     "bids": "pybids",
     "mne": "mne",
+    "defusedxml": "mne",
     "oct2py": "eeglab",
     "picard": "picard",
 }
@@ -33,7 +34,7 @@ PUBLIC_EXTRAS: dict[str, tuple[str, str]] = {
     "mne2eeg": ("mne", "converting from an MNE object"),
     "picard": ("picard", "Picard ICA"),
     "pop_biosig": ("mne", "EDF, BDF, and GDF import"),
-    "pop_fileio": ("mne", "EDF, BDF, GDF, EGI .mff, BrainVision .eeg, and .vhdr with a block range"),
+    "pop_fileio": ("mne", "EDF, BDF, GDF, EGI .mff, and BrainVision .vhdr with a block range"),
     "pop_iclabel": ("eeglab", "engine='octave'"),
     "pop_importbids": ("pybids", "reading a BIDS dataset"),
     "pop_load_frombids": ("pybids", "reading a BIDS dataset"),
@@ -50,8 +51,9 @@ EXTRA_SUMMARY: dict[str, str] = {
     ),
     "mne": (
         "MNE conversion and the EDF, BDF, GDF, and EGI .mff readers in pop_biosig and pop_fileio. "
-        "BrainVision .eeg files, and .vhdr files when a block range is set, also use it. "
-        "EEGLAB .set, CNT, and BrainVision .vhdr without a block range do not. Installs mne."
+        "BrainVision .vhdr files when a block range is set also use it. "
+        "EEGLAB .set, CNT, Neuroscan .EEG, and BrainVision .vhdr without a block range do not. "
+        "Installs mne and defusedxml for MFF XML parsing."
     ),
     "pybids": "BIDS import and bids_preproc. Installs pybids.",
     "picard": (
@@ -70,6 +72,7 @@ def install_command(extra: str) -> str:
 _LIBRARY_LABEL = {
     "bids": "PyBIDS",
     "mne": "MNE",
+    "defusedxml": "defusedxml",
     "oct2py": "Octave (oct2py)",
     "picard": "Picard",
 }

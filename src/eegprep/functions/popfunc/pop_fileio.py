@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 import struct
-from importlib import import_module
 from typing import Any
 
 import numpy as np
@@ -121,12 +120,7 @@ def _reader_for_suffix(suffix: str, feature: str):
     if suffix == ".vhdr":
         return mne.io.read_raw_brainvision
     if suffix == ".mff":
-        try:
-            import_module("defusedxml")
-        except ImportError as exc:
-            raise ImportError(
-                f'{feature}: MFF XML support is missing. Install it with pip install "eegprep[mne]".'
-            ) from exc
+        import_optional_dependency("defusedxml", feature=feature)
         return mne.io.read_raw_egi
     if suffix == ".cnt":
         return mne.io.read_raw_cnt

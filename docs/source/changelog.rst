@@ -30,16 +30,20 @@ Unreleased
   replay imported channel metadata (F10/F21/F23).
 
 - MFF import selects the recording folder, and the MNE extra installs the XML
-  parser required by its MFF reader (F18).
+  parser required by its MFF reader (F18). Missing XML support uses the shared
+  optional-dependency error with the extra's installation command.
 - Neuroscan ``.EEG`` import uses the native epoch reader and retains sweep
   events, channel calibration, and rejected sweeps (F119). Generic File-IO
   also recognizes EGI Simple Binary ``.raw`` files (F23).
 
 - MATLAB v7.3 datasets preserve complete labels, nested references, empty
   events, and channel-major data even when dimensions coincide (F15, #497).
-- Dataset and BrainVision readers reject companion references outside the
-  header directory, including symlinks and Windows paths (#561). Invalid
+- Dataset and BrainVision readers require bare companion filenames in header
+  references, rejecting directories, traversal, and Windows drives (#561).
+  Adjacent symlinks into DataLad/git-annex storage remain supported. Invalid
   datasets and missing sample files give recovery instructions (F34).
+  HDF5 field-decoding errors retain their specific exception rather than
+  being reported as invalid MAT files.
 - Save as preserves the two-file layout of loaded datasets and appends
   ``.set`` to extensionless names; ``savemode="onefile"`` explicitly embeds
   samples (F26). BIDS ``None`` channel metadata (#538) belongs to Stream 10.

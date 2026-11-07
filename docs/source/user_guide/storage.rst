@@ -54,10 +54,12 @@ both files after the new target. Use ``savemode="onefile"`` to embed samples
 explicitly. New datasets follow ``option_savetwofiles``.
 
 MATLAB v7.3 datasets load through the same API, preserving complete Unicode
-labels and event types, nested metadata, and empty events. Companion sample
-files must resolve beside the dataset header; references outside that directory
-are rejected. Keep the ``.set`` and ``.fdt`` together when moving a dataset.
-BrainVision headers apply the same rule to their sample and marker files.
+labels and event types, nested metadata, and empty events. Companion references
+in the header must be bare filenames without directories, drives, or path
+separators. The named files must sit beside the header, but may be symlinks
+to data elsewhere, as in DataLad/git-annex OpenNeuro checkouts. Keep the
+``.set`` and ``.fdt`` names together when moving a dataset. BrainVision
+headers apply the same rule to their sample and marker files.
 
 Memory-Mapped Data
 ==================

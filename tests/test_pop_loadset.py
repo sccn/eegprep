@@ -11,6 +11,32 @@ from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
 
 
+@pytest.mark.parametrize(
+    'invalid_shape,error,match',
+    [('negative', ValueError, 'negative dimensions'), ('reference', TypeError, 'int.*argument')],
+)
+def test_pop_loadset_preserves_hdf5_field_decode_errors(tmp_path, invalid_shape, error, match):
+    path = tmp_path / 'invalid_empty_shape.set'
+    with h5py.File(path, 'w') as file:
+        eeg = file.create_group('EEG')
+        if invalid_shape == 'negative':
+            event = eeg.create_dataset('event', data=[-1, 0])
+        else:
+            event = eeg.create_dataset('event', shape=(1,), dtype=h5py.ref_dtype)
+        event.attrs['MATLAB_empty'] = 1
+
+    with pytest.raises(error, match=match):
+        pop_loadset(path)
+
+
+@pytest.mark.parametrize('payload', [b'', b'truncated MAT', b'\x89HDF\r\n\x1a\n' + b'\x00' * 64])
+def test_pop_loadset_reports_open_and_parse_errors_with_recovery(tmp_path, payload):
+    path = tmp_path / 'broken.set'
+    path.write_bytes(payload)
+    with pytest.raises(ValueError, match=r'pop_loadset.*valid.*\.set.*Re-export'):
+        pop_loadset(path)
+
+
 def test_pop_loadset_marks_loaded_dataset_justloaded():
     eeg = pop_loadset("sample_data/eeglab_data.set")
 

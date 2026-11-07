@@ -633,25 +633,24 @@ def _marker_entries(text: str, path: Path) -> list[tuple[str, str]]:
 
 
 def _referenced_file(header_path: Path, filename: str, *, fallback_suffixes: tuple[str, ...]) -> Path:
-    requested = Path(filename.replace("\\", "/"))
-    candidate = requested if requested.is_absolute() else header_path.parent / requested
-    if PureWindowsPath(filename).drive or candidate.resolve().parent != header_path.parent.resolve():
+    if (
+        not filename
+        or filename in {'.', '..'}
+        or PureWindowsPath(filename).drive
+        or '/' in filename
+        or '\\' in filename
+    ):
         raise ValueError(
-            f"pop_loadbv: reference {filename!r} leaves the header directory. "
-            "Keep the header, samples, and markers together and use companion filenames in the header."
+            f"pop_loadbv: reference {filename!r} must be a bare filename in the header directory. "
+            "Use companion filenames without a drive or directory separators in the header."
         )
+    candidate = header_path.parent / filename
     resolved = _case_insensitive_file(candidate)
     if resolved is not None:
-        if resolved.resolve().parent != header_path.parent.resolve():
-            raise ValueError("pop_loadbv: companion link leaves the header directory. Copy the file beside the header.")
         return resolved
     for suffix in fallback_suffixes:
         resolved = _case_insensitive_file(header_path.with_suffix(suffix))
         if resolved is not None:
-            if resolved.resolve().parent != header_path.parent.resolve():
-                raise ValueError(
-                    "pop_loadbv: companion link leaves the header directory. Copy the file beside the header."
-                )
             return resolved
     raise FileNotFoundError(f"BrainVision referenced file not found: {candidate}")
 
