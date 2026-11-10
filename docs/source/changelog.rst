@@ -10,6 +10,51 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Import dialogs expose data shape, sampling, metadata, channel selection,
+  ranges, event fields, units, alignment, and epoch options. Cancel preserves
+  the dataset and history; accepted imports update the GUI and console
+  together (F10/F19/F21/F22). CNT and EGI Simple Binary imports use their
+  native readers; BrainVision import returns float32 samples (F23).
+- ASCII imports transpose samples-by-channels input, use float32 samples,
+  keep channel locations and the dataset name empty unless supplied, and
+  record the effective sampling rate. Epoch reshaping keeps consecutive
+  samples together (F21).
+- Event import rejects capitalized reserved fields with correction advice.
+  History accepts NumPy arrays of field names and preserves NaN options.
+  Epoch-file import requires explicit column names and header-line counts
+  (F19/F22). Channel-event extraction retains both types when falling and
+  rising edges coincide (F20).
+- Presentation import offers type, latency, and duration column selection
+  and records the choices for replay. ERPLAB import maps event lists and
+  bin definitions onto existing events, with safe cancellation (F10/F31).
+  CNT history retains the selected start and duration; ASCII history can
+  replay imported channel metadata (F10/F21/F23).
+
+- MFF import selects the recording folder, and the MNE extra installs the XML
+  parser required by its MFF reader (F18). Missing XML support uses the shared
+  optional-dependency error with the extra's installation command.
+- Neuroscan ``.EEG`` import uses the native epoch reader and retains sweep
+  events, channel calibration, and rejected sweeps (F119), matching EEGLAB
+  ``loadeeg``/``pop_loadeeg`` (``accepttype='all'``). Generic File-IO
+  also recognizes EGI Simple Binary ``.raw`` files (F23). Files ending in
+  ``.eeg`` or ``.EEG`` use BrainVision when a sibling ``.vhdr`` or ``.ahdr``
+  exists, including channel/sample selections and time-range imports.
+  BrainVision time ranges use the same native reader and channel layout as
+  full imports; ``blockrange`` converts seconds to samples at the header's
+  sampling rate without requiring MNE.
+
+- MATLAB v7.3 datasets preserve complete labels, nested references, empty
+  events, and channel-major data even when dimensions coincide (F15, #497).
+- Dataset and BrainVision readers require bare companion filenames in header
+  references, rejecting directories, traversal, and Windows drives (#561).
+  Adjacent symlinks into DataLad/git-annex storage remain supported. Invalid
+  datasets and missing sample files give recovery instructions (F34).
+  HDF5 field-decoding errors retain their specific exception rather than
+  being reported as invalid MAT files.
+- Save as preserves the two-file layout of loaded datasets and appends
+  ``.set`` to extensionless names; ``savemode="onefile"`` explicitly embeds
+  samples (F26). BIDS ``None`` channel metadata (#538) belongs to Stream 10.
+
 - Channel locations: enable Read, Look up, Plot 2-D/3-D, head-center optimization,
   rotation, transforms, coordinate conversions, head radius, type/reference
   editing, insertion/deletion, and both Save actions. Navigation and action

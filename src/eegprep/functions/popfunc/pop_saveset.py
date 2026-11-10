@@ -606,7 +606,7 @@ def _save_two_files(EEG, savemode):
     if savemode == 'twofiles':
         return True
     datfile = dataset_datfile_path(EEG)
-    return bool(datfile and savemode == 'resave') or savetwofiles_enabled()
+    return bool(datfile) or savetwofiles_enabled()
 
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).

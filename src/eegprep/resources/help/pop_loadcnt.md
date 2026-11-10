@@ -33,3 +33,5 @@ CNT is also used by ANT Neuro, but that is a different file format. This loader
 supports Neuroscan CNT files only.
 
 See also: `loadcnt`, `pop_fileio`
+
+Use `gui=True` for precision detection, start time and duration in seconds, and keyboard-response import. File > Import data > Neuroscan CNT uses this reader and records `pop_loadcnt` in history.

@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from eegprep.extras import OPTIONAL_LIBRARIES, PUBLIC_EXTRAS, import_optional_dependency
+from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "eegprep"
@@ -40,12 +41,26 @@ def test_base_install_keeps_plotting_and_edf_and_moves_heavy_libraries() -> None
     assert set(STILL_REQUIRED) <= base
     assert {"oct2py", "mne", "pybids", "python-picard", "neo"}.isdisjoint(base)
     assert _requirement_names(extras["eeglab"]) == {"oct2py"}
-    assert _requirement_names(extras["mne"]) == {"mne"}
+    assert _requirement_names(extras["mne"]) == {"mne", "defusedxml"}
     assert _requirement_names(extras["pybids"]) == {"pybids"}
     assert _requirement_names(extras["picard"]) == {"python-picard"}
     assert set(extras["full"]) == {"eegprep[eeglab]", "eegprep[mne]", "eegprep[pybids]", "eegprep[picard]"}
     assert {"eegprep[eeglab]", "eegprep[mne]", "eegprep[pybids]", "eegprep[picard]"} <= set(extras["all"])
     assert "eegprep[torch]" in extras["all"]
+
+
+def test_mff_import_names_the_xml_dependency_and_its_extra(monkeypatch, tmp_path):
+    pytest.importorskip('mne')
+    folder = tmp_path / 'recording.mff'
+    folder.mkdir()
+    monkeypatch.setitem(sys.modules, 'defusedxml', None)
+
+    with pytest.raises(ImportError, match='pop_fileio needs defusedxml') as caught:
+        pop_fileio(folder)
+    assert 'pip install "eegprep[mne]"' in str(caught.value)
+    assert 'pip install "eegprep[full]"' in str(caught.value)
+    assert isinstance(caught.value.__cause__, ImportError)
+    assert caught.value.__cause__.name == 'defusedxml'
 
 
 def _catches_import_error(handler: ast.ExceptHandler) -> bool:
@@ -278,13 +293,14 @@ def test_each_missing_extra_names_the_function_the_extra_and_the_install_command
         assert isinstance(caught.value.__cause__, ImportError)
 
 
-def test_a_broken_dependency_is_not_reported_as_a_missing_extra(monkeypatch) -> None:
+@pytest.mark.parametrize('library', ['mne', 'defusedxml'])
+def test_a_broken_dependency_is_not_reported_as_a_missing_extra(monkeypatch, library) -> None:
     def broken(name: str):
         raise ImportError("No module named 'numpy'", name="numpy")
 
     monkeypatch.setattr("eegprep.extras.importlib.import_module", broken)
     with pytest.raises(ImportError, match="numpy") as caught:
-        import_optional_dependency("mne", feature="eeg_eeg2mne")
+        import_optional_dependency(library, feature="pop_fileio")
     assert 'eegprep[mne]' not in str(caught.value)
 
 

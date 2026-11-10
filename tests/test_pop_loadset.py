@@ -11,6 +11,32 @@ from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
 
 
+@pytest.mark.parametrize(
+    'invalid_shape,error,match',
+    [('negative', ValueError, 'negative dimensions'), ('reference', TypeError, 'int.*argument')],
+)
+def test_pop_loadset_preserves_hdf5_field_decode_errors(tmp_path, invalid_shape, error, match):
+    path = tmp_path / 'invalid_empty_shape.set'
+    with h5py.File(path, 'w') as file:
+        eeg = file.create_group('EEG')
+        if invalid_shape == 'negative':
+            event = eeg.create_dataset('event', data=[-1, 0])
+        else:
+            event = eeg.create_dataset('event', shape=(1,), dtype=h5py.ref_dtype)
+        event.attrs['MATLAB_empty'] = 1
+
+    with pytest.raises(error, match=match):
+        pop_loadset(path)
+
+
+@pytest.mark.parametrize('payload', [b'', b'truncated MAT', b'\x89HDF\r\n\x1a\n' + b'\x00' * 64])
+def test_pop_loadset_reports_open_and_parse_errors_with_recovery(tmp_path, payload):
+    path = tmp_path / 'broken.set'
+    path.write_bytes(payload)
+    with pytest.raises(ValueError, match=r'pop_loadset.*valid.*\.set.*Re-export'):
+        pop_loadset(path)
+
+
 def test_pop_loadset_marks_loaded_dataset_justloaded():
     eeg = pop_loadset("sample_data/eeglab_data.set")
 
@@ -577,20 +603,20 @@ def test_pop_loadset_corrupt_v7_set_surfaces_real_error_not_h5py(tmp_path):
 
 
 def test_pop_loadset_h5_unicode_decodes_via_general_path(tmp_path):
-    # The general uint16 -> UTF-8 decode (no hard-coded emoji branch) returns the
-    # correct character. The bytes below are UTF-8 for U+1F496 (sparkling heart).
+    # MATLAB stores char arrays as UTF-16 code units, including surrogate pairs.
     filepath = tmp_path / "unicode.set"
     with h5py.File(filepath, "w") as f:
         eeg_group = f.create_group("EEG")
-        unicode_bytes = np.array([104, 101, 108, 108, 111, 32, 240, 159, 146, 150], dtype=np.uint16)
-        eeg_group.create_dataset("unicode_string", data=unicode_bytes)
+        unicode_bytes = np.frombuffer("hello \U0001f496".encode("utf-16-le"), dtype="<u2").reshape(-1, 1)
+        text = eeg_group.create_dataset("unicode_string", data=unicode_bytes)
+        text.attrs["MATLAB_class"] = np.bytes_("char")
         eeg_group.create_dataset("srate", data=np.array([[500.0]]))
         eeg_group.create_dataset("nbchan", data=np.array([[4]]))
         eeg_group.create_dataset("pnts", data=np.array([[100]]))
         eeg_group.create_dataset("trials", data=np.array([[1]]))
         eeg_group.create_dataset("xmin", data=np.array([[-1.0]]))
         eeg_group.create_dataset("xmax", data=np.array([[1.0]]))
-        eeg_group.create_dataset("data", data=np.zeros((4, 100), dtype=np.float32))
+        eeg_group.create_dataset("data", data=np.zeros((100, 4), dtype=np.float32))
 
     eeg = pop_loadset_h5(str(filepath))
 

@@ -1,293 +1,60 @@
-"""Load EEG data from HDF5 files."""
+"""Decode MATLAB v7.3 EEG datasets without retaining HDF5 references."""
 
 import h5py
 import numpy as np
-from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
-from eegprep.functions.popfunc._matlab_fields import (
-    MATRIX_FIELDS,
-    SCALAR_FIELDS,
-    STRUCT_ARRAY_FIELDS,
-    VECTOR_FIELDS,
-    apply_field_rules,
-)
+
+from eegprep.functions.popfunc._matlab_fields import apply_field_rules
 
 
 def pop_loadset_h5(file_name):
-    """Load EEG data from HDF5 file.
+    """Load a MATLAB v7.3 EEG dataset, including any companion sample file."""
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
-    Parameters
-    ----------
-    file_name : str
-        Path to the HDF5 file
+    return pop_loadset(file_name)
 
-    Returns
-    -------
-    EEG : dict
-        EEG data structure
-    """
-    EEGTMP = h5py.File(file_name, 'r')
-    EEG = {}
 
-    # Check if the file has an EEG group (MATLAB .set format)
-    if 'EEG' in EEGTMP.keys():
-        # Use the EEG group as the main data source
-        EEGTMP = EEGTMP['EEG']
+def _read_set_h5(file_name):
+    with h5py.File(file_name, 'r') as file:
+        group = file.get('EEG', file)
+        return {key: _read_value(value, key) for key, value in group.items() if not key.startswith('#')}
 
-    def convert_to_string(filecontent):
-        if isinstance(filecontent, np.ndarray):
-            if filecontent.dtype == 'uint16':
-                try:
-                    bytes_array = filecontent.astype(np.uint8)
-                    return bytes_array.tobytes().decode('utf-8')
-                except (UnicodeDecodeError, ValueError):
-                    # Fallback to character-by-character conversion
-                    text = ''
-                    for val in filecontent.T.flatten():
-                        if val == 13:  # CR
-                            text += '\r'
-                        elif val == 10:  # LF
-                            text += '\n'
-                        else:
-                            try:
-                                text += chr(val)
-                            except ValueError:
-                                # Skip invalid unicode characters
-                                continue
-                    return text
-            elif filecontent.dtype.kind in ['S', 'U']:  # String or Unicode
-                if len(filecontent) == 1:
-                    return filecontent[0].decode('utf-8') if isinstance(filecontent[0], bytes) else str(filecontent[0])
-                else:
-                    return [item.decode('utf-8') if isinstance(item, bytes) else str(item) for item in filecontent]
-            else:
-                # For other array types, return as is
-                return filecontent
+
+def _read_value(node, field=None):
+    if isinstance(node, h5py.Group):
+        children = list(node.items())
+        if not children:
+            return {}
+        # MATLAB struct arrays store one object reference per field per element.
+        if all(
+            isinstance(child, h5py.Dataset) and h5py.check_dtype(ref=child.dtype) and 'MATLAB_class' not in child.attrs
+            for _, child in children
+        ):
+            count = children[0][1].size
+            records = [{} for _ in range(count)]
+            for key, child in children:
+                for record, reference in zip(records, child[()].reshape(-1)):
+                    record[key] = _read_value(node.file[reference], key) if reference else np.empty((0, 0))
+            value = records[0] if count == 1 else records
         else:
-            return filecontent
+            value = {key: _read_value(child, key) for key, child in children}
+        return apply_field_rules(field, value)
 
-    def read_ref(f, ref):
-        obj = f[ref]
-        arr = np.asarray(obj[()])
-        return arr.reshape(-1)[0]
-
-    def single_struct_dict(hdf5_group, all_keys):
-        out = {}
-        f = hdf5_group.file
-        for k in all_keys:
-            ds = hdf5_group[k]
-            raw = ds[()]
-            if getattr(ds.dtype, "kind", None) == "O":
-                ref = np.asarray(raw).reshape(-1)[0]
-                out[k] = read_ref(f, ref)
-            else:
-                out[k] = np.asarray(raw).reshape(-1)[0]
-        return out
-
-    def list_of_dicts(hdf5_group, all_keys):
-        # number of channels from the first key
-        n = int(np.asarray(hdf5_group[all_keys[0]][()]).squeeze().shape[0])
-
-        # list of dicts, one per channel
-        dicts = [dict() for _ in range(n)]
-        f = hdf5_group.file
-
-        for k in all_keys:
-            ds = hdf5_group[k]
-            raw = ds[()]  # could be object refs or numeric
-            if getattr(ds.dtype, "kind", None) == "O":
-                refs = np.asarray(raw).squeeze()
-                for i, ref in enumerate(refs):
-                    dicts[i][k] = read_ref(f, ref)
-            else:
-                vals = np.asarray(raw).squeeze()
-                for i, v in enumerate(vals):
-                    dicts[i][k] = np.asarray(v).reshape(-1)[0]
-
-        return dicts
-
-    def get_data_array(EEGTMP, key):
-        hdf5_group = EEGTMP[key]
-
-        if isinstance(hdf5_group, h5py.Group):
-            # First, determine number of channels/items
-            all_keys = list(hdf5_group.keys())
-            if len(all_keys) == 0:
-                return np.array([])  # Return empty numpy array instead of dict
-
-            dicts = list_of_dicts(hdf5_group, all_keys)
-            return dicts
-        else:
-            return hdf5_group[()]
-
-    def get_data(EEGTMP, key):
-        hdf5_group = EEGTMP[key]
-
-        if isinstance(hdf5_group, h5py.Group):
-            # First, determine number of channels/items
-            all_keys = list(hdf5_group.keys())
-            if len(all_keys) == 0:
-                return np.array([])  # Return empty numpy array instead of dict
-
-            dicts = single_struct_dict(hdf5_group, all_keys)
-            return dicts
-        else:
-            return hdf5_group[()]
-
-    def handle_generic_group(EEGTMP, key):
-        """Handle groups that aren't in the predefined lists."""
-        group = EEGTMP[key]
-        if isinstance(group, h5py.Group):
-            field_names = list(group.keys())
-            if len(field_names) == 0:
-                return np.array([])
-
-            dtype_list = []
-            data_list = []
-
-            for field_name in field_names:
-                field_data = group[field_name][()]
-
-                if isinstance(field_data, h5py.h5r.Reference):
-                    # Dereference the reference
-                    referenced_dataset = EEGTMP[field_data]
-                    converted_data = convert_to_string(referenced_dataset[()])
-                else:
-                    converted_data = convert_to_string(field_data)
-
-                if isinstance(converted_data, np.ndarray):
-                    if converted_data.dtype.kind in ['S', 'U']:
-                        # String field - ensure we have at least length 1
-                        str_items = [str(item) for item in converted_data]
-                        max_len = max(len(item) for item in str_items) if str_items else 1
-                        dtype_list.append((field_name, f'U{max_len}'))
-                        data_list.append(str_items)
-                    else:
-                        # Numeric field - handle multi-dimensional arrays
-                        if converted_data.ndim > 1 or len(converted_data) > 1:
-                            # For multi-dimensional arrays or arrays with multiple elements, store as object
-                            dtype_list.append((field_name, object))
-                            data_list.append([converted_data])
-                        else:
-                            dtype_list.append((field_name, converted_data.dtype))
-                            data_list.append(converted_data)
-                else:
-                    # Scalar field
-                    str_item = str(converted_data)
-                    max_len = len(str_item) if str_item else 1
-                    dtype_list.append((field_name, f'U{max_len}'))
-                    data_list.append([str_item])
-
-            if len(data_list) > 0:
-                # For reference handling, we want length 1 with full arrays in each field
-                structured_data = np.empty(1, dtype=dtype_list)
-
-                for i, (field_name, _) in enumerate(dtype_list):
-                    if len(data_list[i]) == 1:
-                        structured_data[0][field_name] = data_list[i][0]
-                    else:
-                        # For multi-element data, store the full array in the first element
-                        structured_data[0][field_name] = data_list[i]
-
-                return structured_data
-            else:
-                return np.array([])
-        else:
-            return group[()]
-
-    struct_array = list(STRUCT_ARRAY_FIELDS)
-    struct = ['chaninfo', 'eventdescription', 'epochdescription', 'reject', 'stats', 'dipfit', 'etc', 'roi']
-    arrays = list((MATRIX_FIELDS - {"data", "icaact"}) | VECTOR_FIELDS)
-    scalars = list(SCALAR_FIELDS)
-    strings = [
-        'saved',
-        'ref',
-        'comments',
-        'setname',
-        'filename',
-        'filepath',
-        'subject',
-        'group',
-        'condition',
-        'session',
-        'run',
-        'notes',
-        'history',
-        'icasplinefile',
-        'splinefile',
-        'datfile',
-    ]
-
-    for key in EEGTMP.keys():
-        if key in struct_array:
-            EEG[key] = get_data_array(EEGTMP, key)
-        elif key in struct:
-            EEG[key] = get_data(EEGTMP, key)
-        elif key != "#refs#":
-            if isinstance(EEGTMP[key], h5py.Group):
-                EEG[key] = handle_generic_group(EEGTMP, key)
-            else:
-                EEG[key] = EEGTMP[key][()]
-
-        if key in EEG:
-            value = EEG[key]
-            if key in strings:
-                EEG[key] = convert_to_string(value)
-            elif isinstance(value, np.ndarray) and value.dtype == 'uint16':
-                EEG[key] = convert_to_string(value)
-            elif isinstance(value, np.ndarray) and value.dtype.kind in ['S', 'U']:
-                EEG[key] = convert_to_string(value)
-            elif isinstance(value, np.ndarray) and hasattr(value.dtype, 'names') and value.dtype.names is not None:
-                for field_name in value.dtype.names:
-                    if isinstance(value[field_name][0], bytes):
-                        value[field_name] = [
-                            item.decode('utf-8') if isinstance(item, bytes) else str(item) for item in value[field_name]
-                        ]
-
-        # Apply array transposition (but not for data arrays that are already transposed)
-        if key in arrays and key in EEG:
-            if key == 'data':
-                # Keep as loaded; we'll fix orientation after the loop when nbchan/pnts are known
-                EEG[key] = np.array(EEG[key])
-            else:
-                arr = np.array(EEG[key])
-                # Check if this is a null reference (MATLAB empty array stored as uint64 [0 0] or similar)
-                if arr.dtype == np.uint64 and arr.ndim == 1:
-                    # This is a reference to empty data - remove from EEG dict
-                    del EEG[key]
-                else:
-                    EEG[key] = arr.T
-
-        if key in scalars and key in EEG:
-            value = EEG[key]
-            if isinstance(value, np.ndarray):
-                EEG[key] = float(value.flatten()[0])
-            else:
-                EEG[key] = float(value)
-
-    # Ensure EEG['data'] has channels x pnts (x trials) shape
-    if 'data' in EEG:
-        data_arr = np.array(EEG['data'])
-        if data_arr.ndim == 2:
-            # Infer nbchan/pnts if available
-            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
-            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
-                data_arr = data_arr.T
-        elif data_arr.ndim == 3:
-            if int(EEG['nbchan']) != data_arr.shape[0]:
-                data_arr = np.transpose(data_arr, (2, 1, 0))
-        EEG['data'] = data_arr
-
-    for key in list(EEG):
-        if key in MATRIX_FIELDS or key in VECTOR_FIELDS or key in SCALAR_FIELDS or key in STRUCT_ARRAY_FIELDS:
-            EEG[key] = apply_field_rules(key, EEG[key])
-
-    # Convert MATLAB-loaded 1-based doubles to EEGPrep's 0-based integer indices.
-    if 'icachansind' in EEG:
-        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=True)
-
-    # Before eeg_checkset, which copies event.urevent into epoch.eventurevent.
-    ur_indices_to_zero_based(EEG)
-    EEG = eeg_checkset(EEG)
-
-    return EEG
+    raw = node[()]
+    matlab_class = node.attrs.get('MATLAB_class', b'')
+    if node.attrs.get('MATLAB_empty', False):
+        value = '' if matlab_class == b'char' else np.empty(tuple(int(n) for n in raw.reshape(-1)))
+    elif matlab_class == b'char':
+        rows = np.atleast_2d(raw.T)
+        texts = [np.asarray(row, dtype='<u2').tobytes().decode('utf-16-le') for row in rows]
+        value = texts[0] if len(texts) == 1 else np.asarray(texts, dtype=object)
+    elif h5py.check_dtype(ref=node.dtype):
+        values = [_read_value(node.file[ref]) if ref else np.empty((0, 0)) for ref in raw.reshape(-1)]
+        value = np.empty(raw.size, dtype=object)
+        value[:] = values
+        value = value.reshape(raw.shape).T
+        if value.ndim <= 2 and 1 in value.shape:
+            value = list(value.reshape(-1))
+    else:
+        # MATLAB reverses every axis in HDF5, including square and cubic arrays.
+        value = np.asarray(raw).T
+    return apply_field_rules(field, value)

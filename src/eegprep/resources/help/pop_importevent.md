@@ -24,3 +24,5 @@ instead of appending rows. Use `delim` for a delimiter that cannot be inferred
 from the filename, for example `"delim", ","` for comma-separated `.txt` data.
 
 See also: POP_CHANEVENT, POP_IMPORTPRES, POP_IMPORTERPLAB
+
+Call `pop_importevent(EEG)` to open field mapping, header lines, units, append, indices, and alignment options. Reserved fields must be lowercase. For `Type Latency` headers, use `fields=["type", "latency"]` and `skipline=1`. Cancel preserves EEG and history.
