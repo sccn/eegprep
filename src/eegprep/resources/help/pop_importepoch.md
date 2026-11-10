@@ -31,3 +31,5 @@ existing epoched events. Existing continuous-style events without an `epoch`
 field cannot be retained because they cannot be associated with imported rows.
 
 See also: POP_IMPORTEVENT, POP_EPOCH
+
+Call `pop_importepoch(EEG)` for epoch import options. File input requires column names in `fieldlist`; set `headerlines=1` for a header row. The GUI defaults to seconds (`timeunit=1`); direct calls default to samples (`1 / EEG["srate"]`).

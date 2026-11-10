@@ -130,7 +130,9 @@ print("channel events:", [(e["type"], e["latency"]) for e in from_channel["event
 
 epoch_file = tmpdir / "epochinfo.tsv"
 epoch_file.write_text("condition\n" + "rare\n" * epoched["trials"], encoding="utf-8")
-with_epochinfo = eegprep.pop_importepoch(epoched, str(epoch_file), return_com=False)
+with_epochinfo = eegprep.pop_importepoch(
+    epoched, str(epoch_file), fieldlist=["condition"], headerlines=1, return_com=False
+)
 print("epoch fields:", sorted(with_epochinfo["epoch"][0].keys()))
 
 # %%

@@ -56,6 +56,7 @@ eeglab = [
 # MNE conversion and EDF/BDF/GDF readers. Not used by the default cleaning or plotting path.
 mne = [
   "mne>=1.10.0",
+  "defusedxml>=0.7.1",
 ]
 # BIDS dataset import and bids_preproc.
 pybids = [
@@ -118,6 +119,7 @@ dev = [
   # Same packages as the eeglab, mne, pybids, and picard extras, so the suite can
   # exercise those paths without ``--all-extras``.
   "mne>=1.10.0",
+  "defusedxml>=0.7.1",
   "oct2py>=5.5.0",
   "pybids>=0.4",
   "python-picard>=0.8,<0.9",

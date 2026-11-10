@@ -243,3 +243,70 @@ If the GUI and console do not show what you expect, inspect:
 If a menu item is disabled, the current dataset or STUDY probably lacks the
 fields that workflow needs. For example, component-review menus need ICA fields,
 and Study plotting menus need an active ``STUDY`` with precomputed measures.
+
+Importer options and command history
+====================================
+
+File > Import data opens an options dialog after selecting a recording.
+ASCII/array import includes its file selector in the options form. Set the
+sampling rate, channel count, epoch length, start time, dataset name, subject,
+condition, session, group, reference metadata, channel locations, and optional
+ICA matrices there. ``From other dataset`` selects channel or ICA information
+from the datasets in the shared session. Array input in the form accepts a
+Python numeric literal; scripts can pass NumPy arrays directly. ASCII data
+with more rows than columns are transposed unless ``nbchan`` specifies the
+orientation. Samples are float32; absent channel locations and names remain
+empty. A sampling rate of zero uses 1 Hz, which is also recorded in history.
+
+BIOSIG import exposes channels, a time range in seconds, reference channels,
+BDF event decoding, EDF+ annotations, and memory mapping. Channel and reference
+indices are 1-based; references index the loaded channel list after removing
+the Status channel. Marker events and EDF+ annotations have independent
+switches. The Python readers use calibrated continuous data; MATLAB-only
+BIOSIG mexSLOAD, overflow, and uncalibrated-reader switches are absent.
+BrainVision uses inclusive 1-based sample ranges and channel indices. CNT
+exposes precision, start time, duration, and keyboard-response import. EGI
+Simple Binary exposes frame/segment selection, format version, and locations.
+
+File > Import event info includes column names, header lines, time units,
+append/overwrite, event indices, alignment, and automatic rate adjustment.
+Reserved field names are lowercase: ``type``, ``latency``, and ``duration``.
+For a capitalized header, enter the lowercase fields in column order and set
+header lines to 1. A time unit of 1 means seconds; ``NaN`` means sample
+positions. Channel-event import exposes channel indices, the preprocessing
+comparison, edge direction, transition length, duration, and deletion options.
+Duration is enabled for leading edges. Both coincident edges retain their
+own event values, matching the pinned EEGLAB source.
+
+File > Import epoch info requires field names and the number of header lines.
+Optional latency, duration, and type fields determine the events generated for
+each epoch. The GUI defaults to seconds; the direct API retains its samples
+(default ``1 / EEG['srate']``) convention. Accepted imports update ``EEG``,
+``ALLEEG``, ``CURRENTSET``, and history through the shared session. Cancel
+leaves them unchanged. Use ``return_com=True`` from a script to obtain the
+same command, or ``gui=True`` to open the options form.
+
+Presentation import selects a LOG file, then offers event-type, latency, and
+duration columns. The GUI defaults to ``Event Type``, ``Time``, and no duration;
+the direct API defaults to ``Code`` and ``Time``. History records the choices
+and timestamp units so the console can replay them.
+Undefined numeric options use Python's ``float('nan')`` in recorded commands.
+
+ERPLAB import takes an event list (numeric code, quoted label, event index)
+and a bin-definition file. It adds labels and simple/contrast bin membership
+to existing events while retaining their types and latencies. Use
+``pop_importerplab(EEG, "events.txt", "bins.txt", True)`` to also import
+non-contrast bins. Ordinary type/latency tables belong in ``pop_importevent``.
+Cancel in either form preserves the shared dataset and history.
+
+Stream 9 audit dispositions
+---------------------------
+
+F8 was resolved at EEGLAB commit ``8ac485f65``: import menu labels and order
+are unchanged by these fixes. F31 records an EEGLAB Cancel error in ERPLAB;
+EEGPrep cancellation preserves the session without that error. F32 was an
+unverified last-folder observation. EEGPrep passes an empty initial folder
+to Qt, leaving last-folder behavior to the native picker; no custom
+last-folder policy is introduced. Tests cover these dispositions and the
+import options. Fresh MATLAB numerical and side-by-side GUI verification
+remain a human follow-up. BIDS metadata issue #538 belongs to Stream 10.

@@ -29,3 +29,8 @@ Marker-based or fixed-time recordings with uniformly spaced `New Segment`
 markers are returned as channel-by-sample-by-trial arrays.
 Malformed headers, invalid selections, and truncated binary data raise a clear
 error rather than returning an inconsistent dataset.
+
+Use `gui=True` for inclusive 1-based sample ranges and channel selection.
+Samples load as float32. Sample and marker references in the header must be
+bare filenames, without directories, drives, or path separators. Files beside
+the header may be symlinks to data elsewhere, including DataLad/git-annex objects.
