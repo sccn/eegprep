@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from pathlib import Path
 import re
 from typing import Any
 
@@ -518,8 +517,6 @@ def _uses_bem(dipfit: dict[str, Any]) -> bool:
     hdmfile = str(dipfit.get("hdmfile") or "")
     if not hdmfile:
         return False
-    if Path(hdmfile).is_file():
-        return True
     name = hdmfile.replace("\\", "/").lower().rsplit("/", 1)[-1]
     if name == _BESA_TEMPLATE_NAME:
         return False

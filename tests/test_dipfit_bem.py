@@ -293,11 +293,18 @@ def test_openmeeg_file_is_rejected(tmp_path):
         prepare_forward_data(_custom_headmodel_eeg(path), [1])
 
 
-def test_standard_besa_template_stays_on_the_sphere_path():
+def test_standard_besa_template_stays_on_the_sphere_path(tmp_path):
     eeg = pop_dipfit_settings(
         create_test_eeg_with_ica(n_channels=4, n_samples=8, n_components=1),
         model="standardBESA",
     )
+    forward = prepare_forward_data(eeg, [1])
+    assert forward.headmodel is None
+
+    installed = tmp_path / "standard_BESA" / "standard_BESA.mat"
+    installed.parent.mkdir()
+    installed.write_bytes(b"")
+    eeg["dipfit"]["hdmfile"] = str(installed)
     forward = prepare_forward_data(eeg, [1])
     assert forward.headmodel is None
 
