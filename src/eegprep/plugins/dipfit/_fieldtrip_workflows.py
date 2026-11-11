@@ -12,7 +12,7 @@ from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_options_text
 from eegprep.plugins.dipfit._fitting import (
-    DEFAULT_HEAD_RADIUS_MM,
+    default_search_grids,
     dipfit_gridsearch as run_gridsearch,
     dipfit_nonlinear as run_nonlinear,
     dipfit_reject,
@@ -74,7 +74,7 @@ def pop_dipfit_gridsearch(
     renderer: Any | None = None,
     return_com: bool = False,
 ):
-    """Run a standalone spherical coarse grid search for ICA components."""
+    """Run a coarse grid search for ICA components."""
     if EEG is None:
         return (None, "") if return_com else None
     ensure_channel_locations(EEG)
@@ -94,13 +94,14 @@ def pop_dipfit_gridsearch(
     count = component_count(EEG)
     components = one_based_indices(select, limit=count, default_all=True)
     reject_value = _blank_to_none(reject)
+    x_default, y_default, z_default = default_search_grids(EEG)
     out = run_gridsearch(EEG, component=components, xgrid=xgrid, ygrid=ygrid, zgrid=zgrid, reject=reject_value)
     command = dipfit_history(
         "pop_dipfit_gridsearch",
         components,
-        parse_grid_values(xgrid, default=np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)).tolist(),
-        parse_grid_values(ygrid, default=np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)).tolist(),
-        parse_grid_values(zgrid, default=np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 6)).tolist(),
+        parse_grid_values(xgrid, default=x_default).tolist(),
+        parse_grid_values(ygrid, default=y_default).tolist(),
+        parse_grid_values(zgrid, default=z_default).tolist(),
         None if reject_value is None else float(reject_value),
     )
     return (out, command) if return_com else out
@@ -214,7 +215,7 @@ def pop_leadfield(
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Compute a standalone spherical leadfield for explicit source points."""
+    """Compute a leadfield for explicit source points."""
     if EEG is None:
         return (None, "") if return_com else None
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
@@ -342,7 +343,7 @@ def pop_dipfit_gridsearch_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="reject", value="40"),
         ),
         known_differences=(
-            "EEGPrep uses a deterministic spherical leadfield backend; FieldTrip BEM fitting is still not bundled.",
+            "The MNI boundary-element model uses the packaged dipoli leadfield. A spherical head model keeps the single-sphere leadfield.",
         ),
     )
 
@@ -425,7 +426,7 @@ def pop_multifit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("pushbutton", "Help", tag="plot_help", enabled=False),
         ),
         known_differences=(
-            "EEGPrep autofit uses a native spherical leadfield backend; FieldTrip BEM fitting is still not bundled.",
+            "Autofit uses the packaged MNI boundary-element leadfield when that model is selected, and the single-sphere leadfield otherwise.",
         ),
     )
 
@@ -461,7 +462,7 @@ def pop_leadfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "EEGPrep computes leadfields for explicit source points; FieldTrip source-model preparation is not bundled.",
+            "EEGPrep computes leadfields for explicit source points. MRI source-model construction and eLORETA are not implemented.",
         ),
     )
 

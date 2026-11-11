@@ -135,9 +135,9 @@ assertions at each processing boundary.
 Two optional boundaries remain explicit. ``pop_iclabel`` needs the ICLabel
 model runtime; callers that already have compatible seven-class probabilities
 can use ``pop_icflag`` and ``pop_subcomp`` independently. Dataset-level
-spherical DIPFIT fitting and leadfield construction run standalone, while
-MRI/BEM/LORETA workflows that require FieldTrip fail clearly until an external
-source-analysis backend is configured.
+DIPFIT fitting runs standalone for the packaged MNI boundary-element model and
+for the single-sphere model. MRI head-model creation and eLORETA still fail
+clearly.
 
 Store reusable plot and statistics choices on the STUDY before plotting:
 
@@ -255,9 +255,11 @@ the ``kmeans`` numbering.
 DIPFIT Source Localization
 ==========================
 
-EEGPrep includes standalone DIPFIT-compatible spherical workflows for ICA
-component source localization. Configure DIPFIT metadata first, then run a
-coarse grid search, nonlinear refinement, and dipole plotting:
+EEGPrep includes standalone DIPFIT workflows for ICA component source
+localization. The default head model is the packaged MNI boundary-element
+volume. ``standardBESA`` keeps the single-sphere leadfield. Configure DIPFIT
+metadata first, then run a coarse grid search, nonlinear refinement, and
+dipole plotting:
 
 .. code-block:: python
 
@@ -279,7 +281,7 @@ coarse grid search, nonlinear refinement, and dipole plotting:
    EEG, com = pop_dipfit_nonlinear(EEG, component=1, return_com=True)
    figures, com = pop_dipplot(EEG, [1], summary="on", projlines="on", return_com=True)
 
-The spherical backend fits an average-referenced leadfield, stores
+The selected head model produces an average-referenced leadfield. Fitting stores
 ``posxyz``, ``momxyz``, ``rv``, ``diffmap``, ``sourcepot``, and ``datapot`` in
 ``EEG.dipfit.model``, and keeps command history replayable from
 ``eegprep-console``. ``pop_multifit`` chains grid search, nonlinear fitting,
@@ -287,11 +289,12 @@ RV rejection, optional outside-head removal, and optional dipole plotting.
 The deprecated EEGLAB aliases ``pop_dipfit_batch`` and ``pop_dipfit_manual``
 remain available for script compatibility.
 
-``pop_leadfield`` can compute spherical leadfields for explicit source points
-provided as an ``Nx3`` array, ``{"pos": ...}`` dictionary, or simple file with
-source positions. MRI-derived BEM headmodel creation, AFNI atlas clipping, and
-LORETA source analysis remain explicit backend limits and fail clearly rather
-than producing placeholder source-localization outputs.
+``pop_leadfield`` computes leadfields for explicit source points provided as
+an ``Nx3`` array, ``{"pos": ...}`` dictionary, or simple file with source
+positions. With ``standardBEM`` those leadfields use the packaged dipoli
+model. MRI-derived BEM headmodel creation, AFNI atlas clipping, and LORETA
+source analysis remain explicit backend limits and fail clearly rather than
+producing placeholder source-localization outputs.
 
 Session Synchronization
 =======================

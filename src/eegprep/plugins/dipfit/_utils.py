@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -14,16 +15,23 @@ from eegprep.functions.popfunc.plot_utils import numeric_vector, python_literal
 
 
 FIELDTRIP_LIMITATION = (
-    "This DIPFIT workflow requires MRI segmentation, BEM head-model, LORETA, "
-    "or FieldTrip source-analysis routines and assets that are not bundled in "
-    "standalone EEGPrep yet. EEGPrep can run deterministic spherical grid and "
-    "nonlinear dipole fitting, store DIPFIT settings, compute explicit-point "
-    "spherical leadfields, and plot existing dipole models."
+    "This DIPFIT workflow builds a new MRI head model or runs eLORETA. EEGPrep "
+    "fits dipoles with the packaged MNI boundary-element model and the spherical "
+    "workflow, but it does not create bemcp or dipoli system matrices and it does "
+    "not run FieldTrip eLORETA."
 )
 
 
 class DIPFITUnavailableError(RuntimeError):
     """Raised when a DIPFIT workflow needs an unavailable FieldTrip backend."""
+
+
+@dataclass(frozen=True)
+class CoordKeywordTransform:
+    """One ``dipfitdefs`` channel-file rule and its coregistration vector."""
+
+    keywords: tuple[str, ...]
+    transform: tuple[float, ...]
 
 
 @dataclass(frozen=True)
@@ -37,6 +45,35 @@ class DipfitTemplate:
     chanfile: str
     coordformat: str
     coord_transform: tuple[float, ...]
+    coord_transforms: tuple[CoordKeywordTransform, ...] = ()
+
+
+_BESA_TRANSFORMS: tuple[CoordKeywordTransform, ...] = (
+    CoordKeywordTransform(("standard-10-5-cap385",), ()),
+    CoordKeywordTransform(
+        ("standard_1005",),
+        (13.4299, 0.746361, -0.654923, 0.000878113, -0.0818352, 0.0023747, 0.852832, 0.941595, 0.85887),
+    ),
+    CoordKeywordTransform(
+        ("gsn", "sfp"),
+        (-0.254232, 0.0, -8.4081, 0.0, 0.00272526, 0.0, 8.59463, -10.9643, 10.4963),
+    ),
+    CoordKeywordTransform(("egi", "elp"), (0.0, 0.0, 0.0, 0.0, 0.02, 0.0, 85.0, 85.0, 85.0)),
+    CoordKeywordTransform(("egimff",), (0.0, 0.0, 0.0, 0.0, 0.02, 0.0, 8.5, 8.5, 8.5)),
+)
+_BEM_TRANSFORMS: tuple[CoordKeywordTransform, ...] = (
+    CoordKeywordTransform(("standard_1005",), (0.0, 0.0, 0.0, 0.0, 0.0, -math.pi / 2.0, 1.0, 1.0, 1.0)),
+    CoordKeywordTransform(
+        ("standard-10-5-cap385",),
+        (0.832146, -15.6287, 2.41142, 0.0812144, 0.000937391, -1.5732, 1.17419, 1.06011, 1.14846),
+    ),
+    CoordKeywordTransform(
+        ("gsn", "sfp"),
+        (0.0547605, -17.3653, -8.13178, 0.0755019, 0.00318357, -1.56963, 11.7138, 12.7933, 12.213),
+    ),
+    CoordKeywordTransform(("egi", "elp"), (0.0, -15.0, 0.0, 0.08, 0.0, -1.571, 102.0, 93.0, 100.0)),
+    CoordKeywordTransform(("egimff",), (0.0, -15.0, 0.0, 0.08, 0.0, -1.571, 10.2, 9.3, 10.0)),
+)
 
 
 STANDARD_TEMPLATES: tuple[DipfitTemplate, ...] = (
@@ -48,6 +85,7 @@ STANDARD_TEMPLATES: tuple[DipfitTemplate, ...] = (
         chanfile="standard_BESA/standard-10-5-cap385.elp",
         coordformat="Spherical",
         coord_transform=(),
+        coord_transforms=_BESA_TRANSFORMS,
     ),
     DipfitTemplate(
         name="Template Boundary Element Model (MNI)",
@@ -57,6 +95,7 @@ STANDARD_TEMPLATES: tuple[DipfitTemplate, ...] = (
         chanfile="standard_BEM/elec/standard_1005.elc",
         coordformat="MNI",
         coord_transform=(0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0),
+        coord_transforms=_BEM_TRANSFORMS,
     ),
     DipfitTemplate(
         name="Custom files/structures (Fieldtrip format)",
@@ -91,6 +130,28 @@ def template_by_name(name: Any) -> DipfitTemplate:
             return template
     valid = ", ".join(template.shortname for template in STANDARD_TEMPLATES if template.shortname)
     raise ValueError(f"model must be one of {valid}")
+
+
+def lookupchantemplate(chanfile: str, template: DipfitTemplate) -> tuple[bool, list[float]]:
+    """Return the first coregistration whose keywords are all in ``chanfile``.
+
+    This follows EEGLAB ``lookupchantemplate``: every keyword must occur in the
+    lowercased channel-file name, and the first complete match wins. No match
+    returns an empty transform.
+    """
+    filename = str(chanfile or "").lower()
+    for rule in template.coord_transforms:
+        if rule.keywords and all(keyword.lower() in filename for keyword in rule.keywords):
+            return True, [float(value) for value in rule.transform]
+    return False, []
+
+
+def channel_template_filename(EEG: dict[str, Any]) -> str:
+    """Return ``EEG.chaninfo.filename`` when a dataset records one."""
+    chaninfo = EEG.get("chaninfo")
+    if isinstance(chaninfo, dict):
+        return str(chaninfo.get("filename") or "")
+    return ""
 
 
 def apply_template(dipfit: dict[str, Any], template: DipfitTemplate) -> None:
