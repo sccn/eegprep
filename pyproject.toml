@@ -72,13 +72,21 @@ full = [
   "eegprep[pybids]",
   "eegprep[picard]",
 ]
+# Export-only. Regenerates iclabel.onnx from netICL.mat. Classification uses the iclabel extra.
+# torch 2.4 is the first release whose torch.onnx.export accepts dynamo=False.
 torch = [
-  "torch>=2.0"
+  "torch>=2.4",
+  "onnx>=1.14",
+]
+# Runtime for the packaged ICLabel network. 1.20 is the first release usable with numpy>=2.1
+# on every supported Python, including cp313 wheels.
+iclabel = [
+  "onnxruntime>=1.20",
 ]
 gui = [
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
-  "torch>=2.0",
+  "eegprep[iclabel]",
 ]
 console = [
   "eegprep[gui]",
@@ -96,7 +104,7 @@ docs = [
   "sphinxcontrib-spelling>=7.1.0"
 ]
 all = [
-  "eegprep[torch]",
+  "eegprep[iclabel]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
@@ -116,9 +124,9 @@ eegprep-validate-extension-catalog = "eegprep.extension_catalog_validation:main"
 dev = [
   # Keep `uv run eegprep-console --full` working from a fresh source checkout.
   # Published installs still keep GUI/console dependencies behind extras.
-  # PyTorch is included so Tools > Classify components using ICLabel runs.
+  # onnxruntime is included so Tools > Classify components using ICLabel runs.
   "ipython>=8.0",
-  "torch>=2.0",
+  "onnxruntime>=1.20",
   # Same packages as the eeglab, mne, pybids, and picard extras, so the suite can
   # exercise those paths without ``--all-extras``.
   "mne>=1.10.0",
@@ -259,6 +267,7 @@ exclude = ["eegprep.eeglab*"]
   "plugins/**/*.locs",
   "plugins/**/*.mat",
   "plugins/**/*.md",
+  "plugins/**/*.onnx",
   "plugins/**/*.sfp",
   "plugins/**/*.tsv",
   "plugins/**/*.txt",

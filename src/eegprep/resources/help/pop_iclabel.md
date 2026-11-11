@@ -22,10 +22,10 @@ Behavior:
 - Results are stored in `EEG.etc.ic_classification.ICLabel`.
 - The result includes the ICLabel class names, per-component class probabilities, and the selected version string.
 - Lists of datasets are processed one dataset at a time with the same selected version.
-- The default network needs PyTorch. `pip install "eegprep[gui]"` and
+- The default network needs onnxruntime. `pip install "eegprep[gui]"` and
   `uv sync --group dev` install it. A base install can add
-  `pip install "eegprep[torch]"`.
-- Standalone Python EEGPrep ships the default ICLabel network (`netICL.mat`).
+  `pip install "eegprep[iclabel]"`. The `torch` extra only regenerates the network.
+- Standalone Python EEGPrep ships the default ICLabel network (`iclabel.onnx`).
   The EEGLAB `lite` and `beta` network artifacts are explicit MATLAB/Octave
   passthrough choices and raise a clear limitation when requested with the
   standalone Python engine.

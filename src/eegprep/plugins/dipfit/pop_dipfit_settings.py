@@ -135,8 +135,8 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "The dialog opens on the BESA four-shell sphere and stores radii 71, 72, 79, and 85 mm.",
-            "The MNI boundary-element file standard_vol.mat is not bundled. Choosing that template keeps the file names and fitting asks for the BESA sphere.",
+            "The dialog opens on the BESA template and stores radii 71, 72, 79, and 85 mm. The current fit is an infinite homogeneous medium and does not apply those conductivities.",
+            "The MNI boundary-element file standard_vol.mat is not bundled. Choosing that template keeps the file names and fitting asks for the BESA template.",
             "Browse is enabled for a custom head model. Co-register stays disabled because the FieldTrip coregistration UI is not bundled.",
         ),
         row_spacing=10,

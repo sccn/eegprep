@@ -121,21 +121,25 @@ This installs four extras:
   does not need it. This extra also installs scikit-learn.
 
 ``eegprep[all]`` includes these four extras plus the GUI, console, docs, and
-PyTorch extras.
+ICLabel runtime extras. The ``torch`` extra is only for regenerating the
+packaged ICLabel network.
 
 Riemannian ASR (``clean_asr(..., useriemannian=True)`` and
 ``Distance="Riemannian"``) is included. It uses NumPy and SciPy; there is no
 separate manifold package to install.
 
-PyTorch (for ICLabel and GPU acceleration)
--------------------------------------------
+ICLabel runtime (onnxruntime)
+-----------------------------
 
-``pip install "eegprep[gui]"`` installs CPU PyTorch with the Qt libraries, so
+``pip install "eegprep[gui]"`` installs onnxruntime with the Qt libraries, so
 Tools > Classify components using ICLabel can classify a dataset. A source
-checkout gets the same library from ``uv sync --group dev``. The ``torch``
-extra installs PyTorch without the GUI. CUDA wheels stay a separate install.
+checkout gets the same library from ``uv sync --group dev``. A base install
+can add ``pip install "eegprep[iclabel]"``. The ``torch`` extra installs
+PyTorch and ONNX only to regenerate ``iclabel.onnx``; classification does not
+import them.
 
-To use GPU-accelerated processing with PyTorch:
+PyTorch is not used to classify components. To use GPU-accelerated processing
+with PyTorch:
 
 .. code-block:: bash
 
@@ -205,7 +209,7 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[torch,gui,docs]"
+    uv add "eegprep[gui,docs]"
 
 Verification
 ============

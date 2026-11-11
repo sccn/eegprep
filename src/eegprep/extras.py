@@ -82,10 +82,10 @@ _INSTEAD = {
     "eeg_picard": "pop_runica() uses runica unless icatype is 'picard'.",
     "eeglab_clean_artifacts": "clean_artifacts is the Python cleaner and does not need Octave or MATLAB.",
     "get_eeglab": "Pass runtime='MAT' to use the MATLAB engine instead.",
-    "iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[torch]".',
+    "iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[iclabel]".',
     "picard": "pop_runica() uses runica unless icatype is 'picard'.",
     "pop_fileio": "EEGLAB .set, CNT, and BrainVision .vhdr without a block range do not need MNE.",
-    "pop_iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[torch]".',
+    "pop_iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[iclabel]".',
     "pop_resample": "Leave engine unset to resample in Python.",
     "pop_runica": "Leave icatype unset to use runica, which does not need Picard.",
     "resample": "Leave engine unset to resample in Python.",
@@ -108,12 +108,12 @@ def missing_extra_message(feature: str, library: str) -> str:
     )
 
 
-def missing_torch_message(feature: str) -> str:
-    """Plain-language ``ImportError`` text for the Python ICLabel network."""
+def missing_onnxruntime_message(feature: str) -> str:
+    """Plain-language ``ImportError`` text for the packaged ICLabel network."""
     return (
-        f"{feature} needs PyTorch for the Python ICLabel network, and it is not installed. "
-        f"Install it with {install_command('torch')}. "
-        f"{install_command('all')} includes PyTorch with the other extras. "
+        f"{feature} needs onnxruntime for the Python ICLabel network, and it is not installed. "
+        f"Install it with {install_command('iclabel')}. "
+        f"{install_command('gui')} and {install_command('all')} include it. "
         "engine='matlab' or engine='octave' runs ICLabel through EEGLAB instead. "
         f"Octave needs {install_command('eeglab')}."
     )

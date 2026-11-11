@@ -45,12 +45,6 @@ class PopIclabelGuiTests(unittest.TestCase):
             pop_iclabel(eeg, icversion="default", gui=False)
 
     def test_iclabel_refuses_an_empty_weight_matrix(self):
-        try:
-            import torch
-        except ImportError:
-            self.skipTest("PyTorch is not installed")
-        del torch
-
         with self.assertRaisesRegex(ValueError, "Run pop_runica"):
             iclabel(
                 {"data": np.zeros((2, 8)), "icaweights": np.array([]), "etc": {}},

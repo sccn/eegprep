@@ -138,7 +138,9 @@ Use the lower-level FIRFilt helpers for custom order/window work:
 ICLabel
 =======
 
-The standalone Python engine ships the default ICLabel network. ``lite`` and
+The standalone Python engine ships the default ICLabel network as
+``iclabel.onnx`` and runs it with onnxruntime (``pip install "eegprep[iclabel]"``,
+also included in ``eegprep[gui]``). ``lite`` and
 ``beta`` network requests require MATLAB or Octave with an EEGLAB ICLabel
 checkout that provides those artifacts.
 
@@ -153,8 +155,9 @@ Review components visually with ``pop_viewprops`` before removing them.
 DIPFIT
 ======
 
-DIPFIT helpers support standalone spherical workflows. They store model fields
-under ``EEG["dipfit"]["model"]`` and keep command strings replayable:
+DIPFIT helpers support standalone spherical workflows. The current fitter is an
+infinite homogeneous medium. Model fields are stored under
+``EEG["dipfit"]["model"]``, and command strings stay replayable:
 
 .. code-block:: python
 

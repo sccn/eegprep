@@ -14,7 +14,8 @@ import numpy as np
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_options_text, python_literal
 
-# dipfitdefs.m four-shell BESA sphere: 85 mm head, 6 mm skin, 7 mm skull, 1 mm CSF.
+# dipfitdefs.m BESA shell numbers stored on the template. The spherical fitter
+# does not apply these conductivities; it is an infinite homogeneous medium.
 BESA_SHELL_RADII_MM = (71.0, 72.0, 79.0, 85.0)
 BESA_SHELL_CONDUCTIVITIES = (0.33, 1.0, 0.0042, 0.33)
 _QUOTED_PLOT_GAP = re.compile(r"""(?<=['"])\s+(?=['"])""")
@@ -95,7 +96,10 @@ def dipfit_record(EEG: dict[str, Any]) -> dict[str, Any]:
 
 
 def besa_four_shell_volume() -> dict[str, Any]:
-    """Return the standard BESA four-shell sphere stored by ``dipfitdefs.m``."""
+    """Return the BESA shell radii and conductivities stored by ``dipfitdefs.m``.
+
+    The current spherical fitter does not apply these conductivities.
+    """
     return {
         "r": list(BESA_SHELL_RADII_MM),
         "c": list(BESA_SHELL_CONDUCTIVITIES),
@@ -240,8 +244,8 @@ def ensure_dipfit_settings(EEG: dict[str, Any], *, caller: str = "dipfit") -> di
         raise ValueError(
             f"{caller}: the MNI boundary-element volume standard_vol.mat is not bundled. "
             "Run pop_dipfit_settings and choose Template Spherical Four-Shell (BESA). "
-            "That template stores the four-shell sphere from dipfitdefs.m "
-            "(radii 71, 72, 79, and 85 mm)."
+            "That template stores radii 71, 72, 79, and 85 mm. The current fit "
+            "uses the outer radius as the head boundary of an infinite homogeneous medium."
         )
     if _shell_radii(dipfit.get("vol")).size == 0 and not dipfit.get("hdmfile"):
         raise ValueError(

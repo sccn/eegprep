@@ -10,8 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``pip install "eegprep[gui]"`` and ``uv sync --group dev`` install PyTorch
+- ``pip install "eegprep[gui]"`` and ``uv sync --group dev`` install onnxruntime
   with the GUI, so Tools > Classify components using ICLabel can run (F53).
+  The ``torch`` extra only regenerates the packaged network.
 - ``pop_icflag`` history records a Python threshold matrix. Blank bounds are
   ``None``, and the command replays in ``eegprep-console`` (F55).
 - DIPFIT treats an empty ``EEG.dipfit`` array as missing settings. Property
@@ -20,13 +21,17 @@ Unreleased
   dashboard. Extended component properties open that dashboard with the
   topography grid, and a map click opens the selected component (F57, F75,
   F122). A component request with no ICA names ``pop_runica``.
-- Head model settings open on the BESA four-shell sphere and store radii 71,
-  72, 79, and 85 mm. The MNI boundary-element template names the missing
-  ``standard_vol.mat`` file and fitting asks for the BESA sphere (F65, F113,
-  F114). Replacing the head-model file drops the volume stored for the
-  previous file. Fitted dipoles in ``dipfit.model`` stay in place.
-- Coarse fit and autofit run with the BESA sphere. A ``linspace`` expression
-  from the coarse-fit dialog stays in the history command (F114, F115).
+- Head model settings stay on Template Spherical Four-Shell (BESA) until the
+  FieldTrip boundary-element forward model switches the default to MNI. The
+  template stores radii 71, 72, 79, and 85 mm and conductivities 0.33, 1.0,
+  0.0042, and 0.33. The current spherical fitter is an infinite homogeneous
+  medium: it uses the outer radius as the head boundary and does not apply
+  those conductivities (F65, F113, F114). Replacing the head-model file drops
+  the volume stored for the previous file. Fitted dipoles in ``dipfit.model``
+  stay in place.
+- Coarse fit and autofit run with that homogeneous leadfield. A ``linspace``
+  expression from the coarse-fit dialog stays in the history command (F114,
+  F115).
 - The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid and a
   spherical leadfield. ``pop_dipfit_loreta`` names ``pop_leadfield`` when no
   leadfield is stored, and names the missing FieldTrip source analysis after

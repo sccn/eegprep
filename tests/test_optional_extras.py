@@ -46,7 +46,10 @@ def test_base_install_keeps_plotting_and_edf_and_moves_heavy_libraries() -> None
     assert _requirement_names(extras["picard"]) == {"python-picard"}
     assert set(extras["full"]) == {"eegprep[eeglab]", "eegprep[mne]", "eegprep[pybids]", "eegprep[picard]"}
     assert {"eegprep[eeglab]", "eegprep[mne]", "eegprep[pybids]", "eegprep[picard]"} <= set(extras["all"])
-    assert "eegprep[torch]" in extras["all"]
+    assert "eegprep[iclabel]" in extras["all"]
+    assert "eegprep[iclabel]" in extras["gui"]
+    assert "eegprep[torch]" not in extras["all"]
+    assert "eegprep[torch]" not in extras["gui"]
 
 
 def test_mff_import_names_the_xml_dependency_and_its_extra(monkeypatch, tmp_path):
@@ -260,10 +263,10 @@ _INSTEAD = {
     "clean_channels": "sphericalSplineInterpolate",
     "eeg_picard": "icatype is 'picard'",
     "eeglab_clean_artifacts": "clean_artifacts is the Python cleaner",
-    "iclabel": 'pip install "eegprep[torch]"',
+    "iclabel": 'pip install "eegprep[iclabel]"',
     "picard": "icatype is 'picard'",
     "pop_fileio": "do not need MNE",
-    "pop_iclabel": 'pip install "eegprep[torch]"',
+    "pop_iclabel": 'pip install "eegprep[iclabel]"',
     "pop_resample": "Leave engine unset to resample in Python.",
     "pop_runica": "Leave icatype unset to use runica",
     "resample": "Leave engine unset to resample in Python.",
@@ -304,19 +307,20 @@ def test_a_broken_dependency_is_not_reported_as_a_missing_extra(monkeypatch, lib
     assert 'eegprep[mne]' not in str(caught.value)
 
 
-def test_missing_torch_and_matlab_name_the_function_and_the_install(monkeypatch, tmp_path: Path) -> None:
+def test_missing_onnxruntime_and_matlab_name_the_function_and_the_install(monkeypatch, tmp_path: Path) -> None:
     from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
     from eegprep.plugins.ICLabel.iclabel import iclabel
 
-    monkeypatch.setitem(sys.modules, "torch", None)
-    with pytest.raises(ImportError) as torch_error:
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+    with pytest.raises(ImportError) as runtime_error:
         iclabel({}, feature="pop_iclabel")
-    torch_message = str(torch_error.value)
-    assert torch_message.startswith("pop_iclabel needs PyTorch")
-    assert 'pip install "eegprep[torch]"' in torch_message
-    assert 'pip install "eegprep[all]"' in torch_message
-    assert "engine='octave'" in torch_message
-    assert 'pip install "eegprep[eeglab]"' in torch_message
+    runtime_message = str(runtime_error.value)
+    assert runtime_message.startswith("pop_iclabel needs onnxruntime")
+    assert 'pip install "eegprep[iclabel]"' in runtime_message
+    assert 'pip install "eegprep[gui]"' in runtime_message
+    assert 'pip install "eegprep[all]"' in runtime_message
+    assert "engine='octave'" in runtime_message
+    assert 'pip install "eegprep[eeglab]"' in runtime_message
 
     checkout = tmp_path / "eeglab"
     checkout.mkdir()

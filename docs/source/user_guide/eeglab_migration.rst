@@ -393,12 +393,16 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        channel properties and View extended component properties on the Plot
        menu.
    * - DIPFIT default head model
-     - Settings open on Template Spherical Four-Shell (BESA) and store the
-       ``dipfitdefs.m`` radii 71, 72, 79, and 85 mm with conductivities 0.33,
-       1.0, 0.0042, and 0.33. The spherical fitter uses the outer 85 mm
-       radius. Current dipfit master selects the MNI model when the channel
-       file does not match a template. EEGPrep keeps the BESA default from
-       the audited EEGLAB tree because ``standard_vol.mat`` is not bundled.
+     - EEGLAB's default is now the MNI boundary-element model. EEGPrep keeps
+       Template Spherical Four-Shell (BESA) only until the FieldTrip
+       boundary-element forward model (#607) lands and switches this default.
+       The BESA template stores the ``dipfitdefs.m`` radii 71, 72, 79, and
+       85 mm with conductivities 0.33, 1.0, 0.0042, and 0.33. The current
+       spherical fitter is an infinite homogeneous medium. It uses the outer
+       radius as the head boundary and does not apply those conductivities.
+       The four-shell spherical conductor is separate work (#600).
+       ``standard_vol.mat`` is not bundled, so choosing the MNI template asks
+       for the BESA template before a fit.
    * - LORETA-KEY leadfield
      - The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius and a
        spherical leadfield. FieldTrip's LORETA-KEY atlas and eLORETA source

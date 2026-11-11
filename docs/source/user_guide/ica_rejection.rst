@@ -172,9 +172,10 @@ Network Availability
 ====================
 
 The standalone Python engine ships the default ICLabel network
-(``netICL.mat``) and runs it with PyTorch. The GUI extra and
+(``iclabel.onnx``) and runs it with onnxruntime. The GUI extra and
 ``uv sync --group dev`` install that library. A base install can add it with
-``pip install "eegprep[torch]"``. EEGLAB ``lite`` and ``beta`` network artifacts are not
+``pip install "eegprep[iclabel]"``. The ``torch`` extra only regenerates that
+network. EEGLAB ``lite`` and ``beta`` network artifacts are not
 bundled in the Python package; requesting them with ``engine=None`` raises a
 clear limitation. They can still be requested through ``engine="matlab"`` or
 ``engine="octave"`` when that runtime has an EEGLAB ICLabel checkout with those
