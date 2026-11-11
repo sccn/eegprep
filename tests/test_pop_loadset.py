@@ -5,12 +5,16 @@ import numpy as np
 import pytest
 import scipy.io
 
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc._matlab_fields import apply_field_rules
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
+from eegprep.plugins.clean_rawdata.clean_drifts import clean_drifts
+from eegprep.plugins.clean_rawdata.clean_flatlines import clean_flatlines
+from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 
 
 @pytest.mark.parametrize(
@@ -626,11 +630,6 @@ def test_pop_loadset_h5_unicode_decodes_via_general_path(tmp_path):
 
 
 def test_empty_etc_round_trip_is_a_dict(tmp_path):
-    from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-    from eegprep.plugins.clean_rawdata.clean_drifts import clean_drifts
-    from eegprep.plugins.clean_rawdata.clean_flatlines import clean_flatlines
-    from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
-
     checked = eeg_checkset(
         {
             "data": np.zeros((1, 8), dtype=float),
