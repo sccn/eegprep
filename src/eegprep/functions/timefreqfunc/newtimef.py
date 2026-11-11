@@ -26,6 +26,7 @@ from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
 from eegprep.functions.timefreqfunc.timefreq import as_channel_epoch_data, timefreq
+from eegprep.plugins.clean_rawdata.private.windows import matlab_colon
 
 
 class TimeFrequencyResult(NamedTuple):
@@ -384,7 +385,14 @@ def newtimef(
         limits = _numeric_vector(tlimits)
         epoch_data = as_channel_epoch_data(data, frames=int(frames))[0]
         erp_full = np.nanmean(epoch_data, axis=1)
-        full_times = np.linspace(float(limits[0]), float(limits[-1]), int(frames))
+        frame_count = int(frames)
+        start = float(limits[0])
+        stop = float(limits[-1])
+        if frame_count <= 1:
+            full_times = np.asarray([start] if frame_count == 1 else [], dtype=np.float64)
+        else:
+            step = (stop - start) / (frame_count - 1)
+            full_times = matlab_colon(start, step, stop + 0.000001)
         erp = erp_full[[int(np.argmin(np.abs(full_times - center))) for center in decomp.times]]
         spectrum = np.asarray(powbase_array, dtype=float).reshape(-1)
         baseline_spectrum = (

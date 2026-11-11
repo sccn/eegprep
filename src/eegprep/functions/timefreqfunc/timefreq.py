@@ -204,7 +204,7 @@ def _requested_freqs(
     if cycles[0] != 0 and freq_values.size >= 2 and freq_values[0] == 0:
         freq_values[0] = srate * cycles[0] / winsize
 
-    fft_freqs = np.linspace(0.0, srate / 2.0, int(winsize * padratio / 2) + 1)[1:]
+    fft_freqs = linspace(0.0, srate / 2.0, int(winsize * padratio / 2) + 1)[1:]
     count_values = _numeric_vector(nfreqs, dtype=int)
     if freq_values.size == 1:
         return freq_values.astype(float), fft_freqs
@@ -216,7 +216,7 @@ def _requested_freqs(
         count = int(count_values[0])
     else:
         count = int(winsize * padratio / 2) + 1
-        tmpfreqs = np.linspace(0.0, srate / 2.0, count)[1:]
+        tmpfreqs = linspace(0.0, srate / 2.0, count)[1:]
         if cycles[0] == 0 and freqscale != "log":
             low = float(tmpfreqs[np.argmin(np.abs(tmpfreqs - low))])
             high = float(tmpfreqs[np.argmin(np.abs(tmpfreqs - high))])
@@ -225,13 +225,11 @@ def _requested_freqs(
         if np.isclose(low, high):
             count = 1
     count = max(1, count)
-    if count == 1:
-        return np.asarray([low], dtype=float), fft_freqs
     if freqscale == "log":
         if low <= 0 or high <= 0:
             raise ValueError("log frequency scale requires positive frequency limits")
-        return np.exp(np.linspace(np.log(low), np.log(high), count)), fft_freqs
-    return np.linspace(low, high, count), fft_freqs
+        return np.exp(linspace(np.log(low), np.log(high), count)), fft_freqs
+    return linspace(low, high, count), fft_freqs
 
 
 def _fft_timefreq(

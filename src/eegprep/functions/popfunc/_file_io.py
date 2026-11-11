@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     import mne
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc._matlab_fields import matlab_index
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
@@ -182,7 +183,7 @@ def eeg_from_data(
             "srate": srate,
             "xmin": float(xmin),
             "xmax": xmax,
-            "times": np.linspace(float(xmin) * 1000, xmax * 1000, pnts) if pnts else np.array([]),
+            "times": linspace(float(xmin) * 1000, xmax * 1000, pnts) if pnts else np.array([]),
             "data": array,
             "chanlocs": _default_chanlocs(nbchan) if chanlocs is None else chanlocs,
             "ref": ref,

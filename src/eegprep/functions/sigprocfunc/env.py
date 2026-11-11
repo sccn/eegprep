@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
+
 
 def env(data: Any, timelimits: Any = None, timearray: Any = None) -> np.ndarray:
     """Return the sample-wise maximum and minimum across channels.
@@ -33,7 +35,7 @@ def env(data: Any, timelimits: Any = None, timearray: Any = None) -> np.ndarray:
     if times.ndim > 2 or (times.ndim == 2 and min(times.shape) > 1):
         raise ValueError("timearray must be a vector")
     target = times.reshape(-1)
-    source = np.linspace(limits[0], limits[1], upper.size)
+    source = linspace(limits[0], limits[1], upper.size)
     if upper.size == 1:
         interpolated_upper = np.full(target.shape, upper[0], dtype=float)
         interpolated_lower = np.full(target.shape, lower[0], dtype=float)

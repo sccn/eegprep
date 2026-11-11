@@ -15,6 +15,7 @@ from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _shared_is_boundary_event
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc._file_io import events_to_records
 from eegprep.plugins.firfilt.firws import firws
 from eegprep.plugins.firfilt.firwsord import firwsord
@@ -207,7 +208,7 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     output["xmin"] = float(output.get("xmin", EEG.get("xmin", 0.0)) or 0.0)
     output["xmax"] = output["xmin"] + ((output["pnts"] - 1) / output["srate"] if output["pnts"] else 0.0)
     output["times"] = (
-        np.linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"]) if output["pnts"] else np.array([])
+        linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"]) if output["pnts"] else np.array([])
     )
     logger.info("resampling event latencies...")
     _resample_event_latencies(output, old_pnts, ratio, np.asarray(bounds), indices, EEG)

@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.plot_utils import show_figures
 
 
@@ -216,7 +217,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     else:
         xmin, xmax, ymin, ymax = -intrad * squeezefac, intrad * squeezefac, -intrad * squeezefac, intrad * squeezefac
 
-    xi, yi = np.linspace(xmin, xmax, GRID_SCALE), np.linspace(ymin, ymax, GRID_SCALE)
+    xi, yi = linspace(xmin, xmax, GRID_SCALE), linspace(ymin, ymax, GRID_SCALE)
     yi, xi = np.meshgrid(yi, xi)
 
     if method == 'griddata':

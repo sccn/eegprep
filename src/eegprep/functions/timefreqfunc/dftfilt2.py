@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.timefreqfunc.dftfilt3 import symmetric_hanning
 
 
@@ -59,8 +60,8 @@ def _cycle_values(cycles: Any, freqs: np.ndarray, *, cycleinc: str) -> np.ndarra
         if str(cycleinc).lower() == "log":
             if np.any(values <= 0):
                 raise ValueError("log cycle interpolation requires positive cycles")
-            return np.exp(np.linspace(np.log(values[0]), np.log(values[1]), freqs.size))
-        return np.linspace(values[0], values[1], freqs.size)
+            return np.exp(linspace(np.log(values[0]), np.log(values[1]), freqs.size))
+        return linspace(values[0], values[1], freqs.size)
     return values.astype(float)
 
 

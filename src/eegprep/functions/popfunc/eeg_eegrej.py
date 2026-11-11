@@ -9,6 +9,7 @@ from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
 from eegprep.functions.popfunc.eeg_boundarytype import eeg_boundarytype
+from ..miscfunc.linspace import linspace
 from ..miscfunc.misc import round_mat
 
 
@@ -331,7 +332,7 @@ def eeg_eegrej(EEG, regions, *, return_regions: bool = False):
     if EEG["pnts"] == 0:
         # eeg_checkset: xmax = (pnts-1)/srate + xmin, which is xmin - 1/srate.
         EEG["xmax"] = float(EEG["xmin"]) - 1.0 / float(EEG["srate"])
-    EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'], dtype=float)
+    EEG['times'] = linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'])
 
     # Use backend-generated events list (boundary insertion already done by _eegrej)
     EEG["event"] = _events_as_dicts(event2)

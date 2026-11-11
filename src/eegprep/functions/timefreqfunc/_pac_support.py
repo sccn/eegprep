@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal, stats
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.value_parsing import is_on, parse_numeric_sequence
 from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc.timefreq import timefreq
@@ -318,7 +319,7 @@ def _align_times(
         if low >= high:
             raise ValueError("PAC decompositions have no overlapping time points")
         count = min(times_x.size, times_y.size)
-        common_times = np.linspace(low, high, count)
+        common_times = linspace(low, high, count)
         return (
             common_times,
             _interp_complex_tf(alltf_x, times_x, common_times),
@@ -492,7 +493,7 @@ def _bandpass(values: np.ndarray, srate: float, freq_range: np.ndarray, order: i
 def _pac_cont_windows(
     frames: int, limits: np.ndarray, winsize: int, timesout: Any, ntimesout: Any
 ) -> tuple[np.ndarray, np.ndarray]:
-    time_vector = np.linspace(float(limits[0]), float(limits[1]), frames)
+    time_vector = linspace(float(limits[0]), float(limits[1]), frames)
     left = winsize // 2
     right = winsize - left
     valid = np.arange(left, frames - right + 1, dtype=int)
@@ -516,7 +517,7 @@ def _pac_cont_windows(
         indices = valid[::step]
     else:
         count = min(max(count, 1), valid.size)
-        positions = np.linspace(0, valid.size - 1, count)
+        positions = linspace(0, valid.size - 1, count)
         indices = valid[np.unique(np.rint(positions).astype(int))]
     return time_vector[indices], indices
 

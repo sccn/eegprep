@@ -10,6 +10,7 @@ from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
 
+from ...functions.miscfunc.linspace import linspace
 from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 from .private.masks import mask_to_intervals
@@ -217,7 +218,7 @@ def clean_windows(
     if int(round_mat(srate * (xmax - xmin) + 1)) != pnts:
         EEG['xmax'] = (pnts - 1) / srate + xmin
         if np.asarray(EEG.get('times', [])).size != pnts:
-            EEG['times'] = np.linspace(xmin * 1000.0, float(EEG['xmax']) * 1000.0, pnts)
+            EEG['times'] = linspace(xmin * 1000.0, float(EEG['xmax']) * 1000.0, pnts)
     EEG['data'] = np.asarray(EEG['data'], dtype=output_dtype)
 
     if 'etc' not in EEG:

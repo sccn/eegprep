@@ -9,6 +9,7 @@ from scipy.interpolate import interp1d
 from scipy.signal import convolve
 
 from ._validation import real_array
+from .linspace import linspace
 from .misc import round_mat
 
 
@@ -57,7 +58,7 @@ def vectdata(
         spacings = np.diff(working_times)
         if not np.allclose(spacings, spacings[0], rtol=0, atol=1e-8):
             point_count = int(np.ceil((working_times[-1] - working_times[0]) / np.mean(spacings))) + 1
-            uniform_times = np.linspace(working_times[0], working_times[-1], point_count)
+            uniform_times = linspace(working_times[0], working_times[-1], point_count)
             working_values = _interpolate(working_values, working_times, uniform_times, method)
             working_times = uniform_times
         window_points = max(1, int(round_mat(average / np.diff(working_times).mean())))

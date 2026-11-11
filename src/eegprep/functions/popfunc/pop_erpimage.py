@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_getdatact import eeg_getdatact
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.value_parsing import is_empty_value, is_on, parse_text_tokens
@@ -173,7 +174,7 @@ def pop_erpimage(
     if not typeplot and len(channels) > 1 and not projection:
         raise ValueError("pop_erpimage(): select a channel to plot the sum of several component projections")
     data = _activity(EEG, typeplot, channels, projection_numbers)
-    times = np.linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[0])
+    times = linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[0])
     sortvar = _sorting_variable(EEG, sortingtype, sortingwin, sortingeventfield)
     defaults = _default_options(EEG, typeplot, channels, projection, plotmap=plotmap and "topo" not in user_options)
     settings = {name: value for name, value in defaults.items() if name not in user_options} | user_options

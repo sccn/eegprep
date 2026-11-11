@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Time axes, frequency grids, and cycle grids that are returned or used to
+  pick a sample follow MATLAB ``linspace``: ``start + i * (stop - start) / (n - 1)``,
+  with the last sample equal to the stop and a single sample equal to the stop.
+  ``EEG.times`` for 7 points from 0 to 1 ms differs in the sixth sample from
+  NumPy. ``envtopo`` builds that axis with ``xmin:sampint:xmax`` after converting
+  the limits to seconds (``envtopo.m``). The ``newtimef`` ERP time base is the
+  colon that ends at ``tlimits(2)+0.000001`` (``newtimef.m``). Log-spaced
+  wavelet widths follow MATLAB ``logspace`` (``tf_cycle_calc.m``). Display
+  samples, colormap lookups, tick marks, exact integer steps, DIPFIT source
+  grids, and ``gauss`` are unchanged (#568).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and

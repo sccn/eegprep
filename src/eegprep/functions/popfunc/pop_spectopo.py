@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import (
     component_activations,
@@ -273,7 +274,7 @@ def _component_spectral_data(EEG: dict[str, Any], timerange: Any, components: An
     if timerange is not None:
         _data, times = data_time_slice(EEG, timerange)
     if times.size:
-        full_times = np.linspace(float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0, acts.shape[1])
+        full_times = linspace(float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0, acts.shape[1])
         mask = (full_times >= times[0]) & (full_times <= times[-1])
         acts = acts[:, mask, :]
     indices = selected_indices(components, acts.shape[0])

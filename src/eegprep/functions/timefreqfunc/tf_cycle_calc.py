@@ -8,6 +8,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 
 SIGMA_TO_FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0))
@@ -98,8 +99,8 @@ def _width_vector(value: Any, count: int, log_spaced: bool) -> np.ndarray:
         return np.full(count, float(values[0]), dtype=float)
     if values.size == 2 and count > 2:
         if log_spaced:
-            return np.logspace(np.log10(values[0]), np.log10(values[1]), count)
-        return np.linspace(values[0], values[1], count)
+            return 10.0 ** linspace(np.log10(values[0]), np.log10(values[1]), count)
+        return linspace(values[0], values[1], count)
     if values.size > 2 and values.size != count:
         raise ValueError("Length width must equal length freqs if greater than 2")
     return values.astype(float)

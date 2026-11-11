@@ -7,6 +7,8 @@ from typing import Any
 import numpy as np
 from scipy.interpolate import CubicSpline
 
+from eegprep.functions.miscfunc.linspace import linspace
+
 
 def eeg_amplitudearea(
     EEG: dict[str, Any],
@@ -32,7 +34,7 @@ def eeg_amplitudearea(
         raise ValueError("EEG.data must be channel x sample x epoch")
     times = np.asarray(EEG.get("times", []), dtype=float)
     if times.size != data.shape[1]:
-        times = np.linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[1])
+        times = linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[1])
     if wstart < times[0] or wend > times[-1]:
         raise ValueError("integration window must lie within EEG.times")
     channel_array = np.asarray(channels, dtype=int).ravel()
