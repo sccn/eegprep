@@ -67,10 +67,13 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     coordformat = str(dipfit.get("coordformat") or template.coordformat or "MNI")
     coord_index = {"spherical": 1, "mni": 2}.get(coordformat.lower(), 4)
     stored_transform = dipfit.get("coord_transform")
+    found, looked_up = lookupchantemplate(channel_template_filename(EEG), template)
     if stored_transform:
         coord_transform = stored_transform
+    elif found:
+        coord_transform = looked_up
     else:
-        _found, coord_transform = lookupchantemplate(channel_template_filename(EEG), template)
+        coord_transform = template.coord_transform
     coreg_text = " ".join(f"{float(value):g}" for value in coord_transform) if coord_transform else ""
     return DialogSpec(
         title="Dipole fit settings - pop_dipfit_settings()",
@@ -167,8 +170,9 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
     if "model" in options and str(options["model"]).strip():
         template = template_by_name(options["model"])
         apply_template(dipfit, template)
-        _found, transform = lookupchantemplate(channel_template_filename(out), template)
-        dipfit["coord_transform"] = transform
+        found, transform = lookupchantemplate(channel_template_filename(out), template)
+        if found:
+            dipfit["coord_transform"] = transform
     for key in ("hdmfile", "mrifile", "chanfile", "coordformat"):
         value = options.get(key)
         if value not in (None, ""):

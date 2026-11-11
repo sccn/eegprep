@@ -107,7 +107,10 @@ the limits. Cancelling the menu discards its changes.
        to MATLAB; positions are expected within 1 mm. EEGLAB's settings
        dialog switches a channel file whose name contains
        ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
-       model and applies that file's cap385-to-MNI coregistration.
+       model and applies that file's cap385-to-MNI coregistration. A channel
+       file that matches no keyword keeps the template transform. An empty
+       transform is left unchanged and a fit logs a warning, because those
+       electrodes are not rotated into the head model.
        ``standardBESA`` still uses the single-sphere leadfield. Creating a
        bemcp or dipoli system matrix from an MRI, and eLORETA, stay
        unsupported.

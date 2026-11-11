@@ -8,7 +8,12 @@ import numpy as np
 import pytest
 
 from eegprep import pop_loadset
-from eegprep.plugins.dipfit._fitting import default_search_grids, prepare_forward_data
+from eegprep.plugins.dipfit._fitting import (
+    DipfitForwardData,
+    default_search_grids,
+    fit_component_grid,
+    prepare_forward_data,
+)
 from eegprep.plugins.dipfit._utils import channel_template_filename, lookupchantemplate, template_by_name
 from eegprep.plugins.dipfit.fieldtrip.bem import (
     eeg_infinite_dipole,
@@ -130,6 +135,52 @@ def test_sample_cap385_file_selects_mni_bem_and_its_coregistration():
     x_values, y_values, z_values = default_search_grids(out)
     assert x_values.size == 24 and y_values.size == 24 and z_values.size == 12
     np.testing.assert_allclose([x_values[0], x_values[-1], z_values[0], z_values[-1]], [-85.0, 85.0, 0.0, 85.0])
+
+
+def test_missing_channel_filename_keeps_the_bem_template_transform(caplog):
+    eeg = pop_loadset(str(_SAMPLE))
+    eeg["chaninfo"] = dict(eeg["chaninfo"])
+    eeg["chaninfo"]["filename"] = ""
+
+    out = pop_dipfit_settings(eeg, model="standardBEM")
+
+    np.testing.assert_allclose(out["dipfit"]["coord_transform"], [0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0])
+    spec = pop_dipfit_settings_dialog_spec(eeg)
+    coreg = next(control for control in spec.controls if control.tag == "coord_transform")
+    np.testing.assert_allclose(
+        np.fromstring(str(coreg.value), sep=" "), [0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0]
+    )
+    out["dipfit"]["coord_transform"] = []
+    with caplog.at_level("WARNING"):
+        prepare_forward_data(out, [1])
+    assert "empty coord_transform" in caplog.text
+
+
+def test_shared_bem_leadfield_selects_the_matching_candidate():
+    maps = np.asarray([[1.0, 0.0], [0.0, 1.0], [-1.0, -1.0]], dtype=float)
+    forward = DipfitForwardData(
+        positions=np.zeros((3, 3)),
+        maps=maps,
+        components=[1, 2],
+        chansel=[1, 2, 3],
+        labels=["A", "B", "C"],
+        head_radius=85.0,
+        coordformat="MNI",
+        headmodel={"type": "dipoli"},
+        sens={},
+    )
+    candidates = np.asarray([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]], dtype=float)
+    leadfield = np.zeros((3, 6))
+    leadfield[:, 0] = maps[:, 0]
+    leadfield[:, 4] = maps[:, 1]
+
+    first = fit_component_grid(forward, 1, candidates, leadfield=leadfield)
+    second = fit_component_grid(forward, 2, candidates, leadfield=leadfield)
+
+    np.testing.assert_allclose(first["posxyz"], [[0.0, 0.0, 0.0]])
+    np.testing.assert_allclose(second["posxyz"], [[10.0, 0.0, 0.0]])
+    assert first["rv"] < 1e-10
+    assert second["rv"] < 1e-10
 
 
 def test_packaged_dipoli_leadfield_matches_the_prepared_system_matrix():

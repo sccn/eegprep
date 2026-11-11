@@ -15,6 +15,7 @@ from typing import Any
 
 import numpy as np
 from scipy import sparse
+from scipy.io import loadmat
 
 from eegprep.plugins.dipfit.fieldtrip.geometry import (
     find_innermost_boundary,
@@ -217,8 +218,6 @@ def _headmodel_from_npz(path: Path) -> dict[str, Any]:
 
 
 def _headmodel_from_mat(path: Path) -> dict[str, Any]:
-    from scipy.io import loadmat
-
     loaded = loadmat(path, squeeze_me=True, struct_as_record=False)
     volume = loaded.get("vol", loaded.get("headmodel"))
     if volume is None:

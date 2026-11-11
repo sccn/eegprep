@@ -9,6 +9,7 @@ creation of a new BEM system matrix are not part of this path.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import re
 from typing import Any
 
@@ -32,6 +33,8 @@ from eegprep.plugins.dipfit._utils import (
     one_based_indices,
 )
 
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_HEAD_RADIUS_MM = 85.0
 MIN_DIPOLE_ELECTRODE_DISTANCE_MM = 1e-3
@@ -91,8 +94,11 @@ def dipfit_gridsearch(
         raise ValueError(message)
     out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
+    shared_leadfield = None
+    if forward.headmodel is not None:
+        shared_leadfield = ft_compute_leadfield(candidates, forward.sens, forward.headmodel)
     for component_index in forward.components:
-        fit = fit_component_grid(forward, component_index, candidates)
+        fit = fit_component_grid(forward, component_index, candidates, leadfield=shared_leadfield)
         models[component_index - 1].update(fit)
     if reject is not None:
         models = dipfit_reject(models, reject)
@@ -204,6 +210,11 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
     if _uses_bem(dipfit):
         if dipfit.get("coord_transform"):
             positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
+        else:
+            logger.warning(
+                "DIPFIT MNI boundary-element fit has an empty coord_transform; "
+                "electrode coordinates are not rotated into the head model"
+            )
         sens = {"elecpos": positions, "label": labels, "unit": "mm"}
         headmodel, sens = ft_prepare_vol_sens(_load_bem_volume(dipfit), sens)
         positions = np.asarray(sens["elecpos"], dtype=float)
@@ -225,10 +236,16 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
     )
 
 
-def fit_component_grid(forward: DipfitForwardData, component: int, candidates: np.ndarray) -> dict[str, Any]:
+def fit_component_grid(
+    forward: DipfitForwardData,
+    component: int,
+    candidates: np.ndarray,
+    *,
+    leadfield: np.ndarray | None = None,
+) -> dict[str, Any]:
     """Return the best single-dipole fit for one component over candidates."""
     if forward.headmodel is not None:
-        return _fit_bem_component_grid(forward, component, candidates)
+        return _fit_bem_component_grid(forward, component, candidates, leadfield=leadfield)
     topography = _component_topography(forward, component)
     best: dict[str, Any] | None = None
     best_rv = np.inf
@@ -450,26 +467,29 @@ def _candidate_grid(
     return points[inside]
 
 
-def _fit_bem_component_grid(forward: DipfitForwardData, component: int, candidates: np.ndarray) -> dict[str, Any]:
+def _fit_bem_component_grid(
+    forward: DipfitForwardData,
+    component: int,
+    candidates: np.ndarray,
+    *,
+    leadfield: np.ndarray | None = None,
+) -> dict[str, Any]:
     data = _average_reference(_component_topography(forward, component).ravel())
     if not np.any(np.isfinite(data)) or float(np.sum(data**2)) == 0.0:
         return empty_model(component)
-    leadfield = ft_compute_leadfield(candidates, forward.sens, forward.headmodel)
+    if leadfield is None:
+        leadfield = ft_compute_leadfield(candidates, forward.sens, forward.headmodel)
+    n_candidates = candidates.shape[0]
+    blocks = np.moveaxis(leadfield.reshape(leadfield.shape[0], n_candidates, 3), 0, 1)
+    moments = np.linalg.pinv(blocks) @ data
+    models = np.einsum("nij,nj->ni", blocks, moments)
     denominator = float(np.sum(data**2))
-    best_index = 0
-    best_rv = np.inf
-    best_moment = np.zeros(3)
-    best_model = np.zeros_like(data)
-    for index in range(candidates.shape[0]):
-        block = leadfield[:, 3 * index : 3 * index + 3]
-        moment = np.linalg.pinv(block) @ data
-        model = block @ moment
-        rv = float(np.sum((data - model) ** 2) / denominator)
-        if rv < best_rv:
-            best_rv = rv
-            best_index = index
-            best_moment = moment
-            best_model = model
+    residual_variance = np.sum((data - models) ** 2, axis=1) / denominator
+    residual_variance = np.where(np.isfinite(residual_variance), residual_variance, np.inf)
+    best_index = int(np.argmin(residual_variance))
+    best_rv = float(residual_variance[best_index])
+    best_moment = moments[best_index]
+    best_model = models[best_index]
     residual = data - best_model
     return {
         "posxyz": [candidates[best_index].tolist()],
