@@ -14,7 +14,10 @@ Unreleased
   an average-referenced one, to the estimated data rank and records that
   ``pca`` value in history. An explicit ``pca`` is kept. A direct ``runica``
   call still spheres every channel; that sphere is not meaningful along the
-  average-reference null direction (#567).
+  average-reference null direction. On the average-referenced tutorial
+  recording, EEGLAB's scaled ``icawinv * icaweights * icasphere * data``
+  leaves its own rank-31 projection by 5.7e-8; EEGPrep's product stays
+  within 5.4e-13 (#567).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and

@@ -204,7 +204,19 @@ def runica(data, *args, **kwargs):
     average-reference direction, where the gain comes from rounding in
     ``cov`` and ``sqrtm``. ``pop_runica`` passes ``pca`` when its rank
     estimate is below the channel count. Compare spheres on the signal
-    subspace, or compare the ``pop_runica`` decomposition.
+    subspace, or compare the ``pop_runica`` decomposition to the rank-reduced
+    PCA projection.
+
+    On the average-referenced tutorial recording, the rank-31 PCA projectors
+    from ``eig`` agree between EEGLAB d0963be9 (MATLAB R2025b) and EEGPrep to
+    2.3e-13, and the ``runica`` projectors agree to 1.7e-13. EEGPrep's
+    ``icawinv @ icaweights @ icasphere @ data`` stays on that projector to
+    5.4e-13. After EEGLAB scales components to RMS microvolt and recomputes
+    the activations, its ``icawinv * icaweights * icasphere * data`` leaves
+    its own projector by 5.7e-8 (root-mean-square relative to the data
+    7.1e-10). The mixing maps still match after sign and order alignment:
+    the minimum absolute correlation is ``1 - 3.7e-14`` and the maximum
+    absolute difference is 6.3e-7.
 
     MATLAB Parity Validation Report
     -------------------------------

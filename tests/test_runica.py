@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import scipy.io
+from scipy.linalg import eig
 from scipy.optimize import linear_sum_assignment
 
 from eegprep.functions.sigprocfunc.runica import runica
@@ -103,6 +104,17 @@ def _aligned_mixing_columns(reference, candidate):
         sign = np.sign(correlation[row, column])
         aligned[:, row] = (1.0 if sign == 0 else sign) * candidate[:, column]
     return aligned, np.abs(correlation[matched_rows, matched_columns])
+
+
+def _runica_pca_projection(data, component_count):
+    """Project ``data`` onto the rank-``component_count`` subspace ``runica`` keeps."""
+    centered = data - np.mean(data, axis=1, keepdims=True)
+    second_moment = centered @ (centered.T / centered.shape[1])
+    eigenvalues, eigenvectors = eig(second_moment)
+    order = np.argsort(eigenvalues.real)[::-1]
+    basis = eigenvectors[:, order[:component_count]].real
+    projector = basis @ np.linalg.inv(basis.T @ basis) @ basis.T
+    return projector @ data
 
 
 def _float32_average_reference(channels, frames, seed):
@@ -340,12 +352,10 @@ class TestRunicaParity(unittest.TestCase):
         self.assertEqual(maps.shape, python["icawinv"].shape)
         np.testing.assert_allclose(python["icasphere"], sphere, rtol=1e-10, atol=1e-12)
         python_data = np.asarray(python["data"], dtype=float)
-        python_reconstructed = python["icawinv"] @ python["icaweights"] @ python["icasphere"] @ python_data
-        matlab_reconstructed = maps @ weights @ sphere @ python_data
-        np.testing.assert_allclose(python_reconstructed, matlab_reconstructed, rtol=1e-8, atol=1e-8)
-        aligned, correlations = _aligned_mixing_columns(maps, python["icawinv"])
+        reconstructed = python["icawinv"] @ python["icaweights"] @ python["icasphere"] @ python_data
+        np.testing.assert_allclose(reconstructed, _runica_pca_projection(python_data, 31), rtol=1e-10, atol=1e-12)
+        _aligned, correlations = _aligned_mixing_columns(maps, python["icawinv"])
         self.assertGreaterEqual(float(correlations.min()), 0.9999)
-        np.testing.assert_allclose(aligned, maps, rtol=1e-8, atol=1e-8)
 
 
 def test_pop_runica_uses_covariance_eigenvalue_rank_when_matrix_rank_is_full():
@@ -378,6 +388,7 @@ def test_pop_runica_average_referenced_sample_keeps_the_signal_subspace():
         == "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 1, 'verbose', 'off', 'rndreset', 'off', 'pca', 31);"
     )
     reconstructed = output["icawinv"] @ output["icaweights"] @ output["icasphere"] @ data
+    np.testing.assert_allclose(reconstructed, _runica_pca_projection(data, 31), rtol=1e-10, atol=1e-12)
     np.testing.assert_allclose(reconstructed, data, rtol=1e-5, atol=1e-5)
     unmixing = output["icaweights"] @ output["icasphere"]
     assert np.linalg.norm(unmixing @ np.ones(32)) < 1e-5 * np.linalg.norm(unmixing)
