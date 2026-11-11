@@ -77,8 +77,8 @@ def pop_biosig(
             remove_event_channel=remove_event_channel,
         )
     if reference is not None and len(reference):
-        indices = np.asarray(reference, dtype=int) - 1
-        if np.any(indices < 0) or np.any(indices >= eeg['nbchan']):
+        indices = np.asarray(reference, dtype=int)
+        if np.any(indices < 1) or np.any(indices > eeg['nbchan']):
             raise ValueError(
                 'pop_biosig: reference indices exceed the loaded channels. Enter 1-based indices in the selected channel list.'
             )
