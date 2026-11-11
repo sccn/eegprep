@@ -21,6 +21,9 @@ Unreleased
   empty, or ``None`` (#506).
 - ``gauss`` with one frame returns ``exp(-sds**2)``, the single sample at
   ``-sds`` (#507).
+- ``pop_chansel`` reads selection text with the shared tokenizer. An empty
+  quoted token is an empty label, and a brace-wrapped list uses the labels
+  inside the braces (#508).
 
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves
