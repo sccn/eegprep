@@ -185,6 +185,13 @@ def topoplot(datavector, chan_locs, **kwargs):
         plotchans = list(set(plotchans) - set(inds))
 
     x, y = np.cos(Th) * Rd, np.sin(Th) * Rd
+    # Keep the original channel positions. Dropping a channel here would renumber
+    # datavector[pltchans] and move later values onto the wrong electrodes.
+    if not plotchans or not np.any(np.isfinite(Th[plotchans]) & np.isfinite(Rd[plotchans])):
+        raise ValueError(
+            "topoplot: no channel has a finite theta and radius. "
+            "Import channel locations with Edit > Channel locations before drawing a scalp map."
+        )
     plotchans = np.abs(plotchans)
     allchansind = np.array(allchansind)[plotchans]
     Th, Rd, x, y = Th[plotchans], Rd[plotchans], x[plotchans], y[plotchans]
@@ -326,7 +333,7 @@ def topoplot(datavector, chan_locs, **kwargs):
 
 def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, **kwargs):
     """Draw channel locations without interpolated data."""
-    labels, screen_x, screen_y = _channel_location_points(chan_locs)
+    labels, screen_x, screen_y, location_indices = _channel_location_points(chan_locs)
     xi_1d = np.linspace(-0.5, 0.5, int(gridscale))
     yi_1d = np.linspace(-0.5, 0.5, int(gridscale))
     xi, yi = np.meshgrid(xi_1d, yi_1d)
@@ -348,9 +355,35 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
     electrode_mode = str(electrodes).lower()
     if electrode_mode in {'on', 'labelpoint', 'numpoint'}:
         ax.scatter(screen_x, screen_y, c='k', s=markersize, zorder=5)
-    _draw_electrode_labels(ax, screen_x, screen_y, labels, electrodes)
-    ax.set_xlim(-0.6, 0.6)
-    ax.set_ylim(-0.6, 0.65)
+    _draw_electrode_labels(ax, screen_x, screen_y, labels, electrodes, location_indices=location_indices)
+    if electrode_mode in {'labelpoint', 'numpoint'}:
+        ax.set_xlim(-0.85, 0.85)
+        ax.set_ylim(-0.95, 0.78)
+        shown = int(labels.size)
+        total = len(chan_locs)
+        ax.text(
+            0,
+            -0.70,
+            f"{shown} of {total} electrode locations shown",
+            ha='center',
+            va='center',
+            fontsize=8,
+            clip_on=False,
+        )
+        ax.text(
+            0,
+            -0.82,
+            "Click on electrodes to toggle name/number",
+            ha='center',
+            va='center',
+            fontsize=8,
+            clip_on=False,
+        )
+        if own_figure:
+            fig.canvas.mpl_connect('pick_event', _toggle_electrode_label)
+    else:
+        ax.set_xlim(-0.6, 0.6)
+        ax.set_ylim(-0.6, 0.65)
     ax.set_aspect('equal')
     ax.axis('off')
     ax.set_title(kwargs.get('title', 'Channel locations'))
@@ -411,13 +444,14 @@ def _channel_location_points(chan_locs):
     labels = []
     screen_xs = []
     screen_ys = []
+    indices = []
     for index, loc in enumerate(chan_locs):
         if 'theta' not in loc or 'radius' not in loc:
             continue
         try:
-            theta_deg = float(loc.get('theta'))
-            radius_value = float(loc.get('radius'))
-        except (TypeError, ValueError):
+            theta_deg = float(np.asarray(loc.get('theta'), dtype=float).reshape(-1)[0])
+            radius_value = float(np.asarray(loc.get('radius'), dtype=float).reshape(-1)[0])
+        except (TypeError, ValueError, IndexError):
             continue
         if not np.isfinite(theta_deg) or not np.isfinite(radius_value):
             continue
@@ -425,7 +459,8 @@ def _channel_location_points(chan_locs):
         screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
         screen_xs.append(screen_x)
         screen_ys.append(screen_y)
-    return np.asarray(labels), np.asarray(screen_xs), np.asarray(screen_ys)
+        indices.append(index)
+    return np.asarray(labels), np.asarray(screen_xs), np.asarray(screen_ys), np.asarray(indices, dtype=int)
 
 
 # EEGLAB topoplot ear outline (rmax = 0.5); the left ear mirrors these x-coords.
@@ -451,10 +486,23 @@ def _draw_head(ax):
     _draw_ears(ax)
 
 
-def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False):
+def _toggle_electrode_label(event):
+    artist = event.artist
+    name = getattr(artist, "_eegprep_electrode_name", None)
+    number = getattr(artist, "_eegprep_electrode_number", None)
+    if name is None or number is None:
+        return
+    artist.set_text(number if artist.get_text() == name else name)
+    if artist.figure is not None:
+        artist.figure.canvas.draw_idle()
+
+
+def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False, location_indices=None):
     electrode_mode = str(electrodes).lower()
+    if location_indices is None:
+        location_indices = range(len(labels))
     if electrode_mode == 'numpoint':
-        text_labels = [str(index + 1) for index in range(len(labels))]
+        text_labels = [str(int(index) + 1) for index in location_indices]
     elif electrode_mode in {'labelpoint', 'labels'} or showlabels:
         text_labels = labels
     else:
@@ -468,8 +516,14 @@ def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False):
     else:
         x_offset = 0.0
         halign = 'center'
-    for x_pos, y_pos, text in zip(x, y, text_labels):
-        ax.annotate(text, (x_pos + x_offset, y_pos), fontsize=7, ha=halign, va='center')
+    names = [str(label) for label in labels]
+    numbers = [str(int(index) + 1) for index in location_indices]
+    for x_pos, y_pos, text, name, number in zip(x, y, text_labels, names, numbers):
+        artist = ax.annotate(text, (x_pos + x_offset, y_pos), fontsize=7, ha=halign, va='center', clip_on=False)
+        if electrode_mode in {'labelpoint', 'numpoint'}:
+            artist.set_picker(5)
+            artist._eegprep_electrode_name = name
+            artist._eegprep_electrode_number = number
 
 
 def _maplimits_kwargs(maplimits, data):

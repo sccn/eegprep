@@ -404,6 +404,33 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``test_pop_chansel_keeps_an_empty_quoted_token`` and
        ``test_pop_chansel_reads_a_brace_wrapped_channel_list`` lock the
        EEGPrep selections.
+   * - Spectrum frequency range
+     - ``spectopo`` requires ``freqrange`` as ``[lo hi]`` with
+       ``0 <= lo < hi <= Nyquist`` and names the function in the error.
+       EEGLAB ``spectopo.m`` line 183 rejects the same input inside
+       ``finputcheck`` with a message that does not name the frequency bounds.
+   * - Identical dataset comparison
+     - ``pop_envtopo`` on two identical datasets plots the near-zero
+       difference. EEGLAB can raise an axes-limit error on that difference.
+   * - Component-envelope dataset indices
+     - ``pop_envtopo`` records ``EEG([i j])`` when the dialog or an explicit
+       ``subindices`` value names that pair in ``ALLEEG``. A two-dataset list
+       with no indices is recorded as ``pop_envtopo(EEG, ...)``. Replaying
+       ``EEG([3 1])`` keeps ``[3 1]``. EEGLAB ``pop_envtopo.m`` lines 170-174
+       write ``EEG([subindices])`` only after the dialog creates
+       ``subindices``. A scripted two-dataset call leaves that history line
+       unset, so the returned command does not name the datasets.
+   * - Component head-plot color scale
+     - Component ``pop_headplot`` maps use per-map ``absmax`` limits and the
+       ``jet`` colormap. EEGLAB ``pop_headplot.m`` lines 424-439 fix component
+       ``maplimits`` at ``[-1 1]``. ``icadefs.m`` selects ``turbo`` when
+       MATLAB is newer than 20.01 and ``jet`` otherwise. Per-map ``absmax``
+       keeps small component weights visible.
+   * - Head-plot history assignment
+     - EEGLAB prefixes ``EEG =`` when a spline file is computed because
+       ``pop_headplot`` returns the dataset. EEGPrep writes the spline file
+       onto the dataset during the call and returns the figures, so the
+       history command does not assign over ``EEG``.
    * - Empty ``topoplot`` locations
      - An interpolated ``topoplot`` raises ``ValueError`` when channel
        locations are ``None`` or empty. The message names ``topoplot`` and

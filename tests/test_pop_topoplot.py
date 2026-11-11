@@ -194,8 +194,9 @@ def test_topoplot_blank_channel_locations_by_label_and_number():
     label_fig, *_ = topoplot([], chanlocs, style="blank", electrodes="labelpoint")
     number_fig, *_ = topoplot([], chanlocs, style="blank", electrodes="numpoint")
 
-    assert [text.get_text() for text in label_fig.axes[0].texts] == ["Fz", "Cz", "Pz"]
-    assert [text.get_text() for text in number_fig.axes[0].texts] == ["1", "2", "3"]
+    footer = {"3 of 3 electrode locations shown", "Click on electrodes to toggle name/number"}
+    assert [text.get_text() for text in label_fig.axes[0].texts if text.get_text() not in footer] == ["Fz", "Cz", "Pz"]
+    assert [text.get_text() for text in number_fig.axes[0].texts if text.get_text() not in footer] == ["1", "2", "3"]
     plt.close(label_fig)
     plt.close(number_fig)
 
@@ -274,9 +275,9 @@ def test_pop_topoplot_gui_parses_eeglab_style_options():
     figures, command = pop_topoplot(eeg, typeplot=0, renderer=Renderer(), return_com=True)
 
     assert len(figures) == 1
-    assert "typeplot=0" in command
-    assert "items=[1, 2]" in command
-    assert "colorbar='off'" in command
+    assert "'typeplot', 0" in command
+    assert "'items', [1 2]" in command
+    assert "'colorbar', 'off'" in command
     plt.close(figures[0])
 
 

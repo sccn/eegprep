@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 import scipy.io
 
+from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp
@@ -321,7 +322,7 @@ def test_pop_headplot_setup_reuses_existing_spline_file(sample_eeg, tmp_path):
     )
 
     np.testing.assert_allclose(load_headplot_spline(splinefile).transform, original_transform)
-    assert "setup={" in command
+    assert "'setup', {" in command
     plt.close(figures[0])
 
 
@@ -406,11 +407,13 @@ def test_pop_headplot_gui_setup_result_is_replayable(sample_eeg, tmp_path):
     assert renderer.spec.title == "ERP head plot(s) -- pop_headplot()"
     assert (tmp_path / "gui.spl").exists()
     assert _current_spline_file(eeg, 1) == ""  # plot must not mutate the caller's EEG
-    assert "setup={" in command
-    assert "electrodes='off'" in command
+    assert "'setup', {" in command
+    assert "'electrodes', 'off'" in command
     _assert_python_command(command)
+    from eegprep.functions.adminfunc.console import _console_python_command
+
     replay_namespace = {"EEG": deepcopy(sample_eeg), "pop_headplot": pop_headplot}
-    exec(command, replay_namespace)
+    exec(_console_python_command(command), replay_namespace)
     plt.close(figures[0])
     plt.close("all")
 
@@ -823,8 +826,10 @@ def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
     assert len(figure.axes) >= 2
     _assert_python_command(command)
     plt.close(figure)
-    with pytest.raises(ValueError, match="one dataset"):
-        pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1])
+    compared, compared_command = pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1], return_com=True)
+    assert "EEG([" not in compared_command
+    _assert_python_command(compared_command)
+    plt.close(compared)
 
 
 def test_pop_envtopo_blank_gui_subcomps_removes_none(ica_epoch):
@@ -845,7 +850,7 @@ def test_pop_envtopo_blank_gui_subcomps_removes_none(ica_epoch):
     figure, command = pop_envtopo(ica_epoch, gui=True, renderer=Renderer(), return_com=True)
 
     assert isinstance(figure, Figure)
-    assert "subcomps=0" in command
+    assert "'subcomps', 0" in command
     assert "subcomps=[]" not in command
     _assert_python_command(command)
     plt.close(figure)
@@ -921,13 +926,24 @@ def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
         return_com=True,
     )
 
-    assert "timerange=[-50, 100]" in timtopo_command
-    assert "winsize=[10]" in timtopo_command
-    assert "title='custom timtopo'" in timtopo_command
-    assert "timerange=[-50, 100]" in plottopo_command
-    assert "title='custom plottopo'" in plottopo_command
-    assert "components=[1]" in envtopo_command
-    assert "title='custom envtopo'" in envtopo_command
+    assert "figure; pop_timtopo(EEG, [-50 100], [0], 'custom timtopo'" in timtopo_command
+    assert "'winsize', [10]" in timtopo_command
+    replayed = eval(
+        _console_python_command(timtopo_command),
+        {"EEG": sample_epoch, "pop_timtopo": pop_timtopo},
+    )
+    map_titles = [
+        axis.get_title().strip()
+        for axis in replayed.axes
+        if axis.get_title().strip() and axis.get_title().strip() != "custom timtopo"
+    ]
+    assert map_titles == ["0"]
+    plt.close(replayed)
+    assert "figure; pop_plottopo(EEG, [1], '', 0" in plottopo_command
+    assert "'timerange', [-50 100]" in plottopo_command
+    assert "'title', 'custom plottopo'" in plottopo_command
+    assert "'components', [1]" in envtopo_command
+    assert "'title', 'custom envtopo'" in envtopo_command
     for command in (timtopo_command, plottopo_command, envtopo_command):
         _assert_python_command(command)
     plt.close(timtopo_fig)
@@ -967,7 +983,7 @@ def test_timtopo_mixed_nan_plottimes_fills_slot_with_auto_latency(sample_epoch):
 
 
 def _assert_python_command(command: str) -> None:
-    ast.parse(command)
+    ast.parse(_console_python_command(command))
 
 
 def test_component_activations_dedup_contract():

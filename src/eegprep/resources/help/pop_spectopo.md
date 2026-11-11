@@ -1,7 +1,8 @@
 # pop_spectopo
 
 Plots channel or component power spectra and optional scalp maps at selected
-frequencies.
+frequencies. When no channel has a finite theta and radius, the spectra are
+still drawn and the scalp-map frequency field is disabled.
 
 ```python
 result, com = pop_spectopo(EEG, dataflag=1, freqs=[6, 10, 22], return_com=True)

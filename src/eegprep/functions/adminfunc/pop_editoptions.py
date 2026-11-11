@@ -117,10 +117,13 @@ def pop_editoptions(
                 temporary.replace(path)
             finally:
                 temporary.unlink(missing_ok=True)
+    changed = {
+        key: int(value)
+        for key, value in validated.items()
+        if key != "option_native_dialogs" and int(target.get(key, value)) != int(value)
+    }
     target.update(validated)
-    arguments = ", ".join(
-        f"{format_history_value(key)}, {value}" for key, value in validated.items() if key != "option_native_dialogs"
-    )
+    arguments = ", ".join(f"{format_history_value(key)}, {value}" for key, value in changed.items())
     return f"pop_editoptions({arguments});" if arguments else ""
 
 
