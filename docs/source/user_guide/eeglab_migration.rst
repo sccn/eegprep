@@ -359,7 +359,7 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.
    * - Quoted channel-selection text
      - ``pop_chansel`` keeps an empty quoted token as an empty label, and
-       it removes one layer of surrounding braces. ``'', Cz`` selects an
+       it removes leading and trailing braces. ``'', Cz`` selects an
        empty label and ``Cz``. ``{Cz, Fp1}`` selects ``Cz`` and ``Fp1``.
        EEGLAB ``parsetxt`` treats quotes, spaces, and commas as delimiters
        and drops empty pieces (``parsetxt.m``). That scan keeps ``Cz``

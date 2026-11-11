@@ -78,7 +78,8 @@ def pop_chansel_resolve(
     """Resolve a channel selection to its labels and 1-based indices without a dialog.
 
     Text selections use the shared tokenizer: quoted labels keep spaces, an
-    empty quoted token is an empty label, and surrounding braces are removed.
+    empty quoted token is an empty label, and leading and trailing braces
+    are removed.
     """
     channel_values = _channel_values(chans, field)
     return channel_values, _selection_to_indices(select, channel_values)
