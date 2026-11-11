@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import scipy.io
 from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
@@ -49,6 +50,9 @@ from tests.fuzz.harness import (
     suspend_option_single,
     thaw_params,
     tolerance_for,
+    _InputObserver,
+    _caught_evidence,
+    _seen_input,
 )
 from tests.fuzz.issues import (
     FUNCTION_ROWS,
@@ -1540,6 +1544,73 @@ def test_transport_mismatch_is_not_a_numeric_divergence():
     assert outcome.diverged is True
     assert outcome.error_class == "transport"
     assert outcome.cause == "transport"
+
+
+def test_observer_records_the_restored_input_and_the_target_error():
+    signal = np.array([[np.float64(1.25), np.nan], [np.inf, -np.inf]])
+
+    class _Inner:
+        def __init__(self):
+            self.evals = []
+            self.last_caught_error = {"identifier": "STALE", "message": "stale", "stack": "", "printed": ""}
+
+        def eval(self, code, nargout=0):
+            del nargout
+            self.evals.append(code)
+            if "eegprep_seen_data = EEG.data" in code:
+                path = code.split("save('", 1)[1].split("'", 1)[0]
+                scipy.io.savemat(path, {"eegprep_seen_data": signal}, do_compression=False)
+                self.last_caught_error = None
+                return None
+            if "OUT = pop_clean_rawdata" in code:
+                self.last_caught_error = {
+                    "identifier": "MATLAB:badsubscript",
+                    "message": "Index in position 1 is invalid.",
+                    "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+                    "printed": "",
+                }
+                return None
+            self.last_caught_error = None
+            return None
+
+    inner = _Inner()
+    observer = _InputObserver(inner)
+    observer.eval("args = load('args.mat');", nargout=0)
+    observer.eval("EEG = pop_loadset('input.set');", nargout=0)
+    observer.eval(
+        "eegprep_input = load('input.mat'); EEG.data = eegprep_input.eegprep_input_data; clear eegprep_input",
+        nargout=0,
+    )
+    observer.eval("OUT = pop_clean_rawdata(EEG,args.args);", nargout=0)
+    observer.eval("pop_saveset(OUT, 'result.set');", nargout=0)
+
+    restore_at = next(
+        index for index, code in enumerate(inner.evals) if "EEG.data = eegprep_input.eegprep_input_data" in code
+    )
+    capture_at = next(index for index, code in enumerate(inner.evals) if "eegprep_seen_data = EEG.data" in code)
+    target_at = next(index for index, code in enumerate(inner.evals) if "OUT = pop_clean_rawdata" in code)
+    assert restore_at < capture_at < target_at
+    seen = observer.last_input_data
+    assert isinstance(seen, np.ndarray)
+    assert seen.dtype == np.dtype(np.float64)
+    assert np.array_equal(seen, signal, equal_nan=True)
+    assert inner.last_caught_error is None
+    caught = observer.last_caught_error
+    assert isinstance(caught, dict)
+    assert caught["identifier"] == "MATLAB:badsubscript"
+
+    backend = SimpleNamespace(_engine=SimpleNamespace(engine=observer))
+    assert _seen_input(backend) is observer.last_input_data
+    identifier, stack = _caught_evidence(backend)
+    assert identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in stack
+
+    inner.last_caught_error = {"identifier": "STALE", "message": "stale", "stack": "other", "printed": ""}
+    wrapper = MatlabWrapper(inner)
+    assert _caught_evidence(SimpleNamespace(_engine=wrapper)) == ("", "")
+    observer.eval("args = load('next.mat');", nargout=0)
+    assert observer.last_input_data is None
+    assert observer.last_caught_error is None
 
 
 def test_identity_signal_uses_values_float32_cannot_store():

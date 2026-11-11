@@ -16,14 +16,16 @@ import math
 import os
 from pathlib import Path
 import re
+import tempfile
 import tomllib
 from typing import Callable
 
 import numpy as np
+import scipy.io
 from hypothesis import HealthCheck, Phase, Verbosity, given, seed, settings
 from hypothesis import strategies as st
 
-from eegprep.functions.adminfunc.eeglabcompat import get_eeglab, matlab_held_data
+from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper, get_eeglab, matlab_held_data
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_resample import pop_resample
@@ -831,6 +833,65 @@ class FakeOracle:
         raise ValueError(f"unknown fake mode {self.mode}")
 
 
+_CALL_START = ("args = load(", "args.args = {};")
+_RESTORE_MARK = "EEG.data = eegprep_input.eegprep_input_data"
+_TARGET_CALL = re.compile(r"(?:\[OUT\d|OUT) = ")
+
+
+def load_seen_input(path: str) -> np.ndarray:
+    """Load ``EEG.data`` as the class MATLAB holds.
+
+    ``save -v7`` packs an integer-valued double into smaller storage. The
+    array class stays double, and that is the dtype the comparison uses.
+    """
+    saved = scipy.io.loadmat(path, squeeze_me=False, mat_dtype=True)
+    return np.array(saved["eegprep_seen_data"], copy=True)
+
+
+def _capture_seen_input(engine) -> np.ndarray:
+    """Save the restored ``EEG.data`` and load the class MATLAB holds."""
+    descriptor, name = tempfile.mkstemp(suffix=".seen.mat")
+    os.close(descriptor)
+    path = Path(name)
+    try:
+        quoted = str(path).replace("'", "''")
+        engine.eval(
+            f"eegprep_seen_data = EEG.data; save('{quoted}', 'eegprep_seen_data', '-v7'); clear eegprep_seen_data",
+            nargout=0,
+        )
+        return load_seen_input(str(path))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+class _InputObserver:
+    """Record the restored input and the target call's caught error.
+
+    The package wrapper restores the double array and then keeps round-tripping
+    the result. Those later evals replace ``BatchEngine.last_caught_error``, so
+    the harness records the target call here.
+    """
+
+    def __init__(self, engine):
+        self._engine = engine
+        self.last_input_data = None
+        self.last_caught_error = None
+
+    def eval(self, statement, nargout=0, **kwargs):
+        if statement.startswith(_CALL_START):
+            self.last_input_data = None
+            self.last_caught_error = None
+        result = self._engine.eval(statement, nargout=nargout, **kwargs)
+        if _RESTORE_MARK in statement:
+            self.last_input_data = _capture_seen_input(self._engine)
+        elif _TARGET_CALL.search(statement):
+            self.last_caught_error = self._engine.last_caught_error
+        return result
+
+    def __getattr__(self, name):
+        return getattr(self._engine, name)
+
+
 def connect_matlab():
     """Attach ``matlab.engine`` to the served matlab-batch directory."""
     batch = os.environ.get("EEGPREP_MATLAB_BATCH_DIR")
@@ -841,6 +902,7 @@ def connect_matlab():
     install(batch)
     os.environ.setdefault("EEGPREP_EEGLAB_ROOT", str(REPO_ROOT / "src" / "eegprep" / "eeglab"))
     engine = get_eeglab()
+    engine.engine = _InputObserver(engine.engine)
     # eeg_checkset applies option_single on pop_loadset, before the called
     # function runs. Leave the recording in double for the session, then
     # MatlabBackend.close writes the original options file back.
@@ -1711,11 +1773,22 @@ def transport_mismatch(expected, seen) -> str | None:
     return None
 
 
-def _seen_input(backend):
+def _observed(backend, name: str):
     engine = getattr(backend, "_engine", None)
-    if engine is None:
-        return None
-    return getattr(engine, "last_input_data", None)
+    if isinstance(engine, _InputObserver):
+        return getattr(engine, name)
+    if engine is not None and not isinstance(engine, MatlabWrapper):
+        values = getattr(engine, "__dict__", None)
+        if isinstance(values, dict) and name in values:
+            return values[name]
+    inner = getattr(engine, "engine", None) if engine is not None else None
+    if isinstance(inner, _InputObserver):
+        return getattr(inner, name)
+    return None
+
+
+def _seen_input(backend):
+    return _observed(backend, "last_input_data")
 
 
 def _transport_problem(backend, eeg: dict) -> str | None:
@@ -1734,8 +1807,7 @@ def _remember_oracle(outcome: Outcome, oracle: SideResult) -> Outcome:
 
 def _caught_evidence(backend) -> tuple[str, str]:
     """Identifier and stack recorded when MATLAB caught an error and still returned."""
-    engine = getattr(backend, "_engine", None)
-    caught = getattr(engine, "last_caught_error", None) if engine is not None else None
+    caught = _observed(backend, "last_caught_error")
     if not isinstance(caught, dict):
         return "", ""
     identifier = str(caught.get("identifier") or "")

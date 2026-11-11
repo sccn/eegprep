@@ -18,7 +18,6 @@ from eegprep.functions.adminfunc.eeglabcompat import (
     _prepare_matlab_arg,
     _restore_double_eeg_data,
     _stash_double_eeg_data,
-    load_seen_input,
     matlab_held_data,
     matlab_restore_input,
     save_double_input,
@@ -28,7 +27,7 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.utils.testing import DebuggableTestCase
 import eegprep.functions.adminfunc.eeglabcompat as eeglabcompat
 from tests.eeg_options_snapshot import eeg_options_snapshot, reload_eeg_options
-from tests.fuzz.harness import resume_eeg_options
+from tests.fuzz.harness import load_seen_input, resume_eeg_options
 
 
 def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_path):
@@ -275,19 +274,6 @@ def test_matlab_bridge_restores_double_input_before_the_target(monkeypatch):
         def eval(self, code, nargout=0):
             del nargout
             self.evals.append(code)
-            if "eegprep_identity" in code:
-                self.last_caught_error = {
-                    "identifier": "MATLAB:badsubscript",
-                    "message": "Index in position 1 is invalid.",
-                    "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
-                    "printed": "",
-                }
-            else:
-                self.last_caught_error = None
-            if "eegprep_seen_data = EEG.data" in code:
-                seen = code.split("save('", 1)[1].split("'", 1)[0]
-                saved = scipy.io.loadmat(seen.replace(".seen.mat", ".input.mat"), squeeze_me=False)
-                scipy.io.savemat(seen, {"eegprep_seen_data": saved["eegprep_input_data"]}, do_compression=False)
             if "eegprep_roundtrip_data = double(" in code:
                 path = code.split("save('", 1)[1].split("'", 1)[0]
                 saved = scipy.io.loadmat(path.replace(".double.mat", ".input.mat"), squeeze_me=False)
@@ -315,16 +301,10 @@ def test_matlab_bridge_restores_double_input_before_the_target(monkeypatch):
 
     load_at = next(index for index, code in enumerate(engine.evals) if "pop_loadset" in code)
     restore_at = next(index for index, code in enumerate(engine.evals) if "eegprep_input_data" in code)
-    capture_at = next(index for index, code in enumerate(engine.evals) if "eegprep_seen_data = EEG.data" in code)
     target_at = next(index for index, code in enumerate(engine.evals) if "eegprep_identity" in code)
-    assert load_at < restore_at < capture_at < target_at
-    seen = wrapper.last_input_data
-    assert isinstance(seen, np.ndarray)
-    assert seen.dtype == np.dtype(np.float64)
-    assert np.array_equal(seen, signal, equal_nan=True)
+    assert load_at < restore_at < target_at
+    assert all("eegprep_seen_data" not in code for code in engine.evals)
     assert np.array_equal(returned["data"], signal, equal_nan=True)
-    assert wrapper.last_caught_error["identifier"] == "MATLAB:badsubscript"
-    assert engine.last_caught_error is None
 
 
 def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
