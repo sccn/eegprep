@@ -233,13 +233,15 @@ if __name__ == "__main__":  # self-check against a fake server, no MATLAB needed
                 r = scipy.io.loadmat(req)
                 n = int(r["nargout"][0, 0])
                 res = req.with_name(req.name.replace("req_", "res_"))
+                part = res.with_suffix(".part")
                 if str(r["name"][0]) == "boom":
-                    scipy.io.savemat(res, {"error": {"identifier": "x", "message": "Unknown mode", "stack": ""}})
+                    scipy.io.savemat(part, {"error": {"identifier": "x", "message": "Unknown mode", "stack": ""}})
                 else:
                     outs = np.empty((1, n), dtype=object)
                     for i in range(n):
                         outs[0, i] = r["args"][0, i] if i < r["args"].shape[1] else np.array([[42.0]])
-                    scipy.io.savemat(res, {"outputs": outs})
+                    scipy.io.savemat(part, {"outputs": outs})
+                os.replace(part, res)  # the client only sees complete files
                 req.unlink()
             time.sleep(0.005)
 

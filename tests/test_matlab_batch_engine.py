@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import threading
 import time
@@ -26,7 +27,9 @@ def _serve(directory: Path) -> None:
             outputs = np.empty((1, nargout), dtype=object)
             for index in range(nargout):
                 outputs[0, index] = loaded["args"][0, index] if index < loaded["args"].shape[1] else np.array([[42.0]])
-            scipy.io.savemat(response, {"outputs": outputs})
+            partial = response.with_suffix(".part")
+            scipy.io.savemat(partial, {"outputs": outputs})
+            os.replace(partial, response)  # the client only sees complete files
             req.unlink()
         time.sleep(0.01)
 
