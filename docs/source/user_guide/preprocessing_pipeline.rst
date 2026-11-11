@@ -153,7 +153,9 @@ that names the rate. ``clean_artifacts`` and ``pop_clean_rawdata`` warn and
 leave that recording unchanged.
 
 A calibration shorter than one 0.5 s RMS window, or one that yields fewer than
-two such windows, cannot set thresholds either. ``clean_asr`` raises
+two such windows, cannot set thresholds either. The calibration is the
+reference section, so a longer recording still raises when that section is
+shorter than one window. ``clean_asr`` raises
 ``ASRCalibrationError`` and names the sample or window counts. ``clean_artifacts``
 and ``pop_clean_rawdata`` warn, leave the burst stage unchanged, and still run
 window removal when it was requested. On a 44-sample recording at 128 Hz the

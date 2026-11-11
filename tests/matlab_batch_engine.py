@@ -31,7 +31,16 @@ RESTART_READY_TIMEOUT = 300
 
 
 class MatlabExecutionError(Exception):
-    pass
+    """MATLAB ``MException`` returned by the batch server.
+
+    ``identifier`` and ``stack`` are the server fields. ``str(exc)`` stays the
+    message plus the stack so existing text checks keep working.
+    """
+
+    def __init__(self, message: str, *, identifier: str = "", stack: str = ""):
+        super().__init__(message)
+        self.identifier = identifier
+        self.stack = stack
 
 
 def _bash_executable() -> str:
@@ -136,6 +145,7 @@ class BatchEngine:
         self.directory = Path(directory)
         self._counter = itertools.count(1)
         self.workspace = _Workspace(self)
+        self.last_caught_error = None
 
     def eval(self, statement, nargout=0, **_):  # noqa: A003
         return self._request("eval", statement, [], nargout)
@@ -175,8 +185,14 @@ class BatchEngine:
         finally:
             response.unlink(missing_ok=True)
         if "error" in raw:
+            self.last_caught_error = None
             err = raw["error"]
-            raise MatlabExecutionError(f"{_decode(err['message'][0, 0])}\n{_decode(err['stack'][0, 0])}")
+            message = str(_decode(err["message"][0, 0]))
+            stack = str(_decode(err["stack"][0, 0]))
+            identifier = str(_decode(err["identifier"][0, 0])) if "identifier" in err.dtype.names else ""
+            text = message if not stack else f"{message}\n{stack}"
+            raise MatlabExecutionError(text, identifier=identifier, stack=stack)
+        self.last_caught_error = _caught_from_response(raw)
         outputs = raw.get("outputs")
         if outputs is None or outputs.size == 0 or nargout == 0:
             return None
@@ -214,6 +230,27 @@ def _publish_mat(path: Path, payload: dict) -> None:
     os.replace(partial, path)
 
 
+def _caught_from_response(raw) -> dict | None:
+    """Return a caught ``lasterror`` from a successful batch response, if one was set."""
+    if "caught" not in raw:
+        return None
+    caught = raw["caught"]
+    names = getattr(getattr(caught, "dtype", None), "names", None) or ()
+
+    def field(name: str) -> str:
+        if name not in names:
+            return ""
+        return str(_decode(caught[name][0, 0])).strip()
+
+    identifier = field("identifier")
+    message = field("message")
+    stack = field("stack")
+    printed = field("printed")
+    if not identifier and not message and not stack:
+        return None
+    return {"identifier": identifier, "message": message, "stack": stack, "printed": printed}
+
+
 def install(directory):
     """Register fake ``matlab`` / ``matlab.engine`` modules backed by the served directory."""
     engine = types.ModuleType("matlab.engine")
@@ -240,7 +277,13 @@ if __name__ == "__main__":  # self-check against a fake server, no MATLAB needed
                 n = int(r["nargout"][0, 0])
                 res = req.with_name(req.name.replace("req_", "res_"))
                 if str(r["name"][0]) == "boom":
-                    payload = {"error": {"identifier": "x", "message": "Unknown mode", "stack": ""}}
+                    payload = {
+                        "error": {
+                            "identifier": "MATLAB:badsubscript",
+                            "message": "Unknown mode",
+                            "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+                        }
+                    }
                 else:
                     outs = np.empty((1, n), dtype=object)
                     for i in range(n):
@@ -267,5 +310,7 @@ if __name__ == "__main__":  # self-check against a fake server, no MATLAB needed
         raise AssertionError("no error")
     except matlab.engine.MatlabExecutionError as exc:
         assert "Unknown mode" in str(exc)
+        assert exc.identifier == "MATLAB:badsubscript"
+        assert "fit_eeg_distribution" in exc.stack
     (d / "quit").touch()
     print("ok")
