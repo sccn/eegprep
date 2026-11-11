@@ -27,6 +27,8 @@ Unreleased
   order: time range, scalp-map latencies, then the plot title.
 - ``eeg_getdatact`` computes component activity when ``icaact`` is missing,
   empty, or ``None`` (#506).
+- ``gauss`` with one frame returns ``exp(-sds**2)``, the single sample at
+  ``-sds`` (#507).
 - Plot menus keep channel spectra when a dataset has no usable channel
   coordinates, share one amplitude scale and a calibration bar across channel
   ERP arrays, and compare two datasets in ``Plot > Component ERPs > With
