@@ -21,6 +21,7 @@ from eegprep.plugins.dipfit.forward.ft_headmodeltype import (
     ft_headmodeltype,
     normalize_headmodel,
 )
+from eegprep.plugins.dipfit.forward.ft_prepare_vol_sens import _electrode_positions
 
 
 def ft_compute_leadfield(
@@ -96,14 +97,3 @@ def _dipole_rows(dippos: np.ndarray) -> np.ndarray:
     if array.ndim == 2 and array.shape[0] == 1 and array.shape[1] % 3 == 0:
         return array.reshape(-1, 3)
     raise ValueError("dipole positions must have 3 columns")
-
-
-def _electrode_positions(sens: dict[str, Any] | np.ndarray) -> np.ndarray:
-    if isinstance(sens, dict):
-        positions = sens["elecpos"] if "elecpos" in sens else sens["chanpos"]
-    else:
-        positions = sens
-    array = np.asarray(positions, dtype=float)
-    if array.ndim != 2 or array.shape[1] < 3:
-        raise ValueError("electrode positions must be an Nx3 array")
-    return array[:, :3].copy()

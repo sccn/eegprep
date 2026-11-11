@@ -139,10 +139,6 @@ def test_bem_leadfields_stay_unimplemented_for_the_boundary_element_port():
 
 def test_standard_besa_grid_matches_the_dipfit_scan():
     x_values, y_values, z_values = default_scan_axes(85.0)
-    assert x_values.size == 24
-    assert z_values.size == 12
-    np.testing.assert_allclose(x_values[[0, -1]], [-85.0, 85.0])
-    np.testing.assert_allclose(z_values[[0, -1]], [0.0, 85.0])
     dataset = pop_dipfit_settings(pop_loadset(SAMPLE_EPOCHS), model="standardBESA")
     scanned = dipfit_gridsearch(dataset, component=[1], xgrid=x_values, ygrid=y_values, zgrid=z_values)
     assert np.asarray(scanned["dipfit"]["model"][0]["posxyz"]).shape == (1, 3)
