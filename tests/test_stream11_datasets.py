@@ -167,7 +167,12 @@ def test_f42_merge_opens_newset_and_cancel_preserves_datasets(qapp, dialogs, can
     session = make_session()
     window = build_main_window(session, include_plugins=False)
     pending, seen = dialogs
-    pending.append(accept)
+
+    def merge(dialog):
+        assert "pop_mergeset" in dialog.windowTitle()
+        accept(dialog)
+
+    pending.append(merge)
 
     def newset(dialog):
         assert "pop_newset" in dialog.windowTitle()
