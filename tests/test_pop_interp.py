@@ -2,8 +2,9 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
-from eegprep import pop_interp
+from eegprep import eeg_interp, pop_interp
 from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
@@ -198,3 +199,19 @@ class _Target:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.parametrize("function", [pop_interp, eeg_interp])
+def test_interpolation_uses_one_based_first_and_last_channels(function):
+    eeg = _eeg()
+    out = function(eeg, [1, eeg["nbchan"]])
+    by_label = function(eeg, ["Ch1", f"Ch{eeg['nbchan']}"])
+    np.testing.assert_array_equal(out["data"], by_label["data"])
+    np.testing.assert_array_equal(out["data"][1:-1], eeg["data"][1:-1])
+
+
+@pytest.mark.parametrize("value", [0, -1, 9, 1.5, np.nan, np.inf])
+@pytest.mark.parametrize("function", [pop_interp, eeg_interp])
+def test_interpolation_rejects_invalid_one_based_channels(function, value):
+    with pytest.raises(ValueError, match=r"eeg_interp:.*(?:1\.\.8|1 to 8)"):
+        function(_eeg(), [value])

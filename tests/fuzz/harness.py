@@ -1687,8 +1687,8 @@ def dispatch_python(case: FuzzCase, eeg: dict):
         if params["ref"] or params["keepref"] != "off":
             kwargs["keepref"] = params["keepref"]
         if params["exclude"]:
-            kwargs["exclude"] = list(params["exclude"])
-        return pop_reref(eeg, list(params["ref"]), **kwargs)
+            kwargs["exclude"] = [index + 1 for index in params["exclude"]]
+        return pop_reref(eeg, [index + 1 for index in params["ref"]], **kwargs)
     if case.function == "pop_resample":
         return pop_resample(eeg, float(params["freq"]), gui=False)
     if case.function == "clean_asr":

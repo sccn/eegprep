@@ -48,9 +48,9 @@ def test_spherical_interpolation_follows_the_input_dtype():
     eeg32 = copy.deepcopy(eeg64)
     eeg32["data"] = values.astype(np.float32)
 
-    out64 = eeg_interp(eeg64, [0])
-    out32 = eeg_interp(eeg32, [0])
-    explicit64 = eeg_interp(eeg64, [0], dtype="float64")
+    out64 = eeg_interp(eeg64, [1])
+    out32 = eeg_interp(eeg32, [1])
+    explicit64 = eeg_interp(eeg64, [1], dtype="float64")
 
     assert out64["data"].dtype == np.float64
     assert out32["data"].dtype == np.float32
@@ -151,8 +151,8 @@ class TestEegInterpPlanarGeometry(unittest.TestCase):
             loc["theta"] = []
             loc["radius"] = []
 
-        by_theta = eeg_interp(eeg_theta, [0], method="invdist")
-        by_xy = eeg_interp(eeg_xy, [0], method="invdist")
+        by_theta = eeg_interp(eeg_theta, [1], method="invdist")
+        by_xy = eeg_interp(eeg_xy, [1], method="invdist")
 
         np.testing.assert_allclose(by_theta["data"], by_xy["data"], rtol=1e-12, atol=1e-12)
 
@@ -263,11 +263,11 @@ class TestEegInterpParity(unittest.TestCase):
 
     def test_parity_spherical_basic(self):
         """Test parity for basic spherical interpolation with channel indices"""
-        bad_chans = [0, 1, 2]  # First 3 channels (0-based for Python)
+        bad_chans = [0, 1, 2]  # NumPy rows of the first three channels
         bad_chans_matlab = [1, 2, 3]  # 1-based for MATLAB
 
         # Python interpolation
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='spherical')
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method='spherical')
 
         # MATLAB interpolation
         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'spherical')
@@ -279,7 +279,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans = [5, 10]
         bad_chans_matlab = [6, 11]  # 1-based for MATLAB
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='sphericalKang')
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method='sphericalKang')
         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'sphericalKang')
 
         # Compare results using the helper method
@@ -290,7 +290,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans = [3, 7]
         bad_chans_matlab = [4, 8]  # 1-based for MATLAB
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='sphericalCRD')
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method='sphericalCRD')
         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'sphericalCRD')
 
         # Compare results using the helper method
@@ -302,7 +302,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans_matlab = [2, 5]  # 1-based for MATLAB
         custom_params = (1e-6, 3, 10)
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, params=custom_params)
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, params=custom_params)
 
         # Convert tuple to numpy array for MATLAB
         custom_params_array = np.array(custom_params)
@@ -322,8 +322,8 @@ class TestEegInterpParity(unittest.TestCase):
         )
         inside = (times_ms >= t_range[0] * 1000.0) & (times_ms <= t_range[1] * 1000.0)
 
-        py_partial = eeg_interp(self.test_EEG, bad_chans, method="spherical", t_range=t_range)
-        py_full = eeg_interp(self.test_EEG, bad_chans, method="spherical")
+        py_partial = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method="spherical", t_range=t_range)
+        py_full = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method="spherical")
         ml_full = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, "spherical")
         ml_partial = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, "spherical", np.array(t_range))
 
@@ -352,7 +352,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans = [0, 5, 10]
         bad_chans_matlab = [1, 6, 11]  # 1-based for MATLAB
 
-        py_result = eeg_interp(multi_trial_EEG, bad_chans, method='spherical')
+        py_result = eeg_interp(multi_trial_EEG, np.asarray(bad_chans) + 1, method='spherical')
         ml_result = self.eeglab.eeg_interp(multi_trial_EEG, bad_chans_matlab, 'spherical')
 
         # Compare results using the helper method
