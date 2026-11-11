@@ -270,7 +270,10 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
      - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
        One channel is one row, so MATLAB sorts that row across time and the
        fit then fails (#583). EEGPrep sorts across channels, so the loud
-       window stays at its time index.
+       window stays at its time index. When that selection is shorter than
+       one 0.5 s RMS window, ``clean_asr`` raises ``ASRCalibrationError``
+       with the sample counts. A correct ``sort(wz, 1)`` reaches that same
+       short-reference error; MATLAB's sort reaches the fit instead.
    * - One ASR calibration window
      - ``clean_asr`` raises ``ASRCalibrationError`` when fewer than two
        calibration RMS windows are available, and when the calibration is

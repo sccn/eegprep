@@ -64,7 +64,7 @@ def _restore_double_eeg_data(eeg, path: str) -> None:
     """Replace loaded single data and file activations with the MATLAB copies."""
     if not os.path.exists(path) or not isinstance(eeg, dict) or "data" not in eeg:
         return
-    saved = scipy.io.loadmat(path, squeeze_me=False)
+    saved = scipy.io.loadmat(path, squeeze_me=False, mat_dtype=True)
     stashed = np.asarray(saved["eegprep_roundtrip_data"])
     current = np.asarray(eeg["data"])
     if stashed.size != current.size:
@@ -109,8 +109,12 @@ def matlab_capture_input(path: str) -> str:
 
 
 def load_seen_input(path: str) -> np.ndarray:
-    """Load ``EEG.data`` as MATLAB saved it, without changing its dtype."""
-    saved = scipy.io.loadmat(path, squeeze_me=False)
+    """Load ``EEG.data`` as the class MATLAB holds.
+
+    ``save -v7`` packs an integer-valued double into smaller storage. The
+    array class stays double, and that is the dtype the comparison uses.
+    """
+    saved = scipy.io.loadmat(path, squeeze_me=False, mat_dtype=True)
     return np.array(saved["eegprep_seen_data"], copy=True)
 
 

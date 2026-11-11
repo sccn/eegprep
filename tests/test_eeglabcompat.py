@@ -5,6 +5,7 @@ This module tests the EEGLAB compatibility functions that provide
 Python interfaces to MATLAB/Octave EEGLAB functions.
 """
 
+import struct
 import unittest
 from pathlib import Path
 
@@ -141,6 +142,58 @@ def test_double_input_round_trip_keeps_values_float32_cannot_store(tmp_path):
     restore = matlab_restore_input(path)
     assert "EEG.data = eegprep_input.eegprep_input_data" in restore
     assert "eegprep:InputTransport" in restore
+
+
+_MI_MATRIX = 14
+_MX_DOUBLE_CLASS = 6
+_MX_UINT8_CLASS = 9
+
+
+def _integer_double_packed_as_uint8(path, name: str, values: np.ndarray) -> None:
+    """Write a MATLAB double whose ``-v7`` payload is uint8 storage.
+
+    ``save -v7`` keeps the array class as double and stores integer values in
+    the smallest integer type that holds them. SciPy writes the storage class,
+    so the class byte is then set to double.
+    """
+    scipy.io.savemat(path, {name: np.asarray(values, dtype=np.uint8)}, do_compression=False)
+    raw = bytearray(Path(path).read_bytes())
+    assert raw[126:128] == b"IM"
+    kind, _size = struct.unpack_from("<II", raw, 128)
+    assert kind == _MI_MATRIX
+    assert raw[144] == _MX_UINT8_CLASS
+    raw[144] = _MX_DOUBLE_CLASS
+    Path(path).write_bytes(raw)
+
+
+def test_packed_integer_double_round_trips_as_float64(tmp_path):
+    from tests.fuzz.harness import transport_mismatch
+
+    values = (np.arange(32, dtype=np.float64) % 7)[:, None] * np.arange(1, 5, dtype=np.float64)
+    seen = tmp_path / "seen.mat"
+    _integer_double_packed_as_uint8(seen, "eegprep_seen_data", values)
+    stored = scipy.io.loadmat(seen, squeeze_me=False)
+    assert stored["eegprep_seen_data"].dtype == np.dtype(np.uint8)
+
+    loaded = load_seen_input(seen)
+
+    assert loaded.dtype == np.dtype(np.float64)
+    assert loaded.shape == values.shape
+    np.testing.assert_array_equal(loaded, values)
+    assert transport_mismatch(values, loaded) is None
+
+    genuine = tmp_path / "uint8.mat"
+    scipy.io.savemat(genuine, {"eegprep_seen_data": values.astype(np.uint8)}, do_compression=False)
+    raw = load_seen_input(genuine)
+    assert raw.dtype == np.dtype(np.uint8)
+    assert transport_mismatch(values, raw) == "dtype uint8"
+
+    stashed = tmp_path / "stashed.mat"
+    _integer_double_packed_as_uint8(stashed, "eegprep_roundtrip_data", values)
+    restored = {"data": np.zeros(values.shape, dtype=np.float32)}
+    _restore_double_eeg_data(restored, str(stashed))
+    assert restored["data"].dtype == np.dtype(np.float64)
+    np.testing.assert_array_equal(restored["data"], values)
 
 
 def test_matlab_bridge_restores_double_input_before_the_target(monkeypatch):

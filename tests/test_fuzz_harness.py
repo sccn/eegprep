@@ -1506,9 +1506,11 @@ def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence(
 
 
 def test_one_channel_sort_defect_is_not_a_divergence(tmp_path):
+    # Saved #583 repro: channel 20 of eeglab_data, samples 1338:2196.
+    # The channel-axis selection keeps 37 samples, so calibration needs 64.
     case = FuzzCase(
         "clean_asr",
-        EEGSpec((0,), 0, 1024, 1, -1, 0, 0),
+        EEGSpec((20,), 1338, 858, 1, -1, 0, 0),
         freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": 0.075, "window_len": None}),
     )
     eeg = materialize_eeg(case)
@@ -1518,12 +1520,33 @@ def test_one_channel_sort_defect_is_not_a_divergence(tmp_path):
 
     outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(fail), load_tolerances())
     assert outcome.diverged is False
+    assert outcome.error_class == "match"
     assert "#583" in outcome.detail
+    assert "37" in outcome.detail and "64" in outcome.detail
+    assert outcome.reference_samples == 37
     assert outcome.oracle_identifier == "MATLAB:badsubscript"
     assert "fit_eeg_distribution" in outcome.oracle_stack
     saved = json.loads(write_repro(tmp_path, outcome, 1, eeg).read_text())
     assert saved["oracle_identifier"] == "MATLAB:badsubscript"
     assert "fit_eeg_distribution" in saved["oracle_stack"]
+    assert saved["reference_samples"] == 37
+
+    longer = FuzzCase(
+        "clean_asr",
+        EEGSpec((0,), 0, 1024, 1, -1, 0, 0),
+        freeze_params(thaw_params(case.params)),
+    )
+    longer_eeg = materialize_eeg(longer)
+    succeeded = evaluate_case(longer, lambda _case: longer_eeg, PythonBackend(), _Backend(fail), load_tolerances())
+    assert succeeded.diverged is False
+    assert "#583" in succeeded.detail
+    assert succeeded.oracle_identifier == "MATLAB:badsubscript"
+
+    def unrelated(_case, _dataset):
+        raise ValueError("unrelated")
+
+    other_error = evaluate_case(case, lambda _case: eeg, _Backend(unrelated), _Backend(fail), load_tolerances())
+    assert other_error.diverged is True
 
     two = FuzzCase(
         "clean_asr",

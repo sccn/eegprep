@@ -1542,13 +1542,30 @@ def _pop_clean_rawdata_zero_width_is_known(
     return not python_gap
 
 
+def _channel_axis_reference_is_short(eeg: dict, params: dict, python: SideResult) -> bool:
+    """True when the channel-axis selection is shorter than one RMS window.
+
+    ``sort(wz, 1)`` leaves a one-channel score in time order, so this is the
+    reference a correct calibration receives. It then raises at
+    ``asr_calibrate.m:191`` instead of reaching the fit.
+    """
+    message = python.error_message or ""
+    if python.ok or "Not enough calibration data" not in message:
+        return False
+    selected = _selected_reference_length(eeg, params)
+    needed = int(round_mat(_ASR_CALIB_WINDOW * float(eeg["srate"])))
+    return 0 < selected < needed and f"has {selected} samples" in message
+
+
 def _one_channel_sort_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
     """``clean_windows.m`` sorts a one-row score matrix across time.
 
     The channel-axis selection must not itself be a two- or three-window
-    reference. That case is the zero-width fit, without this sort.
+    reference. That case is the zero-width fit, without this sort. When the
+    channel-axis selection is shorter than one RMS window, EEGPrep raises
+    that calibration error; MATLAB's sort can still reach the fit first.
     """
-    if case.function != "clean_asr" or not python.ok or oracle.ok:
+    if case.function != "clean_asr" or oracle.ok:
         return False
     data = np.asarray(eeg["data"])
     if data.ndim != 2 or data.shape[0] != 1:
@@ -1563,7 +1580,9 @@ def _one_channel_sort_is_known(case: FuzzCase, eeg: dict, python: SideResult, or
     if _zero_width_reference(eeg, params):
         return False
     full = _asr_rms_window_count(int(eeg["pnts"]), float(eeg["srate"]))
-    return not _fit_width_reaches_zero(full)
+    if _fit_width_reaches_zero(full):
+        return False
+    return python.ok or _channel_axis_reference_is_short(eeg, params, python)
 
 
 def _wrapper_returned_unchanged(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
@@ -1801,21 +1820,22 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # clean_artifacts.m catches the filter error and returns the recording.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     if _one_channel_sort_is_known(case, eeg, python, oracle):
-        # clean_windows.m:115 sorts a 1-by-N score row across time. EEGPrep
-        # sorts across channels, so the loud window stays at its time index.
-        return _remember_oracle(
-            _outcome(
-                case,
-                False,
-                True,
-                "match",
-                0.0,
-                0.0,
-                "known EEGLAB defect: clean_windows sorts one channel across time (#583)",
-                digest,
-            ),
+        # clean_windows.m:115 sorts a 1-by-N score row across time. A correct
+        # sort keeps each window at its time index. A selection shorter than
+        # one RMS window then raises; MATLAB's sort can reach the fit first.
+        params = thaw_params(case.params)
+        selected = _selected_reference_length(eeg, params)
+        needed = int(round_mat(_ASR_CALIB_WINDOW * float(eeg["srate"])))
+        detail = "known EEGLAB defect: clean_windows sorts one channel across time (#583)"
+        if not python.ok:
+            detail += f"; channel-axis reference has {selected} samples and one RMS window needs {needed}"
+        outcome = _remember_oracle(
+            _outcome(case, False, True, "match", 0.0, 0.0, detail, digest),
             oracle,
         )
+        if not python.ok:
+            outcome.reference_samples = selected
+        return outcome
     if _wrapper_returned_unchanged(case, eeg, python, oracle):
         return _remember_oracle(
             _outcome(
