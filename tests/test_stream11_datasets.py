@@ -55,9 +55,13 @@ def dialogs(qapp):
             failures.append(f"Unexpected dialog: {dialog.windowTitle()}")
             dialog.reject()
             return
+        # Take the handler before running it. Accept can open the next
+        # window before it returns, and that window needs the following handler.
+        handler = pending.pop(0)
         try:
-            pending[0](dialog)
+            handler(dialog)
         except Exception as exc:
+            pending.insert(0, handler)
             state["attempts"] += 1
             if state["attempts"] >= 4:
                 failures.append(str(exc))
@@ -66,7 +70,6 @@ def dialogs(qapp):
             if Shiboken.isValid(dialog):
                 dialog.reject()
             return
-        pending.pop(0)
         seen.append(dialog.windowTitle())
         state["attempts"] = 0
 
