@@ -966,6 +966,38 @@ from <code class="docutils literal notranslate"><span class="pre">'',</span> <sp
 <code class="docutils literal notranslate"><span class="pre">test_pop_chansel_reads_a_brace_wrapped_channel_list</span></code> lock the
 EEGPrep selections.</p></td>
 </tr>
+<tr class="row-odd"><td><p>Spectrum frequency range</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">spectopo</span></code> requires <code class="docutils literal notranslate"><span class="pre">freqrange</span></code> as <code class="docutils literal notranslate"><span class="pre">[lo</span> <span class="pre">hi]</span></code> with
+<code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;=</span> <span class="pre">lo</span> <span class="pre">&lt;</span> <span class="pre">hi</span> <span class="pre">&lt;=</span> <span class="pre">Nyquist</span></code> and names the function in the error.
+EEGLAB <code class="docutils literal notranslate"><span class="pre">spectopo.m</span></code> line 183 rejects the same input inside
+<code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> with a message that does not name the frequency bounds.</p></td>
+</tr>
+<tr class="row-even"><td><p>Identical dataset comparison</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> on two identical datasets plots the near-zero
+difference. EEGLAB can raise an axes-limit error on that difference.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Component-envelope dataset indices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> records <code class="docutils literal notranslate"><span class="pre">EEG([i</span> <span class="pre">j])</span></code> when the dialog or an explicit
+<code class="docutils literal notranslate"><span class="pre">subindices</span></code> value names that pair in <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>. A two-dataset list
+with no indices is recorded as <code class="docutils literal notranslate"><span class="pre">pop_envtopo(EEG,</span> <span class="pre">...)</span></code>. Replaying
+<code class="docutils literal notranslate"><span class="pre">EEG([3</span> <span class="pre">1])</span></code> keeps <code class="docutils literal notranslate"><span class="pre">[3</span> <span class="pre">1]</span></code>. EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_envtopo.m</span></code> lines 170-174
+write <code class="docutils literal notranslate"><span class="pre">EEG([subindices])</span></code> only after the dialog creates
+<code class="docutils literal notranslate"><span class="pre">subindices</span></code>. A scripted two-dataset call leaves that history line
+unset, so the returned command does not name the datasets.</p></td>
+</tr>
+<tr class="row-even"><td><p>Component head-plot color scale</p></td>
+<td><p>Component <code class="docutils literal notranslate"><span class="pre">pop_headplot</span></code> maps use per-map <code class="docutils literal notranslate"><span class="pre">absmax</span></code> limits and the
+<code class="docutils literal notranslate"><span class="pre">jet</span></code> colormap. EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_headplot.m</span></code> lines 424-439 fix component
+<code class="docutils literal notranslate"><span class="pre">maplimits</span></code> at <code class="docutils literal notranslate"><span class="pre">[-1</span> <span class="pre">1]</span></code>. <code class="docutils literal notranslate"><span class="pre">icadefs.m</span></code> selects <code class="docutils literal notranslate"><span class="pre">turbo</span></code> when
+MATLAB is newer than 20.01 and <code class="docutils literal notranslate"><span class="pre">jet</span></code> otherwise. Per-map <code class="docutils literal notranslate"><span class="pre">absmax</span></code>
+keeps small component weights visible.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Head-plot history assignment</p></td>
+<td><p>EEGLAB prefixes <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span></code> when a spline file is computed because
+<code class="docutils literal notranslate"><span class="pre">pop_headplot</span></code> returns the dataset. EEGPrep writes the spline file
+onto the dataset during the call and returns the figures, so the
+history command does not assign over <code class="docutils literal notranslate"><span class="pre">EEG</span></code>.</p></td>
+</tr>
 </tbody>
 </table>
 </div>

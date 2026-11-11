@@ -483,6 +483,14 @@ as a dictionary, so <code class="docutils literal notranslate"><span class="pre"
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> stores a missing channel coordinate as an empty
 array, including a channel with no row in <code class="docutils literal notranslate"><span class="pre">electrodes.tsv</span></code>. Saving and
 reloading that dataset keeps the empty coordinates (#538).</p></li>
+<li><p>Component-envelope comparison can choose two datasets from a longer list.
+The two-dataset limit applies after that choice.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> history names <code class="docutils literal notranslate"><span class="pre">EEG([i</span> <span class="pre">j])</span></code> when the dialog or <code class="docutils literal notranslate"><span class="pre">subindices</span></code>
+supplies those <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> numbers. A two-dataset list with no indices is
+recorded as <code class="docutils literal notranslate"><span class="pre">pop_envtopo(EEG,</span> <span class="pre">...)</span></code>. Replaying <code class="docutils literal notranslate"><span class="pre">EEG([3</span> <span class="pre">1])</span></code> keeps
+<code class="docutils literal notranslate"><span class="pre">[3</span> <span class="pre">1]</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_timtopo</span></code> history replays in the console with the EEGLAB argument
+order: time range, scalp-map latencies, then the plot title.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_getdatact</span></code> computes component activity when <code class="docutils literal notranslate"><span class="pre">icaact</span></code> is missing,
 empty, or <code class="docutils literal notranslate"><span class="pre">None</span></code> (#506).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">gauss</span></code> with one frame returns <code class="docutils literal notranslate"><span class="pre">exp(-sds**2)</span></code>, the single sample at
@@ -490,6 +498,23 @@ empty, or <code class="docutils literal notranslate"><span class="pre">None</spa
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_chansel</span></code> reads selection text with the shared tokenizer. An empty
 quoted token is an empty label, and a brace-wrapped list uses the labels
 inside the braces (#508).</p></li>
+<li><p>Plot menus keep channel spectra when a dataset has no usable channel
+coordinates, share one amplitude scale and a calibration bar across channel
+ERP arrays, and compare two datasets in <code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Component</span> <span class="pre">ERPs</span> <span class="pre">&gt;</span> <span class="pre">With</span>
+<span class="pre">component</span> <span class="pre">maps</span></code> (F71, F72, F73, F74, F76).</p></li>
+<li><p>Component 3-D maps use the jet colormap and a per-map color scale. The
+channel-location plot reports how many electrodes are drawn and toggles
+each label between its name and its number (F77, F78).</p></li>
+<li><p>A reversed or out-of-range spectrum window raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> from
+<code class="docutils literal notranslate"><span class="pre">spectopo</span></code> and names the required <code class="docutils literal notranslate"><span class="pre">[lo</span> <span class="pre">hi]</span></code> bounds (F79).</p></li>
+<li><p>Plot history is stored as MATLAB <code class="docutils literal notranslate"><span class="pre">'key',</span> <span class="pre">value</span></code> text, including
+<code class="docutils literal notranslate"><span class="pre">figure;</span></code> before spectrum, array, and latency-map plots. The console
+replays that text. Preferences history records each option whose value
+changed (F82, F99).</p></li>
+<li><p>Comparing datasets draws one panel per channel, and the legend colors match
+those traces. Event latency statistics use epoch-relative milliseconds. The
+statistics figure shows the trimmed mean, the quantiles, and the
+Kolmogorov-Smirnov result, and it marks the selected channel (F83, F85, F87).</p></li>
 <li><p>Import dialogs expose data shape, sampling, metadata, channel selection,
 ranges, event fields, units, alignment, and epoch options. Cancel preserves
 the dataset and history; accepted imports update the GUI and console

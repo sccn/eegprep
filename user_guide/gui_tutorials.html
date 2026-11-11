@@ -543,6 +543,9 @@ interactive backend, whether you trigger them from a Plot menu or call the
 matching <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> function in <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. On non-interactive
 backends (for example <code class="docutils literal notranslate"><span class="pre">Agg</span></code> in headless runs) the figure is built and
 returned without opening a window.</p>
+<p>Plot menu commands are stored as MATLAB history, for example
+<code class="docutils literal notranslate"><span class="pre">figure;</span> <span class="pre">pop_spectopo(EEG,</span> <span class="pre">1,</span> <span class="pre">...);</span></code>. <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> replays that
+text, including a leading <code class="docutils literal notranslate"><span class="pre">figure;</span></code>.</p>
 <p>When scripting, pass <code class="docutils literal notranslate"><span class="pre">plot='off'</span></code> to any plotting <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> function to
 build and return the figure without popping a window, for example
 <code class="docutils literal notranslate"><span class="pre">fig</span> <span class="pre">=</span> <span class="pre">pop_spectopo(EEG,</span> <span class="pre">1,</span> <span class="pre">[],</span> <span class="pre">freqs=[10],</span> <span class="pre">plot='off')['figure']</span></code> to save
