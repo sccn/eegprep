@@ -70,7 +70,10 @@ def _require_channel_locations(chan_locs) -> None:
     elif isinstance(chan_locs, (list, tuple)):
         empty = len(chan_locs) == 0
     if empty:
-        raise ValueError("Channel locations are required")
+        raise ValueError(
+            "topoplot: Channel locations are required. "
+            "Load locations with pop_chanedit or pop_readlocs before plotting."
+        )
 
 
 def topoplot(datavector, chan_locs, **kwargs):

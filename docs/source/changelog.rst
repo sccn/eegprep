@@ -11,7 +11,8 @@ Unreleased
 ==========
 
 - ``topoplot`` raises ``ValueError`` when channel locations are ``None`` or
-  empty. The message says channel locations are required (#509).
+  empty. The message names ``topoplot`` and points to ``pop_chanedit`` or
+  ``pop_readlocs`` (#509).
 
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves

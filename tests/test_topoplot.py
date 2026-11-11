@@ -109,7 +109,10 @@ class TestTopoplot(unittest.TestCase):
             self.assertTrue(np.all(np.isnan(outside_values)))
 
     def test_missing_or_empty_channel_locations_name_the_problem(self):
-        message = "Channel locations are required"
+        message = (
+            r"topoplot: Channel locations are required\. "
+            r"Load locations with pop_chanedit or pop_readlocs before plotting\."
+        )
         with self.assertRaisesRegex(ValueError, message):
             topoplot(np.arange(4.0), None, noplot="on")
         with self.assertRaisesRegex(ValueError, message):
