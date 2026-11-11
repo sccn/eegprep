@@ -410,6 +410,17 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``option_boundary99`` on. EEGLAB skips that merge when the first
        event type is numeric, so two ``-99`` boundaries with durations 1
        and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.
+   * - Quoted channel-selection text
+     - ``pop_chansel`` keeps an empty quoted token as an empty label, and
+       it removes leading and trailing braces. ``'', Cz`` selects an
+       empty label and ``Cz``. ``{Cz, Fp1}`` selects ``Cz`` and ``Fp1``.
+       EEGLAB ``parsetxt`` treats quotes, spaces, and commas as delimiters
+       and drops empty pieces (``parsetxt.m``). That scan keeps ``Cz``
+       from ``'', Cz``, and it keeps ``{Cz`` and ``Fp1}`` from
+       ``{Cz, Fp1}``.
+       ``test_pop_chansel_keeps_an_empty_quoted_token`` and
+       ``test_pop_chansel_reads_a_brace_wrapped_channel_list`` lock the
+       EEGPrep selections.
 
 Plugin Migration
 ================
