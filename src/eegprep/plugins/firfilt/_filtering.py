@@ -31,7 +31,22 @@ def design_eegfiltnew(
     revfilt: bool = False,
     minphase: bool = False,
 ) -> tuple[np.ndarray, dict[str, Any]]:
-    """Design the Hamming-windowed FIR used by EEGLAB ``pop_eegfiltnew``."""
+    """Design the Hamming-windowed FIR applied by ``pop_eegfiltnew``.
+
+    Args:
+        srate: Sampling rate in Hz.
+        locutoff: Lower passband edge in Hz. ``None``, 0, or empty means none.
+        hicutoff: Upper passband edge in Hz. ``None``, 0, or empty means none.
+        filtorder: Even FIR order. Omit it to use the default order heuristic.
+        revfilt: Design a notch or highpass instead of a bandpass or lowpass.
+        minphase: Convert the coefficients to minimum phase.
+
+    Returns:
+        Coefficients and the applied design. ``cutoff`` lists the -6 dB edges
+        in Hz, and ``df`` is the transition width in Hz. A highpass is designed
+        as a reversed lowpass: ``locutoff`` is ``None``, ``hicutoff`` is the
+        passband edge, and ``revfilt`` is true.
+    """
     locutoff = _none_if_zero(locutoff)
     hicutoff = _none_if_zero(hicutoff)
     revfilt = bool(revfilt)

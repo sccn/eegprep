@@ -119,6 +119,25 @@ order (``3.3 / order * srate``) so the reported cutoff matches the coefficients:
 
    EEG, com = pop_eegfiltnew(EEG, locutoff=1, hicutoff=40, plotfreqz=False, return_com=True)
 
+Each call appends the applied design to ``EEG["etc"]["eegfiltnew"]``. A later
+filter appends another record, so the two stay distinguishable. A record
+contains the sampling rate, the 1-based channels that were filtered,
+``phase`` (``zerophase`` or ``minphase``), the passband edges, the -6 dB
+cutoffs, the order, the transition width, ``revfilt``, and the coefficients
+passed to the filter. A missing passband edge is NaN. A highpass is stored
+as the reversed lowpass that was designed: ``locutoff`` is NaN, ``hicutoff``
+is the passband edge, and ``revfilt`` is true. ``return_com=True``
+still returns the filtered dataset and the history command for the requested
+options.
+
+``design_eegfiltnew`` is that same designer:
+
+.. code-block:: python
+
+   from eegprep import design_eegfiltnew
+
+   coefficients, design = design_eegfiltnew(EEG["srate"], locutoff=1, hicutoff=40)
+
 Use the lower-level FIRFilt helpers for custom order/window work:
 
 .. code-block:: python

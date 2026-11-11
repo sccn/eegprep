@@ -74,6 +74,7 @@ _LAZY_EXPORTS = {
     "crossf": ("eegprep.functions.timefreqfunc.crossf", "crossf"),
     "datlim": ("eegprep.functions.miscfunc.datlim", "datlim"),
     "decodechan": ("eegprep.functions.redefine_functions", "decodechan"),
+    "design_eegfiltnew": ("eegprep.plugins.firfilt._filtering", "design_eegfiltnew"),
     "dftfilt": ("eegprep.functions.timefreqfunc.dftfilt", "dftfilt"),
     "dftfilt2": ("eegprep.functions.timefreqfunc.dftfilt2", "dftfilt2"),
     "dftfilt3": ("eegprep.functions.timefreqfunc.dftfilt3", "dftfilt3"),

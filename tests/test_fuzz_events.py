@@ -519,6 +519,44 @@ def test_pipeline_resyncs_to_the_oracle_output():
     assert outcome.error_class == "match", outcome.detail
 
 
+def test_span_artifact_hits_the_flatline_boundary():
+    from tests.fuzz.targets import _jitter_threshold, _span_sample_count, _write_artifact
+
+    srate = 128.0
+    duration = 0.25
+    limit = duration * srate
+    jitter = 20.0
+    threshold = _jitter_threshold(jitter)
+    assert _span_sample_count(limit, "below") == 32
+    assert _span_sample_count(limit, "equal") == 33
+    assert _span_sample_count(limit, "above") == 34
+    for place, removed in (("below", False), ("equal", False), ("above", True)):
+        count = _span_sample_count(limit, place)
+        samples = np.linspace(-30.0, 30.0, count + 5)
+        _write_artifact(samples, f"span-{place}-jitter-below-near0-{int(jitter)}", 0, count, srate)
+        diffs = np.abs(np.diff(samples[:count]))
+        assert np.all(diffs < threshold)
+        assert np.any(diffs > 0)
+        assert abs(samples[count] - samples[count - 1]) > threshold
+        flat = np.pad(np.abs(np.diff(samples)) < threshold, 1)
+        edges = np.where(np.diff(flat) > 0)[0]
+        intervals = np.reshape(edges, (-1, 2))
+        longest = int(np.max(intervals[:, 1] - intervals[:, 0]))
+        assert (longest > limit) is removed
+    for relation, check in (
+        ("below", lambda diffs: np.all(diffs < threshold) and np.any(diffs > 0)),
+        ("equal", lambda diffs: np.all(diffs == threshold)),
+        ("above", lambda diffs: np.all(diffs > threshold)),
+    ):
+        samples = np.zeros(16, dtype=np.float64)
+        _write_artifact(samples, f"span-equal-jitter-{relation}-near0-{int(jitter)}", 0, 8, srate)
+        assert check(np.abs(np.diff(samples[:8])))
+
+    recorded = np.full(40, np.float64(-26.488021850585973))
+    _write_artifact(recorded, "span-equal-jitter-equal-recorded-20", 0, 16, srate)
+    assert np.all(np.abs(np.diff(recorded[:16])) == threshold)
+
+
 def test_jitter_is_not_a_constant_and_channel_drops_clear_ica():
     from tests.fuzz.targets import _write_artifact
 
