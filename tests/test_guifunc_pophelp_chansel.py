@@ -12,6 +12,7 @@ from eegprep.functions.guifunc.menu_actions import action_kind
 from eegprep.functions.guifunc.pophelp import pophelp_text
 from eegprep.functions.miscfunc.helpforexe import helpforexe
 from eegprep.functions.popfunc.pop_chansel import (
+    pop_chansel_resolve,
     pop_chansel_selected_string,
 )
 from tests.eeglab_tests import eeglab_test
@@ -121,6 +122,16 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         selected = pop_chansel_selected_string(["Fp1", "Cz", "Pz"], [1, 3])
 
         self.assertEqual(selected, "Fp1 Pz")
+
+    def test_pop_chansel_keeps_an_empty_quoted_token(self):
+        _values, indices = pop_chansel_resolve(["", "Cz"], "'', Cz")
+
+        self.assertEqual(indices, [1, 2])
+
+    def test_pop_chansel_reads_a_brace_wrapped_channel_list(self):
+        _values, indices = pop_chansel_resolve(["Cz", "Fp1"], "{Cz, Fp1}")
+
+        self.assertEqual(indices, [1, 2])
 
 
 if __name__ == "__main__":

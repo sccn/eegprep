@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from typing import Any
 
 from eegprep.functions.guifunc.listdlg2 import listdlg2
+from eegprep.functions.miscfunc.value_parsing import parse_text_tokens
 
 
 def pop_chansel(
@@ -75,7 +75,11 @@ def pop_chansel_resolve(
     *,
     field: str = "labels",
 ) -> tuple[list[str], list[int]]:
-    """Resolve a channel selection to its labels and 1-based indices without a dialog."""
+    """Resolve a channel selection to its labels and 1-based indices without a dialog.
+
+    Text selections use the shared tokenizer: quoted labels keep spaces, an
+    empty quoted token is an empty label, and surrounding braces are removed.
+    """
     channel_values = _channel_values(chans, field)
     return channel_values, _selection_to_indices(select, channel_values)
 
@@ -120,7 +124,7 @@ def _selection_to_indices(select: Any, values: list[str]) -> list[int]:
     if select is None or select == "":
         return []
     if isinstance(select, str):
-        tokens = _parse_text(select)
+        tokens = parse_text_tokens(select)
     elif isinstance(select, (int, float)):
         tokens = [select]
     else:
@@ -139,11 +143,6 @@ def _selection_to_indices(select: Any, values: list[str]) -> list[int]:
             if 1 <= index <= len(values):
                 selected.append(index)
     return selected
-
-
-def _parse_text(text: str) -> list[str]:
-    tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
-    return [next(part for part in token if part) for token in tokens]
 
 
 def _selected_string(values: list[str]) -> str:
