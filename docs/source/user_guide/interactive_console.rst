@@ -82,6 +82,35 @@ Assignment-style calls also work:
 This console behavior is specific to ``eegprep-console``. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.
 
+Channel Locations and Reference
+===============================
+
+Open ``Edit > Channel locations`` to read a location file, look up labels in a
+montage, plot the channels, or edit coordinates and reference metadata. If only
+labels are present, the editor offers a packaged montage for lookup. Type a
+channel number and press Enter to navigate; Ok applies edits from every visited
+channel and records the actions in order. You can inspect the resulting
+``EEG["chanlocs"]``, ``EEG["chaninfo"]``, and ``LASTCOM`` in the console.
+
+Reference labels describe the recording. To change the signal reference, use
+``Tools > Re-reference`` or the console:
+
+.. code-block:: python
+
+   pop_reref(EEG, [], exclude=[2, 6])
+
+This excludes channels 2 and 6 from the reference calculation and leaves their
+data unchanged. ``pop_reref``, ``pop_interp``, and ``eeg_interp`` take 1-based
+channel numbers, as do the corresponding dialog fields and history commands.
+NumPy still uses zero-based rows: channel 2 is ``EEG["data"][1]``. Add 1 when
+passing NumPy row indices to these APIs. Replaying their history preserves the
+same channel numbers.
+
+The channel editor's Insert/Append buttons add non-data locations, such as a
+reference electrode, to ``EEG["chaninfo"]["nodatchans"]``. Use data selection to
+remove recorded channels. Coordinate fields accept finite numbers or blank;
+invalid text names the field and explains how to correct it.
+
 In-place Workspace Edits
 ========================
 
