@@ -198,6 +198,14 @@ def runica(data, *args, **kwargs):
     814 (``rng(5489, 'twister')``), rather than the legacy ``rand('state', 0)``
     stream. ``rndreset='on'`` seeds from the clock.
 
+    A direct call does not reduce rank. On average-referenced data the
+    sphering matrix is ``2 * inv(sqrtm(cov(data)))``. That matrix is defined
+    on the signal subspace and is numerically undefined along the
+    average-reference direction, where the gain comes from rounding in
+    ``cov`` and ``sqrtm``. ``pop_runica`` passes ``pca`` when its rank
+    estimate is below the channel count. Compare spheres on the signal
+    subspace, or compare the ``pop_runica`` decomposition.
+
     MATLAB Parity Validation Report
     -------------------------------
     **Status: PRODUCTION-READY**

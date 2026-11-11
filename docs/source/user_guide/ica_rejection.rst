@@ -51,6 +51,17 @@ fewer component than channels, which is useful after average referencing. The
 initial unmixing matrix is sized to the reduced decomposition while remaining
 deterministic.
 
+``runica`` estimates that rank when ``pca`` is omitted. Average referencing
+leaves one near-null direction, so a 32-channel recording is decomposed into
+31 components. The estimate uses the first 3000 frames and keeps the smaller
+of the matrix rank and the number of covariance eigenvalues above ``1e-7``.
+The history command records the ``pca`` value. Pass ``pca`` to choose a
+different count; a negative value subtracts from the channel count and is not
+replaced by the estimate. The decomposition dialog applies the estimate on
+the same path as the console. A direct ``runica(data)`` call does not reduce
+rank. Its sphering matrix is ``2 * inv(sqrtm(cov(data)))``, which is not
+meaningful along the average-reference direction.
+
 Picard starts from an identity matrix by default. To choose a reproducible
 random starting point, call ``eeg_picard(EEG, random_state=42)`` or pass
 ``options={"seed": 42}`` to ``pop_runica`` with ``icatype="picard"``.

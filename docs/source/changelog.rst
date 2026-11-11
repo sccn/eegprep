@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_runica`` with ``runica`` reduces a rank-deficient recording, including
+  an average-referenced one, to the estimated data rank and records that
+  ``pca`` value in history. An explicit ``pca`` is kept. A direct ``runica``
+  call still spheres every channel; that sphere is not meaningful along the
+  average-reference null direction (#567).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and

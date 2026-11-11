@@ -43,6 +43,14 @@ Behavior:
   `pop_runica(EEG, icatype='picard')`, runs the selected backend directly
   instead of opening the GUI. Unsupported standalone backends therefore fail
   clearly from the command path instead of opening a dialog first.
+- For `runica`, an omitted `pca` uses the estimated data rank when that rank
+  is lower than the number of selected channels. The estimate uses the first
+  3000 frames and the smaller of the matrix rank and the number of covariance
+  eigenvalues above `1e-7`. The history command records the `pca` value that
+  was used. An explicit `pca`, including a negative value, is left unchanged.
+  The dialog applies this estimate directly; pass `pca` to choose another
+  count. A direct `runica` call does not reduce rank, and its sphering matrix
+  is not meaningful on an average-reference null direction.
 - Existing ICA decompositions are saved in `EEG.etc.oldicaweights`,
   `EEG.etc.oldicasphere`, and `EEG.etc.oldicachansind` before being replaced.
 - Existing ICLabel classifications are removed when ICA is recomputed because they no longer describe the active components.
