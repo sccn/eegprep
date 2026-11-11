@@ -22,10 +22,10 @@ def eeg_getdatact(EEG: Any, *args: Any, return_boundaries: bool = False, **kwarg
 
     Channel, component, trial, and sample selectors are EEGLAB-facing 1-based
     indices. ``icachansind`` remains an internal 0-based EEGPrep field. By
-        default the result has shape ``(signals, samples, trials)``; pass
-        ``reshape="2d"`` to concatenate trials along the sample axis.
-        A missing, empty, or ``None`` ``icaact`` is computed from the ICA
-        weights and sphere.
+    default the result has shape ``(signals, samples, trials)``; pass
+    ``reshape="2d"`` to concatenate trials along the sample axis.
+    A missing, empty, or ``None`` ``icaact`` is computed from the ICA
+    weights and sphere.
 
     Args:
         EEG: One EEG dictionary, a ``.set`` path, or a sequence of datasets.
