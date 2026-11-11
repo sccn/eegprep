@@ -515,6 +515,44 @@ def _on_modal(qt_core, qt_widgets, predicate, action):
     qt_core.QTimer.singleShot(10, poll)
 
 
+def _cancel_named_dialog(qt_core, qt_widgets, object_name: str) -> dict[str, str | None]:
+    outcome: dict[str, str | None] = {"error": None}
+
+    def poll():
+        app = qt_widgets.QApplication.instance()
+        active = app.activeModalWidget()
+        target = active if active is not None and active.objectName() == object_name else None
+        if target is None:
+            target = next(
+                (
+                    widget
+                    for widget in app.topLevelWidgets()
+                    if widget.objectName() == object_name and widget.isVisible()
+                ),
+                None,
+            )
+        if target is not None:
+            button = target.findChild(qt_widgets.QPushButton, "cancel")
+            if button is None:
+                target.reject()
+                outcome["error"] = f"{object_name} dialog has no cancel button"
+                return
+            button.click()
+            return
+        poll.tries += 1
+        if poll.tries > 50:
+            for widget in app.topLevelWidgets():
+                if widget.objectName() == object_name:
+                    widget.reject()
+            outcome["error"] = f"{object_name} dialog did not open"
+            return
+        qt_core.QTimer.singleShot(0, poll)
+
+    poll.tries = 0
+    qt_core.QTimer.singleShot(0, poll)
+    return outcome
+
+
 @pytest.mark.modal_dialogs
 def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
     qt_core, qt_widgets, renderer_type = _gui()
@@ -622,12 +660,11 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
     assert "pop_savestudy" in command
     ast.parse(command)
     dialog.close()
+    dialog.setObjectName("")
 
-    def cancel():
-        active = qt_widgets.QApplication.instance().activeModalWidget()
-        active.findChild(qt_widgets.QPushButton, "cancel").click()
-
-    qt_core.QTimer.singleShot(20, cancel)
+    outcome = _cancel_named_dialog(qt_core, qt_widgets, "pop_studydesign")
     cancelled, _alleeg, cancel_command = pop_studydesign(before, alleeg, gui=True, return_com=True)
+    if outcome["error"] is not None:
+        pytest.fail(outcome["error"])
     assert cancel_command == ""
     assert cancelled["design"][0]["cases"]["value"] == ["S01", "S02"]
