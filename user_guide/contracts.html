@@ -540,7 +540,9 @@ data, or component backprojections without mutating the dataset. Its selector
 arguments are 1-based at the public API boundary, while stored
 <code class="docutils literal notranslate"><span class="pre">icachansind</span></code> values remain 0-based. The default result is always
 <code class="docutils literal notranslate"><span class="pre">(signals,</span> <span class="pre">samples,</span> <span class="pre">trials)</span></code>; <code class="docutils literal notranslate"><span class="pre">reshape=&quot;2d&quot;</span></code> concatenates trials in
-column-major order for EEGLAB-compatible numerical workflows.</p>
+column-major order for EEGLAB-compatible numerical workflows. A missing
+<code class="docutils literal notranslate"><span class="pre">icaact</span></code>, an empty <code class="docutils literal notranslate"><span class="pre">icaact</span></code>, and <code class="docutils literal notranslate"><span class="pre">icaact</span></code> set to <code class="docutils literal notranslate"><span class="pre">None</span></code> all compute
+component activity from <code class="docutils literal notranslate"><span class="pre">icaweights</span></code>, <code class="docutils literal notranslate"><span class="pre">icasphere</span></code>, and the channel data.</p>
 <p><code class="docutils literal notranslate"><span class="pre">event</span></code> entries keep EEGLAB-facing <code class="docutils literal notranslate"><span class="pre">latency</span></code> values and, when available,
 <code class="docutils literal notranslate"><span class="pre">urevent</span></code> pointers back to <code class="docutils literal notranslate"><span class="pre">urevent</span></code> entries. <code class="docutils literal notranslate"><span class="pre">urevent</span></code> is the
 original-event table; functions that create, delete, or reorder events state

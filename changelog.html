@@ -483,6 +483,8 @@ as a dictionary, so <code class="docutils literal notranslate"><span class="pre"
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> stores a missing channel coordinate as an empty
 array, including a channel with no row in <code class="docutils literal notranslate"><span class="pre">electrodes.tsv</span></code>. Saving and
 reloading that dataset keeps the empty coordinates (#538).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_getdatact</span></code> computes component activity when <code class="docutils literal notranslate"><span class="pre">icaact</span></code> is missing,
+empty, or <code class="docutils literal notranslate"><span class="pre">None</span></code> (#506).</p></li>
 <li><p>Import dialogs expose data shape, sampling, metadata, channel selection,
 ranges, event fields, units, alignment, and epoch options. Cancel preserves
 the dataset and history; accepted imports update the GUI and console

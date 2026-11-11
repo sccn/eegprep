@@ -546,7 +546,9 @@
 <p>Channel, component, trial, and sample selectors are EEGLAB-facing 1-based
 indices. <code class="docutils literal notranslate"><span class="pre">icachansind</span></code> remains an internal 0-based EEGPrep field. By
 default the result has shape <code class="docutils literal notranslate"><span class="pre">(signals,</span> <span class="pre">samples,</span> <span class="pre">trials)</span></code>; pass
-<code class="docutils literal notranslate"><span class="pre">reshape=&quot;2d&quot;</span></code> to concatenate trials along the sample axis.</p>
+<code class="docutils literal notranslate"><span class="pre">reshape=&quot;2d&quot;</span></code> to concatenate trials along the sample axis.
+A missing, empty, or <code class="docutils literal notranslate"><span class="pre">None</span></code> <code class="docutils literal notranslate"><span class="pre">icaact</span></code> is computed from the ICA
+weights and sphere.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
