@@ -11,7 +11,10 @@ from scipy.special import lpmv
 from copy import deepcopy
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.sigprocfunc.electrode_geometry import validate_electrode_positions
+from eegprep.functions.sigprocfunc.electrode_geometry import (
+    validate_electrode_positions,
+    validate_interpolation_sources,
+)
 
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype=None):
@@ -42,9 +45,13 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         the floating-point dtype of ``EEG['data']``, and uses ``float64`` when
         the data are not floating point. Pass ``"float32"`` for the
         lower-memory path. Identical or collinear electrode positions raise
-        ``ValueError``. Planar positions warn; inverse-distance and
-        space-time interpolation stay quiet on a planar layout and raise
-        only when the flat coordinates are identical or collinear.
+        ``ValueError``. Planar positions warn. With three or more channels
+        left to interpolate from, those source positions are checked on
+        their own, so a collinear strip raises even when the filled-in
+        channels sit off the strip. Two source channels are always
+        collinear and are not rejected. Inverse-distance and space-time
+        interpolation stay quiet on a planar layout and raise only when
+        the flat coordinates are identical or collinear.
 
     Returns
     -------
@@ -153,9 +160,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     located = good_idx + bad_idx
     if located and method in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast'):
         raw = np.vstack([[locs[i][c] for i in located] for c in ('X', 'Y', 'Z')]).astype(float).T
-        validate_electrode_positions(raw, operation='eeg_interp')
+        validate_interpolation_sources(raw, raw[: len(good_idx)], operation='eeg_interp')
     elif located and method in ('invdist', 'v4', 'spacetime'):
-        validate_electrode_positions(_planar_points(locs, located), operation='eeg_interp')
+        flat = _planar_points(locs, located)
+        validate_interpolation_sources(flat, flat[: len(good_idx)], operation='eeg_interp')
 
     xyz_good = _norm(good_idx)
     xyz_bad = _norm(bad_idx)

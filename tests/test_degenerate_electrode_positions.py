@@ -270,6 +270,40 @@ def test_nearly_planar_positions_warn_and_clean_channels_still_runs():
     assert cleaned["nbchan"] >= 1
 
 
+def test_eeg_interp_rejects_a_collinear_source_strip_when_bad_channels_add_spread():
+    positions = _line(7)
+    positions[5] = (10.0, 40.0, 0.0)
+    positions[6] = (10.0, 0.0, 40.0)
+    with pytest.raises(ValueError, match="collinear"):
+        eeg_interp(_plain_eeg(positions), [6, 7])
+
+    identical_sources = np.tile([10.0, 20.0, 30.0], (6, 1))
+    identical_sources[4] = (0.0, 0.0, 80.0)
+    identical_sources[5] = (0.0, 80.0, 0.0)
+    with pytest.raises(ValueError, match="identical"):
+        eeg_interp(_plain_eeg(identical_sources), [5, 6])
+
+    flat = _line(6)
+    flat[5, 1] = 50.0
+    with pytest.raises(ValueError, match="collinear"):
+        eeg_interp(_plain_eeg(flat), [6], method="invdist")
+
+
+def test_eeg_interp_accepts_two_source_channels_from_a_nonplanar_montage():
+    tetrahedron = np.array(
+        [
+            [1.0, 1.0, 1.0],
+            [1.0, -1.0, -1.0],
+            [-1.0, 1.0, -1.0],
+            [-1.0, -1.0, 1.0],
+        ]
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        interpolated = eeg_interp(_plain_eeg(tetrahedron), [3, 4])
+    assert interpolated["data"].shape[0] == 4
+
+
 def test_eeg_interp_rejects_identical_and_collinear_and_warns_on_a_ring():
     n_channels = 12
     with pytest.raises(ValueError, match="identical"):

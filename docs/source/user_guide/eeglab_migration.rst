@@ -459,7 +459,11 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        thickness ratio 1/2; an axis below one quarter of that ratio is
        treated as missing. Inverse-distance and space-time interpolation
        stay quiet on a planar cap and raise only when the flat coordinates
-       are identical or collinear. EEGLAB ``clean_channels`` and
+       are identical or collinear. ``eeg_interp`` classifies the channels
+       it interpolates from once three or more remain, so a collinear strip
+       raises even when the filled-in channels sit off that strip. Two
+       source channels are always collinear and are not rejected. EEGLAB
+       ``clean_channels`` and
        ``eeg_interp`` do not test the layout, so a collinear montage can
        come back as a channel deletion or an interpolation that does not
        reflect the recording.
