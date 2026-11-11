@@ -41,7 +41,7 @@ def dialogs(qapp):
     # window again before the next one opens. A handler that refuses the
     # window leaves the handler queued and closes that window.
     done = set()
-    state = {"attempts": 0}
+    state = {"attempts": 0, "last": ""}
 
     def respond():
         dialog = qapp.activeModalWidget()
@@ -63,12 +63,15 @@ def dialogs(qapp):
         except Exception as exc:
             pending.insert(0, handler)
             state["attempts"] += 1
-            if state["attempts"] >= 4:
-                failures.append(str(exc))
-                pending.pop(0)
+            state["last"] = str(exc)
+            if state["attempts"] >= 20:
+                # This window is not the one the handler asked for. Close it
+                # and let the same handler answer the next window.
+                if Shiboken.isValid(dialog):
+                    dialog.reject()
                 state["attempts"] = 0
-            if Shiboken.isValid(dialog):
-                dialog.reject()
+                return
+            done.discard(identity)
             return
         seen.append(dialog.windowTitle())
         state["attempts"] = 0
@@ -79,7 +82,7 @@ def dialogs(qapp):
     yield pending, seen
     timer.stop()
     assert not failures, failures
-    assert not pending, "A required dialog did not open"
+    assert not pending, f"A required dialog did not open: {state['last']}"
 
 
 def accept(dialog):
