@@ -197,13 +197,17 @@ class Outcome:
 
     @property
     def signature(self) -> str:
-        """Issue identity. Diagnosed causes omit the input hash; other failures keep it."""
+        """Defect identity: function, mechanism, and locus.
+
+        The input hash and the error magnitude stay in the issue body and the
+        repro. Two inputs that hit one defect share this signature.
+        """
         if not self.diverged:
             return ""
-        if _groups_by_cause(self.cause):
-            return self.mechanism
-        identity = self.input_sha256 or rounded_magnitude(self.max_abs if self.max_abs > 0 else self.max_rel)
-        return f"{self.mechanism}|{identity}"
+        locus = _defect_locus(self.error_class, self.detail)
+        if locus:
+            return f"{self.mechanism}|{locus}"
+        return self.mechanism
 
 
 @dataclass
@@ -225,18 +229,6 @@ def nightly_seed(when: date | None = None) -> int:
     return day.year * 10000 + day.month * 100 + day.day
 
 
-def rounded_magnitude(value: float) -> str:
-    """Round a positive error to one significant digit, such as ``1e-3``."""
-    if not math.isfinite(value) or value <= 0:
-        return "0"
-    mantissa, exponent = f"{value:.0e}".split("e")
-    return f"{int(mantissa)}e{int(exponent)}"
-
-
-def _groups_by_cause(cause: str) -> bool:
-    return cause in {"transport", "oracle-unchanged"} or cause.startswith("oracle:")
-
-
 def _top_frame(stack: str) -> str:
     for line in stack.splitlines():
         text = line.strip()
@@ -249,20 +241,67 @@ def _top_frame(stack: str) -> str:
     return ""
 
 
-def _mechanism_key(signature: str) -> str:
-    """Drop a trailing input hash or magnitude bucket from an issue signature."""
-    parts = signature.split("|")
-    if len(parts) >= 3 and _identity_token(parts[-1]):
-        return "|".join(parts[:-1])
-    return signature
+_EVENT_FIELD_NAMES = ("type", "latency", "duration", "epoch", "urevent")
+_META_FIELDS = frozenset({"labels", "nbchan", "pnts", "trials", "xmin", "xmax"})
+_MASK_FIELDS = frozenset({"clean_channel_mask", "clean_sample_mask"})
+_NONFINITE_ASPECTS = frozenset({"NaN", "+Inf", "-Inf"})
+_CLASS_PREFIXES = frozenset({"exception-mismatch", "python-only", "oracle-only"})
 
 
-def _identity_token(token: str) -> bool:
-    if token == "0":
-        return True
-    if len(token) == 64 and all(char in "0123456789abcdef" for char in token):
-        return True
-    return re.fullmatch(r"\d+e-?\d+", token) is not None
+def _defect_locus(error_class: str, detail: str) -> str:
+    """Stable place a divergence shows up, with no sample index or magnitude.
+
+    A pipeline class is ``step:kind``. Exception and oracle classes already
+    carry their locus in the class itself.
+    """
+    kind = error_class
+    if ":" in error_class:
+        head, tail = error_class.split(":", 1)
+        if head not in _CLASS_PREFIXES:
+            kind = tail
+            nested, _rest = (kind.split(":", 1) + [""])[:2]
+            if nested in _CLASS_PREFIXES:
+                return ""
+    if kind in {"numeric", "shape"}:
+        return "data"
+    if kind == "nan-mask":
+        aspect = detail.split(" ", 1)[0]
+        return aspect if aspect in _NONFINITE_ASPECTS else "nonfinite"
+    if kind == "mask":
+        field = detail.split(" ", 1)[0]
+        return field if field in _MASK_FIELDS else "mask"
+    if kind == "meta":
+        field = detail.split(" ", 1)[0]
+        return field if field in _META_FIELDS else "meta"
+    if kind == "extra":
+        return "extra"
+    if kind == "event-count":
+        return "events"
+    if kind == "event-latency":
+        return "latency"
+    if kind == "event-field":
+        parts = detail.split()
+        if len(parts) >= 3 and parts[0] == "event" and parts[1] == "field" and parts[2] in _EVENT_FIELD_NAMES:
+            return parts[2]
+        return "event-field"
+    if kind == "srate":
+        return "srate"
+    if kind == "transport":
+        return _transport_locus(detail)
+    return ""
+
+
+def _transport_locus(detail: str) -> str:
+    if "dtype " in detail:
+        return "dtype"
+    if "shape " in detail:
+        return "shape"
+    for aspect in ("NaN", "+Inf", "-Inf"):
+        if f"{aspect} placement" in detail:
+            return aspect
+    if "values differ" in detail:
+        return "values"
+    return "input"
 
 
 def report_name(case: FuzzCase) -> str:
@@ -1223,7 +1262,7 @@ def shrink_signature(strategy, seed_value: int, examples: int, signature: str, e
         outcome = evaluate(case, budget=budget, counter=counter)
         if outcome is None:
             return
-        if outcome.diverged and outcome.mechanism == _mechanism_key(signature):
+        if outcome.diverged and outcome.signature == signature:
             found["outcome"] = outcome
             raise _Divergence(outcome)
 
@@ -2272,11 +2311,13 @@ def side_from_error(exc: Exception) -> SideResult:
 def _compare_events(python: SideResult, oracle: SideResult, tolerance: Tolerance):
     if len(python.events) != len(oracle.events):
         return True, "event-count", f"event count {len(python.events)} != {len(oracle.events)}"
-    for index, (left, right) in enumerate(zip(python.events, oracle.events, strict=True)):
-        if any(not _same_event_field(left[field], right[field]) for field in (0, 2, 3, 4)):
-            return True, "event-field", f"event {index} field {left} != {right}"
+    for left, right in zip(python.events, oracle.events, strict=True):
+        for field in (0, 2, 3, 4):
+            if not _same_event_field(left[field], right[field]):
+                name = _EVENT_FIELD_NAMES[field]
+                return True, "event-field", f"event field {name} {left[field]} != {right[field]}"
         if abs(float(left[1]) - float(right[1])) > tolerance.event_latency_abs:
-            return True, "event-latency", f"event {index} latency {left[1]} != {right[1]}"
+            return True, "event-latency", f"event field latency {left[1]} != {right[1]}"
     return False, "match", "match"
 
 

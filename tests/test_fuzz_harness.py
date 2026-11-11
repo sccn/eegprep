@@ -1234,7 +1234,7 @@ def test_publish_dedupes_and_caps_new_issues():
         _finding("clean_asr", 20.0),
         _finding("pop_reref", 3.0),
     ]
-    # The fifth new signature shares a function with the existing one but not a magnitude.
+    findings[-1].error_class = "shape"
     functions = _counts()
     for finding in findings:
         functions[finding.report]["divergences"] += 1
@@ -1600,33 +1600,95 @@ def test_repro_keeps_the_oracle_identifier_and_stack(tmp_path):
     assert saved["cause"].startswith("oracle:")
 
 
-def test_findings_group_by_cause_and_comments_carry_the_new_hash():
-    first = _finding("clean_channels", 1e-5)
-    second = _finding("clean_channels", 2e-5)
-    first.input_sha256 = "a" * 64
-    second.input_sha256 = "b" * 64
-    assert first.signature != second.signature
-    second.input_sha256 = first.input_sha256
-    assert first.signature == second.signature
+def _judged(function: str, python: SideResult, oracle: SideResult, digest: str) -> Outcome:
+    case = FuzzCase(function, _spec(1), freeze_params({}))
+    return judge(python, oracle, Tolerance(0.0, 0.0), case, digest)
 
-    left = _finding("clean_flatlines", 1e-5)
-    right = _finding("clean_flatlines", 2e-5)
-    left.error_class = "transport"
-    right.error_class = "transport"
-    left.input_sha256 = "c" * 64
-    right.input_sha256 = "d" * 64
-    assert left.signature == right.signature == "clean_flatlines|transport"
+
+def test_signature_is_stable_for_one_defect_and_distinct_for_two():
+    values = (
+        np.array([[1.0]], dtype=float),
+        np.array([[4.0]], dtype=float),
+    )
+    zeros = SideResult(True, np.zeros((1, 1)), 128.0, None, None)
+    first = _judged("pop_reref", SideResult(True, values[0], 128.0, None, None), zeros, "a" * 64)
+    second = _judged("pop_reref", SideResult(True, values[1], 128.0, None, None), zeros, "b" * 64)
+    assert first.signature == second.signature == "pop_reref|numeric|data"
+    assert "a" * 64 not in first.signature
+    assert "1e" not in first.signature
+
+    shape = _judged(
+        "pop_reref",
+        SideResult(True, np.zeros((1, 2)), 128.0, None, None),
+        SideResult(True, np.zeros((1, 3)), 128.0, None, None),
+        "c" * 64,
+    )
+    assert shape.signature == "pop_reref|shape|data"
+    assert shape.signature != first.signature
+
+    finite = SideResult(True, np.zeros((1, 1)), 128.0, None, None)
+    nan = _judged("pop_reref", SideResult(True, np.array([[np.nan]]), 128.0, None, None), finite, "d" * 64)
+    positive = _judged("pop_reref", SideResult(True, np.array([[np.inf]]), 128.0, None, None), finite, "e" * 64)
+    assert nan.signature == "pop_reref|nan-mask|NaN"
+    assert positive.signature == "pop_reref|nan-mask|+Inf"
+    assert nan.signature != positive.signature
+
+    mismatch = _finding("clean_asr", 0.0)
+    mismatch.error_class = "exception-mismatch:ASRCalibrationError/MatlabExecutionError"
+    other_mismatch = _finding("clean_asr", 0.0)
+    other_mismatch.error_class = "exception-mismatch:ValueError/MatlabExecutionError"
+    other_mismatch.input_sha256 = "f" * 64
+    assert mismatch.signature == "clean_asr|exception-mismatch:ASRCalibrationError/MatlabExecutionError"
+    assert mismatch.signature != other_mismatch.signature
+
+    oracle = _finding("clean_asr", 0.0)
+    oracle.error_class = "oracle-only:MatlabExecutionError"
+    oracle.oracle_identifier = "MATLAB:badsubscript"
+    oracle.oracle_stack = "  asr_calibrate.m>fit_eeg_distribution (line 395)\n"
+    repeated = _finding("clean_asr", 0.0)
+    repeated.error_class = oracle.error_class
+    repeated.oracle_identifier = oracle.oracle_identifier
+    repeated.oracle_stack = oracle.oracle_stack
+    repeated.input_sha256 = "1" * 64
+    assert oracle.signature == repeated.signature == "clean_asr|oracle:MATLAB:badsubscript:fit_eeg_distribution"
+    other_frame = _finding("clean_asr", 0.0)
+    other_frame.error_class = oracle.error_class
+    other_frame.oracle_identifier = oracle.oracle_identifier
+    other_frame.oracle_stack = "  clean_windows.m (line 115)\n"
+    assert other_frame.signature != oracle.signature
+
     tracker = MemoryIssueTracker()
-    publish_findings(
+    result = publish_findings(
         seed=20261110,
         functions=_counts(),
-        findings=[left, right],
+        findings=[first, second],
         tracker=tracker,
         cap=3,
         run_url="",
         harness_ok=True,
     )
-    assert tracker.issues[0].comments
+    assert result.created == [1]
+    assert result.commented == [1]
     comment = tracker.issues[0].comments[0]
-    assert right.input_sha256 in comment
-    assert "max_allowed_jitter" in comment or "Params" in comment
+    assert second.input_sha256 in comment
+    assert first.signature in tracker.issues[0].body
+
+
+def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
+    strategy = st.sampled_from([_reref_case(3), _reref_case(6)])
+    result = run_session(
+        seed_value=11,
+        output_dir=tmp_path,
+        examples=8,
+        shrink_budget=2,
+        max_shrinks=4,
+        python_backend=_Backend(_identity),
+        oracle_backend=_Backend(_diverge_over_two_channels),
+        strategies={"pop_reref": strategy},
+        sanity=[_reref_case(1, sanity=True)],
+        materialize=_ones,
+    )
+    assert result.harness_ok
+    assert result.functions["pop_reref"]["divergences"] >= 2
+    assert len(result.divergences) == 1
+    assert result.divergences[0].signature == "pop_reref|numeric|data"
