@@ -6,7 +6,6 @@ EEGLAB output is the oracle. Absolute and relative tolerances are loaded from
 
 from __future__ import annotations
 
-import atexit
 import copy
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
@@ -784,14 +783,6 @@ class MatlabBackend:
     def __init__(self):
         self._engine = None
         self._options = None
-        self._restore_at_exit = False
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        self.close()
-        return False
 
     def run(self, case: FuzzCase, eeg: dict) -> SideResult:
         try:
@@ -802,26 +793,14 @@ class MatlabBackend:
     def engine(self):
         if self._engine is None:
             self._engine, self._options = connect_matlab()
-            atexit.register(self.close)
-            self._restore_at_exit = True
         return self._engine
 
     def close(self):
         if self._engine is None or self._options is None:
-            self._drop_exit_hook()
             return
         snapshot = self._options
         self._options = None
-        try:
-            resume_eeg_options(self._engine.engine, snapshot)
-        finally:
-            self._drop_exit_hook()
-
-    def _drop_exit_hook(self):
-        if not self._restore_at_exit:
-            return
-        atexit.unregister(self.close)
-        self._restore_at_exit = False
+        resume_eeg_options(self._engine.engine, snapshot)
 
 
 class FakeOracle:
@@ -1030,190 +1009,156 @@ def run_session(
     if owns_oracle:
         oracle_backend = MatlabBackend()
     try:
-        return _run_session_body(
-            seed_value=seed_value,
-            output_dir=output_dir,
-            examples=examples,
-            shrink_budget=shrink_budget,
-            max_shrinks=max_shrinks,
-            issue_cap=issue_cap,
-            python_backend=python_backend,
-            oracle_backend=oracle_backend,
-            strategies=strategies,
-            sanity=sanity,
-            materialize=materialize,
-            tolerances=tolerances,
-            tracker=tracker,
-            run_url=run_url,
-            summary_path=summary_path,
-            functions=functions,
-        )
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("fuzz seed %s", seed_value)
+        (output_dir / "seed.txt").write_text(f"{seed_value}\n")
+
+        python_backend = python_backend or PythonBackend()
+        injected = strategies is not None
+        caller_sanity = sanity
+        strategies = dict(strategies or default_strategies())
+        materialize = materialize or materialize_eeg
+        tolerances = tolerances or load_tolerances()
+        cache: dict[FuzzCase, Outcome] = {}
+
+        def evaluate(case: FuzzCase, *, fresh: bool = False, budget: int | None = None, counter: dict | None = None):
+            if not fresh and case in cache:
+                return cache[case]
+            if budget is not None and counter is not None and counter["n"] >= budget:
+                return None
+            if counter is not None:
+                counter["n"] += 1
+            outcome = evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
+            cache[case] = outcome
+            logger.info(
+                "%s sanity=%s diverged=%s class=%s abs=%s rel=%s",
+                outcome.report,
+                case.sanity,
+                outcome.diverged,
+                outcome.error_class,
+                outcome.max_abs,
+                outcome.max_rel,
+            )
+            return outcome
+
+        counts = {name: {"examples": 0, "divergences": 0} for name in FUNCTION_ROWS}
+
+        def sanity_failure(cases: list[FuzzCase]) -> SessionResult | None:
+            rows = []
+            for case in cases:
+                outcome = evaluate(case)
+                if not outcome.both_ok or outcome.diverged:
+                    rows.append(
+                        {"function": outcome.report, "error_class": outcome.error_class, "detail": outcome.detail}
+                    )
+            if not rows:
+                return None
+            for row in rows:
+                logger.error("fuzz sanity %s %s: %s", row["function"], row["error_class"], row["detail"])
+            logger.error("fuzz sanity failed; not surveying and not filing issues")
+            result = SessionResult(seed_value, False, counts, [], output_dir, rows, [], [], [])
+            _write_reports(result, summary_path, tracker, run_url, "sanity", issue_cap)
+            return result
+
+        def survey_names(names: list[str]) -> tuple[list[Outcome], list[Outcome]]:
+            survey: list[Outcome] = []
+            for name in names:
+                if name not in strategies:
+                    continue
+                found: list[Outcome] = []
+
+                def body(case: FuzzCase, found=found) -> None:
+                    outcome = evaluate(case)
+                    if outcome is not None:
+                        found.append(outcome)
+
+                run_given(strategies[name], seed_value, examples, (Phase.generate,), body)
+                survey.extend(found)
+            by_signature: dict[str, Outcome] = {}
+            for outcome in survey:
+                if outcome.diverged and outcome.signature not in by_signature:
+                    by_signature[outcome.signature] = outcome
+            ordered = sorted(by_signature.values(), key=lambda item: item.max_abs, reverse=True)[:max_shrinks]
+            confirmed: list[Outcome] = []
+            for original in ordered:
+                strategy_name = original.report if original.report in strategies else original.case.function
+                shrunk = shrink_signature(
+                    strategies[strategy_name],
+                    seed_value,
+                    examples,
+                    original.signature,
+                    evaluate,
+                    shrink_budget,
+                )
+                candidate = shrunk or original
+                fresh = evaluate(candidate.case, fresh=True)
+                if fresh.diverged and fresh.report == original.report and fresh.error_class == original.error_class:
+                    fresh.confirmed = True
+                    confirmed.append(fresh)
+                    logger.info("shrunk %s -> %s", original.signature, fresh.signature)
+                else:
+                    logger.info("unconfirmed %s", original.signature)
+            return survey, confirmed
+
+        selected = list(functions) if functions else list(FUNCTION_NAMES)
+        if injected:
+            selected = [name for name in FUNCTION_NAMES if name in strategies]
+            sanity_cases = caller_sanity if caller_sanity is not None else _ensure_transport_sanity(default_sanity())
+            failed = sanity_failure(sanity_cases)
+            if failed is not None:
+                return failed
+            survey, confirmed = survey_names(selected)
+        else:
+            original_names = [name for name in selected if name in _ORIGINAL_FUNCTIONS]
+            extra_names = [name for name in selected if name not in _ORIGINAL_FUNCTIONS]
+            if caller_sanity is None:
+                original_cases = [case for case in _original_sanity() if case.function in original_names]
+            else:
+                original_cases = [case for case in caller_sanity if case.function in original_names]
+            if caller_sanity is None:
+                original_cases = _ensure_transport_sanity(original_cases)
+            failed = sanity_failure(original_cases)
+            if failed is not None:
+                return failed
+            survey, confirmed = survey_names(original_names)
+            if extra_names:
+                strategies = _with_event_strategies(strategies)
+                if caller_sanity is None:
+                    extra_cases = [
+                        case
+                        for case in _event_targets().extra_sanity(EEGSpec, FuzzCase)
+                        if case.function in extra_names
+                    ]
+                else:
+                    extra_cases = [case for case in caller_sanity if case.function in extra_names]
+                failed = sanity_failure(extra_cases)
+                if failed is not None:
+                    return failed
+                extra_survey, extra_confirmed = survey_names(extra_names)
+                survey.extend(extra_survey)
+                confirmed.extend(extra_confirmed)
+
+        for outcome in survey:
+            row = counts[outcome.report]
+            row["examples"] += 1
+            if outcome.diverged:
+                row["divergences"] += 1
+        for outcome in confirmed:
+            eeg = materialize(outcome.case)
+            write_repro(output_dir / "repros", outcome, seed_value, eeg)
+        for outcome in survey:
+            if outcome.diverged or not (outcome.oracle_identifier or outcome.oracle_stack):
+                continue
+            write_repro(output_dir / "repros", outcome, seed_value, materialize(outcome.case))
+
+        result = SessionResult(seed_value, True, counts, confirmed, output_dir, [], [], [], [])
+        _write_reports(result, summary_path, tracker, run_url, "tracker" if tracker else "skipped", issue_cap)
+        return result
+
     finally:
         if owns_oracle:
             oracle_backend.close()
-
-
-def _run_session_body(
-    *,
-    seed_value: int,
-    output_dir: Path,
-    examples: int = 6,
-    shrink_budget: int = 12,
-    max_shrinks: int = 4,
-    issue_cap: int = 3,
-    python_backend=None,
-    oracle_backend=None,
-    strategies: dict | None = None,
-    sanity: list[FuzzCase] | None = None,
-    materialize: Materialize | None = None,
-    tolerances: dict[str, Tolerance] | None = None,
-    tracker=None,
-    run_url: str = "",
-    summary_path: Path | None = None,
-    functions: tuple[str, ...] | None = None,
-) -> SessionResult:
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    logger.info("fuzz seed %s", seed_value)
-    (output_dir / "seed.txt").write_text(f"{seed_value}\n")
-
-    python_backend = python_backend or PythonBackend()
-    injected = strategies is not None
-    caller_sanity = sanity
-    strategies = dict(strategies or default_strategies())
-    materialize = materialize or materialize_eeg
-    tolerances = tolerances or load_tolerances()
-    cache: dict[FuzzCase, Outcome] = {}
-
-    def evaluate(case: FuzzCase, *, fresh: bool = False, budget: int | None = None, counter: dict | None = None):
-        if not fresh and case in cache:
-            return cache[case]
-        if budget is not None and counter is not None and counter["n"] >= budget:
-            return None
-        if counter is not None:
-            counter["n"] += 1
-        outcome = evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
-        cache[case] = outcome
-        logger.info(
-            "%s sanity=%s diverged=%s class=%s abs=%s rel=%s",
-            outcome.report,
-            case.sanity,
-            outcome.diverged,
-            outcome.error_class,
-            outcome.max_abs,
-            outcome.max_rel,
-        )
-        return outcome
-
-    counts = {name: {"examples": 0, "divergences": 0} for name in FUNCTION_ROWS}
-
-    def sanity_failure(cases: list[FuzzCase]) -> SessionResult | None:
-        rows = []
-        for case in cases:
-            outcome = evaluate(case)
-            if not outcome.both_ok or outcome.diverged:
-                rows.append({"function": outcome.report, "error_class": outcome.error_class, "detail": outcome.detail})
-        if not rows:
-            return None
-        for row in rows:
-            logger.error("fuzz sanity %s %s: %s", row["function"], row["error_class"], row["detail"])
-        logger.error("fuzz sanity failed; not surveying and not filing issues")
-        result = SessionResult(seed_value, False, counts, [], output_dir, rows, [], [], [])
-        _write_reports(result, summary_path, tracker, run_url, "sanity", issue_cap)
-        return result
-
-    def survey_names(names: list[str]) -> tuple[list[Outcome], list[Outcome]]:
-        survey: list[Outcome] = []
-        for name in names:
-            if name not in strategies:
-                continue
-            found: list[Outcome] = []
-
-            def body(case: FuzzCase, found=found) -> None:
-                outcome = evaluate(case)
-                if outcome is not None:
-                    found.append(outcome)
-
-            run_given(strategies[name], seed_value, examples, (Phase.generate,), body)
-            survey.extend(found)
-        by_signature: dict[str, Outcome] = {}
-        for outcome in survey:
-            if outcome.diverged and outcome.signature not in by_signature:
-                by_signature[outcome.signature] = outcome
-        ordered = sorted(by_signature.values(), key=lambda item: item.max_abs, reverse=True)[:max_shrinks]
-        confirmed: list[Outcome] = []
-        for original in ordered:
-            strategy_name = original.report if original.report in strategies else original.case.function
-            shrunk = shrink_signature(
-                strategies[strategy_name],
-                seed_value,
-                examples,
-                original.signature,
-                evaluate,
-                shrink_budget,
-            )
-            candidate = shrunk or original
-            fresh = evaluate(candidate.case, fresh=True)
-            if fresh.diverged and fresh.report == original.report and fresh.error_class == original.error_class:
-                fresh.confirmed = True
-                confirmed.append(fresh)
-                logger.info("shrunk %s -> %s", original.signature, fresh.signature)
-            else:
-                logger.info("unconfirmed %s", original.signature)
-        return survey, confirmed
-
-    selected = list(functions) if functions else list(FUNCTION_NAMES)
-    if injected:
-        selected = [name for name in FUNCTION_NAMES if name in strategies]
-        sanity_cases = caller_sanity if caller_sanity is not None else _ensure_transport_sanity(default_sanity())
-        failed = sanity_failure(sanity_cases)
-        if failed is not None:
-            return failed
-        survey, confirmed = survey_names(selected)
-    else:
-        original_names = [name for name in selected if name in _ORIGINAL_FUNCTIONS]
-        extra_names = [name for name in selected if name not in _ORIGINAL_FUNCTIONS]
-        if caller_sanity is None:
-            original_cases = [case for case in _original_sanity() if case.function in original_names]
-        else:
-            original_cases = [case for case in caller_sanity if case.function in original_names]
-        if caller_sanity is None:
-            original_cases = _ensure_transport_sanity(original_cases)
-        failed = sanity_failure(original_cases)
-        if failed is not None:
-            return failed
-        survey, confirmed = survey_names(original_names)
-        if extra_names:
-            strategies = _with_event_strategies(strategies)
-            if caller_sanity is None:
-                extra_cases = [
-                    case for case in _event_targets().extra_sanity(EEGSpec, FuzzCase) if case.function in extra_names
-                ]
-            else:
-                extra_cases = [case for case in caller_sanity if case.function in extra_names]
-            failed = sanity_failure(extra_cases)
-            if failed is not None:
-                return failed
-            extra_survey, extra_confirmed = survey_names(extra_names)
-            survey.extend(extra_survey)
-            confirmed.extend(extra_confirmed)
-
-    for outcome in survey:
-        row = counts[outcome.report]
-        row["examples"] += 1
-        if outcome.diverged:
-            row["divergences"] += 1
-    for outcome in confirmed:
-        eeg = materialize(outcome.case)
-        write_repro(output_dir / "repros", outcome, seed_value, eeg)
-    for outcome in survey:
-        if outcome.diverged or not (outcome.oracle_identifier or outcome.oracle_stack):
-            continue
-        write_repro(output_dir / "repros", outcome, seed_value, materialize(outcome.case))
-
-    result = SessionResult(seed_value, True, counts, confirmed, output_dir, [], [], [], [])
-    _write_reports(result, summary_path, tracker, run_url, "tracker" if tracker else "skipped", issue_cap)
-    return result
 
 
 def run_repro(
