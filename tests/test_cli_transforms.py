@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import numpy as np
+
 from eegprep.cli.core import MANIFEST_SCHEMA_VERSION, read_manifest
 from eegprep.cli.commands import transforms
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -92,29 +94,26 @@ def test_transform_refuses_existing_output_without_overwrite(tmp_path):
     assert output.read_text(encoding="utf-8") == "already here"
 
 
-def test_rereference_channels_convert_cli_indices_to_python_indices(monkeypatch):
-    captured = {}
-
-    def fake_pop_reref(eeg, ref, **kwargs):
-        captured["ref"] = ref
-        captured["kwargs"] = kwargs
-        return eeg, "EEG = pop_reref( EEG, [0, 1]);"
-
-    monkeypatch.setattr(transforms, "pop_reref", fake_pop_reref)
+def test_rereference_keeps_one_based_cli_reference_and_exclusion():
+    data = np.arange(40, dtype=float).reshape(4, 10)
+    eeg = {
+        "data": data,
+        "nbchan": 4,
+        "pnts": 10,
+        "trials": 1,
+        "srate": 100.0,
+        "xmin": 0,
+        "xmax": 0.09,
+        "chanlocs": [{"labels": f"Ch{i + 1}"} for i in range(4)],
+    }
     args = argparse.Namespace(
-        method="channels",
-        channels=["1", "2"],
-        exclude=None,
-        keep_ref=False,
-        huber=None,
-        refica="on",
+        method="channels", channels=["1", "2"], exclude=["4"], keep_ref=True, huber=None, refica="on"
     )
-
-    result = transforms._rereference({"data": []}, args)
-
-    assert captured["ref"] == [0, 1]
-    assert captured["kwargs"]["refica"] == "on"
-    assert "pop_reref" in result.history
+    result = transforms._rereference(eeg, args)
+    expected = data.copy()
+    expected[:3] -= data[:2].mean(axis=0)
+    np.testing.assert_array_equal(result.eeg["data"], expected)
+    assert "'exclude', [4]" in result.history
 
 
 def test_ica_no_deterministic_does_not_force_runica_random_reset():

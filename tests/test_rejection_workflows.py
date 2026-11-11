@@ -19,6 +19,7 @@ from eegprep.functions.popfunc._rejection import (
 from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_rejchan import pop_rejchan
+from eegprep.functions.popfunc.pop_rejchanspec import pop_rejchanspec
 from eegprep.functions.popfunc.pop_rejcont import pop_rejcont
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
@@ -809,3 +810,13 @@ def test_component_selection_and_viewprops_are_replayable_without_scrolling_brow
     assert _console_python_command(props_com) == (
         "pop_viewprops(EEG, typecomp=0, chanorcomp=[1, 2], spec_opt=[], erp_opt=[], scroll_event=1, classifier_name='')"
     )
+
+
+def test_rejchanspec_average_reference_excludes_unselected_channel_numbers():
+    eeg = _epoched_eeg()
+    options = {"elec": [2], "freqlims": [1, 40], "stdthresh": 5, "indexonly": "on"}
+    _, _, actual, _ = pop_rejchanspec(eeg, averef="on", **options)
+    expected_eeg = copy.deepcopy(eeg)
+    expected_eeg["data"][1] = 0
+    _, _, expected, _ = pop_rejchanspec(expected_eeg, averef="off", **options)
+    np.testing.assert_array_equal(actual, expected)
