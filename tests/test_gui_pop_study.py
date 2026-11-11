@@ -1,6 +1,7 @@
 import ast
 import copy
 import os
+import time
 
 import numpy as np
 import pytest
@@ -497,41 +498,60 @@ def _gui():
     return qt_core, qt_widgets, QtDialogRenderer
 
 
+_MODAL_WAIT_SECONDS = 5.0
+
+
+def _modal_candidates(app):
+    found = []
+    seen: set[int] = set()
+
+    def add(widget):
+        if widget is None or id(widget) in seen:
+            return
+        seen.add(id(widget))
+        found.append(widget)
+
+    add(app.activeModalWidget())
+    for widget in app.topLevelWidgets():
+        if widget.isVisible():
+            add(widget)
+    for widget in app.allWidgets():
+        if widget.isVisible() and widget.inherits("QDialog"):
+            add(widget)
+    return found
+
+
+def _dialog_text(widget, qt_widgets) -> str:
+    parts = []
+    text = getattr(widget, "text", None)
+    if callable(text):
+        parts.append(str(text()))
+    for label in widget.findChildren(qt_widgets.QLabel):
+        parts.append(label.text())
+    return "\n".join(parts)
+
+
 def _on_modal(qt_core, qt_widgets, predicate, action, trigger):
     state: dict[str, str | None] = {"error": None}
-
-    def opened_dialog(app):
-        active = app.activeModalWidget()
-        if active is not None and predicate(active):
-            return active
-        return next(
-            (widget for widget in app.topLevelWidgets() if widget.isVisible() and predicate(widget)),
-            None,
-        )
+    started = time.monotonic()
 
     def dismiss(app):
-        active = app.activeModalWidget()
-        if active is not None:
-            active.reject()
-            return
-        for widget in app.topLevelWidgets():
-            if widget.isVisible() and widget.inherits("QDialog"):
+        for widget in _modal_candidates(app):
+            if widget.inherits("QDialog"):
                 widget.reject()
 
     def poll():
         app = qt_widgets.QApplication.instance()
-        child = opened_dialog(app)
-        if child is not None:
-            action(child)
-            return
-        poll.tries += 1
-        if poll.tries > 50:
+        for child in _modal_candidates(app):
+            if predicate(child):
+                action(child)
+                return
+        if time.monotonic() - started >= _MODAL_WAIT_SECONDS:
             dismiss(app)
             state["error"] = "expected dialog did not open"
             return
         qt_core.QTimer.singleShot(10, poll)
 
-    poll.tries = 0
     qt_core.QTimer.singleShot(10, poll)
     result = trigger()
     if state["error"] is not None:
@@ -568,13 +588,15 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
     assert dialog.findChild(qt_widgets.QPushButton, "help").objectName() == "help"
 
     def close_warning(child):
-        assert "first STUDY design" in child.text()
+        assert "first STUDY design" in _dialog_text(child, qt_widgets)
         child.accept()
 
     _on_modal(
         qt_core,
         qt_widgets,
-        lambda child: child.windowTitle() == "Warning",
+        lambda child: (
+            isinstance(child, qt_widgets.QMessageBox) and "first STUDY design" in _dialog_text(child, qt_widgets)
+        ),
         close_warning,
         widgets["delete_design"].click,
     )
