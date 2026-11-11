@@ -19,8 +19,9 @@ Unreleased
   float64. Epoched input is compared in the shape ``pop_loadset`` holds:
   a 2-D channel-by-frame array whose frame count is a multiple of ``pnts``
   is the 3-D epoch array, and a two-file one-trial array has no trailing
-  singleton. A ``pop_epoch`` result with no trials is compared and the
-  pipeline stops there. NaN, +Inf, and -Inf are compared separately, and a MATLAB
+  singleton.   A ``pop_epoch`` result with no trials is compared and the
+  pipeline stops there. Suspending ``option_single`` restores the options
+  file and reloads it into the MATLAB session. NaN, +Inf, and -Inf are compared separately, and a MATLAB
   exception or a cleaning wrapper that returns its input is filed as an
   oracle failure. ``clean_windows`` sorts a one-channel score across
   channels. A one-channel reference shorter than one RMS window raises

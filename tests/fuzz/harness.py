@@ -33,7 +33,7 @@ from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
-from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
+from tests.eeg_options_snapshot import eeg_options_snapshot, reload_eeg_options, restore_eeg_options
 from tests.fuzz.catalog import (
     FUNCTION_NAMES,
     FUNCTION_ROWS,
@@ -852,16 +852,17 @@ def suspend_option_single(engine):
     snapshot = eeg_options_snapshot(engine)
     try:
         engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+        reload_eeg_options(engine)
     except Exception:
-        restore_eeg_options(*snapshot)
+        resume_eeg_options(engine, snapshot)
         raise
     return snapshot
 
 
 def resume_eeg_options(engine, snapshot):
-    """Write the snapshotted options file back and drop MATLAB's cached script."""
+    """Write the snapshotted options file back and load it into the session."""
     restore_eeg_options(*snapshot)
-    engine.eval("clear functions", nargout=0)
+    reload_eeg_options(engine)
 
 
 def default_strategies() -> dict:

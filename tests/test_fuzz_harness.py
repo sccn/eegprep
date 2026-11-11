@@ -699,18 +699,39 @@ def test_one_rms_window_is_the_same_failure_as_eeglab():
 
 
 class _OptionsFileEngine:
+    """File plus the session variable ``eeg_options`` would leave behind.
+
+    ``pop_editoptions`` updates the file and leaves the variable stale.
+    ``eeglab_options`` is what copies the file back into the variable.
+    """
+
     def __init__(self, path: Path):
         self.path = path
+        self.option_single = 1
 
     def eval(self, statement, nargout=0):
-        if statement in {"eeglab_options;", "clear functions"}:
+        if "eegprep_option_path__" in statement and "fullfile" in statement:
             return None
-        if statement == "char(option_file)":
+        if statement == "eegprep_option_path__":
             return str(self.path)
+        if "eeglab_options" in statement:
+            self._read_option_single()
+            return None
+        if statement.startswith("clear "):
+            return None
         if statement.startswith("pop_editoptions"):
             self.path.write_bytes(b"% EEGLAB full options\noption_single = 0;\n")
             return None
         raise AssertionError(statement)
+
+    def _read_option_single(self):
+        if not self.path.is_file():
+            return
+        text = self.path.read_text()
+        if "option_single = 0" in text:
+            self.option_single = 0
+        elif "option_single = 1" in text:
+            self.option_single = 1
 
 
 def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
@@ -721,11 +742,14 @@ def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
     backend = MatlabBackend()
     backend._engine = SimpleNamespace(engine=raw)
     backend._options = suspend_option_single(raw)
-    assert path.read_bytes() != original
+    assert b"option_single = 0" in path.read_bytes()
+    assert raw.option_single == 0
     backend.close()
     assert path.read_bytes() == original
+    assert raw.option_single == 1
     backend.close()
     assert path.read_bytes() == original
+    assert raw.option_single == 1
 
 
 def _zero_trial_recording():
@@ -1190,6 +1214,8 @@ def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
         pytest.fail(f"eeglab_options did not load an options file to restore (path={path})")
     print(f"eeg_options path={path} bytes={len(original)}")
     assert path.read_bytes() == original
+    restored = int(eeglab_matlab_engine.eval("option_single", nargout=1))
+    assert restored == int(before)
 
 
 def _replay_cases(engine, tolerances):

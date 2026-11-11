@@ -27,6 +27,8 @@ from eegprep.functions.miscfunc.misc import matlab_mtimes
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.utils.testing import DebuggableTestCase
 import eegprep.functions.adminfunc.eeglabcompat as eeglabcompat
+from tests.eeg_options_snapshot import eeg_options_snapshot, reload_eeg_options
+from tests.fuzz.harness import resume_eeg_options
 
 
 def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_path):
@@ -339,15 +341,25 @@ def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
 
 
 def test_matlab_bridge_restores_icaact_from_the_data(eeglab_matlab_engine):
-    """Round-trip ICA through MatlabWrapper and match MATLAB's activation class."""
+    """Round-trip ICA through MatlabWrapper and match MATLAB's activation class.
+
+    The product class follows ``option_single``. Pin that option on for this
+    call so an earlier test cannot leave the shared session in double.
+    """
     # eeg_checkset.m:1030 forms W*S in double; MATLAB rounds it to single for the product with single data. gamma uses eps = 2u, which covers both single evaluations.
     data_class = np.dtype(np.float32)
     sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_with_ica_tmp.set"
     eeg = pop_loadset(sample)
     eeg["data"] = np.asarray(eeg["data"], dtype=data_class)
     eeg["icaact"] = np.full((np.asarray(eeg["icaweights"]).shape[0], int(eeg["pnts"])), 9.0, dtype=data_class)
-
-    restored = MatlabWrapper(eeglab_matlab_engine).eeg_checkset(eeg)
+    snapshot = eeg_options_snapshot(eeglab_matlab_engine)
+    try:
+        eeglab_matlab_engine.eval("pop_editoptions('option_single', 1);", nargout=0)
+        reload_eeg_options(eeglab_matlab_engine)
+        assert int(eeglab_matlab_engine.eval("option_single", nargout=1)) == 1
+        restored = MatlabWrapper(eeglab_matlab_engine).eeg_checkset(eeg)
+    finally:
+        resume_eeg_options(eeglab_matlab_engine, snapshot)
 
     activations = np.asarray(restored["icaact"])
     assert activations.dtype == data_class

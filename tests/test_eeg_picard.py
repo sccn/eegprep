@@ -10,7 +10,7 @@ from picard import picard
 from eegprep import eeg_picard, pop_loadset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
-from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
+from tests.fuzz.harness import resume_eeg_options, suspend_option_single
 from tests.fixtures import create_test_eeg as _create_test_eeg
 from tests.test_ds003061_stage_parity import (
     PICARD_AMARI_MAX,
@@ -22,16 +22,12 @@ from tests.test_ds003061_stage_parity import (
 
 @contextmanager
 def _matlab_double_precision(engine):
-    """Turn ``option_single`` off and write the snapshotted options file back."""
-    options_path, original = eeg_options_snapshot(engine)
+    """Turn ``option_single`` off and load the snapshotted options back."""
+    snapshot = suspend_option_single(engine)
     try:
-        engine.eval("pop_editoptions('option_single', 0);", nargout=0)
-        engine.eval("eeglab_options;", nargout=0)
         yield
     finally:
-        restore_eeg_options(options_path, original)
-        engine.eval("clear functions", nargout=0)
-        engine.eval("eeglab_options;", nargout=0)
+        resume_eeg_options(engine, snapshot)
 
 
 # where the test resources
