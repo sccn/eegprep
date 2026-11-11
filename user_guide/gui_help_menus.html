@@ -535,6 +535,16 @@ Python workspace:</p>
 and Datasets become available when the shared session contains a compatible
 dataset or STUDY. The Datasets menu reflects <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> and <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code> and
 can select one or more loaded datasets.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">multiple</span> <span class="pre">datasets</span></code> is available even when only one dataset is loaded.
+The Datasets menu remains available if the current dataset has no samples, so
+you can return to another loaded dataset. Component commands check for an ICA
+decomposition when invoked, before opening their settings dialogs.</p>
+<p>The summary uses the most frequent <code class="docutils literal notranslate"><span class="pre">chanlocs.ref</span></code> value, choosing the first
+in sorted order on ties and displaying <code class="docutils literal notranslate"><span class="pre">unknown</span></code> only when that value is
+empty. It formats both epoch limits with the same precision and distinguishes
+mixed ICA status across a selection. Dataset size includes arrays, ICA results,
+events, and metadata. It measures Python memory, including container overhead and shared
+array storage once; it can differ from MATLAB’s <code class="docutils literal notranslate"><span class="pre">whos</span></code> byte count.</p>
 <p>Actions that are not implemented yet are marked as coming soon and are backed
 by machine-readable placeholder metadata. EEGBrowser/eegplot-style scrolling
 workflows are implemented as packaged EEGPrep runtime code and are covered by
@@ -546,6 +556,11 @@ actions.</p>
 <p>Dialog Help buttons and Help-menu topics open packaged Markdown resources from
 <code class="docutils literal notranslate"><span class="pre">eegprep.resources.help</span></code>. Installed EEGPrep does not read from the vendored
 <code class="docutils literal notranslate"><span class="pre">src/eegprep/eeglab</span></code> reference tree for help text.</p>
+<p>The viewer renders headings, lists, links, and code examples. Help text describes
+EEGPrep’s own functions and Python arguments. Help &gt; Check for EEGPrep updates
+checks the published package version and reports the result in a dialog; a
+connection failure leaves the installed version unchanged and explains how to
+retry.</p>
 <p>When adding a new GUI-reachable function or Help-menu topic, add a matching
 <code class="docutils literal notranslate"><span class="pre">src/eegprep/resources/help/&lt;function_name&gt;.md</span></code> file and cover it in tests.
 Missing help resources fail clearly so incomplete runtime help cannot silently
@@ -555,12 +570,19 @@ fall back to EEGLAB source files or Python docstrings.</p>
 <h2>Admin and File Workflows<a class="headerlink" href="#admin-and-file-workflows" title="Link to this heading">#</a></h2>
 <p>Implemented admin and File-menu surfaces include dataset load/save, import and
 export wrappers, BIDS import/export and metadata helpers, dataset deletion,
-preferences, history save/run, STUDY load/save, update links, issue links, and
+preferences, history save/run, STUDY load/save, update checks, issue links, and
 the read-only EEGPrep extension inventory.</p>
 <p>Successful GUI actions update the shared <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> and append history
 once. In <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>, the corresponding <code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>,
 <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>, <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>, <code class="docutils literal notranslate"><span class="pre">STUDY</span></code>, and <code class="docutils literal notranslate"><span class="pre">CURRENTSTUDY</span></code> names
 refresh from the same session.</p>
+<p>File &gt; Quit asks before discarding unsaved datasets. Cancel lets you save them
+first. This prompt is an EEGPrep addition; EEGLAB’s Quit callback closes its
+window directly. Closing the GUI does not clear a shared console’s session.</p>
+<p>EEGPrep retains its own branding and Report an EEGPrep issue link. Unsupported
+and MATLAB-only preferences are disabled (see <a class="reference internal" href="configuration.html"><span class="doc">Configuration</span></a>), and native
+file-dialog preferences live in EEGPrep’s JSON options file rather than in
+MATLAB history.</p>
 </section>
 <section id="menu-inventory-parity">
 <h2>Menu Inventory Parity<a class="headerlink" href="#menu-inventory-parity" title="Link to this heading">#</a></h2>

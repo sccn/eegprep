@@ -519,12 +519,31 @@
                   
   <section id="gui-and-console-together">
 <span id="gui-console-session"></span><h1>GUI and Console Together<a class="headerlink" href="#gui-and-console-together" title="Link to this heading">#</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Processing a selection of multiple datasets first asks whether to overwrite
+those datasets. Cancel leaves the selection and history unchanged. Appending
+datasets opens Dataset info so you can name or save the merged result. An
+empty processing result is rejected before replacing the current dataset.</p>
+<p>Saved session history scripts use MATLAB commands, including dataset storage,
+concrete selection indices, and <code class="docutils literal notranslate"><span class="pre">eeglab</span> <span class="pre">redraw</span></code>. These scripts are for
+EEGLAB; File &gt; History scripts &gt; Run script executes Python <code class="docutils literal notranslate"><span class="pre">.py</span></code> files.
+The console translates displayed commands to Python while preserving the
+MATLAB form in <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> and dataset history.</p>
+<p>Replaying MATLAB vectors such as <code class="docutils literal notranslate"><span class="pre">[1:32]</span></code> or <code class="docutils literal notranslate"><span class="pre">[1:2:7]</span></code> expands inclusive
+colon ranges in Python. Channel selections still cross the MATLAB 1-based
+to Python 0-based boundary. Dataset selection and copy commands also handle
+Python’s extra returned history value without changing the saved commands.</p>
+</div>
 <p>EEGPrep is designed for a mixed interactive workflow. You can load and review
 data from the GUI, inspect the live workspace in <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>, run a
 Python command, then return to the GUI without manually copying datasets between
 tools.</p>
 <p>The important idea is simple: the GUI and console are two views of one
 <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code>.</p>
+<p>Calling <code class="docutils literal notranslate"><span class="pre">gui()</span></code> or <code class="docutils literal notranslate"><span class="pre">eeglab()</span></code> from the console opens another window on its
+existing session. It keeps scripted <code class="docutils literal notranslate"><span class="pre">pop_editoptions(...,</span> <span class="pre">persist=False)</span></code>
+changes without reloading saved preferences.</p>
 <section id="when-to-use-this-workflow">
 <h2>When to Use This Workflow<a class="headerlink" href="#when-to-use-this-workflow" title="Link to this heading">#</a></h2>
 <p>Use <code class="docutils literal notranslate"><span class="pre">eegprep-console</span> <span class="pre">--full</span></code> when you want to:</p>
@@ -614,6 +633,10 @@ Manager, and <code class="docutils literal notranslate"><span class="pre">eegpre
 <code class="docutils literal notranslate"><span class="pre">store_current()</span></code>, <code class="docutils literal notranslate"><span class="pre">add_history()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_study()</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">notify_changed()</span></code>. They should not mutate a GUI-only copy of <code class="docutils literal notranslate"><span class="pre">EEG</span></code> that
 the console cannot see.</p>
+<p>Wrap menu operations in <code class="docutils literal notranslate"><span class="pre">session.gui_action(action)</span></code> so errors can identify
+the active function through <code class="docutils literal notranslate"><span class="pre">active_gui_action()</span></code> and console output stays
+associated with the operation. The context restores the previous action when
+the operation exits, including on errors.</p>
 <p>Long-running GUI actions use the same session boundary. For example,
 GUI-launched ICA opens the EEGLAB-like <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> options dialog on the main
 thread, runs the ICA computation behind a progress dialog, then stores the

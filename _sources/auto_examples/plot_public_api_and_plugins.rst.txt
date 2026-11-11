@@ -108,7 +108,7 @@ Store it through the console-aware public workspace.
 
  .. code-block:: none
 
-    <EEGPrep dataset result: CURRENTSET=1, LASTCOM="[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'console demo');">
+    <EEGPrep dataset result: CURRENTSET=1, LASTCOM="[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 0, 'setname', 'console demo', 'gui', 'off');">
     CURRENTSET: 1
     Dataset name: console demo
     Bundled plugins: clean_rawdata, ICLabel, firfilt, DIPFIT, EEG-BIDS
@@ -120,7 +120,7 @@ Store it through the console-aware public workspace.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.023 seconds)
+   **Total running time of the script:** (0 minutes 0.012 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_public_api_and_plugins.py:

@@ -68,7 +68,7 @@ For storage details, see :ref:`large_dataset_storage`.
 Set Options From GUI or Console
 ===============================
 
-Use the Options menu in the GUI, or call ``pop_editoptions`` from
+Use File > Preferences in the GUI, or call ``pop_editoptions`` from
 ``eegprep-console``:
 
 .. code-block:: python
@@ -85,8 +85,32 @@ In a shared GUI/console session, the menu refresh uses the same
 
 Pass ``native_file_dialogs=True`` or ``False`` to ``eeglab()`` or ``gui()`` to
 override the global option for that window. The override also applies to file
-panels opened from nested GUI callbacks. ``EEG_OPTIONS`` is process-local; it
-does not persist across application restarts.
+panels opened from nested GUI callbacks. GUI preferences are saved to
+``~/.eegprep/options.json`` and loaded on the next GUI/console launch. This is
+an EEGPrep file; it does not modify MATLAB's ``eeg_options.m``. Cancel leaves
+both the current options and the file unchanged. Scripted changes stay in the
+current process unless you pass ``persist=True`` to ``pop_editoptions``.
+Importing ``pop_editoptions`` does not load preferences or change
+``EEG_OPTIONS``. A fresh ``eeglab()``/``gui()`` launch or ``eegprep-console``
+loads the file. Constructing windows or workspaces directly, or opening a GUI
+with an existing session, preserves scripted in-process options. The console's
+``gui()`` and ``eeglab()`` commands automatically use its existing session.
+
+The dialog follows the memory-options layout and exposes working controls for
+storing inactive datasets on disk, saving two-file datasets, boundary events,
+menu visibility, and native file dialogs. Enable Show advanced options and
+reopen Preferences to access memory mapping.
+
+Some preferences are visible but disabled because their global switches are
+not connected to EEGPrep workflows: single precision, ICA precomputation and
+RMS scaling, remembered folders, startup update checks, STUDY cache size,
+MATLAB save-version/struct choices, pending plugins, and HTML in graphics.
+Their registry values are retained for scripts, but changing those values
+does not change runtime behavior. Use explicit processing arguments where
+available and Help > Check for EEGPrep updates for a manual update check.
+MATLAB's parallel toolbox, EEG object, and toolbox-path switches are also
+disabled because EEGPrep runs without MATLAB. These are current standalone
+limitations, rather than implemented equivalents of the EEGLAB preferences.
 
 Preprocessing Parameters
 ========================
@@ -211,5 +235,5 @@ again with ``option_memmapdata`` enabled.
 Menu Entries Did Not Change
 ---------------------------
 
-After changing ``option_allmenus`` in a running GUI, reopen or refresh the main
-window so menu status is rebuilt from the current option dictionary.
+Changes to ``option_allmenus`` in Preferences apply immediately. Scripted changes
+apply on the next GUI refresh. A saved menu choice is restored on restart.

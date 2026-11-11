@@ -74,7 +74,7 @@ Load the tutorial dataset into an empty dataset list.
 
     loaded: tutorial continuous (32, 30504) srate 128.0
     CURRENTSET: 1 datasets in memory: 1
-    history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'tutorial continuous');
+    history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 0, 'setname', 'tutorial continuous', 'gui', 'off');
 
 
 
@@ -163,7 +163,7 @@ Switch back to dataset 1 (``Datasets > Dataset 1:...``), then forward again.
 
     retrieved: tutorial continuous (32, 30504) srate 128.0
     retrieved: tutorial 64 Hz (32, 15252) srate 64.0
-    history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', 2);
+    history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'retrieve', 2);
 
 
 
@@ -198,7 +198,7 @@ does not update ``ALLEEG``; store it back with ``overwrite="on"``, which is the
     EEG = pop_editset(EEG, 'setname', 'tutorial 64 Hz (renamed)');
     EEG: tutorial 64 Hz (renamed) | ALLEEG[2]: tutorial 64 Hz
     after overwrite -> ALLEEG[2]: tutorial 64 Hz (renamed) | datasets: 2
-    history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');
+    history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 2, 'overwrite', 'on', 'gui', 'off');
 
 
 
@@ -225,7 +225,7 @@ Copy a dataset to a new slot (``Edit > Copy current dataset``).
  .. code-block:: none
 
     datasets in memory: 3 CURRENTSET: 3
-    [ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, 2, 3);
+    [ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, 2, 3);
 
 
 
@@ -299,7 +299,7 @@ numbers; trailing empty slots are dropped.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.204 seconds)
+   **Total running time of the script:** (0 minutes 0.108 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_dataset_management.py:

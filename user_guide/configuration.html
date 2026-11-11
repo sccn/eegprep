@@ -589,7 +589,7 @@ macOS panels can close immediately under IPython’s Qt input hook.</p></td>
 </section>
 <section id="set-options-from-gui-or-console">
 <h2>Set Options From GUI or Console<a class="headerlink" href="#set-options-from-gui-or-console" title="Link to this heading">#</a></h2>
-<p>Use the Options menu in the GUI, or call <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code> from
+<p>Use File &gt; Preferences in the GUI, or call <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code> from
 <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">pop_editoptions</span>
 
@@ -603,8 +603,30 @@ macOS panels can close immediately under IPython’s Qt input hook.</p></td>
 <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> dictionary.</p>
 <p>Pass <code class="docutils literal notranslate"><span class="pre">native_file_dialogs=True</span></code> or <code class="docutils literal notranslate"><span class="pre">False</span></code> to <code class="docutils literal notranslate"><span class="pre">eeglab()</span></code> or <code class="docutils literal notranslate"><span class="pre">gui()</span></code> to
 override the global option for that window. The override also applies to file
-panels opened from nested GUI callbacks. <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> is process-local; it
-does not persist across application restarts.</p>
+panels opened from nested GUI callbacks. GUI preferences are saved to
+<code class="docutils literal notranslate"><span class="pre">~/.eegprep/options.json</span></code> and loaded on the next GUI/console launch. This is
+an EEGPrep file; it does not modify MATLAB’s <code class="docutils literal notranslate"><span class="pre">eeg_options.m</span></code>. Cancel leaves
+both the current options and the file unchanged. Scripted changes stay in the
+current process unless you pass <code class="docutils literal notranslate"><span class="pre">persist=True</span></code> to <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code>.
+Importing <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code> does not load preferences or change
+<code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code>. A fresh <code class="docutils literal notranslate"><span class="pre">eeglab()</span></code>/<code class="docutils literal notranslate"><span class="pre">gui()</span></code> launch or <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>
+loads the file. Constructing windows or workspaces directly, or opening a GUI
+with an existing session, preserves scripted in-process options. The console’s
+<code class="docutils literal notranslate"><span class="pre">gui()</span></code> and <code class="docutils literal notranslate"><span class="pre">eeglab()</span></code> commands automatically use its existing session.</p>
+<p>The dialog follows the memory-options layout and exposes working controls for
+storing inactive datasets on disk, saving two-file datasets, boundary events,
+menu visibility, and native file dialogs. Enable Show advanced options and
+reopen Preferences to access memory mapping.</p>
+<p>Some preferences are visible but disabled because their global switches are
+not connected to EEGPrep workflows: single precision, ICA precomputation and
+RMS scaling, remembered folders, startup update checks, STUDY cache size,
+MATLAB save-version/struct choices, pending plugins, and HTML in graphics.
+Their registry values are retained for scripts, but changing those values
+does not change runtime behavior. Use explicit processing arguments where
+available and Help &gt; Check for EEGPrep updates for a manual update check.
+MATLAB’s parallel toolbox, EEG object, and toolbox-path switches are also
+disabled because EEGPrep runs without MATLAB. These are current standalone
+limitations, rather than implemented equivalents of the EEGLAB preferences.</p>
 </section>
 <section id="preprocessing-parameters">
 <h2>Preprocessing Parameters<a class="headerlink" href="#preprocessing-parameters" title="Link to this heading">#</a></h2>
@@ -727,8 +749,8 @@ again with <code class="docutils literal notranslate"><span class="pre">option_m
 </section>
 <section id="menu-entries-did-not-change">
 <h3>Menu Entries Did Not Change<a class="headerlink" href="#menu-entries-did-not-change" title="Link to this heading">#</a></h3>
-<p>After changing <code class="docutils literal notranslate"><span class="pre">option_allmenus</span></code> in a running GUI, reopen or refresh the main
-window so menu status is rebuilt from the current option dictionary.</p>
+<p>Changes to <code class="docutils literal notranslate"><span class="pre">option_allmenus</span></code> in Preferences apply immediately. Scripted changes
+apply on the next GUI refresh. A saved menu choice is restored on restart.</p>
 </section>
 </section>
 </section>

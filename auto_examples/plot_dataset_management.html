@@ -532,7 +532,7 @@ the scripted form of <code class="docutils literal notranslate"><span class="pre
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>loaded: tutorial continuous (32, 30504) srate 128.0
 CURRENTSET: 1 datasets in memory: 1
-history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, &#39;setname&#39;, &#39;tutorial continuous&#39;);
+history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 0, &#39;setname&#39;, &#39;tutorial continuous&#39;, &#39;gui&#39;, &#39;off&#39;);
 </pre></div>
 </div>
 <p>Modify the dataset, then store the result as a <em>new</em> dataset instead of
@@ -570,7 +570,7 @@ CURRENTSET: 2 datasets in memory: 2
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>retrieved: tutorial continuous (32, 30504) srate 128.0
 retrieved: tutorial 64 Hz (32, 15252) srate 64.0
-history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, &#39;retrieve&#39;, 2);
+history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, &#39;retrieve&#39;, 2);
 </pre></div>
 </div>
 <p>Rename the current dataset (<code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">&gt;</span> <span class="pre">Dataset</span> <span class="pre">info</span></code>). Editing <code class="docutils literal notranslate"><span class="pre">EEG</span></code> alone
@@ -588,7 +588,7 @@ does not update <code class="docutils literal notranslate"><span class="pre">ALL
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>EEG = pop_editset(EEG, &#39;setname&#39;, &#39;tutorial 64 Hz (renamed)&#39;);
 EEG: tutorial 64 Hz (renamed) | ALLEEG[2]: tutorial 64 Hz
 after overwrite -&gt; ALLEEG[2]: tutorial 64 Hz (renamed) | datasets: 2
-history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, &#39;overwrite&#39;, &#39;on&#39;);
+history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 2, &#39;overwrite&#39;, &#39;on&#39;, &#39;gui&#39;, &#39;off&#39;);
 </pre></div>
 </div>
 <p>Copy a dataset to a new slot (<code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">&gt;</span> <span class="pre">Copy</span> <span class="pre">current</span> <span class="pre">dataset</span></code>).</p>
@@ -598,7 +598,7 @@ history: [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, &#39;over
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>datasets in memory: 3 CURRENTSET: 3
-[ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, 2, 3);
+[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, 2, 3);
 </pre></div>
 </div>
 <p>Save the current dataset (<code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">&gt;</span> <span class="pre">Save</span> <span class="pre">current</span> <span class="pre">dataset</span> <span class="pre">as</span></code>). A plain save
@@ -634,7 +634,7 @@ numbers; trailing empty slots are dropped.</p>
 ALLEEG = pop_delset( ALLEEG, [2] );
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.204 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.108 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-dataset-management-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/13d39ac3e27a30fcebc514e3fcaeb1ad/plot_dataset_management.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_dataset_management.ipynb</span></code></a></p>
