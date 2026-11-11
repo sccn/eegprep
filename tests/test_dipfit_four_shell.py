@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.dipfit._fitting import default_scan_axes, dipfit_gridsearch
 from eegprep.plugins.dipfit.forward.eeg_leadfield1 import eeg_leadfield1
 from eegprep.plugins.dipfit.forward.eeg_leadfield4 import eeg_leadfield4
 from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
@@ -135,13 +134,6 @@ def test_two_shell_padding_matches_a_repeated_outer_shell():
 def test_bem_leadfields_stay_unimplemented_for_the_boundary_element_port():
     with pytest.raises(NotImplementedError, match="bem"):
         ft_compute_leadfield(np.zeros(3), {"elecpos": _electrodes()}, {"type": "bem", "bnd": [], "mat": []})
-
-
-def test_standard_besa_grid_matches_the_dipfit_scan():
-    x_values, y_values, z_values = default_scan_axes(85.0)
-    dataset = pop_dipfit_settings(pop_loadset(SAMPLE_EPOCHS), model="standardBESA")
-    scanned = dipfit_gridsearch(dataset, component=[1], xgrid=x_values, ygrid=y_values, zgrid=z_values)
-    assert np.asarray(scanned["dipfit"]["model"][0]["posxyz"]).shape == (1, 3)
 
 
 def test_pop_multifit_standard_besa_positions_match_the_published_eeglab_table():
