@@ -29,6 +29,9 @@ Unreleased
   empty, or ``None`` (#506).
 - ``gauss`` with one frame returns ``exp(-sds**2)``, the single sample at
   ``-sds`` (#507).
+- ``pop_chansel`` reads selection text with the shared tokenizer. An empty
+  quoted token is an empty label, and a brace-wrapped list uses the labels
+  inside the braces (#508).
 - Plot menus keep channel spectra when a dataset has no usable channel
   coordinates, share one amplitude scale and a calibration bar across channel
   ERP arrays, and compare two datasets in ``Plot > Component ERPs > With
