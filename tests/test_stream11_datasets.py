@@ -9,6 +9,7 @@ import pytest
 try:
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QDialogButtonBox, QFileDialog, QLineEdit, QMessageBox, QPushButton
+    from shiboken6 import Shiboken
 except ImportError:
     pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
 
@@ -24,46 +25,58 @@ from tests.test_stream11_menus import qapp as qapp
 pytestmark = [pytest.mark.gui, pytest.mark.modal_dialogs]
 
 
+def _modal_key(dialog):
+    return Shiboken.getCppPointer(dialog)[0]
+
+
 @pytest.fixture
 def dialogs(qapp):
     pending, seen, failures = [], [], []
-    # The 10 ms timer can observe one modal again before its accept or reject
-    # has closed it. A second observation must not consume the next handler.
-    state = {"dialog": None, "attempts": 0}
+    # Accept and reject process Qt events, so this timer can run again before
+    # the dialog has closed. A second look at the same window must not take
+    # the next handler. A different window that opens during accept still does.
+    state = {"key": None, "depth": 0, "attempts": 0}
 
     def respond():
         dialog = qapp.activeModalWidget()
         if dialog is None:
-            state["dialog"] = None
-            state["attempts"] = 0
+            if state["depth"] == 0:
+                state["key"] = None
+                state["attempts"] = 0
             return
-        if dialog is state["dialog"]:
+        key = _modal_key(dialog)
+        if key == state["key"]:
             return
         if not pending:
             failures.append(f"Unexpected dialog: {dialog.windowTitle()}")
             dialog.reject()
-            state["dialog"] = dialog
+            state["key"] = key
             return
         handler = pending[0]
-        # Record the dialog before the handler. Accept and reject process Qt
-        # events, and this timer can run again before the handler returns.
-        state["dialog"] = dialog
+        previous = state["key"]
+        state["key"] = key
+        state["depth"] += 1
+        retry = False
         try:
             handler(dialog)
         except Exception as exc:
             state["attempts"] += 1
             if state["attempts"] < 3:
-                state["dialog"] = None
+                retry = True
                 return
             failures.append(str(exc))
             dialog.reject()
             pending.pop(0)
-            state["dialog"] = dialog
             state["attempts"] = 0
             return
+        finally:
+            state["depth"] -= 1
+            if state["depth"]:
+                state["key"] = previous
+            elif retry:
+                state["key"] = None
         pending.pop(0)
         seen.append(dialog.windowTitle())
-        state["dialog"] = dialog
         state["attempts"] = 0
 
     timer = QTimer()

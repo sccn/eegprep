@@ -8,6 +8,7 @@ import numpy as np
 try:
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication, QFileDialog, QLineEdit, QMessageBox
+    from shiboken6 import Shiboken
 except ImportError:
     pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
 
@@ -55,22 +56,35 @@ def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
     window.show()
     before = window.window.menuBar().actions()
     seen = []
-    handled = set()
+    # The error dialog opens while the file dialog is still accepting, and
+    # accept can run this timer again on the same window.
+    state = {"key": None, "depth": 0}
 
     def respond():
         dialog = qapp.activeModalWidget()
-        if dialog is None or dialog in handled:
+        if dialog is None:
+            if state["depth"] == 0:
+                state["key"] = None
             return
-        if isinstance(dialog, QFileDialog):
-            handled.add(dialog)
-            seen.append("file")
-            dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
-            dialog.accept()
-        elif isinstance(dialog, QMessageBox):
-            handled.add(dialog)
-            seen.append("error")
-            gc.collect()
-            dialog.accept()
+        key = Shiboken.getCppPointer(dialog)[0]
+        if key == state["key"]:
+            return
+        previous = state["key"]
+        state["key"] = key
+        state["depth"] += 1
+        try:
+            if isinstance(dialog, QFileDialog):
+                seen.append("file")
+                dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
+                dialog.accept()
+            elif isinstance(dialog, QMessageBox):
+                seen.append("error")
+                gc.collect()
+                dialog.accept()
+        finally:
+            state["depth"] -= 1
+            if state["depth"]:
+                state["key"] = previous
 
     timer = QTimer()
     timer.timeout.connect(respond)
