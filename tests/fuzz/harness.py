@@ -25,7 +25,7 @@ import scipy.io
 from hypothesis import HealthCheck, Phase, Verbosity, given, seed, settings
 from hypothesis import strategies as st
 
-from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper, get_eeglab, matlab_held_data
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab, matlab_held_data
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_resample import pop_resample
@@ -1775,16 +1775,10 @@ def transport_mismatch(expected, seen) -> str | None:
 
 def _observed(backend, name: str):
     engine = getattr(backend, "_engine", None)
-    if isinstance(engine, _InputObserver):
-        return getattr(engine, name)
-    if engine is not None and not isinstance(engine, MatlabWrapper):
-        values = getattr(engine, "__dict__", None)
-        if isinstance(values, dict) and name in values:
-            return values[name]
-    inner = getattr(engine, "engine", None) if engine is not None else None
-    if isinstance(inner, _InputObserver):
-        return getattr(inner, name)
-    return None
+    observer = getattr(engine, "engine", None)
+    if not isinstance(observer, _InputObserver):
+        return None
+    return getattr(observer, name, None)
 
 
 def _seen_input(backend):

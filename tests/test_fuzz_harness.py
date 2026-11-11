@@ -1497,14 +1497,11 @@ def _fit_error():
     )
 
 
-class _SeenEngine:
-    def __init__(self, data):
-        self.last_input_data = data
-
-
 class _TransportBackend:
     def __init__(self, seen, fn):
-        self._engine = _SeenEngine(seen)
+        observer = _InputObserver(None)
+        observer.last_input_data = seen
+        self._engine = SimpleNamespace(engine=observer)
         self._fn = fn
 
     def run(self, case, eeg):
@@ -1662,14 +1659,14 @@ def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence(
         return np.array(dataset["data"], dtype=np.float64, copy=True)
 
     backend = _Backend(unchanged)
-    backend._engine = SimpleNamespace(
-        last_caught_error={
-            "identifier": "MATLAB:badsubscript",
-            "message": "Index in position 1 is invalid. Array indices must be positive integers or logical values.",
-            "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
-            "printed": "Index in position 1 is invalid. Array indices must be positive integers or logical values.\n",
-        }
-    )
+    observer = _InputObserver(None)
+    observer.last_caught_error = {
+        "identifier": "MATLAB:badsubscript",
+        "message": "Index in position 1 is invalid. Array indices must be positive integers or logical values.",
+        "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+        "printed": "Index in position 1 is invalid. Array indices must be positive integers or logical values.\n",
+    }
+    backend._engine = SimpleNamespace(engine=observer)
     outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), backend, load_tolerances())
     assert outcome.diverged is False
     assert "#582" in outcome.detail
