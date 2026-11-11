@@ -185,6 +185,16 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 
    * - Topic
      - What EEGPrep does
+   * - Empty ``etc``
+     - ``eeg_checkset`` stores a missing or empty ``etc`` as ``{}`` and leaves
+       ``eeglabvers`` unset. EEGLAB ``eeg_emptyset.m`` line 83 sets ``etc`` to
+       ``[]``. ``eeg_checkset.m`` lines 1297-1298 then assign
+       ``EEG.etc.eeglabvers``, and ``eeg_checkset(eeg_emptyset)`` on EEGLAB
+       ``d0963be9`` returns a struct. That field records the EEGLAB release
+       that last checked the dataset. EEGPrep has no EEGLAB release to record.
+       A saved empty dictionary is an empty array, which EEGLAB stamps when it
+       opens the file. An ``eeglabvers`` value already present is kept.
+       ``test_empty_etc_round_trip_is_a_dict`` locks the empty dictionary.
    * - Channel-coordinate validation
      - ``pop_chanedit`` rejects non-numeric or non-finite coordinates with
        an error naming the field; blank values remain allowed. EEGLAB pins

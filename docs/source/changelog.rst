@@ -10,9 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
+  ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
+  as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and
+  ``clean_windows`` can store their results (#533).
 - ``pop_load_frombids`` stores a missing channel coordinate as an empty
   array, including a channel with no row in ``electrodes.tsv``. Saving and
   reloading that dataset keeps the empty coordinates (#538).
+- ``eeg_getdatact`` computes component activity when ``icaact`` is missing,
+  empty, or ``None`` (#506).
 - Plot menus keep channel spectra when a dataset has no usable channel
   coordinates, share one amplitude scale and a calibration bar across channel
   ERP arrays, and compare two datasets in ``Plot > Component ERPs > With
