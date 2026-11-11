@@ -19,7 +19,8 @@ jobs:
         (
           github.event.pull_request.author_association == 'OWNER' ||
           github.event.pull_request.author_association == 'MEMBER' ||
-          github.event.pull_request.author_association == 'COLLABORATOR'
+          github.event.pull_request.author_association == 'COLLABORATOR' ||
+          (github.actor == 'cursor[bot]' && github.event.action == 'ready_for_review')
         )
       ) ||
       (
@@ -60,4 +61,4 @@ jobs:
             --model opus
             --max-turns 200
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr review:*),Bash(gh api:*),Bash(git rev-parse:*),Bash(git show:*),Bash(git diff:*)"
-          allowed_bots: 'claude[bot]'
+          allowed_bots: 'claude[bot],cursor'

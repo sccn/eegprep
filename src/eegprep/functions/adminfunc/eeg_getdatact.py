@@ -24,6 +24,8 @@ def eeg_getdatact(EEG: Any, *args: Any, return_boundaries: bool = False, **kwarg
     indices. ``icachansind`` remains an internal 0-based EEGPrep field. By
     default the result has shape ``(signals, samples, trials)``; pass
     ``reshape="2d"`` to concatenate trials along the sample axis.
+    A missing, empty, or ``None`` ``icaact`` is computed from the ICA
+    weights and sphere.
 
     Args:
         EEG: One EEG dictionary, a ``.set`` path, or a sequence of datasets.
@@ -186,7 +188,8 @@ def _component_data(
     if weights.ndim != 2 or not weights.size:
         raise ValueError("No ICA weights in dataset")
     component_indices = _zero_based_selection(components, weights.shape[0], "component")
-    cached = np.asarray(EEG.get("icaact", []))
+    stored_activity = EEG.get("icaact", [])
+    cached = np.asarray([] if stored_activity is None else stored_activity)
     if pnts is None or trials is None:
         if data is None:
             pnts, trials = _metadata_dimensions(EEG)
