@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 import scipy.io
 
+from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp
@@ -920,6 +921,17 @@ def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
 
     assert "figure; pop_timtopo(EEG, [-50 100], [0], 'custom timtopo'" in timtopo_command
     assert "'winsize', [10]" in timtopo_command
+    replayed = eval(
+        _console_python_command(timtopo_command),
+        {"EEG": sample_epoch, "pop_timtopo": pop_timtopo},
+    )
+    map_titles = [
+        axis.get_title().strip()
+        for axis in replayed.axes
+        if axis.get_title().strip() and axis.get_title().strip() != "custom timtopo"
+    ]
+    assert map_titles == ["0"]
+    plt.close(replayed)
     assert "figure; pop_plottopo(EEG, [1], '', 0" in plottopo_command
     assert "'timerange', [-50 100]" in plottopo_command
     assert "'title', 'custom plottopo'" in plottopo_command
@@ -964,8 +976,6 @@ def test_timtopo_mixed_nan_plottimes_fills_slot_with_auto_latency(sample_epoch):
 
 
 def _assert_python_command(command: str) -> None:
-    from eegprep.functions.adminfunc.console import _console_python_command
-
     ast.parse(_console_python_command(command))
 
 

@@ -17,6 +17,8 @@ Unreleased
 - ``pop_load_frombids`` stores a missing channel coordinate as an empty
   array, including a channel with no row in ``electrodes.tsv``. Saving and
   reloading that dataset keeps the empty coordinates (#538).
+- ``pop_timtopo`` history replays in the console with the EEGLAB argument
+  order: time range, scalp-map latencies, then the plot title.
 - ``eeg_getdatact`` computes component activity when ``icaact`` is missing,
   empty, or ``None`` (#506).
 - Plot menus keep channel spectra when a dataset has no usable channel

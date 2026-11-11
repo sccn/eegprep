@@ -56,7 +56,7 @@ print(f"components {np.asarray(EEG['icaweights']).shape[0]} epoch {EPOCH_MS[0]:g
 # a. ERPs -- Plot > Channel ERPs, Plot > ERP map series
 # -----------------------------------------------------
 
-fig_timtopo, com_timtopo = pop_timtopo(EEG, [100, 300], timerange=[-100, 600], plot="off", return_com=True)
+fig_timtopo, com_timtopo = pop_timtopo(EEG, [-100, 600], [100, 300], plot="off", return_com=True)
 fig_plottopo = pop_plottopo(EEG, chans=list(range(1, 33)), plot="off")
 figs_erp2d = pop_topoplot(EEG, 1, [0, 100, 200, 300], plot="off")
 figs_erp3d = pop_headplot(EEG, 1, [100, 300], setup=HEADPLOT_SETUP, plot="off")
