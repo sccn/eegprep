@@ -647,7 +647,9 @@ monotonic, such as 32 Hz, cannot be calibrated. <code class="docutils literal no
 that names the rate. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warn and
 leave that recording unchanged.</p>
 <p>A calibration shorter than one 0.5 s RMS window, or one that yields fewer than
-two such windows, cannot set thresholds either. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises
+two such windows, cannot set thresholds either. The calibration is the
+reference section, so a longer recording still raises when that section is
+shorter than one window. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises
 <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> and names the sample or window counts. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code>
 and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warn, leave the burst stage unchanged, and still run
 window removal when it was requested. On a 44-sample recording at 128 Hz the

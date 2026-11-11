@@ -553,7 +553,9 @@ EEGLAB’s fit throws in that situation and calibrates on every sample.
 A recording that is too short for EEGLAB’s calibration-time RMS fit, which
 indexes a zero window width, is still calibrated here. Fewer than two
 calibration RMS windows, and a calibration shorter than one window, raise
-<code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>. Each names <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> or
+<code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>. The calibration is the reference
+<code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> kept. A longer recording is not substituted when that
+reference has fewer samples than one 0.5 s RMS window. Each names <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> or
 <code class="docutils literal notranslate"><span class="pre">asr_calibrate_r</span></code>, the sample counts, and whether to record more data
 or set <code class="docutils literal notranslate"><span class="pre">BurstCriterion</span></code> off. EEGLAB raises an error that asks for different
 <code class="docutils literal notranslate"><span class="pre">BurstCriterionRefTolerances</span></code> in both cases. A sampling rate whose

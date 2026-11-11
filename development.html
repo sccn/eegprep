@@ -1265,11 +1265,19 @@ algorithms. <code class="docutils literal notranslate"><span class="pre">savefig
 <p><code class="docutils literal notranslate"><span class="pre">.github/workflows/fuzz-nightly.yml</span></code> compares EEGPrep with EEGLAB on
 generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
 oracle. The job runs at 10:23 UTC on MATLAB R2024b and can be started
-manually with <code class="docutils literal notranslate"><span class="pre">workflow_dispatch</span></code>. A known-good sanity case runs first. If
-that case fails, the job fails and does not open an issue. Later mismatches
-are shrunk with Hypothesis, saved under the <code class="docutils literal notranslate"><span class="pre">fuzz-repros</span></code> artifact, and
-filed (at most three new issues a night) with the labels <code class="docutils literal notranslate"><span class="pre">fuzz</span></code> and
-<code class="docutils literal notranslate"><span class="pre">fuzz-unconfirmed</span></code>.</p>
+manually with <code class="docutils literal notranslate"><span class="pre">workflow_dispatch</span></code>. The bridge restores <code class="docutils literal notranslate"><span class="pre">EEG.data</span></code> from a
+float64 MAT variable after <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> and checks that MATLAB saw the
+same shape, dtype, NaN, +Inf, -Inf, and values before any numeric comparison.
+An identity transfer of values float32 cannot represent runs before the
+other sanity cases. If that check fails, the job fails and does not open an
+issue. A MATLAB exception, and a cleaning wrapper that returns its input
+unchanged, are oracle failures. The two known EEGLAB ASR defects (a zero
+fit width on the reference that was actually selected, and <code class="docutils literal notranslate"><span class="pre">sort(wz)</span></code>
+across time on one channel) are not filed. Other mismatches are shrunk on
+the failure mechanism, saved under the <code class="docutils literal notranslate"><span class="pre">fuzz-repros</span></code> artifact with the
+oracle identifier and stack, and filed (at most three new issues a night)
+with the labels <code class="docutils literal notranslate"><span class="pre">fuzz</span></code> and <code class="docutils literal notranslate"><span class="pre">fuzz-unconfirmed</span></code>. Repeated findings group
+by diagnosed cause. NaN, +Inf, and -Inf are compared as separate masks.</p>
 <p>The nightly targets are <code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_reref</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_resample</span></code>,
 <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_select</span></code>,
 <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>,

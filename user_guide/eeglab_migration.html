@@ -805,10 +805,29 @@ non-positive widths and still removes bursts. The 21-channel,
 89-sample recording at 128 Hz has two windows, and eleven of those
 widths round to zero.</p></td>
 </tr>
+<tr class="row-even"><td><p>ASR reference selection leaving three RMS windows</p></td>
+<td><p>Automatic reference selection can leave three RMS windows.
+<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> lines 392-395 then index a zero fit width, and
+<code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> lines 270-275 catch the error and return the
+recording unchanged (#582). EEGPrep skips non-positive widths and
+still calibrates on that reference.</p></td>
+</tr>
+<tr class="row-odd"><td><p>One-channel <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> sort</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean_windows.m</span></code> line 115 calls <code class="docutils literal notranslate"><span class="pre">sort(wz)</span></code> with no dimension.
+One channel is one row, so MATLAB sorts that row across time and the
+fit then fails (#583). EEGPrep sorts across channels, so the loud
+window stays at its time index. When that selection is shorter than
+one 0.5 s RMS window, <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>
+with the sample counts. A correct <code class="docutils literal notranslate"><span class="pre">sort(wz,</span> <span class="pre">1)</span></code> reaches that same
+short-reference error; MATLAB’s sort reaches the fit instead.</p></td>
+</tr>
 <tr class="row-even"><td><p>One ASR calibration window</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when fewer than two
 calibration RMS windows are available, and when the calibration is
-shorter than one window. The error names the window count or the
+shorter than one window. The calibration is the reference
+<code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> kept, so a longer recording is not substituted
+when that reference is shorter than one 0.5 s RMS window
+(<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> line 191). The error names the window count or the
 sample counts. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> asks for different
 <code class="docutils literal notranslate"><span class="pre">BurstCriterionRefTolerances</span></code> (<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> lines 189-204).
 <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warns and skips the burst stage. A requested

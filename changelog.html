@@ -476,6 +476,25 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when the selected reference
+is shorter than one 0.5 s RMS window. That reference is not replaced by
+the rest of the recording (<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> line 191).</p></li>
+<li><p>The nightly fuzz oracle receives the exact float64 input and reads each
+saved array as the class MATLAB holds. <code class="docutils literal notranslate"><span class="pre">save</span> <span class="pre">-v7</span></code> may pack an
+integer-valued double into smaller storage; that array still compares as
+float64. Epoched input is compared in the shape <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> holds:
+a 2-D channel-by-frame array whose frame count is a multiple of <code class="docutils literal notranslate"><span class="pre">pnts</span></code>
+is the 3-D epoch array, and a two-file one-trial array has no trailing
+singleton.   A <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> result with no trials is compared and the
+pipeline stops there. Suspending <code class="docutils literal notranslate"><span class="pre">option_single</span></code> restores the options
+file and reloads it into the MATLAB session. NaN, +Inf, and -Inf are compared separately, and a MATLAB
+exception or a cleaning wrapper that returns its input is filed as an
+oracle failure. <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> sorts a one-channel score across
+channels. A one-channel reference shorter than one RMS window raises
+<code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>; EEGLAB’s sort can reach the fit first. ASR
+calibration skips a zero fit width, including a reference that leaves
+three RMS windows
+(#576, #577, #578, #581, #582, #583, #584).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> turns a missing or empty <code class="docutils literal notranslate"><span class="pre">etc</span></code> into <code class="docutils literal notranslate"><span class="pre">{}</span></code> and leaves
 <code class="docutils literal notranslate"><span class="pre">eeglabvers</span></code> unset. A <code class="docutils literal notranslate"><span class="pre">.set</span></code> file written with an empty <code class="docutils literal notranslate"><span class="pre">etc</span></code> reloads
 as a dictionary, so <code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_drifts</span></code>, and

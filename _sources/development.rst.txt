@@ -882,11 +882,19 @@ Nightly differential fuzzing
 ``.github/workflows/fuzz-nightly.yml`` compares EEGPrep with EEGLAB on
 generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
 oracle. The job runs at 10:23 UTC on MATLAB R2024b and can be started
-manually with ``workflow_dispatch``. A known-good sanity case runs first. If
-that case fails, the job fails and does not open an issue. Later mismatches
-are shrunk with Hypothesis, saved under the ``fuzz-repros`` artifact, and
-filed (at most three new issues a night) with the labels ``fuzz`` and
-``fuzz-unconfirmed``.
+manually with ``workflow_dispatch``. The bridge restores ``EEG.data`` from a
+float64 MAT variable after ``pop_loadset`` and checks that MATLAB saw the
+same shape, dtype, NaN, +Inf, -Inf, and values before any numeric comparison.
+An identity transfer of values float32 cannot represent runs before the
+other sanity cases. If that check fails, the job fails and does not open an
+issue. A MATLAB exception, and a cleaning wrapper that returns its input
+unchanged, are oracle failures. The two known EEGLAB ASR defects (a zero
+fit width on the reference that was actually selected, and ``sort(wz)``
+across time on one channel) are not filed. Other mismatches are shrunk on
+the failure mechanism, saved under the ``fuzz-repros`` artifact with the
+oracle identifier and stack, and filed (at most three new issues a night)
+with the labels ``fuzz`` and ``fuzz-unconfirmed``. Repeated findings group
+by diagnosed cause. NaN, +Inf, and -Inf are compared as separate masks.
 
 The nightly targets are ``pop_eegfiltnew``, ``pop_reref``, ``pop_resample``,
 ``clean_asr``, ``pop_clean_rawdata``, ``eeg_eegrej``, ``pop_select``,
