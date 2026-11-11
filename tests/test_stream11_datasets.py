@@ -25,46 +25,50 @@ from tests.test_stream11_menus import qapp as qapp
 pytestmark = [pytest.mark.gui, pytest.mark.modal_dialogs]
 
 
-def _modal_key(dialog):
-    return Shiboken.getCppPointer(dialog)[0]
-
-
-def _drop_destroyed(handled):
-    for key, widget in list(handled.items()):
-        if not Shiboken.isValid(widget):
-            del handled[key]
+def _dialog_identity(dialog):
+    # A named window stays one window even if Qt hands back a new wrapper.
+    # Pointers distinguish windows that were never given a name.
+    name = str(dialog.objectName() or "")
+    if name:
+        return ("name", name)
+    return ("ptr", tuple(int(pointer) for pointer in Shiboken.getCppPointer(dialog)))
 
 
 @pytest.fixture
 def dialogs(qapp):
     pending, seen, failures = [], [], []
-    # Accept and reject process Qt events before the window is destroyed, and
-    # the active modal can disappear for one timer tick in between. Remember
-    # each window until Qt destroys it so that tick cannot take the next handler.
-    handled = {}
+    # Accept and reject process Qt events, so this timer can see the same
+    # window again before the next one opens. A handler that refuses the
+    # window leaves the handler queued and closes that window.
+    done = set()
+    state = {"attempts": 0}
 
     def respond():
-        _drop_destroyed(handled)
         dialog = qapp.activeModalWidget()
         if dialog is None:
             return
-        key = _modal_key(dialog)
-        if key in handled:
+        identity = _dialog_identity(dialog)
+        if identity in done:
             return
-        handled[key] = dialog
+        done.add(identity)
         if not pending:
             failures.append(f"Unexpected dialog: {dialog.windowTitle()}")
             dialog.reject()
             return
-        handler = pending.pop(0)
         try:
-            handler(dialog)
+            pending[0](dialog)
         except Exception as exc:
-            failures.append(str(exc))
+            state["attempts"] += 1
+            if state["attempts"] >= 4:
+                failures.append(str(exc))
+                pending.pop(0)
+                state["attempts"] = 0
             if Shiboken.isValid(dialog):
                 dialog.reject()
             return
+        pending.pop(0)
         seen.append(dialog.windowTitle())
+        state["attempts"] = 0
 
     timer = QTimer()
     timer.timeout.connect(respond)

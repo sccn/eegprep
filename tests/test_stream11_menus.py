@@ -56,21 +56,20 @@ def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
     window.show()
     before = window.window.menuBar().actions()
     seen = []
-    # The error dialog opens while the file dialog is accepting, and accept
-    # can show the same error window to this timer again before Qt destroys it.
-    handled = {}
+    # Accept can show the same named window to this timer again.
+    done = set()
 
     def respond():
-        for key, widget in list(handled.items()):
-            if not Shiboken.isValid(widget):
-                del handled[key]
         dialog = qapp.activeModalWidget()
         if dialog is None:
             return
-        key = Shiboken.getCppPointer(dialog)[0]
-        if key in handled:
+        name = str(dialog.objectName() or "")
+        identity = (
+            ("name", name) if name else ("ptr", tuple(int(pointer) for pointer in Shiboken.getCppPointer(dialog)))
+        )
+        if identity in done:
             return
-        handled[key] = dialog
+        done.add(identity)
         if isinstance(dialog, QFileDialog):
             seen.append("file")
             dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
