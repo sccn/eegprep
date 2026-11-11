@@ -485,6 +485,8 @@ array, including a channel with no row in <code class="docutils literal notransl
 reloading that dataset keeps the empty coordinates (#538).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_getdatact</span></code> computes component activity when <code class="docutils literal notranslate"><span class="pre">icaact</span></code> is missing,
 empty, or <code class="docutils literal notranslate"><span class="pre">None</span></code> (#506).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gauss</span></code> with one frame returns <code class="docutils literal notranslate"><span class="pre">exp(-sds**2)</span></code>, the single sample at
+<code class="docutils literal notranslate"><span class="pre">-sds</span></code> (#507).</p></li>
 <li><p>Import dialogs expose data shape, sampling, metadata, channel selection,
 ranges, event fields, units, alignment, and epoch options. Cancel preserves
 the dataset and history; accepted imports update the GUI and console

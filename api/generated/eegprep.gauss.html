@@ -537,7 +537,9 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.gauss">
 <span class="sig-name descname"><span class="pre">gauss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standard_deviations</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.gauss" title="Link to this definition">#</a></dt>
-<dd><p>Return an EEGLAB-compatible Gaussian window with a unit peak.</p>
+<dd><p>Return a Gaussian window sampled from <code class="docutils literal notranslate"><span class="pre">-sds</span></code> through <code class="docutils literal notranslate"><span class="pre">sds</span></code>.</p>
+<p>One frame is the sample at <code class="docutils literal notranslate"><span class="pre">-sds</span></code>, <code class="docutils literal notranslate"><span class="pre">exp(-sds**2)</span></code>. Longer windows
+include both endpoints, so an odd frame count peaks at 1.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
