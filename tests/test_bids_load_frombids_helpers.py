@@ -798,3 +798,56 @@ def test_openneuro_edf_import_matches_matlab_pop_importbids(eeglab_matlab_engine
     ]
     np.testing.assert_allclose(python_latency, matlab_latency, rtol=0, atol=0)
     np.testing.assert_allclose(python_duration, matlab_duration, rtol=0, atol=0, equal_nan=True)
+
+
+_COORD_FIELDS = ("theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius")
+
+
+def _empty_coordinate(value: object) -> bool:
+    return isinstance(value, np.ndarray) and value.size == 0
+
+
+def test_missing_electrode_coordinates_round_trip_as_empty_arrays(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
+    from eegprep.functions.popfunc.pop_saveset import pop_saveset
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(
+        json.dumps({"Name": "t", "BIDSVersion": "1.9.0", "DatasetType": "raw"})
+    )
+    names = ["Fz", "Cz", "Pz"]
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        list(np.random.default_rng(0).standard_normal((len(names), 250)) * 20),
+        labels=names,
+        srate=250,
+        file_type=pyedflib.FILETYPE_EDFPLUS,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+    (eeg_dir / "sub-01_task-x_channels.tsv").write_text(
+        "name\ttype\tunits\n" + "".join(f"{name}\tEEG\tuV\n" for name in names)
+    )
+    (eeg_dir / "sub-01_electrodes.tsv").write_text("name\tx\ty\tz\nFz\t0\t37\t84\nCz\t0\t-34\t105\n")
+    (eeg_dir / "sub-01_coordsystem.json").write_text(
+        json.dumps({"EEGCoordinateSystem": "MNI305", "EEGCoordinateUnits": "mm"})
+    )
+
+    eeg = pop_load_frombids(str(edf_path), bidsevent=False, verbose=False)
+    located = eeg["chanlocs"][0]
+    missing = eeg["chanlocs"][2]
+    assert located["labels"] == "Fz"
+    assert missing["labels"] == "Pz"
+    assert np.isfinite(float(located["X"]))
+    assert all(_empty_coordinate(missing[field]) for field in _COORD_FIELDS)
+    assert all(_empty_coordinate(eeg["chaninfo"][key]) for key in ("plotrad", "shrink"))
+
+    out = tmp_path / "out.set"
+    pop_saveset(eeg, str(out))
+    reloaded = pop_loadset(str(out))
+    assert all(_empty_coordinate(reloaded["chanlocs"][2][field]) for field in _COORD_FIELDS)
+    np.testing.assert_allclose(float(reloaded["chanlocs"][0]["X"]), float(located["X"]))
+    assert all(_empty_coordinate(reloaded["chaninfo"][key]) for key in ("plotrad", "shrink"))

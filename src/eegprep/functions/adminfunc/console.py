@@ -1137,25 +1137,15 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
         self.generic_visit(node)
         if not isinstance(node.func, ast.Name):
             return node
-        if node.func.id == "pop_reref":
-            self._convert_pop_reref(node)
-        elif node.func.id == "pop_select":
+        if node.func.id == "pop_select":
             self._convert_pop_select(node)
         return node
-
-    def _convert_pop_reref(self, node: ast.Call) -> None:
-        if len(node.args) >= 2:
-            node.args[1] = self._zero_base_channel_arg(node.args[1])
-        for index in range(2, len(node.args) - 1, 2):
-            key = self._string_constant(node.args[index])
-            if key in {"exclude", "interpchan"}:
-                node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
 
     def _convert_pop_select(self, node: ast.Call) -> None:
         # pop_select history is name/value pairs after EEG (no positional
         # selection arg). Channel selections are 1-based in EEGLAB history but
         # the Python API is 0-based, so zero-base the numeric channel lists to
-        # match pop_reref; channel-by-name and chantype selections pass through.
+        # preserve the selected channels; named selections pass through.
         for index in range(1, len(node.args) - 1, 2):
             key = self._string_constant(node.args[index])
             if key in {"channel", "nochannel", "rmchannel"}:

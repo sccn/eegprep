@@ -51,6 +51,25 @@ def _event_type_text(value: Any) -> Any:
 # a list of column names that we interpret to contain event timing information
 event_timing_columns = ['onset', 'duration', 'sample']
 
+_MISSING_COORD_FIELDS = ('theta', 'radius', 'X', 'Y', 'Z', 'sph_theta', 'sph_phi', 'sph_radius')
+
+
+def _blank_numeric(numeric_null: Any) -> Any:
+    if isinstance(numeric_null, np.ndarray):
+        return np.array(numeric_null, copy=True)
+    return numeric_null
+
+
+def _fill_missing_coordinates(chanlocs: Any, numeric_null: Any) -> None:
+    if chanlocs is None:
+        return
+    for record in chanlocs:
+        if not isinstance(record, dict):
+            continue
+        for field in _MISSING_COORD_FIELDS:
+            if record.get(field) is None:
+                record[field] = _blank_numeric(numeric_null)
+
 
 def pop_load_frombids(
     filename: str,
@@ -603,6 +622,10 @@ def pop_load_frombids(
             for key in ("plotrad", "shrink"):
                 if chaninfo.get(key) is None:
                     chaninfo[key] = np.array([])
+            nodatchans = chaninfo.get("nodatchans")
+            if isinstance(nodatchans, list):
+                _fill_missing_coordinates(nodatchans, numeric_null)
+        _fill_missing_coordinates(EEG.get("chanlocs"), numeric_null)
     except ImportError:
         logger.info("eeg_checkchanlocs not available, skipping channel location check.")
 
