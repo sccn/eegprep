@@ -10,9 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``topoplot`` raises ``ValueError`` when channel locations are ``None`` or
-  empty. The message names ``topoplot`` and points to ``pop_chanedit`` or
-  ``pop_readlocs`` (#509).
+- ``topoplot`` raises ``ValueError`` when an interpolated map has ``None`` or
+  empty channel locations. The message names ``topoplot`` and points to
+  ``pop_chanedit`` or ``pop_readlocs``. A blank map with an empty location
+  list still draws the head (#509).
 
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves

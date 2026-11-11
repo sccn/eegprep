@@ -120,7 +120,7 @@ class TestTopoplot(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, message):
             topoplot(np.arange(4.0), np.array([]), noplot="on")
         with self.assertRaisesRegex(ValueError, message):
-            topoplot([], [], style="blank", noplot="on")
+            topoplot([], None, style="blank", noplot="on")
 
     def test_topo_screen_coords_cardinal_directions(self):
         """Pin the shared polar-to-screen orientation contract (nose up, EEGLAB left-right).

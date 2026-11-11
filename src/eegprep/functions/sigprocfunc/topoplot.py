@@ -85,7 +85,8 @@ def topoplot(datavector, chan_locs, **kwargs):
         Values to plot at each channel location.
     chan_locs : list of dict
         Channel location structures with 'labels', 'theta', and 'radius' fields.
-        ``None`` or an empty list raises ``ValueError``.
+        ``None`` raises ``ValueError``. An empty list raises ``ValueError``
+        for an interpolated map. A blank map with an empty list draws the head.
     kwargs : dict
         Additional keyword arguments for customization:
 
@@ -103,7 +104,8 @@ def topoplot(datavector, chan_locs, **kwargs):
     handle : matplotlib.figure.Figure or None
         Figure handle if plotted, None otherwise.
     """
-    _require_channel_locations(chan_locs)
+    if chan_locs is None:
+        _require_channel_locations(chan_locs)
     # Set default values
     noplot = kwargs.get('noplot', 'off')
     plotchans = kwargs.get('plotchans', [])
@@ -147,6 +149,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         blank_kwargs.pop('ELECTRODES', None)
         return _blank_topoplot(chan_locs, noplot=noplot, electrodes=ELECTRODES, gridscale=gridscale, **blank_kwargs)
 
+    _require_channel_locations(chan_locs)
     if len(datavector) > MAXDEFAULTSHOWLOCS and str(ELECTRODES).lower() == 'on':
         ELECTRODES = 'off'
     elif str(ELECTRODES).lower() == 'on':
