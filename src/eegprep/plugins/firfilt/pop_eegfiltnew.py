@@ -7,7 +7,7 @@ from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.plugins.firfilt._filtering import apply_fir_filter, design_eegfiltnew
+from eegprep.plugins.firfilt._filtering import apply_fir_filter, design_eegfiltnew, resolve_channel_indices
 from eegprep.plugins.firfilt._pop_common import (
     bool_value,
     channel_controls,
@@ -31,7 +31,17 @@ def pop_eegfiltnew(
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Filter EEG data using EEGLAB's Hamming-windowed FIR defaults."""
+    """Filter EEG data with the Hamming-windowed FIR from ``design_eegfiltnew``.
+
+    Returns the filtered dataset, or ``(EEG, com)`` when ``return_com`` is true.
+    ``com`` records the requested options. Each applied design is appended to
+    ``EEG["etc"]["eegfiltnew"]`` with the sampling rate, 1-based channels,
+    ``phase`` (``zerophase`` or ``minphase``), passband edges, -6 dB cutoffs,
+    order, transition width ``df``, ``revfilt``, and the coefficients that were
+    applied. A missing passband edge is NaN. A highpass is stored as the
+    reversed lowpass that was designed: ``locutoff`` is NaN, ``hicutoff`` is
+    the passband edge, and ``revfilt`` is true.
+    """
     if EEG is None:
         raise ValueError("Cannot filter empty dataset.")
     options = normalize_pop_options(
@@ -87,7 +97,15 @@ def pop_eegfiltnew(
     filter_type = _metadata_filter_type(metadata)
     logger.info("pop_eegfiltnew() - performing %d point %s filtering.", b.size, filter_type)
     logger.info("pop_eegfiltnew() - transition band width: %.4g Hz", metadata["df"])
+    channel_indices = resolve_channel_indices(EEG, channels, chantype)[0]
     output = apply_fir_filter(EEG, b, channels=channels, chantype=chantype, causal=minphase, usefftfilt=usefftfilt)
+    _append_applied_design(
+        output,
+        b,
+        metadata,
+        srate=float(EEG["srate"]),
+        channels=[index + 1 for index in channel_indices],
+    )
     if plotfreqz:
         direction = "onepass-minphase" if minphase else "onepass-zerophase"
         plotfresp(b, 1, fs=float(EEG["srate"]), dir=direction)
@@ -182,6 +200,45 @@ def _command_options(**values: Any) -> dict[str, Any]:
         if value is not None:
             ordered[key] = value
     return ordered
+
+
+def _append_applied_design(
+    output: dict[str, Any],
+    coefficients: Any,
+    metadata: dict[str, Any],
+    *,
+    srate: float,
+    channels: list[int],
+) -> None:
+    etc = output.get("etc")
+    if not isinstance(etc, dict):
+        etc = {}
+        output["etc"] = etc
+    designs = etc.get("eegfiltnew")
+    if not isinstance(designs, list):
+        designs = []
+        etc["eegfiltnew"] = designs
+    minphase = bool(metadata["minphase"])
+    designs.append(
+        {
+            "srate": float(srate),
+            "channels": [int(channel) for channel in channels],
+            "phase": "minphase" if minphase else "zerophase",
+            "locutoff": _design_edge(metadata["locutoff"]),
+            "hicutoff": _design_edge(metadata["hicutoff"]),
+            "cutoff": [float(value) for value in metadata["cutoff"]],
+            "filtorder": int(metadata["filtorder"]),
+            "df": float(metadata["df"]),
+            "revfilt": bool(metadata["revfilt"]),
+            "coefficients": coefficients.copy(),
+        }
+    )
+
+
+def _design_edge(value: Any) -> float:
+    if value is None:
+        return float("nan")
+    return float(value)
 
 
 def _metadata_filter_type(metadata: dict[str, Any]) -> str:
