@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import scipy.io
 from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
@@ -18,6 +19,7 @@ from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
 from tests.fixtures import create_test_eeg
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 from tests.fuzz.harness import (
     EEGSpec,
     FuzzCase,
@@ -41,12 +43,16 @@ from tests.fuzz.harness import (
     resume_eeg_options,
     run_repro,
     run_session,
+    write_repro,
     side_from_call,
     side_from_eeg,
     side_from_error,
     suspend_option_single,
     thaw_params,
     tolerance_for,
+    _InputObserver,
+    _caught_evidence,
+    _seen_input,
 )
 from tests.fuzz.issues import (
     FUNCTION_ROWS,
@@ -624,6 +630,56 @@ def test_minphase_fftfilt_nan_stays_in_one_block():
     np.testing.assert_allclose(out[0], time[0], atol=1e-8, rtol=1e-8)
 
 
+def _reference_shorter_than_one_rms_window():
+    srate = 128.0
+    samples = 1024
+    window = int(srate)
+    offsets = matlab_window_offsets(samples, float(window), window * 0.34).astype(int)
+    quiet = np.zeros(samples, dtype=bool)
+    for index in (0, 7, 14):
+        quiet[int(offsets[index]) : int(offsets[index]) + window] = True
+    rng = np.random.default_rng(0)
+    data = rng.standard_normal((4, samples)) * 5.0
+    data[:, quiet] = rng.standard_normal((4, int(np.count_nonzero(quiet)))) * 0.5
+    return {
+        "data": data,
+        "srate": srate,
+        "nbchan": 4,
+        "pnts": samples,
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (samples - 1) / srate,
+        "event": [],
+    }
+
+
+def test_short_selected_reference_is_the_same_failure_as_eeglab():
+    """Line 191 is both sides failing. It is not an oracle-only asr_calibrate finding."""
+    eeg = _reference_shorter_than_one_rms_window()
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(4)), 0, 1024, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+
+    def oracle_error(_case, _dataset):
+        raise RuntimeError(_REFERENCE_DATA_ERROR)
+
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        PythonBackend(),
+        _Backend(oracle_error),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
+    assert outcome.cause == "both-error"
+    assert "Not enough calibration data" in outcome.detail
+    assert "needs 64" in outcome.detail
+    assert "No enough reference data" in outcome.detail
+
+
 def test_one_rms_window_is_the_same_failure_as_eeglab():
     eeg = materialize_eeg(_ONE_WINDOW_ASR)
 
@@ -647,18 +703,80 @@ def test_one_rms_window_is_the_same_failure_as_eeglab():
 
 
 class _OptionsFileEngine:
+    """File plus the session variable ``eeg_options`` would leave behind.
+
+    ``pop_editoptions`` updates the file and leaves the variable stale.
+    ``eeglab_options`` is what copies the file back into the variable.
+    """
+
     def __init__(self, path: Path):
         self.path = path
+        self.option_single = 1
 
     def eval(self, statement, nargout=0):
-        if statement in {"eeglab_options;", "clear functions"}:
+        if "eegprep_option_path__" in statement and "fullfile" in statement:
             return None
-        if statement == "char(option_file)":
+        if statement == "eegprep_option_path__":
             return str(self.path)
+        if "eeglab_options" in statement:
+            self._read_option_single()
+            return None
+        if statement.startswith("clear "):
+            return None
         if statement.startswith("pop_editoptions"):
             self.path.write_bytes(b"% EEGLAB full options\noption_single = 0;\n")
             return None
         raise AssertionError(statement)
+
+    def _read_option_single(self):
+        if not self.path.is_file():
+            return
+        text = self.path.read_text()
+        if "option_single = 0" in text:
+            self.option_single = 0
+        elif "option_single = 1" in text:
+            self.option_single = 1
+
+
+def test_run_repro_restores_eeg_options(tmp_path, monkeypatch):
+    path = tmp_path / "eeg_options.m"
+    original = b"% local note\noption_single = 1;\n"
+    path.write_bytes(original)
+    raw = _OptionsFileEngine(path)
+
+    def connect():
+        return SimpleNamespace(engine=raw), suspend_option_single(raw)
+
+    monkeypatch.setattr("tests.fuzz.harness.connect_matlab", connect)
+    repro = tmp_path / "repro.json"
+    repro.write_text(
+        json.dumps(
+            {
+                "function": "pop_reref",
+                "params": {"ref": [], "keepref": "off", "exclude": []},
+                "spec": {
+                    "channels": [0],
+                    "start": 0,
+                    "length": 8,
+                    "decimate": 1,
+                    "nan_channel": -1,
+                    "nan_start": 0,
+                    "nan_length": 0,
+                },
+            }
+        )
+    )
+
+    run_repro(repro, materialize=_ones)
+
+    assert path.read_bytes() == original
+    assert raw.option_single == 1
+
+    from tests.fuzz.__main__ import main
+
+    main(["reproduce", str(repro)])
+    assert path.read_bytes() == original
+    assert raw.option_single == 1
 
 
 def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
@@ -669,11 +787,98 @@ def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
     backend = MatlabBackend()
     backend._engine = SimpleNamespace(engine=raw)
     backend._options = suspend_option_single(raw)
-    assert path.read_bytes() != original
+    assert b"option_single = 0" in path.read_bytes()
+    assert raw.option_single == 0
     backend.close()
     assert path.read_bytes() == original
+    assert raw.option_single == 1
     backend.close()
     assert path.read_bytes() == original
+    assert raw.option_single == 1
+
+
+def _zero_trial_recording():
+    return {
+        "data": np.ones((20, 600), dtype=np.float64),
+        "nbchan": 20,
+        "pnts": 600,
+        "trials": 1,
+        "srate": 200.0,
+        "xmin": 0.0,
+        "xmax": 599 / 200,
+        "event": [{"type": "65", "latency": 10.0}],
+    }
+
+
+def _zero_trial_pipeline():
+    epoch = freeze_params({"types": ["65"], "lim": [-1.0, 2.0]})
+    select = freeze_params({"trial": [1, 2, 3], "sorttrial": "on"})
+    return FuzzCase(
+        "pipeline",
+        EEGSpec(tuple(range(20)), 0, 600, 1, -1, 0, 0),
+        freeze_params({}),
+        pipeline=(("pop_epoch", epoch), ("pop_select", select)),
+    )
+
+
+def test_zero_trial_epoch_stops_the_pipeline():
+    called = []
+
+    def oracle(case, dataset):
+        called.append(case.function)
+        return dispatch_python(case, dataset)
+
+    outcome = evaluate_case(
+        _zero_trial_pipeline(),
+        lambda _case: _zero_trial_recording(),
+        PythonBackend(),
+        _CallBackend(oracle),
+        load_tolerances(),
+    )
+    assert called == ["pop_epoch"]
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+    assert outcome.detail == "pop_epoch: 0 trials"
+
+
+@pytest.mark.parametrize(
+    ("mutate", "error_class", "detail"),
+    [
+        ("trials", "pop_epoch:meta", "trials 0 != 1"),
+        ("pnts", "pop_epoch:meta", "pnts 600 != 10"),
+        ("event", "pop_epoch:event-count", "event count 0 != 1"),
+        ("shape", "pop_epoch:shape", "shape (20, 600, 0) != (20, 600, 1)"),
+    ],
+)
+def test_zero_trial_epoch_disagreement_stays_on_pop_epoch(mutate, error_class, detail):
+    called = []
+
+    def oracle(case, dataset):
+        called.append(case.function)
+        output = dispatch_python(case, dataset)
+        eeg = copy.deepcopy(output[0] if isinstance(output, tuple) else output)
+        if mutate == "trials":
+            eeg["trials"] = 1
+        elif mutate == "pnts":
+            eeg["pnts"] = 10
+        elif mutate == "event":
+            eeg["event"] = [{"type": "65", "latency": 1.0, "epoch": 1}]
+        else:
+            eeg["data"] = np.zeros((20, 600, 1), dtype=np.float64)
+            eeg["trials"] = 1
+        return eeg
+
+    outcome = evaluate_case(
+        _zero_trial_pipeline(),
+        lambda _case: _zero_trial_recording(),
+        PythonBackend(),
+        _CallBackend(oracle),
+        load_tolerances(),
+    )
+    assert called == ["pop_epoch"]
+    assert outcome.diverged is True
+    assert outcome.error_class == error_class
+    assert detail in outcome.detail
 
 
 def test_duplicate_trial_order_is_not_filed():
@@ -1054,6 +1259,8 @@ def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
         pytest.fail(f"eeglab_options did not load an options file to restore (path={path})")
     print(f"eeg_options path={path} bytes={len(original)}")
     assert path.read_bytes() == original
+    restored = int(eeglab_matlab_engine.eval("option_single", nargout=1))
+    assert restored == int(before)
 
 
 def _replay_cases(engine, tolerances):
@@ -1182,7 +1389,7 @@ def test_publish_dedupes_and_caps_new_issues():
         _finding("clean_asr", 20.0),
         _finding("pop_reref", 3.0),
     ]
-    # The fifth new signature shares a function with the existing one but not a magnitude.
+    findings[-1].error_class = "shape"
     functions = _counts()
     for finding in findings:
         functions[finding.report]["divergences"] += 1
@@ -1318,3 +1525,389 @@ def test_workflow_schedules_the_matlab_batch_job():
     assert "MLM_LICENSE_TOKEN" in text
     assert "matlab-batch" in text
     assert "eegprep_batch_engine_serve" in text
+    assert "fuzz-out/matlab-server.log" in text
+
+
+def _fit_error():
+    from tests.matlab_batch_engine import MatlabExecutionError
+
+    return MatlabExecutionError(
+        "Index in position 1 is invalid. Array indices must be positive integers or logical values.",
+        identifier="MATLAB:badsubscript",
+        stack="  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+    )
+
+
+class _TransportBackend:
+    def __init__(self, seen, fn):
+        observer = _InputObserver(None)
+        observer.last_input_data = seen
+        self._engine = SimpleNamespace(engine=observer)
+        self._fn = fn
+
+    def run(self, case, eeg):
+        try:
+            return side_from_call(self._fn(case, eeg))
+        except Exception as exc:
+            return side_from_error(exc)
+
+
+def test_compare_splits_nan_and_infinities():
+    tolerance = Tolerance(0.0, 0.0)
+    diverged, error_class, _count, _rel, detail = compare_data(
+        np.array([[np.nan]]), np.array([[np.inf]]), 1.0, 1.0, tolerance
+    )
+    assert diverged is True
+    assert error_class == "nan-mask"
+    assert "NaN" in detail
+    diverged, error_class, _count, _rel, detail = compare_data(
+        np.array([[np.inf]]), np.array([[-np.inf]]), 1.0, 1.0, tolerance
+    )
+    assert error_class == "nan-mask"
+    assert "+Inf" in detail
+
+
+def test_transport_mismatch_is_not_a_numeric_divergence():
+    case = FuzzCase("clean_channels", EEGSpec((0, 1), 0, 8, 1, -1, 0, 0), freeze_params({}))
+    eeg = materialize_eeg(case)
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    seen = original.astype(np.float32)
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        _Backend(lambda _case, dataset: np.array(dataset["data"], copy=True)),
+        _TransportBackend(seen, lambda _case, dataset: np.array(dataset["data"], copy=True)),
+        load_tolerances(),
+    )
+    assert outcome.diverged is True
+    assert outcome.error_class == "transport"
+    assert outcome.cause == "transport"
+
+
+def test_observer_records_the_restored_input_and_the_target_error():
+    signal = np.array([[np.float64(1.25), np.nan], [np.inf, -np.inf]])
+
+    class _Inner:
+        def __init__(self):
+            self.evals = []
+            self.last_caught_error = {"identifier": "STALE", "message": "stale", "stack": "", "printed": ""}
+
+        def eval(self, code, nargout=0):
+            del nargout
+            self.evals.append(code)
+            if "eegprep_seen_data = EEG.data" in code:
+                path = code.split("save('", 1)[1].split("'", 1)[0]
+                scipy.io.savemat(path, {"eegprep_seen_data": signal}, do_compression=False)
+                self.last_caught_error = None
+                return None
+            if "OUT = pop_clean_rawdata" in code:
+                self.last_caught_error = {
+                    "identifier": "MATLAB:badsubscript",
+                    "message": "Index in position 1 is invalid.",
+                    "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+                    "printed": "",
+                }
+                return None
+            self.last_caught_error = None
+            return None
+
+    inner = _Inner()
+    observer = _InputObserver(inner)
+    observer.eval("args = load('args.mat');", nargout=0)
+    observer.eval("EEG = pop_loadset('input.set');", nargout=0)
+    observer.eval(
+        "eegprep_input = load('input.mat'); EEG.data = eegprep_input.eegprep_input_data; clear eegprep_input",
+        nargout=0,
+    )
+    observer.eval("OUT = pop_clean_rawdata(EEG,args.args);", nargout=0)
+    observer.eval("pop_saveset(OUT, 'result.set');", nargout=0)
+
+    restore_at = next(
+        index for index, code in enumerate(inner.evals) if "EEG.data = eegprep_input.eegprep_input_data" in code
+    )
+    capture_at = next(index for index, code in enumerate(inner.evals) if "eegprep_seen_data = EEG.data" in code)
+    target_at = next(index for index, code in enumerate(inner.evals) if "OUT = pop_clean_rawdata" in code)
+    assert restore_at < capture_at < target_at
+    seen = observer.last_input_data
+    assert isinstance(seen, np.ndarray)
+    assert seen.dtype == np.dtype(np.float64)
+    assert np.array_equal(seen, signal, equal_nan=True)
+    assert inner.last_caught_error is None
+    caught = observer.last_caught_error
+    assert isinstance(caught, dict)
+    assert caught["identifier"] == "MATLAB:badsubscript"
+
+    backend = SimpleNamespace(_engine=SimpleNamespace(engine=observer))
+    assert _seen_input(backend) is observer.last_input_data
+    identifier, stack = _caught_evidence(backend)
+    assert identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in stack
+
+    inner.last_caught_error = {"identifier": "STALE", "message": "stale", "stack": "other", "printed": ""}
+    wrapper = MatlabWrapper(inner)
+    assert _caught_evidence(SimpleNamespace(_engine=wrapper)) == ("", "")
+    observer.eval("args = load('next.mat');", nargout=0)
+    assert observer.last_input_data is None
+    assert observer.last_caught_error is None
+
+
+def test_identity_signal_uses_values_float32_cannot_store():
+    from tests.fuzz.harness import _identity_case
+
+    eeg = materialize_eeg(_identity_case())
+    data = np.asarray(eeg["data"])
+    flat = data.reshape(-1)
+    assert flat[0] != np.float64(np.float32(flat[0]))
+    assert flat[1] != flat[2]
+    assert np.isnan(flat[3]) and np.isposinf(flat[4]) and np.isneginf(flat[5])
+    narrowed = flat.astype(np.float32).astype(np.float64)
+    assert flat[1] != narrowed[1]
+
+
+def test_auto_reference_zero_width_needs_the_fit_stack():
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec((0, 1), 0, 124, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+    eeg = materialize_eeg(case)
+
+    def fail(_case, _dataset):
+        raise _fit_error()
+
+    matched = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(fail), load_tolerances())
+    assert matched.diverged is False
+    assert "#582" in matched.detail
+    assert matched.oracle_identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in matched.oracle_stack
+
+    def bare(_case, _dataset):
+        raise RuntimeError("Index in position 1 is invalid. Array indices must be positive integers or logical values.")
+
+    unmatched = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(bare), load_tolerances())
+    assert unmatched.diverged is True
+
+
+def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence(tmp_path):
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec((0, 1), 0, 124, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_rawdata", "cutoff": 5.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+    eeg = materialize_eeg(case)
+
+    def unchanged(_case, dataset):
+        return np.array(dataset["data"], dtype=np.float64, copy=True)
+
+    backend = _Backend(unchanged)
+    observer = _InputObserver(None)
+    observer.last_caught_error = {
+        "identifier": "MATLAB:badsubscript",
+        "message": "Index in position 1 is invalid. Array indices must be positive integers or logical values.",
+        "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+        "printed": "Index in position 1 is invalid. Array indices must be positive integers or logical values.\n",
+    }
+    backend._engine = SimpleNamespace(engine=observer)
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), backend, load_tolerances())
+    assert outcome.diverged is False
+    assert "#582" in outcome.detail
+    assert outcome.oracle_identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in outcome.oracle_stack
+    assert outcome.reference_samples
+    assert "-inf" in outcome.reference_tolerances and "5.5" in outcome.reference_tolerances
+    assert outcome.oracle_returned_input is True
+    saved = json.loads(write_repro(tmp_path, outcome, 1, eeg).read_text())
+    assert saved["oracle_identifier"] == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in saved["oracle_stack"]
+    assert saved["reference_samples"] == outcome.reference_samples
+    assert saved["reference_tolerances"] == outcome.reference_tolerances
+    assert saved["oracle_returned_input"] is True
+
+
+def test_one_channel_sort_defect_is_not_a_divergence(tmp_path):
+    # Saved #583 repro: channel 20 of eeglab_data, samples 1338:2196.
+    # The channel-axis selection keeps 37 samples, so calibration needs 64.
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec((20,), 1338, 858, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+    eeg = materialize_eeg(case)
+
+    def fail(_case, _dataset):
+        raise _fit_error()
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(fail), load_tolerances())
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+    assert "#583" in outcome.detail
+    assert "37" in outcome.detail and "64" in outcome.detail
+    assert outcome.reference_samples == 37
+    assert outcome.oracle_identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in outcome.oracle_stack
+    saved = json.loads(write_repro(tmp_path, outcome, 1, eeg).read_text())
+    assert saved["oracle_identifier"] == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in saved["oracle_stack"]
+    assert saved["reference_samples"] == 37
+
+    longer = FuzzCase(
+        "clean_asr",
+        EEGSpec((0,), 0, 1024, 1, -1, 0, 0),
+        freeze_params(thaw_params(case.params)),
+    )
+    longer_eeg = materialize_eeg(longer)
+    succeeded = evaluate_case(longer, lambda _case: longer_eeg, PythonBackend(), _Backend(fail), load_tolerances())
+    assert succeeded.diverged is False
+    assert "#583" in succeeded.detail
+    assert succeeded.oracle_identifier == "MATLAB:badsubscript"
+
+    def unrelated(_case, _dataset):
+        raise ValueError("unrelated")
+
+    other_error = evaluate_case(case, lambda _case: eeg, _Backend(unrelated), _Backend(fail), load_tolerances())
+    assert other_error.diverged is True
+
+    two = FuzzCase(
+        "clean_asr",
+        EEGSpec((0, 1), 0, 1024, 1, -1, 0, 0),
+        freeze_params(thaw_params(case.params)),
+    )
+    two_eeg = materialize_eeg(two)
+    other = evaluate_case(two, lambda _case: two_eeg, PythonBackend(), _Backend(fail), load_tolerances())
+    assert other.diverged is True
+
+
+def test_batch_response_keeps_a_caught_lasterror(tmp_path):
+    import scipy.io
+
+    from tests.matlab_batch_engine import _caught_from_response
+
+    path = tmp_path / "caught.mat"
+    scipy.io.savemat(
+        path,
+        {
+            "caught": {
+                "identifier": "MATLAB:badsubscript",
+                "message": "Index in position 1 is invalid.",
+                "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+                "printed": "Index in position 1 is invalid.\n",
+            }
+        },
+    )
+    caught = _caught_from_response(scipy.io.loadmat(path, squeeze_me=False))
+    assert caught is not None
+    assert caught["identifier"] == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in caught["stack"]
+    empty = tmp_path / "empty.mat"
+    scipy.io.savemat(
+        empty,
+        {"caught": {"identifier": "", "message": "", "stack": "", "printed": "Detecting flat line...\n"}},
+    )
+    assert _caught_from_response(scipy.io.loadmat(empty, squeeze_me=False)) is None
+
+
+def test_repro_keeps_the_oracle_identifier_and_stack(tmp_path):
+    case = FuzzCase("clean_asr", EEGSpec((0,), 0, 8, 1, -1, 0, 0), freeze_params({}))
+    outcome = Outcome(case, True, False, "oracle-only:MatlabExecutionError", 0.0, 0.0, "index")
+    outcome.oracle_identifier = "MATLAB:badsubscript"
+    outcome.oracle_stack = "  asr_calibrate.m>fit_eeg_distribution (line 395)\n"
+    outcome.input_sha256 = "ab" * 32
+    path = write_repro(tmp_path, outcome, 1, {"data": np.zeros((1, 8))})
+    saved = json.loads(path.read_text())
+    assert saved["oracle_identifier"] == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in saved["oracle_stack"]
+    assert saved["cause"].startswith("oracle:")
+
+
+def _judged(function: str, python: SideResult, oracle: SideResult, digest: str) -> Outcome:
+    case = FuzzCase(function, _spec(1), freeze_params({}))
+    return judge(python, oracle, Tolerance(0.0, 0.0), case, digest)
+
+
+def test_signature_is_stable_for_one_defect_and_distinct_for_two():
+    values = (
+        np.array([[1.0]], dtype=float),
+        np.array([[4.0]], dtype=float),
+    )
+    zeros = SideResult(True, np.zeros((1, 1)), 128.0, None, None)
+    first = _judged("pop_reref", SideResult(True, values[0], 128.0, None, None), zeros, "a" * 64)
+    second = _judged("pop_reref", SideResult(True, values[1], 128.0, None, None), zeros, "b" * 64)
+    assert first.signature == second.signature == "pop_reref|numeric|data"
+    assert "a" * 64 not in first.signature
+    assert "1e" not in first.signature
+
+    shape = _judged(
+        "pop_reref",
+        SideResult(True, np.zeros((1, 2)), 128.0, None, None),
+        SideResult(True, np.zeros((1, 3)), 128.0, None, None),
+        "c" * 64,
+    )
+    assert shape.signature == "pop_reref|shape|data"
+    assert shape.signature != first.signature
+
+    finite = SideResult(True, np.zeros((1, 1)), 128.0, None, None)
+    nan = _judged("pop_reref", SideResult(True, np.array([[np.nan]]), 128.0, None, None), finite, "d" * 64)
+    positive = _judged("pop_reref", SideResult(True, np.array([[np.inf]]), 128.0, None, None), finite, "e" * 64)
+    assert nan.signature == "pop_reref|nan-mask|NaN"
+    assert positive.signature == "pop_reref|nan-mask|+Inf"
+    assert nan.signature != positive.signature
+
+    mismatch = _finding("clean_asr", 0.0)
+    mismatch.error_class = "exception-mismatch:ASRCalibrationError/MatlabExecutionError"
+    other_mismatch = _finding("clean_asr", 0.0)
+    other_mismatch.error_class = "exception-mismatch:ValueError/MatlabExecutionError"
+    other_mismatch.input_sha256 = "f" * 64
+    assert mismatch.signature == "clean_asr|exception-mismatch:ASRCalibrationError/MatlabExecutionError"
+    assert mismatch.signature != other_mismatch.signature
+
+    oracle = _finding("clean_asr", 0.0)
+    oracle.error_class = "oracle-only:MatlabExecutionError"
+    oracle.oracle_identifier = "MATLAB:badsubscript"
+    oracle.oracle_stack = "  asr_calibrate.m>fit_eeg_distribution (line 395)\n"
+    repeated = _finding("clean_asr", 0.0)
+    repeated.error_class = oracle.error_class
+    repeated.oracle_identifier = oracle.oracle_identifier
+    repeated.oracle_stack = oracle.oracle_stack
+    repeated.input_sha256 = "1" * 64
+    assert oracle.signature == repeated.signature == "clean_asr|oracle:MATLAB:badsubscript:fit_eeg_distribution"
+    other_frame = _finding("clean_asr", 0.0)
+    other_frame.error_class = oracle.error_class
+    other_frame.oracle_identifier = oracle.oracle_identifier
+    other_frame.oracle_stack = "  clean_windows.m (line 115)\n"
+    assert other_frame.signature != oracle.signature
+
+    tracker = MemoryIssueTracker()
+    result = publish_findings(
+        seed=20261110,
+        functions=_counts(),
+        findings=[first, second],
+        tracker=tracker,
+        cap=3,
+        run_url="",
+        harness_ok=True,
+    )
+    assert result.created == [1]
+    assert result.commented == [1]
+    comment = tracker.issues[0].comments[0]
+    assert second.input_sha256 in comment
+    assert first.signature in tracker.issues[0].body
+
+
+def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
+    strategy = st.sampled_from([_reref_case(3), _reref_case(6)])
+    result = run_session(
+        seed_value=11,
+        output_dir=tmp_path,
+        examples=8,
+        shrink_budget=2,
+        max_shrinks=4,
+        python_backend=_Backend(_identity),
+        oracle_backend=_Backend(_diverge_over_two_channels),
+        strategies={"pop_reref": strategy},
+        sanity=[_reref_case(1, sanity=True)],
+        materialize=_ones,
+    )
+    assert result.harness_ok
+    assert result.functions["pop_reref"]["divergences"] >= 2
+    assert len(result.divergences) == 1
+    assert result.divergences[0].signature == "pop_reref|numeric|data"

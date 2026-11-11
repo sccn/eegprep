@@ -260,10 +260,27 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        non-positive widths and still removes bursts. The 21-channel,
        89-sample recording at 128 Hz has two windows, and eleven of those
        widths round to zero.
+   * - ASR reference selection leaving three RMS windows
+     - Automatic reference selection can leave three RMS windows.
+       ``asr_calibrate.m`` lines 392-395 then index a zero fit width, and
+       ``clean_artifacts.m`` lines 270-275 catch the error and return the
+       recording unchanged (#582). EEGPrep skips non-positive widths and
+       still calibrates on that reference.
+   * - One-channel ``clean_windows`` sort
+     - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
+       One channel is one row, so MATLAB sorts that row across time and the
+       fit then fails (#583). EEGPrep sorts across channels, so the loud
+       window stays at its time index. When that selection is shorter than
+       one 0.5 s RMS window, ``clean_asr`` raises ``ASRCalibrationError``
+       with the sample counts. A correct ``sort(wz, 1)`` reaches that same
+       short-reference error; MATLAB's sort reaches the fit instead.
    * - One ASR calibration window
      - ``clean_asr`` raises ``ASRCalibrationError`` when fewer than two
        calibration RMS windows are available, and when the calibration is
-       shorter than one window. The error names the window count or the
+       shorter than one window. The calibration is the reference
+       ``clean_windows`` kept, so a longer recording is not substituted
+       when that reference is shorter than one 0.5 s RMS window
+       (``asr_calibrate.m`` line 191). The error names the window count or the
        sample counts. EEGLAB's ``asr_calibrate`` asks for different
        ``BurstCriterionRefTolerances`` (``asr_calibrate.m`` lines 189-204).
        ``pop_clean_rawdata`` warns and skips the burst stage. A requested
