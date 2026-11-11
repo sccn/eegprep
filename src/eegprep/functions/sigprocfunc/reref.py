@@ -78,11 +78,11 @@ def reref(
     if huber is not None and not np.isnan(float(huber)) and not ref_indices:
         work[chansin_array, :] = _huber_average_reference(work[chansin_array, :], float(huber))
     elif ref_indices:
-        mean_data = work[np.asarray(ref_indices), :].mean(axis=0, dtype=np.float64)
+        mean_data = work[np.asarray(ref_indices), :].mean(axis=0)
         work[chansin_array, :] = work[chansin_array, :] - mean_data
     else:
         block = work[chansin_array, :]
-        work[chansin_array, :] = block - block.mean(axis=0, dtype=np.float64)
+        work[chansin_array, :] = block - block.mean(axis=0)
         mean_data = None
 
     if locs is not None:
