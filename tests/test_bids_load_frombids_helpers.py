@@ -819,25 +819,15 @@ def test_missing_electrode_coordinates_round_trip_as_empty_arrays(tmp_path: Path
     )
     names = ["Fz", "Cz", "Pz"]
     edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
-    writer = pyedflib.EdfWriter(str(edf_path), len(names), file_type=pyedflib.FILETYPE_EDFPLUS)
-    writer.setSignalHeaders(
-        [
-            {
-                "label": name,
-                "dimension": "uV",
-                "sample_frequency": 250,
-                "physical_min": -500,
-                "physical_max": 500,
-                "digital_min": -32768,
-                "digital_max": 32767,
-                "transducer": "",
-                "prefilter": "",
-            }
-            for name in names
-        ]
+    _write_edf_family(
+        edf_path,
+        list(np.random.default_rng(0).standard_normal((len(names), 250)) * 20),
+        labels=names,
+        srate=250,
+        file_type=pyedflib.FILETYPE_EDFPLUS,
+        digital_min=-32768,
+        digital_max=32767,
     )
-    writer.writeSamples(list(np.random.default_rng(0).standard_normal((len(names), 250)) * 20))
-    writer.close()
     (eeg_dir / "sub-01_task-x_channels.tsv").write_text(
         "name\ttype\tunits\n" + "".join(f"{name}\tEEG\tuV\n" for name in names)
     )
