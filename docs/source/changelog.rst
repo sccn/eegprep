@@ -38,7 +38,10 @@ Unreleased
 - ``pop_icflag`` and ``pop_viewprops`` refuse ICLabel rows that do not match
   the current ICA, including labels left behind after the decomposition was
   removed (F7).
-
+- ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
+  ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
+  as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and
+  ``clean_windows`` can store their results (#533).
 - ``pop_load_frombids`` stores a missing channel coordinate as an empty
   array, including a channel with no row in ``electrodes.tsv``. Saving and
   reloading that dataset keeps the empty coordinates (#538).
