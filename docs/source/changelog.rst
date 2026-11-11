@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_getdatact`` computes component activity when ``icaact`` is missing,
+  empty, or ``None`` (#506).
+
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves
   the dataset and history; accepted imports update the GUI and console

@@ -29,7 +29,9 @@ data, or component backprojections without mutating the dataset. Its selector
 arguments are 1-based at the public API boundary, while stored
 ``icachansind`` values remain 0-based. The default result is always
 ``(signals, samples, trials)``; ``reshape="2d"`` concatenates trials in
-column-major order for EEGLAB-compatible numerical workflows.
+column-major order for EEGLAB-compatible numerical workflows. A missing
+``icaact``, an empty ``icaact``, and ``icaact`` set to ``None`` all compute
+component activity from ``icaweights``, ``icasphere``, and the channel data.
 
 ``event`` entries keep EEGLAB-facing ``latency`` values and, when available,
 ``urevent`` pointers back to ``urevent`` entries. ``urevent`` is the

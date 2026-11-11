@@ -170,6 +170,15 @@ def test_current_eeg_getdatact_channel_component_trial_and_removal_cases():
     np.testing.assert_allclose(eeg_getdatact(epoched, rmcomps=[1]), expected, atol=1e-12)
 
 
+def test_eeg_getdatact_computes_component_activity_when_icaact_is_none():
+    expected = eeg_getdatact({**_eeg(), "icaact": np.array([])}, component=[1, 3])
+    missing = _eeg()
+    del missing["icaact"]
+    for dataset in ({**_eeg(), "icaact": None}, {**_eeg(), "icaact": np.array([])}, missing):
+        np.testing.assert_allclose(eeg_getdatact(dataset, component=[1, 3]), expected)
+    assert expected.shape == (2, 20, 1)
+
+
 def test_eeg_getdatact_computes_uncached_activity_backprojection_and_two_dimensional_shape():
     eeg = _eeg(epoched=True)
     eeg["icaact"] = np.array([])
