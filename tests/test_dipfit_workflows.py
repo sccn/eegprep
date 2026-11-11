@@ -16,7 +16,9 @@ from eegprep.plugins.dipfit._coordinates import (
     traditionaldipfit,
     warp_apply,
 )
-from eegprep.plugins.dipfit._fitting import leadfield_matrix, prepare_forward_data
+from eegprep.plugins.dipfit._fitting import prepare_forward_data
+from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
+from eegprep.plugins.dipfit.forward.standard_besa import standard_besa_headmodel
 from eegprep.plugins.dipfit.load_afni_atlas import load_afni_atlas
 from eegprep.plugins.dipfit.dipfit_reject import dipfit_reject
 from eegprep.plugins.dipfit.pop_dipfit_batch import pop_dipfit_batch
@@ -72,7 +74,7 @@ def _known_dipole_eeg() -> tuple[dict, np.ndarray, np.ndarray]:
     ]
     true_pos = np.asarray([10.0, -20.0, 40.0])
     true_mom = np.asarray([0.6, -0.2, 0.8])
-    topography = leadfield_matrix(points, true_pos)[0] @ true_mom
+    topography = ft_compute_leadfield(true_pos, {"elecpos": points}, standard_besa_headmodel()) @ true_mom
     eeg["icawinv"] = topography[:, np.newaxis]
     eeg["icaweights"] = np.linalg.pinv(eeg["icawinv"])
     eeg["icasphere"] = np.eye(eeg["nbchan"])

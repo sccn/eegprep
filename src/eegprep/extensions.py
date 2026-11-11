@@ -425,7 +425,7 @@ class ExtensionRegistry:
                 version="bundled",
                 package_name="eegprep.plugins.dipfit",
                 source_type=ExtensionSourceType.BUNDLED,
-                description="Source-localization menu surfaces with EEGPrep-native spherical DIPFIT workflows.",
+                description="Source-localization menu surfaces. standardBESA uses the four-shell BESA leadfield.",
                 capabilities=("source", "localization"),
                 menus=(
                     _extension_menu_from_spec(

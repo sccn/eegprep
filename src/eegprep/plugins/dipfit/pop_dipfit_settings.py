@@ -125,7 +125,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "EEGPrep records DIPFIT settings and uses them for native spherical fitting.",
+            "EEGPrep records DIPFIT settings. standardBESA fits use the four-shell BESA leadfield.",
             "Browse/Coregister buttons are disabled until standalone MRI/BEM asset loading is implemented.",
         ),
         row_spacing=10,
