@@ -5,6 +5,8 @@ from __future__ import annotations
 import ctypes
 import ctypes.util
 import sys
+from collections import Counter
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -67,6 +69,7 @@ class EEGPrepMainWindow:
         self.app.setApplicationDisplayName(APP_NAME)
         self.session = session or EEGPrepSession()
         self.all_menus = bool(EEG_OPTIONS.get("option_allmenus", 0)) if all_menus is None else bool(all_menus)
+        self._menu_option = bool(EEG_OPTIONS["option_allmenus"])
         self.include_plugins = include_plugins
         self.extension_runtime = (
             extension_runtime
@@ -87,10 +90,6 @@ class EEGPrepMainWindow:
             native_file_dialogs=native_file_dialogs,
             extension_runtime=self.extension_runtime,
         )
-        # While a menu popup is open, shiboken deletes a QMenu whose Python
-        # wrapper is collected. That removes the open menu and any menu opened
-        # on the way to it, which is why cancelling a dialog drops File, Edit,
-        # and Tools. Holding the wrappers keeps the bar intact.
         self._menu_refs: list[Any] = []
         self._build_central_widget()
         self.refresh()
@@ -109,6 +108,10 @@ class EEGPrepMainWindow:
 
     def refresh(self) -> None:
         """Refresh menus and summary text from session state."""
+        option = bool(EEG_OPTIONS["option_allmenus"])
+        if option != self._menu_option:
+            self.all_menus = option
+            self._menu_option = option
         self._build_menus()
         self._update_summary()
 
@@ -198,14 +201,41 @@ class EEGPrepMainWindow:
     def _build_menus(self) -> None:
         menubar = self.window.menuBar()
         kept: list[Any] = []
-        menubar.clear()
         statuses = self.session.menu_statuses()
-        for spec in self._current_menu_specs():
-            action = self._add_top_menu(menubar, spec, statuses, kept)
-            if spec.label == "Study" and "multiple_datasets" in statuses:
-                _set_menu_enabled(action.menu(), action, False)
+        specs = self._current_menu_specs()
+        if not menubar.actions():
+            for spec in specs:
+                self._add_top_menu(menubar, spec, statuses, kept)
+        else:
+            for action, spec in zip(menubar.actions(), specs):
+                menu = action.menu()
+                kept.append(menu)
+                _set_menu_enabled(menu, action, menu_enabled(spec, statuses))
+                self._refresh_menu(menu, spec.children, statuses, kept)
         self._menu_refs = kept
         _set_macos_application_menu_title(APP_NAME)
+
+    def _refresh_menu(self, menu: Any, specs: tuple[MenuItemSpec, ...], statuses: set[str], kept: list[Any]) -> None:
+        actions = [action for action in menu.actions() if not action.isSeparator()]
+        keys = [(action.property("eegprep_label"), action.data()) for action in actions]
+        if keys != [(spec.label, spec.action) for spec in specs]:
+            for action in actions:
+                if action.menu() is not None:
+                    action.menu().deleteLater()
+            menu.clear()
+            for spec in specs:
+                self._add_menu_item(menu, spec, statuses, kept)
+            return
+        for action, spec in zip(actions, specs):
+            submenu = action.menu()
+            if submenu is not None:
+                kept.append(submenu)
+                _set_menu_enabled(submenu, action, menu_enabled(spec, statuses))
+                self._refresh_menu(submenu, spec.children, statuses, kept)
+            else:
+                action.setEnabled(menu_enabled(spec, statuses) and not _is_coming_soon_item(spec))
+                action.setCheckable(spec.checked or bool(spec.action and spec.action.startswith("retrieve_dataset:")))
+                action.setChecked(spec.checked)
 
     def _apply_application_branding(self) -> None:
         self.app.setApplicationName(APP_NAME)
@@ -241,6 +271,8 @@ class EEGPrepMainWindow:
         ):
             if spec.label == "Datasets":
                 spec = spec.with_children(self._dataset_menu_items())
+                if self.session.dataset_summaries():
+                    spec = replace(spec, userdata="study:on")
             specs.append(spec)
         return tuple(specs)
 
@@ -258,12 +290,11 @@ class EEGPrepMainWindow:
             )
             for index, label, _selected in summaries
         ]
-        if len(summaries) > 1:
-            items.append(
-                MenuItemSpec(
-                    "Select multiple datasets", action="select_multiple_datasets", userdata="study:on", separator=True
-                )
+        items.append(
+            MenuItemSpec(
+                "Select multiple datasets", action="select_multiple_datasets", userdata="study:on", separator=True
             )
+        )
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
             items.append(
                 MenuItemSpec("Select the study set", action="select_study_set", userdata="study:on", separator=True)
@@ -271,7 +302,8 @@ class EEGPrepMainWindow:
         return tuple(items)
 
     def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str], kept: list[Any]) -> Any:
-        menu = menubar.addMenu(spec.label)
+        menu = self._qt_widgets.QMenu(spec.label, menubar)
+        menubar.addMenu(menu)
         kept.append(menu)
         action = menu.menuAction()
         _apply_action_metadata(action, spec, self._qt_gui)
@@ -286,7 +318,8 @@ class EEGPrepMainWindow:
         if spec.separator:
             menu.addSeparator()
         if spec.children:
-            submenu = menu.addMenu(spec.label)
+            submenu = self._qt_widgets.QMenu(spec.label, menu)
+            menu.addMenu(submenu)
             kept.append(submenu)
             if spec.tag:
                 submenu.setObjectName(spec.tag)
@@ -317,7 +350,7 @@ class EEGPrepMainWindow:
 
     def _update_summary(self) -> None:
         statuses = self.session.menu_statuses()
-        if "startup" in statuses:
+        if "startup" in statuses and not self.session.CURRENTSET:
             self.stack.setCurrentIndex(0)
             self.heading.setText("No current dataset")
             return
@@ -396,7 +429,7 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
                 ("Channel locations", _study_channel_locations(eeg)),
                 ("Events (total)", str(sum(_collection_len(item.get("event")) for item in eeg))),
                 ("Sampling rate (Hz)", _unique_values(eeg, "srate")),
-                ("ICA weights", _yes_no(all(not _empty_array(item.get("icaweights")) for item in eeg))),
+                ("ICA weights", _ica_weight_state(eeg)),
                 ("Identical ICA", _identical_ica(eeg)),
                 ("Total size (Mb)", _size_mb(eeg)),
             ],
@@ -405,14 +438,16 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
         eeg = eeg[0] if eeg else {}
     setname = str(eeg.get("setname") or "(no dataset name)")
     prefix = f"#{session.CURRENTSET[0]}: " if session.CURRENTSET else ""
+    limits = [float(eeg.get(key, 0) or 0) for key in ("xmin", "xmax")]
+    integral_limits = all(value.is_integer() for value in limits)
     rows = [
         ("Channels per frame", str(int(eeg.get("nbchan", 0) or 0))),
         ("Frames per epoch", str(int(eeg.get("pnts", 0) or 0))),
         ("Epochs", str(int(eeg.get("trials", 0) or 0))),
         ("Events", "none" if _collection_len(eeg.get("event")) == 0 else str(_collection_len(eeg.get("event")))),
         ("Sampling rate (Hz)", str(int(round(float(eeg.get("srate", 0) or 0))))),
-        ("Epoch start (sec)", _format_time(eeg.get("xmin", 0))),
-        ("Epoch end (sec)", _format_time(eeg.get("xmax", 0))),
+        ("Epoch start (sec)", _format_time(limits[0], integral_limits)),
+        ("Epoch end (sec)", _format_time(limits[1], integral_limits)),
         ("Reference", _reference_state(eeg)),
         ("Channel locations", _channel_location_state(eeg)),
         ("ICA weights", _yes_no(not _empty_array(eeg.get("icasphere")))),
@@ -744,17 +779,14 @@ def _truncate(text: str, max_chars: int) -> str:
     return text if len(text) <= max_chars else text[: max_chars - 3] + "..."
 
 
-def _format_time(value: Any) -> str:
-    numeric = float(value or 0)
-    return str(int(numeric)) if numeric == round(numeric) else f"{numeric:6.3f}"
+def _format_time(value: float, integral: bool) -> str:
+    return str(int(value)) if integral else f"{value:6.3f}"
 
 
 def _reference_state(eeg: dict[str, Any]) -> str:
     chanlocs = _as_list(eeg.get("chanlocs"))
-    refs = [
-        _display_scalar(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict) and _has_value(chan.get("ref"))
-    ]
-    return refs[0] if refs else (_display_scalar(eeg.get("ref")) or "unknown")
+    refs = Counter(_display_scalar(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict))
+    return (max(sorted(refs), key=refs.get) or "unknown") if refs else "unknown"
 
 
 def _channel_location_state(eeg: dict[str, Any]) -> str:
@@ -775,6 +807,8 @@ def _has_value(value: Any) -> bool:
 
 
 def _display_scalar(value: Any) -> str:
+    if isinstance(value, (list, tuple)) and not value:
+        return ""
     if isinstance(value, np.ndarray):
         if value.size == 0:
             return ""
@@ -845,6 +879,11 @@ def _identical_ica(eeg_list: list[dict[str, Any]]) -> str:
     return "yes"
 
 
+def _ica_weight_state(eeg_list: list[dict[str, Any]]) -> str:
+    states = {not _empty_array(eeg.get("icaweights")) for eeg in eeg_list}
+    return "mixed, yes and no" if len(states) > 1 else _yes_no(True in states)
+
+
 def _study_status(eeg_list: list[dict[str, Any]]) -> str:
     has_ica = all(not _empty_array(eeg.get("icaweights")) for eeg in eeg_list)
     return "Ready to precluster" if has_ica else "Missing ICA dec."
@@ -890,10 +929,21 @@ def _collection_len(value: Any) -> int:
 
 
 def _size_mb(value: Any) -> str:
-    if isinstance(value, list):
-        return str(round(sum(float(_size_mb(item)) for item in value), 1))
+    return str(round(_memory_bytes(value, set()) / 1e6, 1))
+
+
+def _memory_bytes(value: Any, seen: set[int]) -> int:
+    if id(value) in seen:
+        return 0
+    seen.add(id(value))
+    size = sys.getsizeof(value)
     if isinstance(value, dict):
-        data = value.get("data")
-        if isinstance(data, np.ndarray):
-            return str(round(data.nbytes / 1e6, 1))
-    return "0"
+        return size + sum(_memory_bytes(key, seen) + _memory_bytes(item, seen) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return size + sum(_memory_bytes(item, seen) for item in value)
+    if isinstance(value, np.ndarray):
+        if value.base is not None:
+            size += _memory_bytes(value.base, seen)
+        if value.dtype.hasobject:
+            size += sum(_memory_bytes(item, seen) for item in value.flat)
+    return size

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import html
 from importlib import resources
 from importlib.resources.abc import Traversable
 import re
@@ -31,7 +30,7 @@ def pophelp(
         ) from exc
 
     function_name = _normalise_function_name(function_name)
-    text, source_path = pophelp_text(function_name, nonmatlab=nonmatlab, extension_runtime=extension_runtime)
+    text, _source_path = pophelp_text(function_name, nonmatlab=nonmatlab, extension_runtime=extension_runtime)
     title = f"{function_name} - {function_name.upper()}"
     dialog = QtWidgets.QDialog(parent)
     dialog.setObjectName("pophelp")
@@ -41,7 +40,8 @@ def pophelp(
     browser = QtWidgets.QTextBrowser()
     browser.setObjectName("help_browser")
     browser.setOpenExternalLinks(True)
-    browser.setHtml(_help_html(function_name, source_path, text))
+    markdown = text if text.lstrip().startswith("#") else f"# {text}"
+    browser.setMarkdown(markdown)
     layout.addWidget(browser)
     button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
     button_box.rejected.connect(dialog.reject)
@@ -133,35 +133,3 @@ def _append_called_help(doc: str, called_doc: str) -> str:
             called_doc,
         ]
     )
-
-
-def _help_html(function_name: str, source_path: str, text: str) -> str:
-    return f"""<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-html, body {{ height: 100%; }}
-body {{
-  margin: 16px;
-  font-family: "Helvetica Neue", Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.4;
-  font-size: 13px;
-}}
-h1 {{ margin: 0 0 8px 0; font-size: 16px; }}
-.h1file {{ color: #666; margin: 0 0 12px 0; font-size: 12px; }}
-pre {{
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  margin: 0;
-  font-family: Consolas, Menlo, Monaco, monospace;
-  font-size: 12px;
-}}
-</style>
-</head>
-<body>
-<h1>{html.escape(function_name.upper())}</h1>
-<div class="h1file">{html.escape(source_path)}</div>
-<pre>{html.escape(text)}</pre>
-</body>
-</html>"""

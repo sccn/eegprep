@@ -738,7 +738,7 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
     assert eeg["setname"] == "first"
     assert alleeg[0]["setname"] == "first"
     assert alleeg[2]["setname"] == "first"
-    assert "LASTCOM" in command
+    assert command == "[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, 1, 3);"
     _assert_python_echo_is_parseable(command)
 
 

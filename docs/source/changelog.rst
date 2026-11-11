@@ -55,6 +55,41 @@ Unreleased
   ``.set`` to extensionless names; ``savemode="onefile"`` explicitly embeds
   samples (F26). BIDS ``None`` channel metadata (#538) belongs to Stream 10.
 
+- Long preference-file paths no longer push Preferences controls offscreen;
+  the full path is available in the option-file tooltip (F89, #556).
+- Console startup tolerates missing or closed logging streams and restores
+  active handlers after the console exits (#556).
+- Copying rejection marks between data and ICA fields does not require an ICA
+  decomposition. Component processing and plots retain their ICA preconditions
+  (F64/F81, #556).
+- Saved preferences load in the interactive launchers. Imports and window or
+  workspace constructors preserve in-process options, including when opening
+  another GUI from a running console (F89, #556).
+- Console history replay expands MATLAB colon ranges, including stepped ranges,
+  and accepts the three-output dataset commands stored for EEGLAB. Stored
+  history remains unchanged (Stream 2 handover and F27/F49/F94, #556).
+- Component actions check for ICA before opening dialogs. Warnings identify the
+  failing operation and preserve source errors; ICA and empty-result
+  preconditions provide recovery guidance at the failure site. Help renders
+  Markdown, updates are checked in-app, and File > Quit asks before discarding
+  unsaved datasets (F47/F64/F81/F96/F97 and Quit audit, #556).
+- Preferences exposes memory/storage and advanced options, saves GUI choices
+  to ``~/.eegprep/options.json``, restores them on launch, and updates menu
+  visibility immediately. Unsupported global preferences are disabled and
+  documented; native-dialog choices stay out of MATLAB history. Clear retains
+  the dataset-number confirmation dialog supplied by the data-safety fixes
+  (F29/F89, #556).
+- Dataset processing warns before overwriting multiple selections, rejects empty
+  results, and opens Dataset info after merging. Session scripts and copy/select/
+  store commands use runnable EEGLAB forms and concrete indices; saved file
+  history separates filename and filepath (F27/F38/F42/F49/F90/F94, #556).
+- Main-window menus retain their Qt objects across dataset refreshes and nested
+  dialogs, including failed imports (F54/F121/F30, #556).
+- The main window shows channel-reference consensus, consistent epoch-time
+  precision, total dataset memory, and mixed ICA status. Single-dataset selection
+  and empty-result recovery keep the Datasets menu usable; component scrolling
+  and ICLabel menus follow EEGLAB availability (F1/F95/F2/F3/F4/F5/F38/F93, #556).
+
 - Channel locations: enable Read, Look up, Plot 2-D/3-D, head-center optimization,
   rotation, transforms, coordinate conversions, head radius, type/reference
   editing, insertion/deletion, and both Save actions. Navigation and action

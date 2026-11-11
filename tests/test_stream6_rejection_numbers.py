@@ -28,7 +28,7 @@ from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.recordings import _records
-from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
+from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg, create_test_eeg_with_ica
 
 
 EPOCH_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"
@@ -702,7 +702,7 @@ def test_export_ica_marks_copies_the_audited_kurtosis_epochs():
 
 def test_reject_marked_epochs_superposes_before_removing_trials():
     session = EEGPrepSession()
-    eeg = create_test_eeg(n_channels=3, n_samples=8, n_trials=3, srate=100)
+    eeg = create_test_eeg_with_ica(n_channels=3, n_samples=8, n_trials=3, srate=100)
     eeg["reject"]["icarejmanual"] = np.array([False, True, False])
     session.store_current(eeg, new=True)
 
@@ -716,7 +716,7 @@ def test_reject_marked_epochs_superposes_before_removing_trials():
 
 def test_cancelling_reject_epochs_newset_leaves_history_unchanged(monkeypatch):
     session = EEGPrepSession()
-    eeg = create_test_eeg(n_channels=3, n_samples=8, n_trials=3, srate=100)
+    eeg = create_test_eeg_with_ica(n_channels=3, n_samples=8, n_trials=3, srate=100)
     eeg["reject"]["icarejmanual"] = np.array([False, True, False])
     session.store_current(eeg, new=True)
     history = list(session.ALLCOM)
