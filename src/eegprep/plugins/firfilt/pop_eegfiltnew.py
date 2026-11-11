@@ -31,7 +31,12 @@ def pop_eegfiltnew(
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Filter EEG data using EEGLAB's Hamming-windowed FIR defaults."""
+    """Filter EEG data using EEGLAB's Hamming-windowed FIR defaults.
+
+    The input dataset is not modified. Filtering returns a new dataset.
+    Samples are filtered in float64 and restored to float32 when the input
+    samples were float32. The object passed in remains the pre-call recording.
+    """
     if EEG is None:
         raise ValueError("Cannot filter empty dataset.")
     options = normalize_pop_options(

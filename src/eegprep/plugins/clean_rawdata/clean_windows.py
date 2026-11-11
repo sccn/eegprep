@@ -58,7 +58,9 @@ def clean_windows(
     truncate_quant: Tuple[float, float] = (0.022, 0.6),
     step_sizes: Tuple[float, float] = (0.01, 0.01),
     shape_range: Union[np.ndarray, Sequence[float]] = np.arange(1.7, 3.6, 0.15),
-) -> Tuple[Dict[str, Any], np.ndarray]:
+    *,
+    return_diagnostics: bool = False,
+) -> Tuple[Dict[str, Any], np.ndarray] | Tuple[Dict[str, Any], np.ndarray, Dict[str, Any]]:
     """Remove periods with abnormally high-power content from continuous data.
 
     This function cuts segments from the data which contain high-power artifacts.
@@ -102,6 +104,18 @@ def clean_windows(
     shape_range : sequence(float)
         Range for the *beta* shape parameter in the generalised Gaussian used
         for distribution fitting.
+    return_diagnostics : bool
+        When true, also return a dict with the window offsets, window length,
+        per-channel RMS z-scores, the criteria, and any prior
+        ``clean_sample_mask``. Channel indices and sample offsets are 0-based
+        positions in the input. ``window_flags`` is true for windows rejected
+        from those z-scores. ``zscores`` has shape ``(channels, windows)``.
+
+    The input dataset is deep-copied and is not modified. Samples are
+    processed in float64 and the returned dataset stores them in the input
+    floating-point dtype. The returned dataset's ``etc['clean_sample_mask']``
+    marks samples retained after composing with a prior mask of the same
+    kept-sample count. The object passed in remains the pre-call recording.
 
     Returns
     -------
@@ -110,6 +124,8 @@ def clean_windows(
     sample_mask : np.ndarray[bool]
         Boolean mask (length == original ``pnts``) indicating which samples are
         retained (``True``) or removed (``False``).
+    diagnostics : dict
+        Included only when ``return_diagnostics`` is true.
     """
     #                           Input handling
     # Operate on a deep copy so the caller's dataset is never mutated.
@@ -123,6 +139,7 @@ def clean_windows(
     if C == 0 or S == 0:
         raise ValueError('Empty data array encountered.')
 
+    requested_max_bad_channels = max_bad_channels
     if max_bad_channels is not None and 0 < max_bad_channels < 1:
         max_bad_channels = int(round_mat(C * max_bad_channels))
     else:
@@ -224,6 +241,9 @@ def clean_windows(
         EEG['etc'] = {}
 
     etc = EEG['etc']
+    prior_clean_sample_mask = None
+    if return_diagnostics and isinstance(etc, dict) and 'clean_sample_mask' in etc:
+        prior_clean_sample_mask = np.asarray(etc['clean_sample_mask'], dtype=bool).copy()
     if 'clean_sample_mask' in etc:
         prev_mask = np.asarray(etc['clean_sample_mask']).astype(bool)
         one_inds = np.where(prev_mask)[0]
@@ -236,4 +256,37 @@ def clean_windows(
     else:
         etc['clean_sample_mask'] = sample_mask
 
-    return EEG, sample_mask
+    if not return_diagnostics:
+        return EEG, sample_mask
+    stored_mask = etc.get('clean_sample_mask') if isinstance(etc, dict) else None
+    if stored_mask is not None:
+        stored_mask = np.asarray(stored_mask, dtype=bool).copy()
+    step_size_values = tuple(float(value) for value in np.asarray(step_sizes, dtype=float).reshape(-1))
+    return (
+        EEG,
+        sample_mask,
+        {
+            'index_base': 0,
+            'criteria': {
+                'max_bad_channels': int(max_bad_channels),
+                'max_bad_channels_argument': requested_max_bad_channels,
+                'zthresholds': (float(zthresholds[0]), float(zthresholds[1])),
+                'window_len': float(window_len),
+                'window_len_samples': float(N),
+                'window_step': float(step),
+                'window_overlap': float(window_overlap),
+                'max_dropout_fraction': float(max_dropout_fraction),
+                'min_clean_fraction': float(min_clean_fraction),
+                'truncate_quant': (float(truncate_quant[0]), float(truncate_quant[1])),
+                'step_sizes': step_size_values,
+                'shape_range': np.asarray(shape_range, dtype=float).copy(),
+            },
+            'window_offsets': offsets,
+            'window_length': int(wnd.size),
+            'zscores': wz,
+            'window_flags': remove_mask,
+            'sample_mask': sample_mask,
+            'prior_clean_sample_mask': prior_clean_sample_mask,
+            'clean_sample_mask': stored_mask,
+        },
+    )

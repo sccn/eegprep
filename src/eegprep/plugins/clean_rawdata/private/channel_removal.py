@@ -27,6 +27,16 @@ def remove_channels_without_pop_select(EEG: dict[str, Any], removed_channels: np
     return EEG
 
 
+def copy_clean_channel_mask(EEG: dict[str, Any]) -> np.ndarray | None:
+    etc = EEG.get("etc")
+    if not isinstance(etc, dict):
+        return None
+    mask = etc.get("clean_channel_mask")
+    if mask is None:
+        return None
+    return np.asarray(mask, dtype=bool).copy()
+
+
 def update_clean_channel_mask(EEG: dict[str, Any], removed_channels: np.ndarray) -> None:
     """Update ``EEG.etc.clean_channel_mask`` after current-channel removal."""
     removed = np.asarray(removed_channels, dtype=bool).ravel()

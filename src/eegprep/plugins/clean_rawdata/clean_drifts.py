@@ -31,6 +31,12 @@ def clean_drifts(
       attenuation: stop-band attenuation, in dB
       method: the method to use for filtering ('fft' or 'fir')
 
+    The input dataset is modified and returned. ``data`` is replaced with
+    float64 samples, and ``etc['clean_drifts_kernel']`` stores the filter
+    coefficients. ``etc`` must already be a dict. Copy the dataset with
+    ``copy.deepcopy`` before the call when the original recording must be
+    preserved.
+
     Returns
     -------
     EEG : the filtered EEG data structure

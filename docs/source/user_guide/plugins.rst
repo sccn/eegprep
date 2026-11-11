@@ -108,6 +108,109 @@ sample grid. A recording whose fit widths round to 1 or less raises
 ``ValueError``, and ``clean_asr`` calibrates on the whole recording instead.
 Eleven to twenty-two windows still fit.
 
+.. _cleaning_inputs:
+
+Copies, dtypes, and measured criteria
+--------------------------------------
+
+Copy a dataset with ``copy.deepcopy`` before calling a function that
+replaces its samples when the original recording must be preserved.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 22 28 26
+
+   * - Function
+     - Same object when nothing is removed
+     - Caller's ``data``
+     - Caller's ``etc``
+   * - ``clean_drifts``
+     - yes
+     - replaced; float32 becomes float64
+     - gains ``clean_drifts_kernel``
+   * - ``clean_flatlines``
+     - yes
+     - unchanged
+     - unchanged
+   * - ``clean_channels``
+     - yes
+     - replaced; float32 becomes float64
+     - unchanged
+   * - ``clean_channels_nolocs``
+     - yes, the dataset inside the returned pair
+     - replaced; float32 becomes float64
+     - unchanged
+   * - ``clean_windows``
+     - no; the result is always a new dataset
+     - unchanged
+     - unchanged
+   * - ``pop_eegfiltnew``
+     - no
+     - unchanged
+     - unchanged
+   * - ``pop_select``
+     - no
+     - unchanged
+     - unchanged
+
+Removing one flat channel returns a new dataset. The dataset passed in keeps
+its channel count and its previous ``etc``. The result stores
+``etc['clean_channel_mask']``, true for each original channel that remains.
+``clean_channels`` and ``clean_channels_nolocs`` also return a new dataset
+when they delete channels. They replace the caller's samples with float64
+before that copy, so the caller keeps the original channel count and its
+previous ``etc`` while holding those float64 samples.
+
+``clean_windows`` processes the copy in float64 and writes the returned
+samples in the input floating-point dtype. Its
+``etc['clean_sample_mask']`` marks retained samples. ``pop_eegfiltnew``
+filters in float64 and restores float32 when the input samples were float32.
+``pop_select`` keeps the input dtype. ``clean_drifts`` leaves the returned
+samples in float64. ``etc`` must already be a dict; ``eeg_checkset``
+provides one.
+
+``clean_channel_mask`` records original channels that remain in the dataset.
+Pass ``return_diagnostics=True`` to ``clean_channels``,
+``clean_channels_nolocs``, ``clean_flatlines``, or ``clean_windows`` for the
+measurements already computed during that call. Omitting
+``return_diagnostics`` keeps the current return value. Channel indices and
+sample offsets in the report are 0-based positions in the input array.
+
+``clean_channels`` reports noise scores, noise z-scores, noise flags, the
+correlation of each usable channel with its RANSAC estimate in each window,
+and those windows' sample offsets. The RANSAC subsets come from
+``numpy.random.RandomState(seed)``. ``seed`` defaults to 5489, which is the
+value previously fixed in the function, and the draws stay in the same
+order. The report's ``seed`` is the value used.
+
+``clean_channels_nolocs`` reports the sorted absolute pairwise correlations
+and the row indices kept after dropping the most-correlated fraction. A
+channel is flagged when every retained row is below ``min_corr``. The
+boolean array returned beside the dataset is that detection result. It is
+all true when every channel is flagged and then kept.
+
+``clean_windows`` reports window offsets, the window length in samples, and
+the RMS z-score of each channel in each window. ``clean_flatlines`` reports
+which channels exceeded the flat-line duration.
+
+``detected_channels`` is the criterion. ``removed_channels`` in the report is
+what the call deleted. When every channel is flagged and none is removed,
+``removal_suppressed`` gives the reason and ``clean_channel_mask`` is left
+as it was, including staying absent. A prior mask is returned as
+``prior_clean_channel_mask`` or ``prior_clean_sample_mask``.
+
+.. code-block:: python
+
+   import copy
+
+   from eegprep import clean_channels
+
+   original = copy.deepcopy(EEG)
+   cleaned, diagnostics = clean_channels(EEG, seed=5489, return_diagnostics=True)
+   diagnostics["noise_zscores"]
+   diagnostics["correlations"]
+   diagnostics["seed"]
+
 FIRFilt
 =======
 

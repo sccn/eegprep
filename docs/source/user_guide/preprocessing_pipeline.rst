@@ -39,7 +39,8 @@ Select Data and Channels
 ========================
 
 Use ``pop_select`` for user-facing channel, point, time, trial, and event
-selection:
+selection. The input dataset is deep-copied and is not modified, and the
+returned samples keep the input dtype:
 
 .. code-block:: python
 
@@ -63,7 +64,9 @@ latency 20 duration 5, latency 20 duration 2, and latency 30 duration 8.
 Filter
 ======
 
-The usual FIR filtering entry point is ``pop_eegfiltnew``:
+The usual FIR filtering entry point is ``pop_eegfiltnew``. The input dataset
+is left unchanged. Samples are filtered in float64 and restored to float32
+when the input samples were float32:
 
 .. code-block:: python
 
@@ -141,6 +144,15 @@ Use ``clean_artifacts`` when you need lower-level state outputs:
 
 ``clean_artifacts`` returns four values. Scripts that only need the cleaned EEG
 should use the first value or call ``pop_clean_rawdata``.
+
+``clean_drifts`` and the channel cleaners can replace the samples of the
+dataset passed in, including a float32 array becoming float64. ``clean_windows``
+leaves that dataset unchanged and returns a copy. Copy with ``copy.deepcopy``
+before a call when the original recording must be preserved. The per-function
+behavior is in :ref:`cleaning_inputs`. ``return_diagnostics=True`` on
+``clean_channels``, ``clean_channels_nolocs``, ``clean_flatlines``, and
+``clean_windows`` returns the criteria those calls already compute.
+``clean_channels(..., seed=5489)`` is the default RANSAC seed.
 
 Sampling Rates
 ==============

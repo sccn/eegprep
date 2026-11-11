@@ -8,12 +8,19 @@ import numpy as np
 from eegprep.plugins.firfilt.design import design_fir
 
 from ...functions.miscfunc.misc import finite_matmul, round_mat
-from .private.channel_removal import remove_channels_without_pop_select, update_clean_channel_mask
+from .private.channel_removal import (
+    copy_clean_channel_mask,
+    remove_channels_without_pop_select,
+    update_clean_channel_mask,
+)
 from .private.ransac import calc_projector
 from .private.sigproc import filtfilt_fast
 from .private.stats import mad
 
 logger = logging.getLogger(__name__)
+
+# Historical RANSAC seed. The default keeps the previous fixed draw sequence.
+DEFAULT_RANSAC_SEED = 5489
 
 
 def clean_channels(
@@ -24,7 +31,10 @@ def clean_channels(
     max_broken_time: float = 0.4,
     num_samples: int = 50,
     subset_size: float = 0.25,
-) -> Dict[str, Any]:
+    *,
+    seed: int = DEFAULT_RANSAC_SEED,
+    return_diagnostics: bool = False,
+) -> Dict[str, Any] | tuple[Dict[str, Any], Dict[str, Any]]:
     """Remove channels with problematic data from a continuous data set.
 
     This is an automated artifact rejection function which ensures that the data contains no channels
@@ -55,14 +65,40 @@ def clean_channels(
         ``round(subset_size * nbchan)`` channels are drawn, including when
         ``subset_size`` is greater than or equal to 1. A count larger than
         the number of channels raises ``ValueError``.
+      seed: Seed for the RANSAC subset draws. The default is 5489. Draws use
+        ``numpy.random.RandomState`` in the same order as the fixed seed did.
+      return_diagnostics: When true, return ``(EEG, diagnostics)`` instead of
+        ``EEG``. The dict holds the noise scores, noise z-scores, noise flags,
+        RANSAC correlations, correlation flags, window offsets, criteria,
+        ``seed``, and any prior ``clean_channel_mask``. Channel indices and
+        sample offsets are 0-based positions in the input. Correlations cover
+        ``usable_channels`` only. ``usable_locations`` and ``projector`` are
+        the arguments and result of ``calc_projector`` for
+        ``RandomState(seed)``. ``detected_channels`` is the removal
+        criterion and ``removed_channels`` is what this call deleted. More
+        than 75% flagged raises ``ValueError`` instead of keeping those
+        channels, so ``removal_suppressed`` is ``None`` on a returned report.
+        ``clean_channel_mask`` on the dataset is true for original channels
+        that remain. It is left unchanged when nothing is removed.
+
+    The input ``data`` array is replaced with float64. When nothing is
+    removed, the same dataset object is returned and ``etc`` is unchanged.
+    When channels are removed, the returned dataset is new. The caller's
+    channel count and ``etc`` stay as they were, while the caller's samples
+    are the float64 array written before that copy. Copy the dataset with
+    ``copy.deepcopy`` first when the original recording must be preserved.
 
     Returns
     -------
     EEG : data set with bad channels removed
+    diagnostics : dict, only when ``return_diagnostics`` is true
     """
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
     C, S = EEG['data'].shape
     Fs = EEG['srate']
+    window_len_seconds = float(window_len)
+    max_broken_time_argument = float(max_broken_time)
+    subset_size_argument = float(subset_size)
     chanlocs = EEG.get('chanlocs')
     if chanlocs is None or len(chanlocs) == 0:
         raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
@@ -84,6 +120,8 @@ def clean_channels(
 
     logger.info('Scanning for bad channels...')
 
+    noisiness = None
+    znoise = None
     if Fs > 100:
         B = design_fir(100, 2 * np.array([0, 45, 50, Fs / 2]) / Fs, [1, 1, 0, 0])
         X = np.zeros((S, C))
@@ -109,8 +147,8 @@ def clean_channels(
     locs = xyz[:, usable_channels].T
     X = np.asarray(X[:, usable_channels])
 
-    # replicate MATLAB's default randseed, for exact compatibility
-    stream = np.random.RandomState(5489)
+    # Replicate MATLAB's default randseed, for exact compatibility.
+    stream = np.random.RandomState(seed)
     P = np.asarray(calc_projector(locs, num_samples, subset_size, stream=stream))
     corrs = np.zeros((len(usable_channels), W))
 
@@ -141,6 +179,7 @@ def clean_channels(
     removed_channels = np.zeros(C, dtype=bool)
     removed_channels[usable_channels] = np.sum(flagged, axis=1) * window_len > max_broken_time
     removed_channels = removed_channels | noise_mask
+    prior_clean_channel_mask = copy_clean_channel_mask(EEG) if return_diagnostics else None
 
     if np.mean(removed_channels) > 0.75:
         raise ValueError(
@@ -162,4 +201,37 @@ def clean_channels(
             EEG = remove_channels_without_pop_select(EEG, removed_channels)
         update_clean_channel_mask(EEG, removed_channels)
 
-    return EEG
+    if not return_diagnostics:
+        return EEG
+    return EEG, {
+        'seed': seed,
+        'index_base': 0,
+        'criteria': {
+            'corr_threshold': float(corr_threshold),
+            'noise_threshold': float(noise_threshold),
+            'window_len': window_len_seconds,
+            'window_len_samples': int(window_len),
+            'max_broken_time': max_broken_time_argument,
+            'max_broken_time_samples': float(max_broken_time),
+            'num_samples': int(num_samples),
+            'subset_size': subset_size_argument,
+            'subset_count': int(subset_size),
+            'noise_criterion_applied': noisiness is not None,
+        },
+        'usable_channels': usable_channels,
+        'usable_locations': locs,
+        'projector': P,
+        'window_offsets': offsets,
+        'window_length': int(window_len),
+        'noise_scores': noisiness,
+        'noise_zscores': znoise,
+        'noise_flags': noise_mask,
+        'correlations': corrs,
+        'correlation_flags': flagged,
+        'flagged_window_counts': np.sum(flagged, axis=1),
+        'detected_channels': np.array(removed_channels, dtype=bool, copy=True),
+        'removed_channels': np.array(removed_channels, dtype=bool, copy=True),
+        'removal_suppressed': None,
+        'prior_clean_channel_mask': prior_clean_channel_mask,
+        'clean_channel_mask': copy_clean_channel_mask(EEG),
+    }
