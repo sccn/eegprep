@@ -98,7 +98,6 @@ class QtDialogRenderer:
     _validate_pop_reref_dialog: Any
     _validate_pop_interp_dialog: Any
     _callback_channels: Any
-    _validate_channel_text: Any
     _parse_channel_text: Any
     _parse_numeric_text: Any
     _widget_number: Any
@@ -949,27 +948,20 @@ def _validate_pop_reref_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str
             try:
                 float(huber_text)
             except ValueError:
-                return f"could not convert string to float: '{huber_text}'"
+                return "pop_reref: Huber threshold must be numeric. Enter a positive number."
 
-    channel_labels = _callback_channels(spec, "refbr")
-    if _widget_checked(widgets.get("rerefstr")):
-        ref_text = _widget_text(widgets.get("reref")).strip()
-        if not ref_text:
-            return "Aborting: you must enter one or more reference channels"
-        message = _validate_channel_text(ref_text, channel_labels, "Channel")
-        if message:
-            return message
-
-    exclude_text = _widget_text(widgets.get("exclude")).strip()
-    if exclude_text:
-        message = _validate_channel_text(exclude_text, channel_labels, "Channel")
-        if message:
-            return message
-
-    refloc_text = _widget_text(widgets.get("refloc")).strip()
-    if refloc_text:
-        refloc_labels = _callback_channels(spec, "refloc_button")
-        return _validate_channel_text(refloc_text, refloc_labels, "Reference location")
+    if _widget_checked(widgets.get("rerefstr")) and not _widget_text(widgets.get("reref")).strip():
+        return "pop_reref: no reference channel was entered. Enter a channel label or a 1-based channel number."
+    for tag, picker in (("reref", "refbr"), ("exclude", "refbr"), ("refloc", "refloc_button")):
+        if tag == "reref" and not _widget_checked(widgets.get("rerefstr")):
+            continue
+        labels = _callback_channels(spec, picker)
+        for value in _parse_channel_text(_widget_text(widgets.get(tag))):
+            if _is_int_text(value):
+                if not 1 <= int(value) <= len(labels):
+                    return f"pop_reref: {tag} channel index {value} is outside 1..{len(labels)}. Enter a channel number in that range."
+            elif value.lower() not in [label.lower() for label in labels]:
+                return f"pop_reref: {tag} channel '{value}' was not found. Enter a listed channel label or a number in 1..{len(labels)}."
     return None
 
 
@@ -1004,20 +996,6 @@ def _callback_channels(spec: DialogSpec, tag: str) -> tuple[str, ...]:
         if control.tag == tag and control.callback is not None:
             return tuple(str(value) for value in control.callback.params.get("channels", ()))
     return ()
-
-
-def _validate_channel_text(text: str, labels: tuple[str, ...], label: str) -> str | None:
-    values = _parse_channel_text(text)
-    lower_labels = [value.lower() for value in labels]
-    for value in values:
-        if _is_int_text(value):
-            index = int(value)
-            if index < 0 or index >= len(labels):
-                return f"{label} index out of range"
-            continue
-        if value.lower() not in lower_labels:
-            return f"{label} '{value}' not found"
-    return None
 
 
 def _parse_channel_text(text: str) -> list[str]:
@@ -1468,6 +1446,8 @@ def _run_dialog_action(parent: Any, widgets: Mapping[str, Any], params: Mapping[
     def update(values: Mapping[str, Any]) -> None:
         for tag, value in values.items():
             _set_widget_display_value(widgets[tag], value)
+            if tag == params.get("index_tag"):
+                setattr(widgets[tag], _DISPLAYED_INDEX_ATTR, int(value))
 
     try:
         params["action"]({tag: _read_widget(widget) for tag, widget in widgets.items()}, update)
@@ -1901,7 +1881,6 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_validate_pop_reref_dialog",
     "_validate_pop_interp_dialog",
     "_callback_channels",
-    "_validate_channel_text",
     "_parse_channel_text",
     "_parse_numeric_text",
     "_widget_number",

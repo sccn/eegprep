@@ -195,6 +195,32 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        A saved empty dictionary is an empty array, which EEGLAB stamps when it
        opens the file. An ``eeglabvers`` value already present is kept.
        ``test_empty_etc_round_trip_is_a_dict`` locks the empty dictionary.
+   * - Channel-coordinate validation
+     - ``pop_chanedit`` rejects non-numeric or non-finite coordinates with
+       an error naming the field; blank values remain allowed. EEGLAB pins
+       ``8ac485f6`` and ``d0963be9`` share the same ``pop_chanedit.m`` logic
+       and line ranges: ``str2num`` followed by ``reformat``/``eval`` without
+       rejecting non-numeric text (lines 681-685 and 1119-1124).
+   * - Channel-coordinate transforms
+     - ``pop_chanedit`` accepts only numeric assignments supported by its
+       restricted syntax-tree parser, such as ``X=-Y`` or
+       ``TMP=X; X=-Y; Y=TMP``. Imports, attributes, function calls, and indexed
+       assignments raise ``ValueError`` without changing the input locations.
+       Constants must be finite numbers; integer literals are limited to
+       ±2**53. Powers require literal exponents from -12 to 12, so ``X=Y**2``
+       works while power towers and variable exponents are rejected before
+       evaluation. EEGLAB pins ``8ac485f6`` and ``d0963be9`` share unrestricted
+       ``eval`` of the transform string, with the same logic and line ranges
+       (``pop_chanedit.m`` lines 599-643).
+   * - Channel-location count mismatch
+     - ``pop_chanedit`` raises ``ValueError`` when the number of data-channel
+       locations differs from the data's channel count, leaving the input
+       unchanged. Use ``pop_select`` to remove data channels, or mark added
+       reference locations as non-data channels. EEGLAB pins ``8ac485f6`` and
+       ``d0963be9`` share the same logic and line ranges: a count differing
+       from the original ``nbchan`` causes edits to be ignored with a console
+       warning (``pop_chanedit.m`` lines 1095-1110); GUI **Ok** also warns about
+       the mismatch (lines 485-492).
    * - BIDS TSV bytes
      - TSV sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed.
        A file that is not valid UTF-8 is decoded as Latin-1, so ``0xB5`` stays

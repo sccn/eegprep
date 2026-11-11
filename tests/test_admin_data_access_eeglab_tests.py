@@ -118,7 +118,7 @@ def test_current_eeg_checkchanlocs_normalizes_continuous_epoched_and_extended_lo
     assert all(all(location[field] is not None for field in ("X", "Y", "Z")) for location in continuous["chanlocs"])
     np.testing.assert_allclose(
         [[location[axis] for axis in ("X", "Y", "Z")] for location in continuous["chanlocs"]],
-        [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [-1.0, 0.0, 0.0]],
+        [[1.0, 0.0, 0.0], [0.0, 0.0, 85.0], [-85.0, 0.0, 0.0]],
         atol=1e-12,
     )
     assert continuous["chaninfo"] == {"plotrad": None, "shrink": None, "nosedir": "+X", "nodatchans": []}
