@@ -357,6 +357,14 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``option_boundary99`` on. EEGLAB skips that merge when the first
        event type is numeric, so two ``-99`` boundaries with durations 1
        and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.
+   * - Empty ``topoplot`` locations
+     - ``topoplot`` raises ``ValueError`` when channel locations are
+       ``None`` or empty. The message says channel locations are required.
+       EEGLAB replaces an empty ``loc_file`` with ``DEFAULT_ELOC``
+       (``chan.locs``, ``icadefs.m`` line 232) at ``topoplot.m`` lines
+       358-362, then passes that filename to ``readlocs``.
+       ``test_missing_or_empty_channel_locations_name_the_problem`` locks
+       the EEGPrep error.
 
 Plugin Migration
 ================

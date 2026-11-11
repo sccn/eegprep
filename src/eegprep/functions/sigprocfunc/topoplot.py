@@ -63,6 +63,16 @@ def griddata_v4(x, y, v, xq, yq):
     return vq
 
 
+def _require_channel_locations(chan_locs) -> None:
+    empty = chan_locs is None
+    if isinstance(chan_locs, np.ndarray):
+        empty = chan_locs.size == 0
+    elif isinstance(chan_locs, (list, tuple)):
+        empty = len(chan_locs) == 0
+    if empty:
+        raise ValueError("Channel locations are required")
+
+
 def topoplot(datavector, chan_locs, **kwargs):
     """Plot a 2D topographic map of EEG data.
 
@@ -72,6 +82,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         Values to plot at each channel location.
     chan_locs : list of dict
         Channel location structures with 'labels', 'theta', and 'radius' fields.
+        ``None`` or an empty list raises ``ValueError``.
     kwargs : dict
         Additional keyword arguments for customization:
 
@@ -89,6 +100,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     handle : matplotlib.figure.Figure or None
         Figure handle if plotted, None otherwise.
     """
+    _require_channel_locations(chan_locs)
     # Set default values
     noplot = kwargs.get('noplot', 'off')
     plotchans = kwargs.get('plotchans', [])
