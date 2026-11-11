@@ -497,60 +497,46 @@ def _gui():
     return qt_core, qt_widgets, QtDialogRenderer
 
 
-def _on_modal(qt_core, qt_widgets, predicate, action):
+def _on_modal(qt_core, qt_widgets, predicate, action, trigger):
+    state: dict[str, str | None] = {"error": None}
+
+    def opened_dialog(app):
+        active = app.activeModalWidget()
+        if active is not None and predicate(active):
+            return active
+        return next(
+            (widget for widget in app.topLevelWidgets() if widget.isVisible() and predicate(widget)),
+            None,
+        )
+
+    def dismiss(app):
+        active = app.activeModalWidget()
+        if active is not None:
+            active.reject()
+            return
+        for widget in app.topLevelWidgets():
+            if widget.isVisible() and widget.inherits("QDialog"):
+                widget.reject()
+
     def poll():
         app = qt_widgets.QApplication.instance()
-        child = app.activeModalWidget()
-        poll.tries += 1
-        if child is not None and predicate(child):
+        child = opened_dialog(app)
+        if child is not None:
             action(child)
             return
+        poll.tries += 1
         if poll.tries > 50:
-            if child is not None:
-                child.reject()
+            dismiss(app)
+            state["error"] = "expected dialog did not open"
             return
         qt_core.QTimer.singleShot(10, poll)
 
     poll.tries = 0
     qt_core.QTimer.singleShot(10, poll)
-
-
-def _cancel_named_dialog(qt_core, qt_widgets, object_name: str) -> dict[str, str | None]:
-    outcome: dict[str, str | None] = {"error": None}
-
-    def poll():
-        app = qt_widgets.QApplication.instance()
-        active = app.activeModalWidget()
-        target = active if active is not None and active.objectName() == object_name else None
-        if target is None:
-            target = next(
-                (
-                    widget
-                    for widget in app.topLevelWidgets()
-                    if widget.objectName() == object_name and widget.isVisible()
-                ),
-                None,
-            )
-        if target is not None:
-            button = target.findChild(qt_widgets.QPushButton, "cancel")
-            if button is None:
-                target.reject()
-                outcome["error"] = f"{object_name} dialog has no cancel button"
-                return
-            button.click()
-            return
-        poll.tries += 1
-        if poll.tries > 50:
-            for widget in app.topLevelWidgets():
-                if widget.objectName() == object_name:
-                    widget.reject()
-            outcome["error"] = f"{object_name} dialog did not open"
-            return
-        qt_core.QTimer.singleShot(0, poll)
-
-    poll.tries = 0
-    qt_core.QTimer.singleShot(0, poll)
-    return outcome
+    result = trigger()
+    if state["error"] is not None:
+        pytest.fail(state["error"])
+    return result
 
 
 @pytest.mark.modal_dialogs
@@ -585,8 +571,13 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
         assert "first STUDY design" in child.text()
         child.accept()
 
-    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "Warning", close_warning)
-    widgets["delete_design"].click()
+    _on_modal(
+        qt_core,
+        qt_widgets,
+        lambda child: child.windowTitle() == "Warning",
+        close_warning,
+        widgets["delete_design"].click,
+    )
     assert widgets["designind"].count() == 1
 
     widgets["new_design"].click()
@@ -599,8 +590,13 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
         child.findChild(qt_widgets.QLineEdit, "answer0").setText("Renamed design")
         child.accept()
 
-    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "Rename Study Design", rename)
-    widgets["rename_design"].click()
+    _on_modal(
+        qt_core,
+        qt_widgets,
+        lambda child: child.windowTitle() == "Rename Study Design",
+        rename,
+        widgets["rename_design"].click,
+    )
     assert widgets["designind"].currentItem().text() == "Renamed design"
 
     widgets["designind"].setCurrentRow(0)
@@ -610,8 +606,13 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
         assert "* t-test/ANOVA using condition = target" in texts
         child.accept()
 
-    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "List factors", read_factors)
-    widgets["list_factors"].click()
+    _on_modal(
+        qt_core,
+        qt_widgets,
+        lambda child: child.windowTitle() == "List factors",
+        read_factors,
+        widgets["list_factors"].click,
+    )
 
     def keep_target(child):
         values = child.findChild(qt_widgets.QListWidget, "lbval0")
@@ -619,8 +620,13 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
             values.item(row).setSelected(values.item(row).text() == "target")
         child.accept()
 
-    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "Add variable", keep_target)
-    widgets["edit_variable"].click()
+    _on_modal(
+        qt_core,
+        qt_widgets,
+        lambda child: child.windowTitle() == "Add variable",
+        keep_target,
+        widgets["edit_variable"].click,
+    )
     assert "target" in widgets["variable_summary"].item(0).text()
     assert "standard" not in widgets["variable_summary"].item(0).text()
 
@@ -630,8 +636,13 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
             values.item(row).setSelected(values.item(row).text() == "S01")
         child.findChild(qt_widgets.QPushButton, "ok").click()
 
-    _on_modal(qt_core, qt_widgets, lambda child: child.objectName() == "listdlg2", choose_s01)
-    widgets["select_subjects"].click()
+    _on_modal(
+        qt_core,
+        qt_widgets,
+        lambda child: child.objectName() == "listdlg2",
+        choose_s01,
+        widgets["select_subjects"].click,
+    )
     assert widgets["subjects"].text().strip() == "S01"
 
     dialog.findChild(qt_widgets.QPushButton, "help").click()
@@ -660,11 +671,16 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
     assert "pop_savestudy" in command
     ast.parse(command)
     dialog.close()
-    dialog.setObjectName("")
 
-    outcome = _cancel_named_dialog(qt_core, qt_widgets, "pop_studydesign")
-    cancelled, _alleeg, cancel_command = pop_studydesign(before, alleeg, gui=True, return_com=True)
-    if outcome["error"] is not None:
-        pytest.fail(outcome["error"])
+    def cancel(child):
+        child.findChild(qt_widgets.QPushButton, "cancel").click()
+
+    cancelled, _alleeg, cancel_command = _on_modal(
+        qt_core,
+        qt_widgets,
+        lambda child: child.objectName() == "pop_studydesign",
+        cancel,
+        lambda: pop_studydesign(before, alleeg, gui=True, return_com=True),
+    )
     assert cancel_command == ""
     assert cancelled["design"][0]["cases"]["value"] == ["S01", "S02"]
