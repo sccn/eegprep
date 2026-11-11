@@ -404,6 +404,41 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pnts*trials+1`` while ``trials`` is still that stored value.
        Lines 821-826 then set ``trials`` from ``size(data,3)``, which is 1
        for a continuous recording. EEGLAB has already dropped the events.
+   * - Extended properties on the Plot menu
+     - EEGLAB ``d0963be9`` shows extended component properties under Tools >
+       Classify components using ICLabel. EEGPrep also lists View extended
+       channel properties and View extended component properties on the Plot
+       menu.
+   * - DIPFIT default head model
+     - EEGLAB's default is now the MNI boundary-element model. EEGPrep keeps
+       Template Spherical Four-Shell (BESA) only until the FieldTrip
+       boundary-element forward model (#607) lands and switches this default.
+       The BESA template stores the ``dipfitdefs.m`` radii 71, 72, 79, and
+       85 mm with conductivities 0.33, 1.0, 0.0042, and 0.33. The current
+       spherical fitter is an infinite homogeneous medium. It uses the outer
+       radius as the head boundary and does not apply those conductivities.
+       The four-shell spherical conductor is separate work (#600).
+       ``standard_vol.mat`` is not bundled, so choosing the MNI template asks
+       for the BESA template before a fit.
+   * - LORETA-KEY leadfield
+     - The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius and a
+       spherical leadfield. FieldTrip's LORETA-KEY atlas and eLORETA source
+       analysis are not bundled. ``pop_dipfit_loreta`` asks for
+       ``pop_leadfield`` when ``EEG.dipfit.sourcemodel`` is missing, then
+       reports the missing FieldTrip backend.
+   * - ICLabel flag history
+     - Blank threshold bounds are Python ``None``. The stored command replays
+       in ``eegprep-console``. EEGLAB history uses MATLAB ``NaN`` for those
+       blank bounds.
+   * - DIPFIT history
+     - Settings, fitting, leadfield, and dipole-plot commands are stored as
+       Python keywords so ``eegprep-console`` can replay them. EEGLAB stores
+       the same calls as ``'key', value`` pairs. A ``linspace`` string entered
+       for the coarse-fit grid is kept as that string.
+   * - DIPFIT co-registration
+     - The Co-register button stays disabled. The FieldTrip coregistration
+       window is not bundled. No Co-Reg. remains available for an empty
+       transform.
    * - Numeric boundary types
      - Consecutive equal-latency boundaries are merged whether ``type`` is
        the string ``boundary`` or the number ``-99`` with

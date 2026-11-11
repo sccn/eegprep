@@ -269,6 +269,15 @@ Use them after ICA:
    EEG, com = pop_dipfit_nonlinear(EEG, component=1, return_com=True)
    figures, com = pop_dipplot(EEG, [1], summary="on", return_com=True)
 
+Head model settings stay on the BESA template for now. The current spherical
+fitter is an infinite homogeneous medium and does not apply the stored shell
+conductivities. The MNI boundary-element file ``standard_vol.mat`` is not
+bundled, so that template asks you to return to the BESA template before
+fitting. The leadfield dialog's
+LORETA-KEY choice builds a 20 mm in-head grid and a spherical leadfield.
+``pop_dipfit_loreta`` then reports that FieldTrip source analysis is not
+bundled.
+
 MRI-derived BEM creation, AFNI atlas clipping, LORETA analysis, and STUDY-level
 source statistics remain explicit backend boundaries. EEGPrep raises clear
 errors for unavailable external workflows instead of producing placeholder

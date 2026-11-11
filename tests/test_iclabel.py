@@ -2,6 +2,7 @@ import os
 import unittest
 import numpy as np
 from eegprep import ICL_feature_extractor, eeg_autocorr_fftw, eeg_autocorr_welch, eeg_rpsd, iclabel, pop_loadset
+from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
 from eegprep.utils.testing import has_optional_dependency
 
 # where the test resources
@@ -14,8 +15,8 @@ class TestICLabelEngines(unittest.TestCase):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
 
     def test_basic(self):
-        if not has_optional_dependency('torch'):
-            self.skipTest("PyTorch is not installed; install eegprep[torch] to run ICLabel parity")
+        if not has_optional_dependency('onnxruntime'):
+            self.skipTest("onnxruntime is not installed; install eegprep[iclabel] to run ICLabel parity")
 
         features_python = ICL_feature_extractor(self.EEG, True)
         print(f"\n{'=' * 60}")
@@ -84,6 +85,43 @@ def test_continuous_icaact_without_a_trial_axis_matches_a_singleton_trial():
     np.testing.assert_array_equal(eeg_rpsd(eeg, nfreqs=8), eeg_rpsd(with_trial, nfreqs=8))
     np.testing.assert_array_equal(eeg_autocorr_welch(eeg), eeg_autocorr_welch(with_trial))
     np.testing.assert_array_equal(eeg_autocorr_fftw(eeg), eeg_autocorr_fftw(with_trial))
+
+
+class TestICLabelOnnxExport(unittest.TestCase):
+    """Cross-check the packaged iclabel.onnx artifact against the torch network it was exported from."""
+
+    def setUp(self):
+        self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
+
+    def test_onnx_matches_torch_on_sample_data(self):
+        if not has_optional_dependency('torch'):
+            self.skipTest("PyTorch is not installed; install eegprep[torch] to run the ONNX-vs-torch cross-check")
+        if not has_optional_dependency('onnxruntime'):
+            self.skipTest("onnxruntime is not installed; install eegprep[iclabel] to run ICLabel classification")
+
+        import torch
+
+        from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
+
+        mat_path = os.path.join(os.path.dirname(__file__), '..', 'src', 'eegprep', 'plugins', 'ICLabel', 'netICL.mat')
+        model = ICLabelNet(mat_path)
+        model.eval()
+
+        image, psdmed, autocorr = prepare_network_inputs(ICL_feature_extractor(self.EEG, True))
+        with torch.no_grad():
+            torch_out = model(torch.from_numpy(image), torch.from_numpy(psdmed), torch.from_numpy(autocorr)).numpy()
+        torch_final = postprocess_network_output(torch_out)
+
+        classified = iclabel(self.EEG, algorithm='default', engine=None)
+        onnx_final = classified['etc']['ic_classification']['ICLabel']['classifications']
+        diff = np.abs(torch_final - onnx_final)
+        # Measured while exporting this artifact: max abs diff about 1.43e-06.
+        # That is the same order as the Python-vs-MATLAB gap tolerated above, so
+        # this cross-check reuses that tolerance.
+        self.assertTrue(
+            np.allclose(torch_final, onnx_final, rtol=1e-4, atol=1e-5),
+            f'ONNX and torch ICLabel outputs differ beyond tolerance (max abs {diff.max():.2e})',
+        )
 
 
 if __name__ == '__main__':

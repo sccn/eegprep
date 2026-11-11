@@ -85,6 +85,36 @@ class PopIcflagGuiTests(unittest.TestCase):
 
         np.testing.assert_array_equal(out["reject"]["gcompreject"], [0, 1, 1])
 
+    def test_default_history_replays_as_python(self):
+        _out, command = pop_icflag(_eeg(), gui=False, return_com=True)
+
+        self.assertNotIn("None None", command)
+        self.assertEqual(
+            _console_python_command(command),
+            (
+                "EEG = pop_icflag(EEG, thresholds=[[None, None], [0.9, 1], "
+                "[0.9, 1], [None, None], [None, None], [None, None], [None, None]])"
+            ),
+        )
+        namespace = {"EEG": _eeg(), "pop_icflag": pop_icflag}
+        exec(command, namespace)
+        self.assertEqual(namespace["EEG"]["reject"]["gcompreject"][1], 1)
+
+    def test_stale_iclabel_results_are_refused_until_relabeled(self):
+        removed = _eeg()
+        for key in ("icaweights", "icasphere", "icawinv"):
+            removed[key] = np.array([])
+        with self.assertRaisesRegex(ValueError, "pop_runica"):
+            pop_icflag(removed)
+
+        mismatched = _eeg()
+        mismatched["etc"]["ic_classification"]["ICLabel"]["classifications"] = np.zeros((2, 7))
+        with self.assertRaisesRegex(ValueError, "pop_iclabel"):
+            pop_icflag(mismatched)
+
+        flagged = pop_icflag(_eeg(), gui=False)
+        self.assertEqual(flagged["reject"]["gcompreject"][1], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

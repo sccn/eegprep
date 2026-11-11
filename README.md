@@ -69,7 +69,11 @@ uv add "eegprep[full]"   # oct2py, mne, pybids, and python-picard
 | `pybids` | pybids | BIDS import and `bids_preproc` |
 | `picard` | python-picard | Picard ICA; the default `runica` path does not need it |
 | `full` | the four above | the previous complete install |
-| `gui`, `console`, `torch`, `docs` | Qt, IPython, PyTorch, Sphinx | unchanged |
+| `gui` | PySide6, pyqtgraph, and the `iclabel` extra | the main window and the default ICLabel network |
+| `console` | the `gui` extra plus IPython | `eegprep-console` |
+| `iclabel` | onnxruntime | the packaged ICLabel network |
+| `torch` | torch and onnx | regenerating `iclabel.onnx`; classification does not import torch |
+| `docs` | Sphinx | the documentation |
 | `all` | every extra above | GUI, docs, classifiers, and `full` |
 
 A function whose extra is missing raises `ImportError` naming that function,

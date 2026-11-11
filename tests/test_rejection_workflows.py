@@ -1,6 +1,8 @@
 import copy
 from pathlib import Path
 
+import matplotlib.figure
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -810,6 +812,66 @@ def test_component_selection_and_viewprops_are_replayable_without_scrolling_brow
     assert _console_python_command(props_com) == (
         "pop_viewprops(EEG, typecomp=0, chanorcomp=[1, 2], spec_opt=[], erp_opt=[], scroll_event=1, classifier_name='')"
     )
+
+
+def _classified_component_eeg(rows: int = 3) -> dict:
+    eeg = create_test_eeg(n_channels=4, n_samples=32)
+    eeg["icaweights"] = np.eye(rows, 4)
+    eeg["icasphere"] = np.eye(4)
+    eeg["icawinv"] = np.eye(4, rows)
+    eeg["icachansind"] = np.arange(4)
+    classifications = np.zeros((rows, 7))
+    classifications[:, 0] = 1.0
+    if rows:
+        classifications[0] = [0.02, 0.96, 0.0, 0.0, 0.0, 0.0, 0.02]
+    eeg["etc"] = {"ic_classification": {"ICLabel": {"classifications": classifications, "classes": ["Brain"] * 7}}}
+    return eeg
+
+
+def test_property_windows_are_shown_and_maps_open_a_component(monkeypatch):
+    shown = []
+
+    def record_show(self):
+        shown.append(self)
+
+    monkeypatch.setattr(matplotlib.figure.Figure, "show", record_show)
+    monkeypatch.setattr("eegprep.functions.popfunc.plot_utils.backend_can_display", lambda: True)
+    try:
+        channels = pop_viewprops(create_test_eeg(n_channels=3, n_samples=32), 1, [1, 2])
+        channel_titles = {axis.get_title() for figure in channels for axis in figure.axes}
+        assert "Channel Activity Power Spectrum" in channel_titles
+        assert any(figure in shown for figure in channels)
+
+        components = pop_viewprops(_classified_component_eeg(2), 0, [1, 2])
+        component_titles = {axis.get_title() for figure in components for axis in figure.axes}
+        assert "ICLabel" in component_titles
+        assert "IC1 Activity Power Spectrum" in component_titles
+        grid = next(figure for figure in components if hasattr(figure, "eegprep_open_property"))
+        opened = grid.eegprep_open_property(2)
+        assert "IC2" in {axis.get_title() for axis in opened.axes}
+        assert opened in shown
+    finally:
+        plt.close("all")
+
+
+def test_component_properties_without_ica_name_the_missing_decomposition():
+    eeg = create_test_eeg(n_channels=3, n_samples=32)
+    eeg["etc"] = {"ic_classification": {"ICLabel": {"classifications": np.ones((2, 7))}}}
+    with pytest.raises(ValueError, match="pop_viewprops"):
+        pop_viewprops(eeg, 0)
+
+
+def test_removed_ica_refuses_stale_component_labels():
+    removed = _classified_component_eeg()
+    for key in ("icaweights", "icasphere", "icawinv", "icaact"):
+        removed[key] = np.array([])
+    with pytest.raises(ValueError, match="pop_runica"):
+        pop_viewprops(removed, 0, [1])
+
+    mismatched = _classified_component_eeg(3)
+    mismatched["etc"]["ic_classification"]["ICLabel"]["classifications"] = np.zeros((2, 7))
+    with pytest.raises(ValueError, match="pop_iclabel"):
+        pop_viewprops(mismatched, 0, [1])
 
 
 def test_rejchanspec_average_reference_excludes_unselected_channel_numbers():

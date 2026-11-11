@@ -19,7 +19,9 @@ same per-class ICLabel threshold summary exposed by `eeg_icalabelstat`.
 
 Behavior:
 
-- Run `pop_iclabel` before `pop_icflag`.
+- Run `pop_runica`, then `pop_iclabel`, before `pop_icflag`.
+- The classification matrix must have one row per current ICA component.
+  Labels left behind after the decomposition was removed are not used.
 - Flagged components are stored in `EEG.reject.gcompreject`.
 - Existing rejection fields are preserved.
 - This function flags components only; use `pop_subcomp` to remove them from the data.
@@ -30,3 +32,5 @@ Example:
 
     thresholds = [[None, None], [0.9, 1], [0.9, 1], [None, None], [None, None], [None, None], [None, None]]
     EEG = pop_icflag(EEG, thresholds)
+
+The history command uses that same Python matrix. Blank bounds are `None`.

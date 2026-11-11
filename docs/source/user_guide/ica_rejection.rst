@@ -155,11 +155,15 @@ not a replacement for expert inspection.
 Visual Diagnostics
 ==================
 
-``pop_viewprops(EEG, typecomp=0)`` opens EEGPrep's native component-property
-browser. With ICLabel classifications present, component mode opens the
-``pop_prop_extended`` dashboard with scalp map, activity browser, ERP/image
-summary, spectrum, class probabilities, component accept/reject controls, and
+``pop_viewprops(EEG, typecomp=0)`` shows the component topography grid and the
+``pop_prop_extended`` dashboard. The dashboard contains the scalp map,
+activity browser, ERP/image summary, spectrum, class probabilities when
+ICLabel results match the current ICA, component accept/reject controls, and
 DIPFIT projections when localized dipoles are already stored in ``EEG.dipfit``.
+Clicking a map opens that component's dashboard. Channel mode,
+``pop_viewprops(EEG, typecomp=1)``, shows the same dashboard for channels.
+A component request with no ICA asks for ``pop_runica``. Labels left behind
+after the decomposition was removed are not used.
 
 The activity browser uses EEGLAB-facing one-based component indices and
 preserves event display state through the ``scroll_event`` option.
@@ -168,7 +172,10 @@ Network Availability
 ====================
 
 The standalone Python engine ships the default ICLabel network
-(``netICL.mat``). EEGLAB ``lite`` and ``beta`` network artifacts are not
+(``iclabel.onnx``) and runs it with onnxruntime. The GUI extra and
+``uv sync --group dev`` install that library. A base install can add it with
+``pip install "eegprep[iclabel]"``. The ``torch`` extra only regenerates that
+network. EEGLAB ``lite`` and ``beta`` network artifacts are not
 bundled in the Python package; requesting them with ``engine=None`` raises a
 clear limitation. They can still be requested through ``engine="matlab"`` or
 ``engine="octave"`` when that runtime has an EEGLAB ICLabel checkout with those

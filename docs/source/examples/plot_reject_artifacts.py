@@ -149,7 +149,7 @@ print("ICA components:", EEG_ica["icaweights"].shape[0], "epochs:", EEG_ica["tri
 figures = pop_topoplot(EEG_ica, 0, [1, 2, 3], "Component maps", [1, 3], 0, "electrodes", "off")
 print("scalp-map figures:", len(figures))
 
-# ICLabel requires the torch extra: pip install "eegprep[torch]". Without it
+# ICLabel requires the iclabel extra: pip install "eegprep[iclabel]". Without it
 # pop_iclabel raises ImportError rather than degrading, so this example fails
 # loudly instead of silently documenting a skipped step.
 CLASSES = ("Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other")

@@ -106,6 +106,7 @@ BINARY_PATTERNS = [
     "**/*.mp4",
     "**/*.npy",
     "**/*.npz",
+    "**/*.onnx",
     "**/*.pdf",
     "**/*.png",
     "**/*.set",

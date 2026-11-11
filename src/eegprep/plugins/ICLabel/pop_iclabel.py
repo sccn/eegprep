@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import numpy as np
-
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.plugins.ICLabel._prop_numerics import require_ica_weights
 from eegprep.plugins.ICLabel.iclabel import iclabel
 
 
@@ -38,7 +37,7 @@ def pop_iclabel(
         output = [pop_iclabel(item, icversion, gui=False, engine=engine) for item in EEG]
         command = _history_command(icversion)
         return (output, command) if return_com else output
-    _require_ica(EEG)
+    require_ica_weights(EEG, "pop_iclabel")
     output = iclabel(EEG, algorithm=icversion, engine=engine, feature="pop_iclabel")
     command = _history_command(icversion)
     return (output, command) if return_com else output
@@ -67,12 +66,6 @@ def _run_gui(renderer=None):
     index = int(result.get("icversion", 1)) - 1
     index = max(0, min(index, len(_VERSIONS) - 1))
     return {"icversion": _VERSIONS[index]}
-
-
-def _require_ica(EEG):
-    weights = EEG.get("icaweights")
-    if weights is None or np.asarray(weights).size == 0:
-        raise ValueError("ICLabel requires an ICA decomposition. Run pop_runica first.")
 
 
 def _history_command(icversion):
