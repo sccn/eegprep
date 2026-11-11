@@ -954,6 +954,18 @@ the string <code class="docutils literal notranslate"><span class="pre">boundary
 event type is numeric, so two <code class="docutils literal notranslate"><span class="pre">-99</span></code> boundaries with durations 1
 and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.</p></td>
 </tr>
+<tr class="row-even"><td><p>Quoted channel-selection text</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pop_chansel</span></code> keeps an empty quoted token as an empty label, and
+it removes leading and trailing braces. <code class="docutils literal notranslate"><span class="pre">'',</span> <span class="pre">Cz</span></code> selects an
+empty label and <code class="docutils literal notranslate"><span class="pre">Cz</span></code>. <code class="docutils literal notranslate"><span class="pre">{Cz,</span> <span class="pre">Fp1}</span></code> selects <code class="docutils literal notranslate"><span class="pre">Cz</span></code> and <code class="docutils literal notranslate"><span class="pre">Fp1</span></code>.
+EEGLAB <code class="docutils literal notranslate"><span class="pre">parsetxt</span></code> treats quotes, spaces, and commas as delimiters
+and drops empty pieces (<code class="docutils literal notranslate"><span class="pre">parsetxt.m</span></code>). That scan keeps <code class="docutils literal notranslate"><span class="pre">Cz</span></code>
+from <code class="docutils literal notranslate"><span class="pre">'',</span> <span class="pre">Cz</span></code>, and it keeps <code class="docutils literal notranslate"><span class="pre">{Cz</span></code> and <code class="docutils literal notranslate"><span class="pre">Fp1}</span></code> from
+<code class="docutils literal notranslate"><span class="pre">{Cz,</span> <span class="pre">Fp1}</span></code>.
+<code class="docutils literal notranslate"><span class="pre">test_pop_chansel_keeps_an_empty_quoted_token</span></code> and
+<code class="docutils literal notranslate"><span class="pre">test_pop_chansel_reads_a_brace_wrapped_channel_list</span></code> lock the
+EEGPrep selections.</p></td>
+</tr>
 </tbody>
 </table>
 </div>
