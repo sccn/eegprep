@@ -174,4 +174,6 @@ def test_fieldtrip_leadfields_and_pop_multifit_positions_match_eeglab(eeglab_mat
     distances = np.linalg.norm(positions - matlab_positions.reshape(3, 3), axis=1)
     assert np.all(distances < POSITION_TOLERANCE_MM), f"3-D distances mm={distances.tolist()}"
     python_rv = np.array([float(fitted["dipfit"]["model"][index]["rv"]) for index in range(3)])
-    np.testing.assert_allclose(python_rv, np.asarray(reference["fitrv"], dtype=float).ravel(), atol=1e-3)
+    np.testing.assert_allclose(
+        python_rv, np.asarray(reference["fitrv"], dtype=float).ravel(), rtol=1e-2, atol=1e-5
+    )
