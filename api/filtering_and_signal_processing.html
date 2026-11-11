@@ -430,6 +430,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.dftfilt.html">dftfilt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.dftfilt2.html">dftfilt2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.dftfilt3.html">dftfilt3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.design_eegfiltnew.html">design_eegfiltnew</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegfilt.html">eegfilt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.env.html">env</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.fir_filterdcpadded.html">fir_filterdcpadded</a></li>
@@ -538,58 +539,61 @@ deviations. <code class="docutils literal notranslate"><span class="pre">type</s
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.dftfilt3.html#eegprep.dftfilt3" title="eegprep.dftfilt3"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.dftfilt3</span></code></a>(freqs, cycles, srate, ...)</p></td>
 <td><p>Return EEGLAB <code class="docutils literal notranslate"><span class="pre">dftfilt3</span></code>-style complex wavelet filters.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eegfilt.html#eegprep.eegfilt" title="eegprep.eegfilt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eegfilt</span></code></a>(data, srate, locutoff, hicutoff)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.design_eegfiltnew.html#eegprep.design_eegfiltnew" title="eegprep.design_eegfiltnew"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.design_eegfiltnew</span></code></a>(srate, *[, ...])</p></td>
+<td><p>Design the Hamming-windowed FIR applied by <code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eegfilt.html#eegprep.eegfilt" title="eegprep.eegfilt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eegfilt</span></code></a>(data, srate, locutoff, hicutoff)</p></td>
 <td><p>Filter an array using the legacy EEGLAB <code class="docutils literal notranslate"><span class="pre">eegfilt</span></code> design.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.env.html#eegprep.env" title="eegprep.env"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.env</span></code></a>(data[, timelimits, timearray])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.env.html#eegprep.env" title="eegprep.env"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.env</span></code></a>(data[, timelimits, timearray])</p></td>
 <td><p>Return the sample-wise maximum and minimum across channels.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.fir_filterdcpadded.html#eegprep.fir_filterdcpadded" title="eegprep.fir_filterdcpadded"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.fir_filterdcpadded</span></code></a>(b, a, data[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.fir_filterdcpadded.html#eegprep.fir_filterdcpadded" title="eegprep.fir_filterdcpadded"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.fir_filterdcpadded</span></code></a>(b, a, data[, ...])</p></td>
 <td><p>Pad data with endpoint constants and filter along the first axis.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.firfiltreport.html#eegprep.firfiltreport" title="eegprep.firfiltreport"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firfiltreport</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.firfiltreport.html#eegprep.firfiltreport" title="eegprep.firfiltreport"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firfiltreport</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Return an EEGLAB-style FIR filter report.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.firfiltsplit.html#eegprep.firfiltsplit" title="eegprep.firfiltsplit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firfiltsplit</span></code></a>(EEG, b[, causal, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.firfiltsplit.html#eegprep.firfiltsplit" title="eegprep.firfiltsplit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firfiltsplit</span></code></a>(EEG, b[, causal, ...])</p></td>
 <td><p>Filter continuous chunks split at boundaries or each epoch independently.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.firgauss.html#eegprep.firgauss" title="eegprep.firgauss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firgauss</span></code></a>(fc[, fs])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.firgauss.html#eegprep.firgauss" title="eegprep.firgauss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firgauss</span></code></a>(fc[, fs])</p></td>
 <td><p>Return a Gaussian low-pass FIR coefficient vector.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.firws.html#eegprep.firws" title="eegprep.firws"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firws</span></code></a>(m, f[, t, w])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.firws.html#eegprep.firws" title="eegprep.firws"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firws</span></code></a>(m, f[, t, w])</p></td>
 <td><p>Designs windowed sinc type I linear phase FIR filter.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.firwsord.html#eegprep.firwsord" title="eegprep.firwsord"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firwsord</span></code></a>(wintype, fs, df[, dev])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.firwsord.html#eegprep.firwsord" title="eegprep.firwsord"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.firwsord</span></code></a>(wintype, fs, df[, dev])</p></td>
 <td><p>Estimate windowed sinc FIR filter order depending on window type and requested transition band width.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.getipsph.html#eegprep.getipsph" title="eegprep.getipsph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.getipsph</span></code></a>(x[, m])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.getipsph.html#eegprep.getipsph" title="eegprep.getipsph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.getipsph</span></code></a>(x[, m])</p></td>
 <td><p>Return an EEGLAB-compatible sphering or quasi-sphering matrix.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.invfirwsord.html#eegprep.invfirwsord" title="eegprep.invfirwsord"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.invfirwsord</span></code></a>(wintype, fs, m[, dev])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.invfirwsord.html#eegprep.invfirwsord" title="eegprep.invfirwsord"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.invfirwsord</span></code></a>(wintype, fs, m[, dev])</p></td>
 <td><p>Estimate transition bandwidth and ripple for a windowed-sinc FIR order.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.invkaiserbeta.html#eegprep.invkaiserbeta" title="eegprep.invkaiserbeta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.invkaiserbeta</span></code></a>(beta)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.invkaiserbeta.html#eegprep.invkaiserbeta" title="eegprep.invkaiserbeta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.invkaiserbeta</span></code></a>(beta)</p></td>
 <td><p>Estimate maximum passband deviation from a Kaiser window beta.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.kaiserbeta.html#eegprep.kaiserbeta" title="eegprep.kaiserbeta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.kaiserbeta</span></code></a>(dev)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.kaiserbeta.html#eegprep.kaiserbeta" title="eegprep.kaiserbeta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.kaiserbeta</span></code></a>(dev)</p></td>
 <td><p>Estimate the Kaiser window beta from maximum passband deviation.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.minphaserceps.html#eegprep.minphaserceps" title="eegprep.minphaserceps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.minphaserceps</span></code></a>(b, *[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.minphaserceps.html#eegprep.minphaserceps" title="eegprep.minphaserceps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.minphaserceps</span></code></a>(b, *[, ...])</p></td>
 <td><p>Convert FIR coefficients to a minimum-phase impulse response.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.movav.html#eegprep.movav" title="eegprep.movav"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.movav</span></code></a>(data[, xvals, xwidth, xadv, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.movav.html#eegprep.movav" title="eegprep.movav"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.movav</span></code></a>(data[, xvals, xwidth, xadv, ...])</p></td>
 <td><p>Return moving-window averages and their x-coordinate midpoints.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.plotfresp.html#eegprep.plotfresp" title="eegprep.plotfresp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.plotfresp</span></code></a>(b[, a, nfft, fs, dir, show])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.plotfresp.html#eegprep.plotfresp" title="eegprep.plotfresp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.plotfresp</span></code></a>(b[, a, nfft, fs, dir, show])</p></td>
 <td><p>Plot impulse, step, magnitude, and phase response like FIRFilt.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.rmart.html#eegprep.rmart" title="eegprep.rmart"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.rmart</span></code></a>(datafile, outfile, nchans, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.rmart.html#eegprep.rmart" title="eegprep.rmart"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.rmart</span></code></a>(datafile, outfile, nchans, ...)</p></td>
 <td><p>Remove threshold-triggered EOG artifacts from a float32 data file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.rmsave.html#eegprep.rmsave" title="eegprep.rmsave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.rmsave</span></code></a>(data[, frames])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.rmsave.html#eegprep.rmsave" title="eegprep.rmsave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.rmsave</span></code></a>(data[, frames])</p></td>
 <td><p>Return the RMS of each channel in consecutive equal-length blocks.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.windows.html#eegprep.windows" title="eegprep.windows"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.windows</span></code></a>(t, m[, a])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.windows.html#eegprep.windows" title="eegprep.windows"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.windows</span></code></a>(t, m[, a])</p></td>
 <td><p>Return a symmetric window vector.</p></td>
 </tr>
 </tbody>

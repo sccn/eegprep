@@ -585,7 +585,13 @@ Hamming-window defaults, respects continuous-data boundary events, clears stale
 ICA activations, and returns a replayable history command. <code class="docutils literal notranslate"><span class="pre">minphase=True</span></code>
 converts the FIR to minimum phase with the real cepstrum before causal filtering.
 <code class="docutils literal notranslate"><span class="pre">usefftfilt=True</span></code> filters each segment by overlap-add, so a missing sample
-stays inside the FFT block that contains it.</p>
+stays inside the FFT block that contains it. Each applied design is appended
+to <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;eegfiltnew&quot;]</span></code>: sampling rate, 1-based channels, phase,
+passband edges, -6 dB cutoffs, order, transition width, <code class="docutils literal notranslate"><span class="pre">revfilt</span></code>, and the
+coefficients. A missing passband edge is NaN. A highpass is stored as the
+reversed lowpass that was designed. Design the same FIR without
+filtering by calling <code class="docutils literal notranslate"><span class="pre">design_eegfiltnew</span></code>. The history command still records
+the options you requested.</p>
 <p>Use FIRFilt helpers for custom filter design:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_firws</span><span class="p">,</span> <span class="n">pop_firwsord</span><span class="p">,</span> <span class="n">pop_kaiserbeta</span>
 

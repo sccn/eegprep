@@ -476,6 +476,12 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code> appends each applied FIR design to
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;eegfiltnew&quot;]</span></code>, including the sampling rate, affected
+channels, phase, cutoffs, order, transition width, <code class="docutils literal notranslate"><span class="pre">revfilt</span></code>, and the
+coefficients that were applied. <code class="docutils literal notranslate"><span class="pre">design_eegfiltnew</span></code> is the public
+designer. The <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">com)</span></code> return and history command are unchanged
+(#537).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when the selected reference
 is shorter than one 0.5 s RMS window. That reference is not replaced by
 the rest of the recording (<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> line 191).</p></li>

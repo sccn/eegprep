@@ -1,0 +1,6 @@
+﻿design\_eegfiltnew
+==================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: design_eegfiltnew

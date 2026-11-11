@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_eegfiltnew`` appends each applied FIR design to
+  ``EEG["etc"]["eegfiltnew"]``, including the sampling rate, affected
+  channels, phase, cutoffs, order, transition width, ``revfilt``, and the
+  coefficients that were applied. ``design_eegfiltnew`` is the public
+  designer. The ``(EEG, com)`` return and history command are unchanged
+  (#537).
 - ``clean_asr`` raises ``ASRCalibrationError`` when the selected reference
   is shorter than one 0.5 s RMS window. That reference is not replaced by
   the rest of the recording (``asr_calibrate.m`` line 191).

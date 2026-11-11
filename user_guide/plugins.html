@@ -630,6 +630,22 @@ order (<code class="docutils literal notranslate"><span class="pre">3.3</span> <
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">plotfreqz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Each call appends the applied design to <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;eegfiltnew&quot;]</span></code>. A later
+filter appends another record, so the two stay distinguishable. A record
+contains the sampling rate, the 1-based channels that were filtered,
+<code class="docutils literal notranslate"><span class="pre">phase</span></code> (<code class="docutils literal notranslate"><span class="pre">zerophase</span></code> or <code class="docutils literal notranslate"><span class="pre">minphase</span></code>), the passband edges, the -6 dB
+cutoffs, the order, the transition width, <code class="docutils literal notranslate"><span class="pre">revfilt</span></code>, and the coefficients
+passed to the filter. A missing passband edge is NaN. A highpass is stored
+as the reversed lowpass that was designed: <code class="docutils literal notranslate"><span class="pre">locutoff</span></code> is NaN, <code class="docutils literal notranslate"><span class="pre">hicutoff</span></code>
+is the passband edge, and <code class="docutils literal notranslate"><span class="pre">revfilt</span></code> is true. <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code>
+still returns the filtered dataset and the history command for the requested
+options.</p>
+<p><code class="docutils literal notranslate"><span class="pre">design_eegfiltnew</span></code> is that same designer:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">design_eegfiltnew</span>
+
+<span class="n">coefficients</span><span class="p">,</span> <span class="n">design</span> <span class="o">=</span> <span class="n">design_eegfiltnew</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;srate&quot;</span><span class="p">],</span> <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="mi">40</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>Use the lower-level FIRFilt helpers for custom order/window work:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">beta</span> <span class="o">=</span> <span class="n">pop_kaiserbeta</span><span class="p">(</span><span class="mf">0.001</span><span class="p">)</span>
 <span class="n">order</span> <span class="o">=</span> <span class="n">pop_firwsord</span><span class="p">(</span><span class="s2">&quot;kaiser&quot;</span><span class="p">,</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;srate&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">)</span>
