@@ -106,6 +106,8 @@ def _format_history_number(value: Any, formatter: Callable[[Any], str] | None) -
     if isinstance(value, str):
         return format_history_value(value)
     if isinstance(value, float):
+        if np.isnan(value):
+            return "NaN"
         if np.isneginf(value):
             return "-Inf"
         if np.isposinf(value):

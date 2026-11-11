@@ -45,6 +45,39 @@ Unreleased
 - ``pop_load_frombids`` stores a missing channel coordinate as an empty
   array, including a channel with no row in ``electrodes.tsv``. Saving and
   reloading that dataset keeps the empty coordinates (#538).
+- Component-envelope comparison can choose two datasets from a longer list.
+  The two-dataset limit applies after that choice.
+- ``pop_envtopo`` history names ``EEG([i j])`` when the dialog or ``subindices``
+  supplies those ``ALLEEG`` numbers. A two-dataset list with no indices is
+  recorded as ``pop_envtopo(EEG, ...)``. Replaying ``EEG([3 1])`` keeps
+  ``[3 1]``.
+- ``pop_timtopo`` history replays in the console with the EEGLAB argument
+  order: time range, scalp-map latencies, then the plot title.
+- ``eeg_getdatact`` computes component activity when ``icaact`` is missing,
+  empty, or ``None`` (#506).
+- ``gauss`` with one frame returns ``exp(-sds**2)``, the single sample at
+  ``-sds`` (#507).
+- ``pop_chansel`` reads selection text with the shared tokenizer. An empty
+  quoted token is an empty label, and a brace-wrapped list uses the labels
+  inside the braces (#508).
+- Plot menus keep channel spectra when a dataset has no usable channel
+  coordinates, share one amplitude scale and a calibration bar across channel
+  ERP arrays, and compare two datasets in ``Plot > Component ERPs > With
+  component maps`` (F71, F72, F73, F74, F76).
+- Component 3-D maps use the jet colormap and a per-map color scale. The
+  channel-location plot reports how many electrodes are drawn and toggles
+  each label between its name and its number (F77, F78).
+- A reversed or out-of-range spectrum window raises ``ValueError`` from
+  ``spectopo`` and names the required ``[lo hi]`` bounds (F79).
+- Plot history is stored as MATLAB ``'key', value`` text, including
+  ``figure;`` before spectrum, array, and latency-map plots. The console
+  replays that text. Preferences history records each option whose value
+  changed (F82, F99).
+- Comparing datasets draws one panel per channel, and the legend colors match
+  those traces. Event latency statistics use epoch-relative milliseconds. The
+  statistics figure shows the trimmed mean, the quantiles, and the
+  Kolmogorov-Smirnov result, and it marks the selected channel (F83, F85, F87).
+
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves
   the dataset and history; accepted imports update the GUI and console

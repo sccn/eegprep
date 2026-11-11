@@ -36,6 +36,10 @@ model and implementation details.
    backends (for example ``Agg`` in headless runs) the figure is built and
    returned without opening a window.
 
+   Plot menu commands are stored as MATLAB history, for example
+   ``figure; pop_spectopo(EEG, 1, ...);``. ``eegprep-console`` replays that
+   text, including a leading ``figure;``.
+
    When scripting, pass ``plot='off'`` to any plotting ``pop_*`` function to
    build and return the figure without popping a window, for example
    ``fig = pop_spectopo(EEG, 1, [], freqs=[10], plot='off')['figure']`` to save

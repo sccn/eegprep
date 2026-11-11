@@ -919,7 +919,7 @@ def test_pop_compareerps_honors_dataset_channel_subset_and_title(epoched_eeg: di
 
     expected = np.mean([datasets[index]["data"][[1, 3]].mean(axis=2) for index in (0, 2)], axis=0)
     np.testing.assert_allclose(result["erp1"], expected)
-    assert result["figure"].axes[0].get_title() == "Comparing datasets"
+    assert result["figure"]._suptitle.get_text() == "Comparing datasets"
     assert "[1 3], [2 4], 'Comparing datasets'" in command
 
 
@@ -953,8 +953,8 @@ def test_pop_envtopo_supports_legacy_negative_component_count_and_contribution_w
     map_axes = [axis for axis in figure.axes if axis.images]
     assert len(map_axes) == 3
     assert all(axis.get_title().startswith("IC ") for axis in map_axes)
-    assert "compnums=-3" in command
-    assert "limcontrib=[0, 300]" in command
+    assert "'compnums', -3" in command
+    assert "'limcontrib', [0 300]" in command
 
 
 def test_pop_erpimage_sorts_channel_trials_and_projects_components(epoched_eeg: dict) -> None:
@@ -1000,7 +1000,7 @@ def test_pop_plotdata_selects_modes_trials_averages_and_single_trial_overlays(ep
     component_axes = {axis.get_title(): axis for axis in component_figure.axes}
     assert len(component_axes["1"].lines) == 3  # two trials plus the zero reference
     assert not component_axes["1"].yaxis_inverted()
-    assert "pop_plotdata(EEG, 1, [2, 4], [2, 5, 7]" in command
+    assert "pop_plotdata(EEG, 1, [2 4], [2 5 7]" in command
     assert pop_plotdata_dialog_spec(epoched_eeg, typeplot=1).title.startswith("Channel ERPs")
     assert pop_plotdata_dialog_spec(epoched_eeg, typeplot=0).title.startswith("Component ERPs")
 
@@ -1009,11 +1009,11 @@ def test_pop_plottopo_draws_selected_channel_trial_averages(epoched_eeg: dict) -
     figure, command = pop_plottopo(epoched_eeg, [1, 3, 5], "selected channels", 0, return_com=True)
     single_trials = pop_plottopo(epoched_eeg, [1, 3], "single trials", 1, rect=True)
 
-    axes = {axis.get_title(): axis for axis in figure.axes}
+    axes = {axis.get_title(): axis for axis in figure.axes if axis.get_title()}
     np.testing.assert_allclose(axes["Ch3"].lines[0].get_ydata(), epoched_eeg["data"][2].mean(axis=1))
     assert len(axes) == 3
     assert axes["Ch3"].yaxis_inverted()
-    assert command.startswith("pop_plottopo(EEG, [1, 3, 5], 'selected channels', 0)")
+    assert command.startswith("figure; pop_plottopo(EEG, [1 3 5], 'selected channels', 0)")
     assert len(single_trials.axes[0].lines) == epoched_eeg["trials"] + 1
 
 

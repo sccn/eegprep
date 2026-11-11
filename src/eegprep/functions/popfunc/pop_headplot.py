@@ -92,14 +92,17 @@ def pop_headplot(
     rows, columns = _normalise_rowcols(rowcols, items_array.size)
     requested_maplimits = options.pop("maplimits", None)
     maplimits = requested_maplimits
-    if maplimits is None and typeplot:
+    if maplimits is None and int(typeplot):
         maplimits = _erp_maplimits(EEG, items_array)
     elif maplimits is None:
-        maplimits = [-1, 1]
+        maplimits = "absmax"
+    if not int(typeplot) and "colormap" not in options:
+        options["colormap"] = "jet"
     topotitle = _default_title(EEG, typeplot) if topotitle is None else str(topotitle)
 
     maps, labels = _headplot_maps(EEG, typeplot, items_array)
-    maplimits = _shared_maplimits(maps, maplimits)
+    if not isinstance(maplimits, str):
+        maplimits = _shared_maplimits(maps, maplimits)
     figures = _plot_pages(
         maps,
         labels,
@@ -116,6 +119,8 @@ def pop_headplot(
     command = _history_command(
         typeplot, items_array, topotitle, [rows, columns], colorbar, setup, load, command_options
     )
+    if items_array.size == 1:
+        command = f"figure; {command}"
     show_figures(figures, plot=plot)
     return (figures, command) if return_com else figures
 
@@ -544,8 +549,18 @@ def _plot_pages(
                 **options,
             )
         if colorbar and len(page_maps) > 1:
-            mappable = plt.cm.ScalarMappable(norm=plt.Normalize(*np.asarray(maplimits, dtype=float).ravel()[:2]))
-            fig.colorbar(mappable, ax=fig.axes, shrink=0.75)
+            cmap_name = str(options.get("colormap") or "turbo")
+            if isinstance(maplimits, str):
+                mappable = plt.cm.ScalarMappable(norm=plt.Normalize(-1, 1), cmap=plt.get_cmap(cmap_name))
+                colorbar_artist = fig.colorbar(mappable, ax=fig.axes, shrink=0.75)
+                colorbar_artist.set_ticks([-0.8, 0.8])
+                colorbar_artist.set_ticklabels(["-", "+"])
+            else:
+                mappable = plt.cm.ScalarMappable(
+                    norm=plt.Normalize(*np.asarray(maplimits, dtype=float).ravel()[:2]),
+                    cmap=plt.get_cmap(cmap_name),
+                )
+                fig.colorbar(mappable, ax=fig.axes, shrink=0.75)
             fig.subplots_adjust(right=0.9)
         elif single_map:
             fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.88)

@@ -266,6 +266,8 @@ def test_reference_gauss(eeglab_backend):
             status = 1
             rising += 1
     assert rising == falling == 1
+    one_frame = np.ravel(np.asarray(eeglab_backend("gauss", 1.0, 2.0), dtype=float))
+    _assert_near(one_frame, [np.exp(-4.0)])
 
 
 @eeglab_test(_source("gauss2d"), "test_pass_general")
@@ -490,7 +492,8 @@ def test_python_regression_gauss_is_symmetric_positive_and_unit_peaked():
     np.testing.assert_allclose(window, window[::-1])
     assert window[2] == pytest.approx(1)
     assert np.all((window > 0) & (window <= 1))
-    np.testing.assert_array_equal(gauss(1, 3), [1])
+    np.testing.assert_allclose(gauss(1, 2), [np.exp(-4.0)])
+    np.testing.assert_allclose(gauss(1, 3), [np.exp(-9.0)])
     with pytest.raises(ValueError, match="integer"):
         gauss(5.5, 1)
 

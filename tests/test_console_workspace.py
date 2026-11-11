@@ -900,8 +900,8 @@ def test_timewarped_pop_newtimef_console_call_records_replayable_history():
     _tf_result, command = result
     assert session.EEG is original_eeg
     assert session.ALLCOM == [command]
-    assert "timewarp=" in command
-    ast.parse(command, mode="eval")
+    assert "'timewarp'," in command
+    ast.parse(console_module._console_python_command(command))
 
 
 def test_gui_pop_eegplot_accept_updates_console_namespace_without_duplicate_history():

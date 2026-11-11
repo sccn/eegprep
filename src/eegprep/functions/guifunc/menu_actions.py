@@ -1733,6 +1733,13 @@ class MenuActionDispatcher:
             # Like EEGLAB's menu, the dialog reopens with the last matching command's values.
             lastcom = eegh_find(self.session.ALLCOM, f"pop_erpimage(EEG, {typeplot},")
             _result, command = pop_erpimage(selection, typeplot, lastcom=lastcom, return_com=True)
+        elif name == "pop_envtopo" and variant == "compare":
+            from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
+
+            alleeg = list(self.session.ALLEEG)
+            if len(alleeg) < 2:
+                raise ValueError("pop_envtopo: Need at least 2 datasets")
+            _result, command = pop_envtopo(alleeg, return_com=True)
         elif name == "pop_envtopo":
             from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
 
