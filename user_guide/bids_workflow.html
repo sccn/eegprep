@@ -677,6 +677,10 @@ combination:</p>
 </tbody>
 </table>
 </div>
+<p>A channel with no electrode coordinates, including a channel missing from
+<code class="docutils literal notranslate"><span class="pre">electrodes.tsv</span></code>, keeps empty numeric location fields. <code class="docutils literal notranslate"><span class="pre">chaninfo</span></code>
+<code class="docutils literal notranslate"><span class="pre">plotrad</span></code> and <code class="docutils literal notranslate"><span class="pre">shrink</span></code> are empty arrays when the file does not set them.
+Saving the dataset and loading it again keeps those empty values.</p>
 <p>BIDS event <code class="docutils literal notranslate"><span class="pre">duration</span></code> is in seconds. <code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> stores each
 event’s <code class="docutils literal notranslate"><span class="pre">duration</span></code> as that value times the sampling rate, including zero
 and fractional sample counts. A missing duration stays missing.</p>

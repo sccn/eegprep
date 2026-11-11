@@ -476,6 +476,9 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> stores a missing channel coordinate as an empty
+array, including a channel with no row in <code class="docutils literal notranslate"><span class="pre">electrodes.tsv</span></code>. Saving and
+reloading that dataset keeps the empty coordinates (#538).</p></li>
 <li><p>Import dialogs expose data shape, sampling, metadata, channel selection,
 ranges, event fields, units, alignment, and epoch options. Cancel preserves
 the dataset and history; accepted imports update the GUI and console
@@ -517,7 +520,7 @@ HDF5 field-decoding errors retain their specific exception rather than
 being reported as invalid MAT files.</p></li>
 <li><p>Save as preserves the two-file layout of loaded datasets and appends
 <code class="docutils literal notranslate"><span class="pre">.set</span></code> to extensionless names; <code class="docutils literal notranslate"><span class="pre">savemode=&quot;onefile&quot;</span></code> explicitly embeds
-samples (F26). BIDS <code class="docutils literal notranslate"><span class="pre">None</span></code> channel metadata (#538) belongs to Stream 10.</p></li>
+samples (F26).</p></li>
 <li><p>Long preference-file paths no longer push Preferences controls offscreen;
 the full path is available in the option-file tooltip (F89, #556).</p></li>
 <li><p>Console startup tolerates missing or closed logging streams and restores

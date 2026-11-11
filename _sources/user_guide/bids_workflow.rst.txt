@@ -173,6 +173,11 @@ Common loading options:
      - Infer locations only when no channel locations are present. Pass
        ``True``, ``False``, or a montage filename for explicit behavior.
 
+A channel with no electrode coordinates, including a channel missing from
+``electrodes.tsv``, keeps empty numeric location fields. ``chaninfo``
+``plotrad`` and ``shrink`` are empty arrays when the file does not set them.
+Saving the dataset and loading it again keeps those empty values.
+
 BIDS event ``duration`` is in seconds. ``pop_load_frombids`` stores each
 event's ``duration`` as that value times the sampling rate, including zero
 and fractional sample counts. A missing duration stays missing.
