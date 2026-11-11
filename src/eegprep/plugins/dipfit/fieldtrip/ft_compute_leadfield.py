@@ -12,12 +12,11 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.plugins.dipfit.fieldtrip.bem import BEM_TYPES, eeg_infinite_dipole, eeg_leadfieldb
+from eegprep.plugins.dipfit.fieldtrip.bem import BEM_TYPES, eeg_leadfieldb
 from eegprep.plugins.dipfit.fieldtrip.spheres import eeg_leadfield_spheres
 
 
 _SPHERE_TYPES = frozenset({"singlesphere", "concentricspheres"})
-_INFINITE_TYPES = frozenset({"infinite", "infinite_currentdipole"})
 
 
 def ft_compute_leadfield(dippos: np.ndarray, sens: Any, headmodel: dict[str, Any]) -> np.ndarray:
@@ -28,8 +27,6 @@ def ft_compute_leadfield(dippos: np.ndarray, sens: Any, headmodel: dict[str, Any
         leadfield = eeg_leadfieldb(dippos, electrodes, headmodel)
     elif kind in _SPHERE_TYPES:
         leadfield = eeg_leadfield_spheres(dippos, electrodes, headmodel)
-    elif kind in _INFINITE_TYPES:
-        leadfield = eeg_infinite_dipole(dippos, electrodes, headmodel)
     else:
         raise ValueError(f"unsupported volume conductor model for EEG ({kind})")
     montage = sens.get("tra") if isinstance(sens, dict) else None
@@ -38,26 +35,20 @@ def ft_compute_leadfield(dippos: np.ndarray, sens: Any, headmodel: dict[str, Any
     return leadfield - np.mean(leadfield, axis=0, keepdims=True)
 
 
-def ft_headmodeltype(headmodel: dict[str, Any], desired: str | None = None) -> str | bool:
-    """Return the FieldTrip head-model type, or whether it matches ``desired``."""
+def ft_headmodeltype(headmodel: dict[str, Any]) -> str:
+    """Return the FieldTrip head-model type."""
     declared = headmodel.get("type")
     if isinstance(declared, str) and declared:
-        kind = "singleshell" if declared.lower() == "nolte" else declared.lower()
-    elif "r" in headmodel and np.size(headmodel["r"]) == 1 and "label" not in headmodel:
-        kind = "singlesphere"
-    elif "r" in headmodel and np.size(headmodel["r"]) >= 2 and "label" not in headmodel:
-        kind = "concentricspheres"
-    elif "bnd" in headmodel and "mat" in headmodel:
-        kind = "bem"
-    elif not headmodel or list(headmodel) == ["unit"]:
-        kind = "infinite"
-    else:
-        kind = "unknown"
-    if desired is None:
-        return kind
-    if desired == "bem":
-        return kind in BEM_TYPES or kind == "bem"
-    return kind == desired
+        return "singleshell" if declared.lower() == "nolte" else declared.lower()
+    if "r" in headmodel and np.size(headmodel["r"]) == 1 and "label" not in headmodel:
+        return "singlesphere"
+    if "r" in headmodel and np.size(headmodel["r"]) >= 2 and "label" not in headmodel:
+        return "concentricspheres"
+    if "bnd" in headmodel and "mat" in headmodel:
+        return "bem"
+    if not headmodel or list(headmodel) == ["unit"]:
+        return "infinite"
+    return "unknown"
 
 
 def _electrode_positions(sens: Any) -> np.ndarray:

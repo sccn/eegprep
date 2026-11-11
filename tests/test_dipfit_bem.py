@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy.io import savemat
 
 from eegprep import pop_loadset
 from eegprep.plugins.dipfit._fitting import (
@@ -21,11 +22,12 @@ from eegprep.plugins.dipfit.fieldtrip.bem import (
     ft_prepare_vol_sens,
     load_bem_headmodel,
 )
+from eegprep.plugins.dipfit._bem_parity import PARITY_DIPOLES_MM, bem_parity_payload
 from eegprep.plugins.dipfit.fieldtrip.ft_compute_leadfield import ft_compute_leadfield
 from eegprep.plugins.dipfit.fieldtrip.geometry import project_elec, surface_inside, transfer_elec
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings, pop_dipfit_settings_dialog_spec
-from scripts.dipfit_standard_bem_parity import PARITY_DIPOLES_MM, bem_parity_payload
 from tests.eeglab_tests.backend import skip_without_matlab_plugin
+from tests.fixtures import create_test_eeg_with_ica
 
 
 _CAP385_TO_MNI = np.asarray([0.832146, -15.6287, 2.41142, 0.0812144, 0.000937391, -1.5732, 1.17419, 1.06011, 1.14846])
@@ -200,6 +202,104 @@ def test_packaged_dipoli_leadfield_matches_the_prepared_system_matrix():
     assert raw["type"] == "dipoli"
     assert raw["mat"].shape == (3000, 3000)
     np.testing.assert_allclose(raw["cond"], [0.33, 0.004125, 0.33], rtol=0, atol=1e-7)
+
+
+def _write_volume_mat(path: Path, *, kind: str, with_boundary: bool) -> None:
+    vertices, triangles = _octahedron()
+    fields = [("type", "O"), ("cond", "O"), ("mat", "O")]
+    if with_boundary:
+        fields.append(("bnd", "O"))
+    volume = np.zeros((1,), dtype=fields)
+    volume["type"][0] = kind
+    volume["cond"][0] = np.asarray([1.0])
+    volume["mat"][0] = np.eye(vertices.shape[0])
+    if with_boundary:
+        boundary = np.zeros((1,), dtype=[("pnt", "O"), ("tri", "O")])
+        boundary["pnt"][0] = vertices
+        boundary["tri"][0] = triangles + 1
+        volume["bnd"][0] = boundary
+    savemat(path, {"vol": volume})
+
+
+def _custom_headmodel_eeg(hdmfile: Path):
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=8, n_components=1)
+    vertices, _triangles = _octahedron()
+    for channel, position in zip(eeg["chanlocs"], vertices * 2.0, strict=True):
+        channel["X"], channel["Y"], channel["Z"] = (float(value) for value in position)
+    return pop_dipfit_settings(
+        eeg,
+        hdmfile=str(hdmfile),
+        coordformat="MNI",
+        coord_transform=[0, 0, 0, 0, 0, 0, 1, 1, 1],
+    )
+
+
+def test_renamed_dipoli_mat_uses_the_bem_path(tmp_path):
+    path = tmp_path / "subject_bem.mat"
+    _write_volume_mat(path, kind="dipoli", with_boundary=True)
+    forward = prepare_forward_data(_custom_headmodel_eeg(path), [1])
+    headmodel = forward.headmodel
+    assert headmodel is not None
+    assert headmodel["type"] == "dipoli"
+    assert headmodel["bnd"][0]["pos"].shape[0] == 6
+    assert forward.sens is not None
+    leadfield = ft_compute_leadfield(np.asarray([[0.0, 0.0, 0.0]]), forward.sens, headmodel)
+    assert leadfield.shape == (6, 3)
+
+
+def test_on_disk_standard_vol_name_is_read_from_its_contents(tmp_path):
+    path = tmp_path / "standard_vol.mat"
+    _write_volume_mat(path, kind="dipoli", with_boundary=True)
+    forward = prepare_forward_data(_custom_headmodel_eeg(path), [1])
+    assert forward.headmodel is not None
+    assert forward.headmodel["bnd"][0]["pos"].shape[0] == 6
+
+
+def test_renamed_dipoli_npz_uses_the_bem_path(tmp_path):
+    vertices, triangles = _octahedron()
+    path = tmp_path / "subject_bem.npz"
+    np.savez(
+        path,
+        type=np.asarray("dipoli"),
+        cond=np.asarray([1.0]),
+        mat_data=np.ones(6),
+        mat_indices=np.arange(6),
+        mat_indptr=np.arange(7),
+        mat_shape=np.asarray([6, 6]),
+        bnd0_pos=vertices,
+        bnd0_tri=triangles + 1,
+    )
+    forward = prepare_forward_data(_custom_headmodel_eeg(path), [1])
+    assert forward.headmodel is not None
+    assert forward.headmodel["type"] == "dipoli"
+    assert forward.headmodel["bnd"][0]["pos"].shape[0] == 6
+
+
+def test_unreadable_headmodel_file_does_not_fall_back_to_the_sphere(tmp_path):
+    sphere = tmp_path / "single_sphere.mat"
+    _write_volume_mat(sphere, kind="singlesphere", with_boundary=False)
+    with pytest.raises(ValueError, match="not a boundary-element"):
+        prepare_forward_data(_custom_headmodel_eeg(sphere), [1])
+
+    missing = tmp_path / "missing_headmodel.mat"
+    with pytest.raises(FileNotFoundError, match="not found"):
+        prepare_forward_data(_custom_headmodel_eeg(missing), [1])
+
+
+def test_openmeeg_file_is_rejected(tmp_path):
+    path = tmp_path / "openmeeg_subject.mat"
+    _write_volume_mat(path, kind="openmeeg", with_boundary=True)
+    with pytest.raises(ValueError, match="OpenMEEG"):
+        prepare_forward_data(_custom_headmodel_eeg(path), [1])
+
+
+def test_standard_besa_template_stays_on_the_sphere_path():
+    eeg = pop_dipfit_settings(
+        create_test_eeg_with_ica(n_channels=4, n_samples=8, n_components=1),
+        model="standardBESA",
+    )
+    forward = prepare_forward_data(eeg, [1])
+    assert forward.headmodel is None
 
 
 def test_pop_multifit_default_bem_returns_finite_positions():

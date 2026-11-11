@@ -257,9 +257,11 @@ DIPFIT Source Localization
 
 EEGPrep includes standalone DIPFIT workflows for ICA component source
 localization. The default head model is the packaged MNI boundary-element
-volume. ``standardBESA`` keeps the single-sphere leadfield. Configure DIPFIT
-metadata first, then run a coarse grid search, nonlinear refinement, and
-dipole plotting:
+volume. ``standardBESA`` keeps the single-sphere leadfield. A custom
+head-model file is read as a boundary-element volume when it contains
+``bnd``, ``mat``, and ``cond`` with type dipoli, bemcp, or openmeeg.
+Configure DIPFIT metadata first, then run a coarse grid search, nonlinear
+refinement, and dipole plotting:
 
 .. code-block:: python
 

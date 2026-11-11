@@ -111,9 +111,12 @@ the limits. Cancelling the menu discards its changes.
        file that matches no keyword keeps the template transform. An empty
        transform is left unchanged and a fit logs a warning, because those
        electrodes are not rotated into the head model.
-       ``standardBESA`` still uses the single-sphere leadfield. Creating a
-       bemcp or dipoli system matrix from an MRI, and eLORETA, stay
-       unsupported.
+       ``standardBESA`` still uses the single-sphere leadfield. A custom
+       head-model file is a boundary-element volume when it contains
+       ``bnd``, ``mat``, and ``cond`` with type dipoli, bemcp, or openmeeg.
+       OpenMEEG is recognized and rejected. Any other head-model file raises
+       instead of falling back to the sphere. Creating a bemcp or dipoli
+       system matrix from an MRI, and eLORETA, stay unsupported.
    * - Scripts
      - Assign return values explicitly outside ``eegprep-console``.
 

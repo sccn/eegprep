@@ -1,15 +1,18 @@
 """DIPFIT fitting primitives.
 
-Datasets that use the MNI boundary-element template are fitted with the
-FieldTrip dipoli leadfield (``ft_prepare_vol_sens`` and ``ft_compute_leadfield``).
-Other head models keep the single-sphere primary-current leadfield. eLORETA and
-creation of a new BEM system matrix are not part of this path.
+A head-model file is fitted with the FieldTrip dipoli leadfield
+(``ft_prepare_vol_sens`` and ``ft_compute_leadfield``) when its contents are a
+FieldTrip volume with ``bnd``, ``mat``, and ``cond``. The packaged MNI template
+uses that path. ``standardBESA`` keeps the single-sphere primary-current
+leadfield. eLORETA and creation of a new BEM system matrix are not part of
+this path.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+from pathlib import Path
 import re
 from typing import Any
 
@@ -19,7 +22,7 @@ from scipy.optimize import minimize
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_channel_indices, component_maps, numeric_vector
 from eegprep.plugins.dipfit._coordinates import apply_transform, traditionaldipfit
-from eegprep.plugins.dipfit.fieldtrip.bem import ft_prepare_vol_sens, is_bem_hdmfile, load_bem_headmodel
+from eegprep.plugins.dipfit.fieldtrip.bem import BEM_TYPES, ft_prepare_vol_sens, load_bem_headmodel
 from eegprep.plugins.dipfit.fieldtrip.ft_compute_leadfield import ft_compute_leadfield
 from eegprep.plugins.dipfit.fieldtrip.geometry import ft_inside_headmodel
 from eegprep.plugins.dipfit._utils import (
@@ -38,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_HEAD_RADIUS_MM = 85.0
 MIN_DIPOLE_ELECTRODE_DISTANCE_MM = 1e-3
-_BEM_TYPES = frozenset({"bem", "dipoli", "asa", "bemcp"})
+_BESA_TEMPLATE_NAME = "standard_besa.mat"
 _BEM_XGRID = np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 24)
 _BEM_YGRID = np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 24)
 _BEM_ZGRID = np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 12)
@@ -507,10 +510,20 @@ def _fit_bem_component_grid(
 def _uses_bem(dipfit: dict[str, Any]) -> bool:
     volume = dipfit.get("vol")
     if isinstance(volume, dict) and "bnd" in volume and "mat" in volume:
-        kind = str(volume.get("type", "bem")).lower()
-        if kind in _BEM_TYPES:
+        kind = str(volume.get("type", "")).lower()
+        if kind in BEM_TYPES:
             return True
-    return is_bem_hdmfile(dipfit.get("hdmfile"))
+        label = kind or "missing"
+        raise ValueError(f"In-memory DIPFIT volume type {label!r} is not a dipoli, bemcp, or OpenMEEG head model")
+    hdmfile = str(dipfit.get("hdmfile") or "")
+    if not hdmfile:
+        return False
+    if Path(hdmfile).is_file():
+        return True
+    name = hdmfile.replace("\\", "/").lower().rsplit("/", 1)[-1]
+    if name == _BESA_TEMPLATE_NAME:
+        return False
+    return True
 
 
 def _load_bem_volume(dipfit: dict[str, Any]) -> dict[str, Any]:

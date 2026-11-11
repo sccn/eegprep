@@ -26,8 +26,13 @@ from eegprep.plugins.dipfit.fieldtrip.geometry import (
 from eegprep.plugins.dipfit.fieldtrip.spheres import ft_prepare_vol_sens_spheres
 
 
-BEM_TYPES = frozenset({"bem", "dipoli", "asa", "bemcp"})
-_STANDARD_VOL_NAME = "standard_vol.mat"
+BEM_TYPES = frozenset({"bem", "dipoli", "asa", "bemcp", "openmeeg"})
+_IMPLEMENTED_BEM_TYPES = frozenset({"bem", "dipoli", "asa", "bemcp"})
+_PACKAGED_VOL_NAMES = frozenset({"standard_vol.mat", "standard_vol.npz"})
+_BEM_FILE_REQUIREMENT = (
+    "A boundary-element file must contain a FieldTrip vol or headmodel with bnd, mat, and cond, "
+    "and type dipoli, bemcp, or openmeeg."
+)
 
 
 def eeg_infinite_dipole(dippos: np.ndarray, elc: np.ndarray, vol: Any) -> np.ndarray:
@@ -58,6 +63,8 @@ def eeg_leadfieldb(dippos: np.ndarray, elc: np.ndarray, vol: dict[str, Any]) -> 
     if system is None:
         raise ValueError("there is no system matrix present")
     kind = str(vol.get("type", "bem")).lower()
+    if kind == "openmeeg":
+        raise ValueError("OpenMEEG head models are not implemented")
     electrodes = np.asarray(elc, dtype=float)
     if electrodes.size == 0:
         electrodes = np.zeros((0, 3))
@@ -89,15 +96,15 @@ def ft_prepare_vol_sens(headmodel: dict[str, Any], sens: dict[str, Any]) -> tupl
     """Project EEG electrodes onto the skin and fold that transfer into ``mat``.
 
     This is the ``bem`` / ``dipoli`` / ``asa`` / ``bemcp`` branch of FieldTrip
-    ``ft_prepare_vol_sens``. Other head-model types are left untouched so a
-    spherical implementation can extend the same entry point.
+    ``ft_prepare_vol_sens``. ``singlesphere`` and ``concentricspheres`` go to
+    the sphere hook. OpenMEEG and any other type raise.
     """
     kind = str(headmodel.get("type", "")).lower()
     if kind in {"singlesphere", "concentricspheres"}:
         return ft_prepare_vol_sens_spheres(headmodel, sens)
-    if kind not in BEM_TYPES and "mat" not in headmodel:
-        return headmodel, sens
-    if kind not in BEM_TYPES:
+    if kind == "openmeeg":
+        raise ValueError("OpenMEEG head models are not implemented")
+    if kind not in _IMPLEMENTED_BEM_TYPES:
         raise ValueError(f"ft_prepare_vol_sens BEM branch does not accept headmodel type {kind!r}")
     prepared = {
         "type": kind,
@@ -151,18 +158,27 @@ def ft_prepare_vol_sens(headmodel: dict[str, Any], sens: dict[str, Any]) -> tupl
 
 
 def load_bem_headmodel(hdmfile: str | None = None) -> dict[str, Any]:
-    """Load a dipoli/bemcp volume, defaulting to the packaged MNI model."""
-    if hdmfile in (None, "", _STANDARD_VOL_NAME) or _is_packaged_standard_vol(str(hdmfile or "")):
+    """Load a dipoli, bemcp, or OpenMEEG volume.
+
+    A filename that is not on disk and names ``standard_vol.mat`` loads the
+    packaged MNI model. Any other existing ``.mat`` or ``.npz`` file is read
+    from its contents. A missing or unrecognizable head-model file raises.
+    """
+    if hdmfile in (None, ""):
         return _copy_headmodel(_cached_standard_bem())
     path = Path(str(hdmfile))
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"DIPFIT head model {hdmfile!r} was not found. The bundled MNI model is "
-            f"{_STANDARD_VOL_NAME}; creating a BEM system matrix from an MRI is not implemented."
-        )
-    if path.suffix == ".npz":
-        return _headmodel_from_npz(path)
-    return _headmodel_from_mat(path)
+    if path.is_file():
+        if path.suffix.lower() == ".npz":
+            return _validate_bem_volume(_headmodel_from_npz(path), path)
+        if path.suffix.lower() == ".mat":
+            return _validate_bem_volume(_headmodel_from_mat(path), path)
+        raise ValueError(f"{path.name} is not a FieldTrip .mat or .npz head model. {_BEM_FILE_REQUIREMENT}")
+    if _is_packaged_standard_vol(str(hdmfile)):
+        return _copy_headmodel(_cached_standard_bem())
+    raise FileNotFoundError(
+        f"DIPFIT head model {hdmfile!r} was not found. The bundled MNI model is "
+        "standard_BEM/standard_vol.mat; creating a BEM system matrix from an MRI is not implemented."
+    )
 
 
 def standard_bem_resource() -> Path:
@@ -178,11 +194,6 @@ def standard_bem_resource() -> Path:
         return Path(path)
 
 
-def is_bem_hdmfile(hdmfile: Any) -> bool:
-    """Return whether a DIPFIT head-model file names the MNI boundary-element template."""
-    return _is_packaged_standard_vol(str(hdmfile or ""))
-
-
 def _cached_standard_bem() -> dict[str, Any]:
     return _cached_standard_bem_from(str(standard_bem_resource()))
 
@@ -194,6 +205,8 @@ def _cached_standard_bem_from(path: str) -> dict[str, Any]:
 
 def _headmodel_from_npz(path: Path) -> dict[str, Any]:
     with np.load(path) as data:
+        if "mat_data" not in data or "cond" not in data or "type" not in data or "bnd0_pos" not in data:
+            raise ValueError(f"{path.name} is not a boundary-element head model. {_BEM_FILE_REQUIREMENT}")
         boundaries = []
         index = 0
         while f"bnd{index}_pos" in data:
@@ -220,28 +233,40 @@ def _headmodel_from_npz(path: Path) -> dict[str, Any]:
 def _headmodel_from_mat(path: Path) -> dict[str, Any]:
     loaded = loadmat(path, squeeze_me=True, struct_as_record=False)
     volume = loaded.get("vol", loaded.get("headmodel"))
-    if volume is None:
-        raise ValueError(f"{path} does not contain a FieldTrip vol/headmodel structure")
+    if volume is None or not hasattr(volume, "bnd") or not hasattr(volume, "mat") or not hasattr(volume, "cond"):
+        raise ValueError(f"{path.name} is not a boundary-element head model. {_BEM_FILE_REQUIREMENT}")
+    raw_boundaries = volume.bnd
+    boundaries_in = list(raw_boundaries) if isinstance(raw_boundaries, np.ndarray) else [raw_boundaries]
     boundaries = []
-    raw_boundaries = volume.bnd if isinstance(volume.bnd, np.ndarray) else [volume.bnd]
-    for boundary in np.atleast_1d(raw_boundaries):
+    for boundary in boundaries_in:
         pos = getattr(boundary, "pos", None)
         if pos is None:
-            pos = boundary.pnt
-        boundaries.append({"pos": np.asarray(pos, dtype=float), "tri": np.asarray(boundary.tri, dtype=int) - 1})
-    kind = str(getattr(volume, "type", "dipoli"))
-    if kind.lower() not in BEM_TYPES:
-        raise ValueError(
-            f"{path.name} is a {kind!r} head model. EEGPrep applies dipoli/bemcp system matrices; "
-            "creating one from an MRI is not implemented."
-        )
+            pos = getattr(boundary, "pnt", None)
+        triangles = getattr(boundary, "tri", None)
+        if pos is None or triangles is None:
+            raise ValueError(f"{path.name} is not a boundary-element head model. {_BEM_FILE_REQUIREMENT}")
+        boundaries.append({"pos": np.asarray(pos, dtype=float), "tri": np.asarray(triangles, dtype=int) - 1})
+    kind = str(getattr(volume, "type", "") or "").lower()
     return {
-        "type": kind.lower(),
+        "type": kind,
         "cond": np.asarray(volume.cond, dtype=float).ravel(),
         "bnd": boundaries,
         "mat": volume.mat,
         "unit": str(getattr(volume, "unit", "mm")),
     }
+
+
+def _validate_bem_volume(headmodel: dict[str, Any], path: Path) -> dict[str, Any]:
+    kind = str(headmodel.get("type", "")).lower()
+    has_volume = headmodel.get("bnd") and headmodel.get("mat") is not None and headmodel.get("cond") is not None
+    if kind not in BEM_TYPES or not has_volume:
+        label = kind or "missing"
+        raise ValueError(
+            f"{path.name} is a {label!r} head model. EEGPrep applies dipoli and bemcp system matrices. "
+            "OpenMEEG files are recognized but not implemented. "
+            "This file is not one of those volumes."
+        )
+    return headmodel
 
 
 def _copy_headmodel(headmodel: dict[str, Any]) -> dict[str, Any]:
@@ -271,8 +296,6 @@ def _check_system_rows(vol: dict[str, Any], system: Any, n_electrodes: int, kind
     n_vertices = int(sum(boundary["pos"].shape[0] for boundary in vol["bnd"]))
     if rows in {n_electrodes, n_skin, n_vertices}:
         return
-    if kind == "openmeeg":
-        return
     raise ValueError("unexpected size of system matrix")
 
 
@@ -301,5 +324,5 @@ def _as_dense(matrix: Any) -> np.ndarray:
 
 
 def _is_packaged_standard_vol(hdmfile: str) -> bool:
-    normalized = hdmfile.replace("\\", "/").lower()
-    return normalized.endswith("standard_vol.mat") or normalized.endswith("standard_vol.npz")
+    normalized = hdmfile.replace("\\", "/").lower().rsplit("/", 1)[-1]
+    return normalized in _PACKAGED_VOL_NAMES
