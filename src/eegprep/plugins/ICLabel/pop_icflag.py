@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc.plot_utils import python_literal
 from eegprep.plugins.ICLabel.eeg_icalabelstat import eeg_icalabelstat
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
 
@@ -144,12 +144,23 @@ def _normalize_thresholds(thresholds: Any) -> np.ndarray:
 
 
 def _require_iclabel(EEG: dict) -> None:
+    weights = np.asarray(EEG.get("icaweights", []))
+    if getattr(weights, "ndim", 0) != 2 or weights.size == 0:
+        raise ValueError(
+            "pop_icflag needs the current ICA decomposition in EEG.icaweights. "
+            "Run pop_runica, then pop_iclabel. "
+            "ICLabel results stored after that decomposition was removed are not used."
+        )
     try:
-        classifications = EEG["etc"]["ic_classification"]["ICLabel"]["classifications"]
-    except KeyError as exc:
+        classifications = np.asarray(EEG["etc"]["ic_classification"]["ICLabel"]["classifications"], dtype=float)
+    except (KeyError, TypeError) as exc:
         raise ValueError("No ICLabel classifications found. Run pop_iclabel first.") from exc
-    if np.asarray(classifications).size == 0:
-        raise ValueError("No ICLabel classifications found. Run pop_iclabel first.")
+    if classifications.ndim != 2 or classifications.shape[0] != weights.shape[0]:
+        rows = 0 if classifications.ndim != 2 else int(classifications.shape[0])
+        raise ValueError(
+            f"pop_icflag: ICLabel classifications have {rows} rows for {int(weights.shape[0])} components. "
+            "Run pop_iclabel again so the labels match this ICA decomposition."
+        )
 
 
 def _threshold_text(value: float) -> str:
@@ -157,12 +168,8 @@ def _threshold_text(value: float) -> str:
 
 
 def _history_command(thresholds: np.ndarray) -> str:
-    return f"EEG = pop_icflag(EEG, thresholds={_history_thresholds(thresholds)});"
-
-
-def _history_thresholds(thresholds: np.ndarray) -> str:
     values = [
         [None if np.isnan(value) else float(value) for value in row]
         for row in np.asarray(thresholds, dtype=float).tolist()
     ]
-    return format_history_value(values, cell_for_sequence=None)
+    return f"EEG = pop_icflag(EEG, thresholds={python_literal(values)});"

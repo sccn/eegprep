@@ -78,6 +78,7 @@ torch = [
 gui = [
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
+  "torch>=2.0",
 ]
 console = [
   "eegprep[gui]",
@@ -115,7 +116,9 @@ eegprep-validate-extension-catalog = "eegprep.extension_catalog_validation:main"
 dev = [
   # Keep `uv run eegprep-console --full` working from a fresh source checkout.
   # Published installs still keep GUI/console dependencies behind extras.
+  # PyTorch is included so Tools > Classify components using ICLabel runs.
   "ipython>=8.0",
+  "torch>=2.0",
   # Same packages as the eeglab, mne, pybids, and picard extras, so the suite can
   # exercise those paths without ``--all-extras``.
   "mne>=1.10.0",

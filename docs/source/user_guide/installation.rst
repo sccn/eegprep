@@ -127,8 +127,13 @@ Riemannian ASR (``clean_asr(..., useriemannian=True)`` and
 ``Distance="Riemannian"``) is included. It uses NumPy and SciPy; there is no
 separate manifold package to install.
 
-PyTorch (for GPU acceleration)
-------------------------------
+PyTorch (for ICLabel and GPU acceleration)
+-------------------------------------------
+
+``pip install "eegprep[gui]"`` installs CPU PyTorch with the Qt libraries, so
+Tools > Classify components using ICLabel can classify a dataset. A source
+checkout gets the same library from ``uv sync --group dev``. The ``torch``
+extra installs PyTorch without the GUI. CUDA wheels stay a separate install.
 
 To use GPU-accelerated processing with PyTorch:
 

@@ -10,12 +10,14 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on
-from eegprep.functions.popfunc.plot_utils import numeric_vector
+from eegprep.functions.popfunc.plot_utils import numeric_vector, show_figures
 from eegprep.plugins.dipfit._mri import dipfit_mri_slices, load_standard_mri_volume
 from eegprep.plugins.dipfit._utils import (
     DIPFITUnavailableError,
     dipfit_history,
+    dipfit_record,
     localized_components,
+    matlab_plot_options,
     normalize_model_list,
     one_based_indices,
 )
@@ -56,7 +58,9 @@ def pop_dipplot(
     if not components:
         raise ValueError("No localized dipoles are inside the requested RV range")
     _validate_components_have_positions(models, components)
+    options.update(matlab_plot_options(options.pop("extra_options", "")))
     figures = [_plot_dipoles(EEG, models, components, options)] if plot else []
+    show_figures(figures, plot=plot)
     command = dipfit_history("pop_dipplot", components, assignment=False, **_history_options(options))
     return (figures, command) if return_com else figures
 
@@ -196,7 +200,7 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
     axis.set_xlabel("X")
     axis.set_ylabel("Y")
     axis.set_zlabel("Z")
-    coordformat = (EEG.get("dipfit") or {}).get("coordformat", "")
+    coordformat = dipfit_record(EEG).get("coordformat", "")
     axis.set_title(f"DIPFIT dipoles ({coordformat or 'unknown coordinates'})")
     _set_equal_3d_axes(axis, np.asarray(all_positions, dtype=float) if all_positions else np.zeros((1, 3)))
     if components:

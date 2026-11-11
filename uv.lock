@@ -566,6 +566,7 @@ console = [
     { name = "ipython" },
     { name = "pyqtgraph" },
     { name = "pyside6" },
+    { name = "torch" },
 ]
 docs = [
     { name = "myst-parser" },
@@ -591,6 +592,7 @@ full = [
 gui = [
     { name = "pyqtgraph" },
     { name = "pyside6" },
+    { name = "torch" },
 ]
 mne = [
     { name = "defusedxml" },
@@ -620,6 +622,7 @@ dev = [
     { name = "pytest-timeout" },
     { name = "python-picard" },
     { name = "ruff" },
+    { name = "torch" },
     { name = "ty" },
 ]
 release = [
@@ -671,6 +674,7 @@ requires-dist = [
     { name = "sphinx-togglebutton", marker = "extra == 'docs'", specifier = ">=0.3.0" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=7.1.0" },
     { name = "threadpoolctl", specifier = ">=3.5.0" },
+    { name = "torch", marker = "extra == 'gui'", specifier = ">=2.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
 ]
 provides-extras = ["eeglab", "mne", "pybids", "picard", "full", "torch", "gui", "console", "docs", "all"]
@@ -689,6 +693,7 @@ dev = [
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "python-picard", specifier = ">=0.8,<0.9" },
     { name = "ruff", specifier = ">=0.15.14" },
+    { name = "torch", specifier = ">=2.0" },
     { name = "ty", specifier = ">=0.0.39" },
 ]
 release = [

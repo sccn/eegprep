@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import matplotlib.pyplot as plt
-import numpy as np
-
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._property_browser import property_activity_browser
@@ -46,6 +43,11 @@ def pop_viewprops(
     """Render channel/component property overview figures and activity views."""
     if EEG is None:
         return ([], "") if return_com else []
+    if not int(bool(typecomp)) and not _has_ica_weights(EEG.get("icaweights")):
+        raise ValueError(
+            "pop_viewprops needs an ICA decomposition in EEG.icaweights. "
+            "Run pop_runica first. ICLabel results stored after that decomposition was removed are not used."
+        )
     if gui is None:
         gui = chanorcomp is None
     if gui:
@@ -133,42 +135,103 @@ def _plot_props(
     if not indices:
         return []
     visible_indices = indices[:PLOTS_PER_FIGURE]
-    if not typecomp and has_component_classifier(EEG, classifier_name):
-        figure = pop_prop_extended(
-            EEG,
-            0,
-            visible_indices,
-            None,
-            spec_opt,
-            erp_opt,
-            scroll_event,
-            classifier_name,
-            gui=False,
-            show_activity=show_activity,
-            reject_callback=reject_callback,
-        )
-        return [figure] if figure is not None else []
+    if not typecomp:
+        has_component_classifier(EEG, classifier_name)
     activity_views = [
         property_activity_browser(EEG, typecomp, index, scroll_event=scroll_event, show=show_activity)
         for index in visible_indices
     ]
-    if not typecomp:
-        figures = pop_topoplot(
-            EEG, 0, visible_indices, "View components properties - pop_viewprops()", [], 0, gui=False
-        )
-        _attach_activity_views(figures, activity_views)
-        return figures
-    fig_obj, axes = plt.subplots(1, min(len(indices), PLOTS_PER_FIGURE), squeeze=False)
-    labels = _channel_labels(EEG)
-    for axis, index in zip(axes.ravel(), visible_indices):
-        axis.axis("off")
-        label = labels[index - 1] if index - 1 < len(labels) else str(index)
-        axis.text(0.5, 0.5, label, ha="center", va="center", fontsize=10)
-        axis.set_title(str(index))
-    fig_obj.suptitle("View channels properties - pop_viewprops()")
-    fig_obj.tight_layout()
-    _attach_activity_views([fig_obj], activity_views)
-    return [fig_obj]
+    dashboard = _property_dashboard(
+        EEG,
+        typecomp,
+        visible_indices,
+        spec_opt,
+        erp_opt,
+        scroll_event,
+        classifier_name,
+        show_activity,
+        reject_callback,
+    )
+    if typecomp:
+        _attach_activity_views([dashboard], activity_views)
+        return [dashboard] if dashboard is not None else []
+    figures = pop_topoplot(EEG, 0, visible_indices, "View components properties - pop_viewprops()", [], 0, gui=False)
+    _attach_component_clicks(
+        figures,
+        visible_indices,
+        lambda index: _property_dashboard(
+            EEG,
+            0,
+            [index],
+            spec_opt,
+            erp_opt,
+            scroll_event,
+            classifier_name,
+            show_activity,
+            reject_callback,
+        ),
+    )
+    _attach_activity_views(figures, activity_views)
+    if dashboard is not None:
+        _attach_activity_views([dashboard], activity_views)
+        figures = [*figures, dashboard]
+    return figures
+
+
+def _property_dashboard(
+    EEG: dict[str, Any],
+    typecomp: int,
+    indices: list[int],
+    spec_opt: Any,
+    erp_opt: Any,
+    scroll_event: int | bool,
+    classifier_name: str,
+    show_activity: bool,
+    reject_callback: Any | None,
+) -> Any:
+    return pop_prop_extended(
+        EEG,
+        typecomp,
+        indices,
+        None,
+        spec_opt,
+        erp_opt,
+        scroll_event,
+        classifier_name,
+        gui=False,
+        show_activity=show_activity,
+        reject_callback=reject_callback,
+    )
+
+
+def _attach_component_clicks(figures: list[Any], indices: list[int], open_property: Any) -> None:
+    cursor = 0
+    for figure in figures:
+        page_indices = []
+        for axis in figure.axes:
+            if not axis.get_title() or cursor >= len(indices):
+                continue
+            index = indices[cursor]
+            axis.eegprep_property_index = index
+            page_indices.append(index)
+            cursor += 1
+        figure.eegprep_property_indices = tuple(page_indices)
+
+        def on_click(event, open_property=open_property):
+            index = getattr(getattr(event, "inaxes", None), "eegprep_property_index", None)
+            if index is None:
+                return
+            open_property(int(index))
+
+        figure.canvas.mpl_connect("button_press_event", on_click)
+        figure.eegprep_open_property = open_property
+
+
+def _has_ica_weights(weights: Any) -> bool:
+    try:
+        return len(weights) > 0 and len(weights[0]) > 0
+    except (TypeError, IndexError):
+        return False
 
 
 def _attach_activity_views(figures: list[Any], activity_views: list[Any]) -> None:
@@ -193,15 +256,3 @@ def _history_command(
         classifier_name,
     ]
     return "pop_viewprops(EEG, " + ", ".join(format_history_value(arg, cell_for_sequence=None) for arg in args) + ");"
-
-
-def _channel_labels(EEG: dict[str, Any]) -> list[str]:
-    labels = []
-    chanlocs = EEG.get("chanlocs", [])
-    if chanlocs is None:
-        chanlocs = []
-    if isinstance(chanlocs, np.ndarray):
-        chanlocs = chanlocs.tolist()
-    for index, chanloc in enumerate(chanlocs):
-        labels.append(str(chanloc.get("labels", index + 1)) if isinstance(chanloc, dict) else str(index + 1))
-    return labels or [str(index + 1) for index in range(int(EEG.get("nbchan", 0) or 0))]

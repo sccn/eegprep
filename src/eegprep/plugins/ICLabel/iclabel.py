@@ -60,6 +60,7 @@ def iclabel(EEG, algorithm='default', engine=None, *, feature='iclabel'):
             import torch
         except ImportError as e:
             raise ImportError(missing_torch_message(feature)) from e
+        _require_ica(EEG, feature)
 
         from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
         from eegprep import ICL_feature_extractor
@@ -104,6 +105,12 @@ def iclabel(EEG, algorithm='default', engine=None, *, feature='iclabel'):
         return EEG
     else:
         raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
+
+
+def _require_ica(EEG, feature: str) -> None:
+    weights = np.asarray(EEG.get("icaweights", [])) if isinstance(EEG, dict) else np.asarray([])
+    if getattr(weights, "ndim", 0) != 2 or weights.size == 0:
+        raise ValueError(f"{feature} needs an ICA decomposition in EEG.icaweights. Run pop_runica first.")
 
 
 def _normalize_algorithm(algorithm):

@@ -12,8 +12,12 @@ Property overview figures include browser-backed activity views for each
 visible channel or component. The dialog's event checkbox controls whether
 events are included in those scrolling activity views.
 
-When component classifier data are available in
-`EEG.etc.ic_classification`, component mode opens the extended
-`pop_prop_extended` dashboard for the selected components. Without classifier
-data, EEGPrep falls back to the lightweight component topography overview with
-the same browser-backed activity attachments.
+Channel mode shows the extended property dashboard: topography, ERP image,
+and spectrum. Component mode shows that dashboard together with the
+topography grid. Clicking a map opens the dashboard for that component.
+The window is displayed when the plotting backend can show figures.
+
+Component mode requires `EEG.icaweights`. Run `pop_runica` first. ICLabel
+rows that do not match the current decomposition are refused; run
+`pop_iclabel` again. A dataset with no classifier still shows the topography
+grid and the dashboard.

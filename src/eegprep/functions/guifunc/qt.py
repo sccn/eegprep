@@ -364,6 +364,44 @@ class QtDialogRenderer:
                 lambda index: self._set_enabled(targets, index + 1 == int(params["enabled_index"]))
             )
             self._set_enabled(targets, source.currentIndex() + 1 == int(params["enabled_index"]))
+        elif callback.name == "dipfit_template":
+            source = widgets[params["source"]]
+            templates = list(params["templates"])
+
+            def apply_template(index: int, templates=templates) -> None:
+                template = templates[index] if 0 <= index < len(templates) else {}
+                for tag in ("hdmfile", "mrifile", "chanfile", "coord_transform"):
+                    widget = widgets.get(tag)
+                    if widget is not None and tag in template:
+                        widget.setText(str(template[tag]))
+                coord = widgets.get("coordformat")
+                if coord is not None and "coordformat" in template:
+                    coord_index = int(template["coordformat"]) - 1
+                    if 0 <= coord_index < coord.count():
+                        coord.setCurrentIndex(coord_index)
+                no_coreg = widgets.get("no_coreg")
+                if no_coreg is not None and "no_coreg" in template:
+                    no_coreg.setChecked(bool(template["no_coreg"]))
+                browse = bool(template.get("browse", False))
+                for tag in ("hdmfile_browse", "mrifile_browse", "chanfile_browse"):
+                    button = widgets.get(tag)
+                    if button is not None:
+                        button.setEnabled(browse)
+
+            source.currentIndexChanged.connect(apply_template)
+        elif callback.name == "choice_text":
+            source = widgets[params["source"]]
+            target = widgets[params["target"]]
+            texts = [str(item) for item in params["texts"]]
+            browse = widgets.get(params["browse"]) if params.get("browse") else None
+
+            def apply_choice(index: int, texts=texts, target=target, browse=browse) -> None:
+                text = texts[index] if 0 <= index < len(texts) else ""
+                target.setText(text)
+                if browse is not None:
+                    browse.setEnabled(text == "")
+
+            source.currentIndexChanged.connect(apply_choice)
         elif callback.name == "select_interp_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]

@@ -8,9 +8,9 @@ import numpy as np
 from scipy.io import loadmat
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
-from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_options_text
+from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._fitting import (
     DEFAULT_HEAD_RADIUS_MM,
     dipfit_gridsearch as run_gridsearch,
@@ -18,6 +18,7 @@ from eegprep.plugins.dipfit._fitting import (
     dipfit_reject,
     empty_model,
     ensure_model_list,
+    loreta_key_source_points,
     parse_grid_values,
     remove_outside_head,
     source_model_from_points,
@@ -27,9 +28,11 @@ from eegprep.plugins.dipfit._utils import (
     component_count,
     copy_eeg,
     dipfit_history,
+    dipfit_record,
     ensure_channel_locations,
     ensure_dipfit_settings,
     ensure_ica,
+    matlab_plot_options,
     one_based_indices,
     unavailable,
 )
@@ -79,7 +82,7 @@ def pop_dipfit_gridsearch(
         return (None, "") if return_com else None
     ensure_channel_locations(EEG)
     ensure_ica(EEG)
-    ensure_dipfit_settings(EEG)
+    ensure_dipfit_settings(EEG, caller="pop_dipfit_gridsearch")
     if gui is None:
         gui = select is None
     if gui:
@@ -98,9 +101,9 @@ def pop_dipfit_gridsearch(
     command = dipfit_history(
         "pop_dipfit_gridsearch",
         components,
-        parse_grid_values(xgrid, default=np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)).tolist(),
-        parse_grid_values(ygrid, default=np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)).tolist(),
-        parse_grid_values(zgrid, default=np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 6)).tolist(),
+        _history_grid(xgrid, np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)),
+        _history_grid(ygrid, np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)),
+        _history_grid(zgrid, np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 6)),
         None if reject_value is None else float(reject_value),
     )
     return (out, command) if return_com else out
@@ -120,6 +123,7 @@ def pop_dipfit_nonlinear(
     """Run standalone nonlinear dipole refinement for one component."""
     if EEG is None:
         return (None, "") if return_com else None
+    ensure_dipfit_settings(EEG, caller="pop_dipfit_nonlinear")
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if "component" in options and component is None:
         component = options.pop("component")
@@ -134,7 +138,7 @@ def pop_dipfit_nonlinear(
             return (EEG, "") if return_com else EEG
         working, component = _apply_nonlinear_gui_model(EEG, result)
         if result.get("dip2sel") and result.get("dip2sym"):
-            symmetry = "x" if str((EEG.get("dipfit") or {}).get("coordformat", "")).lower() == "mni" else "y"
+            symmetry = "x" if str(dipfit_record(EEG).get("coordformat", "")).lower() == "mni" else "y"
     component_index = _single_component(component, working)
     out = run_nonlinear(working, component=component_index, nonlinear=nonlinear, symmetry=symmetry)
     command = dipfit_history(
@@ -159,7 +163,7 @@ def pop_multifit(
     if EEG is None:
         return (None, "") if return_com else None
     ensure_ica(EEG)
-    ensure_dipfit_settings(EEG)
+    ensure_dipfit_settings(EEG, caller="pop_multifit")
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if gui is None:
         gui = comps is None and not options
@@ -176,7 +180,7 @@ def pop_multifit(
     out = _ensure_gridsearch_starting_positions(EEG, components)
     if dipoles == 2:
         out = _make_bilateral_starting_models(out, components)
-    symmetry = "x" if str((out.get("dipfit") or {}).get("coordformat", "")).lower() == "mni" else "y"
+    symmetry = "x" if str(dipfit_record(out).get("coordformat", "")).lower() == "mni" else "y"
     for component_index in components:
         try:
             out = run_nonlinear(
@@ -201,7 +205,7 @@ def pop_multifit(
         plotopt=options.get("plotopt", ""),
     )
     if str(options.get("dipplot", "off")).lower() == "on":
-        plot_options = parse_plot_options_text(options.get("plotopt", ""))
+        plot_options = matlab_plot_options(options.get("plotopt", ""))
         pop_dipplot(out, components, **plot_options)
     return (out, command) if return_com else out
 
@@ -226,10 +230,13 @@ def pop_leadfield(
             return (EEG, "") if return_com else EEG
         options.update(_leadfield_options_from_result(result))
     if not options.get("sourcemodel"):
-        raise ValueError("sourcemodel is required to compute a leadfield matrix")
+        raise ValueError(
+            "pop_leadfield: sourcemodel is empty. "
+            "Pass source points, a file, or sourcemodel='loreta-key' for EEGPrep's in-head grid."
+        )
     points = _source_points_from_option(options.get("sourcemodel"))
     out = copy_eeg(EEG)
-    ensure_dipfit_settings(out)
+    ensure_dipfit_settings(out, caller="pop_leadfield")
     out["dipfit"]["sourcemodel"] = source_model_from_points(out, points)
     out["dipfit"]["sourcemodel"]["file"] = options.get("sourcemodel")
     if options.get("sourcemodel2mni") not in (None, ""):
@@ -257,11 +264,12 @@ def pop_dipfit_loreta(
         return (None, "") if return_com else None
     ensure_channel_locations(EEG)
     ensure_ica(EEG)
-    dipfit = ensure_dipfit_settings(EEG)
+    dipfit = ensure_dipfit_settings(EEG, caller="pop_dipfit_loreta")
     if not dipfit.get("sourcemodel"):
-        raise ValueError("You need to compute a Leadfield matrix first")
-    if str(dipfit.get("coordformat", "")).lower() != "mni":
-        raise ValueError("For this function, you must use the template BEM model MNI in dipole fit settings")
+        raise ValueError(
+            "pop_dipfit_loreta: no leadfield is stored in EEG.dipfit.sourcemodel. "
+            "Run pop_leadfield first. The LORETA-KEY choice builds EEGPrep's in-head grid."
+        )
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if gui is None:
         gui = select is None and not options
@@ -418,7 +426,16 @@ def pop_multifit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="threshold", value="100"),
             ControlSpec("checkbox", "Remove dipoles outside the head", tag="rmout", value=False),
             ControlSpec("checkbox", "Fit bilateral dipoles (check)", tag="dipoles", value=False),
-            ControlSpec("checkbox", "Plot resulting dipoles using dipplot (check)", tag="dipplot", value=False),
+            ControlSpec(
+                "checkbox",
+                "Plot resulting dipoles using dipplot (check)",
+                tag="dipplot",
+                value=False,
+                callback=CallbackSpec(
+                    "toggle_enabled",
+                    params={"source": "dipplot", "targets": ["plot_label", "plotopt", "plot_help"]},
+                ),
+            ),
             ControlSpec("spacer"),
             ControlSpec("text", "plotting options", tag="plot_label", enabled=False),
             ControlSpec("edit", tag="plotopt", value="'normlen' 'on'", enabled=False),
@@ -446,11 +463,26 @@ def pop_leadfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
                 "Surface source model: Colin27 (with Desikan-Kilianny atlas)|Surface source model: Use Brainstorm ICBM152 (with Desikan-Kilianny atlas)|Volumetric source model: LORETA-KEY|Volumetric source model: AFNI with TTatlas+tlrc atlas (Fieldtrip)|Custom source model",
                 tag="source_choice",
                 value=3,
+                callback=CallbackSpec(
+                    "choice_text",
+                    params={
+                        "source": "source_choice",
+                        "target": "sourcemodel",
+                        "browse": "source_browse",
+                        "texts": ["", "", "loreta-key", "", ""],
+                    },
+                ),
             ),
             ControlSpec("spacer"),
             ControlSpec("text", "File name"),
-            ControlSpec("edit", tag="sourcemodel", value=""),
-            ControlSpec("pushbutton", "...", tag="source_browse", enabled=False),
+            ControlSpec("edit", tag="sourcemodel", value="loreta-key"),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="source_browse",
+                enabled=False,
+                callback=CallbackSpec("select_file", params={"button": "source_browse", "target": "sourcemodel"}),
+            ),
             ControlSpec("spacer"),
             ControlSpec("text", "Transformation to MNI (if any)"),
             ControlSpec("edit", tag="sourcemodel2mni", value=""),
@@ -461,7 +493,8 @@ def pop_leadfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "EEGPrep computes leadfields for explicit source points; FieldTrip source-model preparation is not bundled.",
+            "The LORETA-KEY choice builds EEGPrep's 20 mm in-head grid and a spherical leadfield.",
+            "Colin27, ICBM152, and AFNI atlas files are not bundled.",
         ),
     )
 
@@ -516,8 +549,18 @@ def _multifit_options_from_result(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def _leadfield_options_from_result(result: dict[str, Any]) -> dict[str, Any]:
+    choice = int(result.get("source_choice", 3) or 3)
+    sourcemodel = str(result.get("sourcemodel") or "").strip()
+    if not sourcemodel and choice == 3:
+        sourcemodel = "loreta-key"
+    if not sourcemodel:
+        raise ValueError(
+            "pop_leadfield: that source model file is not bundled. "
+            "Leave the LORETA-KEY choice selected to use EEGPrep's in-head grid, "
+            "or pass source points in sourcemodel."
+        )
     return {
-        "sourcemodel": result.get("sourcemodel", ""),
+        "sourcemodel": sourcemodel,
         "sourcemodel2mni": result.get("sourcemodel2mni", ""),
         "downsample": result.get("downsample", ""),
     }
@@ -536,7 +579,7 @@ def _component_count_or_one(EEG: dict[str, Any]) -> int:
 
 def _current_dialog_model(EEG: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     count = _component_count_or_one(EEG)
-    current = (EEG.get("dipfit") or {}).get("current", 1) or 1
+    current = dipfit_record(EEG).get("current", 1) or 1
     try:
         component = one_based_indices([current], limit=count, default_all=False)[0]
     except ValueError:
@@ -588,7 +631,7 @@ def _format_dialog_rv(model: dict[str, Any]) -> str:
 
 def _single_component(value: Any, EEG: dict[str, Any]) -> int:
     if value is None or value == "":
-        current = (EEG.get("dipfit") or {}).get("current", 1)
+        current = dipfit_record(EEG).get("current", 1)
         value = current if current else 1
     return one_based_indices([value], limit=component_count(EEG), default_all=False)[0]
 
@@ -623,7 +666,7 @@ def _ensure_gridsearch_starting_positions(EEG: dict[str, Any], components: list[
 
 
 def normalize_existing_models(EEG: dict[str, Any]) -> list[dict[str, Any]]:
-    models = (EEG.get("dipfit") or {}).get("model", [])
+    models = dipfit_record(EEG).get("model", [])
     if isinstance(models, dict):
         return [models]
     if isinstance(models, np.ndarray):
@@ -634,7 +677,7 @@ def normalize_existing_models(EEG: dict[str, Any]) -> list[dict[str, Any]]:
 def _make_bilateral_starting_models(EEG: dict[str, Any], components: list[int]) -> dict[str, Any]:
     out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
-    coordformat = str((out.get("dipfit") or {}).get("coordformat", "")).lower()
+    coordformat = str(dipfit_record(out).get("coordformat", "")).lower()
     axis = 0 if coordformat == "mni" else 1
     for component in components:
         model = models[component - 1]
@@ -655,6 +698,12 @@ def _make_bilateral_starting_models(EEG: dict[str, Any], components: list[int]) 
     return out
 
 
+def _history_grid(value: Any, default: np.ndarray) -> Any:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return parse_grid_values(value, default=default).tolist()
+
+
 def _blank_to_none(value: Any) -> Any:
     if isinstance(value, str) and not value.strip():
         return None
@@ -669,11 +718,16 @@ def _source_points_from_option(value: Any) -> np.ndarray:
     array = np.asarray(value if not isinstance(value, str) else [], dtype=float)
     if array.size:
         return array.reshape(-1, 3)
+    if isinstance(value, str) and value.strip().lower() in {"loreta-key", "loreta_key"}:
+        return loreta_key_source_points()
     if not isinstance(value, str):
         raise ValueError("sourcemodel must be source points, a {'pos': ...} dict, or a supported file")
     path = value.strip()
     if not path:
-        raise ValueError("sourcemodel is required to compute a leadfield matrix")
+        raise ValueError(
+            "pop_leadfield: sourcemodel is empty. "
+            "Pass source points, a file, or sourcemodel='loreta-key' for EEGPrep's in-head grid."
+        )
     lower = path.lower()
     if lower.endswith(".npy"):
         return np.asarray(np.load(path), dtype=float).reshape(-1, 3)

@@ -133,7 +133,8 @@ def resolve_classifier_data(
         raise ValueError(f"Classifier {resolved_name!r} is missing a 2-D classifications matrix")
     if component_total is not None and probabilities.shape[0] != int(component_total):
         raise ValueError(
-            f"Classifier {resolved_name!r} has {probabilities.shape[0]} rows for {component_total} ICA components"
+            f"Classifier {resolved_name!r} has {probabilities.shape[0]} rows for {int(component_total)} ICA components. "
+            "These labels do not match the current decomposition. Run pop_iclabel again."
         )
     classes = _classifier_classes(record, resolved_name, probabilities.shape[1])
     return ClassifierData(resolved_name, classes, probabilities)

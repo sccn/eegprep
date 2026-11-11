@@ -10,6 +10,35 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pip install "eegprep[gui]"`` and ``uv sync --group dev`` install PyTorch
+  with the GUI, so Tools > Classify components using ICLabel can run (F53).
+- ``pop_icflag`` history records a Python threshold matrix. Blank bounds are
+  ``None``, and the command replays in ``eegprep-console`` (F55).
+- DIPFIT treats an empty ``EEG.dipfit`` array as missing settings. Property
+  and fitting calls report the missing model (F56).
+- Extended channel properties open the topography, ERP image, and spectrum
+  dashboard. Extended component properties open that dashboard with the
+  topography grid, and a map click opens the selected component (F57, F75,
+  F122). A component request with no ICA names ``pop_runica``.
+- Head model settings open on the BESA four-shell sphere and store radii 71,
+  72, 79, and 85 mm. The MNI boundary-element template names the missing
+  ``standard_vol.mat`` file and fitting asks for the BESA sphere (F65, F113,
+  F114).
+- Coarse fit and autofit run with the BESA sphere. A ``linspace`` expression
+  from the coarse-fit dialog stays in the history command (F114, F115).
+- The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid and a
+  spherical leadfield. ``pop_dipfit_loreta`` names ``pop_leadfield`` when no
+  leadfield is stored, and names the missing FieldTrip source analysis after
+  one is stored (F116, F117).
+- Autofit accepts the default plot text ``'normlen' 'on'`` and shows the
+  dipole figure (F118).
+- Plot > View extended channel properties and Plot > View extended component
+  properties stay available beside Tools > Classify components using ICLabel
+  (F6).
+- ``pop_icflag`` and ``pop_viewprops`` refuse ICLabel rows that do not match
+  the current ICA, including labels left behind after the decomposition was
+  removed (F7).
+
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves
   the dataset and history; accepted imports update the GUI and console

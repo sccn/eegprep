@@ -213,6 +213,17 @@ def leadfield_matrix(electrodes: np.ndarray, sources: np.ndarray) -> list[np.nda
     return [_average_reference(_unit_moment_leadfield(electrodes, point)) for point in source_points]
 
 
+def loreta_key_source_points() -> np.ndarray:
+    """Return EEGPrep's in-head grid for the LORETA-KEY leadfield choice.
+
+    Spacing is 20 mm from -80 mm to 80 mm, and points stay inside a 75 mm
+    radius. FieldTrip's LORETA-KEY atlas file is not bundled.
+    """
+    coords = np.arange(-80.0, 80.0 + 20.0, 20.0)
+    grid = np.stack(np.meshgrid(coords, coords, coords, indexing="ij"), axis=-1).reshape(-1, 3)
+    return grid[np.linalg.norm(grid, axis=1) <= 75.0]
+
+
 def source_model_from_points(EEG: dict[str, Any], points: Any, *, labels: list[str] | None = None) -> dict[str, Any]:
     """Build an EEGLAB-shaped source model with leadfields for explicit points."""
     forward = prepare_forward_data(EEG)
