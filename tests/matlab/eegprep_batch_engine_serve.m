@@ -10,7 +10,14 @@ if isfile(quit_file), delete(quit_file); end
 fclose(fopen(fullfile(directory, 'ready'), 'w'));
 while ~isfile(quit_file)
     pending = dir(fullfile(directory, 'req_*.mat'));
-    if isempty(pending), pause(0.01); continue; end
+    if isempty(pending)
+        current_figure = get(groot, 'CurrentFigure');
+        pause(0.01);
+        if isempty(current_figure) || isgraphics(current_figure, 'figure')
+            set(groot, 'CurrentFigure', current_figure);
+        end
+        continue;
+    end
     for name = sort({pending.name})
         request_file = fullfile(directory, name{1});
         response_file = strrep(request_file, 'req_', 'res_');
