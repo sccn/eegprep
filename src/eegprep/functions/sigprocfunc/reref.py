@@ -26,6 +26,8 @@ def reref(
     selection helpers. String channel labels are resolved by ``pop_reref``
     before calling this low-level helper. A NaN stays on a channel only when
     that channel's sample or the reference subtracted from it is NaN.
+    Average reference sums in float64 and casts once back to a floating
+    input dtype.
 
     Args:
         data: EEG data with shape ``(channels, points)`` or
@@ -76,27 +78,11 @@ def reref(
     if huber is not None and not np.isnan(float(huber)) and not ref_indices:
         work[chansin_array, :] = _huber_average_reference(work[chansin_array, :], float(huber))
     elif ref_indices:
-        mean_data = work[np.asarray(ref_indices), :].mean(axis=0)
+        mean_data = work[np.asarray(ref_indices), :].mean(axis=0, dtype=np.float64)
         work[chansin_array, :] = work[chansin_array, :] - mean_data
     else:
-        # Average reference via matrix multiplication, matching MATLAB's
-        # reref.m: refmatrix = eye(n) - ones(n)/n; data = refmatrix * data.
-        # MATLAB accumulates this product column-major; replicate that float32
-        # accumulation order in NumPy (row-major) by transposing the operands
-        # (refmatrix is symmetric, so (data.T @ refmatrix).T == refmatrix @ data
-        # algebraically). The plain np.dot(refmatrix, data) form is ~0.06 uV off
-        # MATLAB in float32, which cascades through nonlinear downstream steps
-        # (ICA convergence) for borderline subjects; the transposed form is
-        # bit-exact to MATLAB on x86 BLAS.
-        n = len(chansin)
-        dt = original_dtype
-        refmatrix = np.eye(n, dtype=dt) - np.ones((n, n), dtype=dt) / dt.type(n)
-        block = np.ascontiguousarray(work[chansin_array, :].astype(dt).T)
-        # NumPy 2 can report spurious floating-point warnings for this finite
-        # float32 BLAS product. The result remains finite and is the deliberate
-        # MATLAB-order accumulation above, so contain only those matmul flags.
-        with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-            work[chansin_array, :] = (block @ refmatrix).T
+        block = work[chansin_array, :]
+        work[chansin_array, :] = block - block.mean(axis=0, dtype=np.float64)
         mean_data = None
 
     if locs is not None:

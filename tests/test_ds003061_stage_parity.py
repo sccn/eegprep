@@ -50,6 +50,7 @@ from eegprep.plugins.ICLabel.iclabel import iclabel
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.eeglab_tests.backend import skip_without_matlab_plugin
+from tests.test_pop_reref import exact_float32_average_reference
 
 SUBJECT = "sub-001"
 EPOCH_TYPES = ["standard", "oddball", "oddball_with_reponse"]
@@ -507,16 +508,37 @@ def pipeline_parity(request):
 
 
 def test_average_reference_matches_matlab_on_64_channel_float32(p300_imported, matlab):
-    """Guard the column-major float32 accumulation against EEGLAB on a real 64-channel recording."""
+    """Compare a 64-channel float32 average reference with the exactly rounded float32 result.
+
+    EEGLAB's single-precision product on this recording was measured at
+    0.15625 uV from that result (RMS 0.004684294629 uV), above REREF_ATOL.
+    The measured EEGLAB gap is recorded, and EEGPrep must stay at least as
+    close to the exact result as EEGLAB.
+    """
     source = p300_imported
+    data = np.asarray(source["data"])
     assert int(source["nbchan"]) == 64
-    assert np.asarray(source["data"]).dtype == np.float32
+    assert data.dtype == np.float32
 
     python_eeg = _Side().reref(source)
     matlab_eeg = _Side(matlab.engine).reref(source)
 
     assert _labels(python_eeg) == _labels(matlab_eeg)
-    _assert_data_close(python_eeg, matlab_eeg, REREF_ATOL, f"{SUBJECT} pop_reref")
+    oracle = exact_float32_average_reference(data)
+    python_gap, _python_rms = _assert_data_close(
+        {"data": np.asarray(python_eeg["data"])},
+        {"data": oracle},
+        REREF_ATOL,
+        f"{SUBJECT} pop_reref exact float32",
+    )
+    matlab_gap, _matlab_rms = _numeric_diff(
+        {"data": np.asarray(matlab_eeg["data"])},
+        {"data": oracle},
+        f"{SUBJECT} pop_reref EEGLAB vs exact float32",
+    )
+    assert python_gap <= matlab_gap, (
+        f"{SUBJECT} pop_reref exact gap {python_gap:.6e} uV is wider than EEGLAB {matlab_gap:.6e} uV"
+    )
 
 
 def test_clean_artifacts_matches_matlab_with_burst_rejection(p300_reref, matlab):
