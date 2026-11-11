@@ -166,7 +166,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     original_bad_data = d[bad_idx, :].copy()
 
     if method in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast'):
-        bad_data = spheric_spline(
+        bad_data = _spheric_spline(
             xelec=xyz_good[0],
             yelec=xyz_good[1],
             zelec=xyz_good[2],
@@ -176,7 +176,6 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
             values=d[good_idx, :],
             params=params,
             dtype=dtype,
-            _check_positions=False,
         )
     elif method in ('invdist', 'v4'):
         bad_data = _planar_v4_interpolate(locs, good_idx, bad_idx, d[good_idx, :])
@@ -446,13 +445,14 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         return EEG, bad_idx
 
 
-def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32', *, _check_positions=True):
+def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
     """Perform spherical spline interpolation.
 
     Parameters
     ----------
     xelec, yelec, zelec : array-like
-        Coordinates of good electrodes.
+        Coordinates of good electrodes. Identical or collinear positions
+        raise ``ValueError``. Planar positions warn.
     xbad, ybad, zbad : array-like
         Coordinates of bad electrodes to interpolate.
     values : ndarray
@@ -461,24 +461,21 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
         Interpolation parameters (lambda, m, maxn).
     dtype : str or dtype, optional
         Data type for computation.
-    _check_positions : bool, optional
-        When true, identical or collinear electrodes raise ``ValueError``
-        and planar electrodes warn. ``eeg_interp`` passes false after it
-        has checked the whole montage, so a collinear leftover subset does
-        not raise on its own.
 
     Returns
     -------
     ndarray
         Interpolated values at bad electrode positions.
     """
-    dtype = np.dtype(dtype)
-    if _check_positions:
-        validate_electrode_positions(
-            np.column_stack((np.ravel(xelec), np.ravel(yelec), np.ravel(zelec))),
-            operation='spheric_spline',
-        )
+    validate_electrode_positions(
+        np.column_stack((np.ravel(xelec), np.ravel(yelec), np.ravel(zelec))),
+        operation='spheric_spline',
+    )
+    return _spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype)
 
+
+def _spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
+    dtype = np.dtype(dtype)
     # values: (n_good, n_points)
     Gelec = computeg(xelec, yelec, zelec, xelec, yelec, zelec, params)
     Gsph = computeg(xbad, ybad, zbad, xelec, yelec, zelec, params)

@@ -10,6 +10,10 @@ import pytest
 
 from eegprep import clean_channels, eeg_checkset, eeg_emptyset
 from eegprep.functions.popfunc.eeg_interp import eeg_interp, spheric_spline
+from eegprep.functions.sigprocfunc.electrode_geometry import (
+    HEMISPHERE_THICKNESS_RATIO,
+    validate_electrode_positions,
+)
 from eegprep.functions.sigprocfunc.headplot import headplot_setup
 from eegprep.functions.sigprocfunc.readlocs import readlocs
 from eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate import sphericalSplineInterpolate
@@ -213,16 +217,10 @@ def _hemisphere_thickness_ratio() -> float:
     return float(np.sqrt(variance_z / variance_x))
 
 
-def test_degenerate_threshold_is_one_quarter_of_a_hemisphere():
-    """A hemispherical shell has thickness 1/2; the cutoff is a quarter of that."""
-    from eegprep.functions.sigprocfunc.electrode_geometry import (
-        DEGENERATE_THICKNESS_RATIO,
-        HEMISPHERE_THICKNESS_RATIO,
-    )
-
+def test_hemisphere_thickness_ratio_is_one_half():
+    """A uniform hemispherical shell has third-to-first singular-value ratio 1/2."""
     assert _hemisphere_thickness_ratio() == pytest.approx(0.5, abs=1e-12)
     assert HEMISPHERE_THICKNESS_RATIO == pytest.approx(_hemisphere_thickness_ratio())
-    assert DEGENERATE_THICKNESS_RATIO == HEMISPHERE_THICKNESS_RATIO / 4.0
 
 
 def test_issue_539_reproduction_raises_for_collinear_and_identical_positions():
@@ -343,8 +341,6 @@ def test_headplot_rejects_a_line_and_warns_on_a_ring(tmp_path: Path):
 
 
 def test_standard_montages_with_missing_channels_stay_silent():
-    from eegprep.functions.sigprocfunc.electrode_geometry import validate_electrode_positions
-
     for name, positions in _standard_montages():
         for subset_name, subset in _with_missing_channels(positions):
             with warnings.catch_warnings():

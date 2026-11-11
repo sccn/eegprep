@@ -77,13 +77,12 @@ def _interpMx(cosEE, order, tol):
 
 
 # Main function mirroring the MATLAB sphericalSplineInterpolate
-def sphericalSplineInterpolate(
-    src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps, *, _check_positions=True
-):
+def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps):
     """Interpolation matrix for spherical interpolation. Python port of Jason Farquhar's MATLAB code.
 
     Args:
         src (np.ndarray): Source electrode positions [3 x N]. Assumes coordinates are in columns.
+            Identical or collinear positions raise ``ValueError``. Planar positions warn.
         dest (np.ndarray): Destination electrode positions [3 x M]. Assumes coordinates are in columns.
         lambda_reg (float, optional): Regularisation parameter for smoothing estimates. Defaults to 1e-5.
                                       (Renamed from 'lambda' to avoid clash with Python keyword).
@@ -93,10 +92,6 @@ def sphericalSplineInterpolate(
                                'slap'   -> surface Laplician (aka CSD)
         tol (float, optional): Tolerance for the Legendre polynomial approximation convergence.
                                Defaults to machine epsilon for float.
-        _check_positions (bool, optional): When true, identical or collinear source positions
-                               raise ``ValueError`` and planar source positions warn. RANSAC
-                               passes false after the full montage has already been checked;
-                               a random subset of a valid cap can be collinear.
 
     Returns
     -------
@@ -122,14 +117,22 @@ def sphericalSplineInterpolate(
     """
     src = np.asarray(src)
     dest = np.asarray(dest)
+    _require_xyz(src, dest)
+    validate_electrode_positions(src.T, operation="sphericalSplineInterpolate")
+    return _spherical_spline_weights(src, dest, lambda_reg, order, type, tol)
 
-    # Validate input shapes (optional but good practice)
+
+def _require_xyz(src: np.ndarray, dest: np.ndarray) -> None:
     if src.ndim != 2 or src.shape[0] != 3:
         raise ValueError(f"src must be a 2D array with shape (3, N), got {src.shape}")
     if dest.ndim != 2 or dest.shape[0] != 3:
         raise ValueError(f"dest must be a 2D array with shape (3, M), got {dest.shape}")
-    if _check_positions:
-        validate_electrode_positions(src.T, operation="sphericalSplineInterpolate")
+
+
+def _spherical_spline_weights(src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps):
+    src = np.asarray(src)
+    dest = np.asarray(dest)
+    _require_xyz(src, dest)
 
     n_src = src.shape[1]
     n_dest = dest.shape[1]
