@@ -2075,6 +2075,10 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             )
         elif outcome.detail == _RMBASE_ROUNDOFF_DETAIL:
             last_detail = f"{name}: {outcome.detail}"
+        if _zero_trial_epoch(current):
+            stopped = f"{name}: 0 trials"
+            detail = stopped if last_detail == "match" else f"{last_detail}; {stopped}"
+            return _outcome(case, False, True, "match", last_abs, last_rel, detail, digest)
     return _outcome(case, False, True, "match", last_abs, last_rel, last_detail, digest)
 
 
@@ -2102,6 +2106,12 @@ def _oracle_invoke(backend, step: FuzzCase, eeg: dict):
     if hasattr(backend, "run_raw"):
         return _invoke(backend.run_raw, step, eeg)
     return _invoke(backend.run, step, eeg)
+
+
+def _zero_trial_epoch(eeg: dict) -> bool:
+    """True when the dataset has a channel count and no trials."""
+    data = np.asarray(eeg.get("data"))
+    return data.ndim == 3 and int(data.shape[2]) == 0
 
 
 def _eeg_dict(raw):
@@ -2214,6 +2224,8 @@ def run_pipeline(case: FuzzCase, eeg: dict, call) -> SideResult:
         if not side.ok:
             return replace(side, steps=tuple(steps))
         current = raw[0] if isinstance(raw, tuple) else raw
+        if isinstance(current, dict) and _zero_trial_epoch(current):
+            return replace(side, steps=tuple(steps))
     if not steps:
         return side_from_call(current)
     return replace(side_from_call(current), steps=tuple(steps))

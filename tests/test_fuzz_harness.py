@@ -728,6 +728,90 @@ def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
     assert path.read_bytes() == original
 
 
+def _zero_trial_recording():
+    return {
+        "data": np.ones((20, 600), dtype=np.float64),
+        "nbchan": 20,
+        "pnts": 600,
+        "trials": 1,
+        "srate": 200.0,
+        "xmin": 0.0,
+        "xmax": 599 / 200,
+        "event": [{"type": "65", "latency": 10.0}],
+    }
+
+
+def _zero_trial_pipeline():
+    epoch = freeze_params({"types": ["65"], "lim": [-1.0, 2.0]})
+    select = freeze_params({"trial": [1, 2, 3], "sorttrial": "on"})
+    return FuzzCase(
+        "pipeline",
+        EEGSpec(tuple(range(20)), 0, 600, 1, -1, 0, 0),
+        freeze_params({}),
+        pipeline=(("pop_epoch", epoch), ("pop_select", select)),
+    )
+
+
+def test_zero_trial_epoch_stops_the_pipeline():
+    called = []
+
+    def oracle(case, dataset):
+        called.append(case.function)
+        return dispatch_python(case, dataset)
+
+    outcome = evaluate_case(
+        _zero_trial_pipeline(),
+        lambda _case: _zero_trial_recording(),
+        PythonBackend(),
+        _CallBackend(oracle),
+        load_tolerances(),
+    )
+    assert called == ["pop_epoch"]
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+    assert outcome.detail == "pop_epoch: 0 trials"
+
+
+@pytest.mark.parametrize(
+    ("mutate", "error_class", "detail"),
+    [
+        ("trials", "pop_epoch:meta", "trials 0 != 1"),
+        ("pnts", "pop_epoch:meta", "pnts 600 != 10"),
+        ("event", "pop_epoch:event-count", "event count 0 != 1"),
+        ("shape", "pop_epoch:shape", "shape (20, 600, 0) != (20, 600, 1)"),
+    ],
+)
+def test_zero_trial_epoch_disagreement_stays_on_pop_epoch(mutate, error_class, detail):
+    called = []
+
+    def oracle(case, dataset):
+        called.append(case.function)
+        output = dispatch_python(case, dataset)
+        eeg = copy.deepcopy(output[0] if isinstance(output, tuple) else output)
+        if mutate == "trials":
+            eeg["trials"] = 1
+        elif mutate == "pnts":
+            eeg["pnts"] = 10
+        elif mutate == "event":
+            eeg["event"] = [{"type": "65", "latency": 1.0, "epoch": 1}]
+        else:
+            eeg["data"] = np.zeros((20, 600, 1), dtype=np.float64)
+            eeg["trials"] = 1
+        return eeg
+
+    outcome = evaluate_case(
+        _zero_trial_pipeline(),
+        lambda _case: _zero_trial_recording(),
+        PythonBackend(),
+        _CallBackend(oracle),
+        load_tolerances(),
+    )
+    assert called == ["pop_epoch"]
+    assert outcome.diverged is True
+    assert outcome.error_class == error_class
+    assert detail in outcome.detail
+
+
 def test_duplicate_trial_order_is_not_filed():
     eeg = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=5)
     data = np.zeros((1, 4, 5))
