@@ -16,7 +16,10 @@ Unreleased
 - The nightly fuzz oracle receives the exact float64 input and reads each
   saved array as the class MATLAB holds. ``save -v7`` may pack an
   integer-valued double into smaller storage; that array still compares as
-  float64. NaN, +Inf, and -Inf are compared separately, and a MATLAB
+  float64. Epoched input is compared in the shape ``pop_loadset`` holds:
+  a 2-D channel-by-frame array whose frame count is a multiple of ``pnts``
+  is the 3-D epoch array, and a two-file one-trial array has no trailing
+  singleton. NaN, +Inf, and -Inf are compared separately, and a MATLAB
   exception or a cleaning wrapper that returns its input is filed as an
   oracle failure. ``clean_windows`` sorts a one-channel score across
   channels. A one-channel reference shorter than one RMS window raises

@@ -78,10 +78,49 @@ def _matlab_quote(path: str) -> str:
     return str(path).replace("'", "''")
 
 
-def save_double_input(data, path: str) -> None:
-    """Write ``data`` as MATLAB double, including NaN and infinities."""
-    array = np.array(np.asarray(data), dtype=np.float64, copy=True)
-    scipy.io.savemat(path, {"eegprep_input_data": array}, do_compression=False)
+def _saved_two_files(eeg: dict) -> bool:
+    datfile = eeg.get("datfile")
+    if isinstance(datfile, str):
+        return datfile != ""
+    if isinstance(datfile, np.ndarray):
+        return datfile.size > 0
+    return False
+
+
+def matlab_held_data(data, eeg: dict | None = None) -> np.ndarray:
+    """Return ``data`` as ``pop_loadset`` leaves ``EEG.data``.
+
+    A two-file set is ``fread([nbchan Inf])`` then ``reshape`` to
+    ``(nbchan, pnts, trials)`` (``eeg_getdatact.m``). That ``reshape`` drops a
+    trailing singleton, so one trial is ``(nbchan, pnts)``. A one-file set
+    keeps the stored array, and ``eeg_checkset.m`` then reshapes a 2-D array
+    whose column count is a multiple of ``pnts`` into that 3-D shape.
+    """
+    values = np.array(np.asarray(data), dtype=np.float64, copy=True)
+    if eeg is None or values.ndim < 2 or values.size == 0 or values.shape[0] == 0:
+        return values
+    nbchan = int(eeg.get("nbchan") or values.shape[0])
+    pnts = int(eeg.get("pnts") or values.shape[1])
+    trials = int(eeg.get("trials") or 1)
+    if nbchan < 1 or pnts < 1 or trials < 1 or values.shape[0] != nbchan:
+        return values
+    target = (nbchan, pnts) if trials == 1 else (nbchan, pnts, trials)
+    if values.shape == target:
+        return values
+    if int(np.prod(target, dtype=np.int64)) != values.size:
+        return values
+    if _saved_two_files(eeg) and trials == 1 and values.shape == (nbchan, pnts, 1):
+        return np.reshape(values, target, order="F")
+    flat_epoch = values.ndim == 2 and trials > 1 and values.shape == (nbchan, pnts * trials)
+    if flat_epoch:
+        return np.reshape(values, target, order="F")
+    return values
+
+
+def save_double_input(data, path: str, eeg: dict | None = None) -> None:
+    """Write ``data`` as the double array MATLAB holds after ``pop_loadset``."""
+    array = matlab_held_data(data, eeg)
+    scipy.io.savemat(path, {"eegprep_input_data": np.asfortranarray(array)}, do_compression=False)
 
 
 def matlab_restore_input(path: str) -> str:
@@ -312,7 +351,7 @@ class MatlabWrapper:
 
                 if needs_roundtrip:
                     pop_saveset(args[0], temp_filename1)
-                    save_double_input(args[0]["data"], input_double_filename)
+                    save_double_input(args[0]["data"], input_double_filename, args[0])
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
                     self.engine.eval(matlab_restore_input(input_double_filename), nargout=0)
                     self.engine.eval(matlab_capture_input(seen_filename), nargout=0)

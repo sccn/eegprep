@@ -23,7 +23,7 @@ import numpy as np
 from hypothesis import HealthCheck, Phase, Verbosity, given, seed, settings
 from hypothesis import strategies as st
 
-from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab, matlab_held_data
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_resample import pop_resample
@@ -1721,7 +1721,7 @@ def _transport_problem(backend, eeg: dict) -> str | None:
     seen = _seen_input(backend)
     if seen is None:
         return None
-    return transport_mismatch(np.asarray(eeg["data"]), seen)
+    return transport_mismatch(matlab_held_data(eeg["data"], eeg), seen)
 
 
 def _remember_oracle(outcome: Outcome, oracle: SideResult) -> Outcome:

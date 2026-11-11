@@ -19,6 +19,7 @@ from eegprep.functions.adminfunc.eeglabcompat import (
     _restore_double_eeg_data,
     _stash_double_eeg_data,
     load_seen_input,
+    matlab_held_data,
     matlab_restore_input,
     save_double_input,
 )
@@ -142,6 +143,68 @@ def test_double_input_round_trip_keeps_values_float32_cannot_store(tmp_path):
     restore = matlab_restore_input(path)
     assert "EEG.data = eegprep_input.eegprep_input_data" in restore
     assert "eegprep:InputTransport" in restore
+
+
+def _saved_input(path):
+    return scipy.io.loadmat(path, squeeze_me=False, mat_dtype=True)["eegprep_input_data"]
+
+
+def test_epoched_input_is_saved_as_matlab_holds_it(tmp_path):
+    from tests.fuzz.harness import transport_mismatch
+
+    flat = np.arange(24, dtype=np.float64).reshape(4, 6)
+    epoch = {"data": flat, "nbchan": 4, "pnts": 3, "trials": 2, "datfile": ""}
+    held = matlab_held_data(flat, epoch)
+    fortran = np.reshape(flat, (4, 3, 2), order="F")
+    assert not np.array_equal(fortran, np.reshape(flat, (4, 3, 2), order="C"))
+    np.testing.assert_array_equal(held, fortran)
+    flat_path = tmp_path / "flat.mat"
+    save_double_input(flat, flat_path, epoch)
+    saved = _saved_input(flat_path)
+    assert saved.shape == (4, 3, 2)
+    assert saved.dtype == np.dtype(np.float64)
+    np.testing.assert_array_equal(saved, fortran)
+    changed = np.array(fortran, copy=True)
+    changed[0, 0, 0] += 1
+    assert transport_mismatch(held, changed) == "values differ"
+    shape = transport_mismatch(held, np.zeros((4, 3), dtype=np.float64))
+    assert shape is not None and shape.startswith("shape ")
+
+    page = np.arange(12, dtype=np.float64).reshape(4, 3, 1)
+    one_trial = {"data": page, "nbchan": 4, "pnts": 3, "trials": 1, "datfile": "epoch.fdt"}
+    one_path = tmp_path / "one.mat"
+    save_double_input(page, one_path, one_trial)
+    dropped = _saved_input(one_path)
+    assert dropped.shape == (4, 3)
+    np.testing.assert_array_equal(dropped, np.reshape(page, (4, 3), order="F"))
+    kept = {"data": page, "nbchan": 4, "pnts": 3, "trials": 1, "datfile": ""}
+    save_double_input(page, tmp_path / "kept.mat", kept)
+    assert _saved_input(tmp_path / "kept.mat").shape == (4, 3, 1)
+
+    base = np.arange(48, dtype=np.float64).reshape(4, 3, 4)
+    view = base[:, :, ::2]
+    assert not view.flags.c_contiguous and not view.flags.f_contiguous
+    cube = {"data": view, "nbchan": 4, "pnts": 3, "trials": 2, "datfile": "epoch.fdt"}
+    cube_path = tmp_path / "cube.mat"
+    save_double_input(view, cube_path, cube)
+    stored = _saved_input(cube_path)
+    assert stored.shape == (4, 3, 2)
+    np.testing.assert_array_equal(stored, np.array(view, copy=True))
+
+    swapped = np.arange(24, dtype=np.float64).reshape(2, 3, 4)
+    mismatched = {"data": swapped, "nbchan": 4, "pnts": 3, "trials": 2, "datfile": "epoch.fdt"}
+    save_double_input(swapped, tmp_path / "swapped.mat", mismatched)
+    assert _saved_input(tmp_path / "swapped.mat").shape == (2, 3, 4)
+
+    split = np.arange(48, dtype=np.float64).reshape(4, 6, 2)
+    other = {"data": split, "nbchan": 4, "pnts": 3, "trials": 4, "datfile": "epoch.fdt"}
+    save_double_input(split, tmp_path / "split.mat", other)
+    np.testing.assert_array_equal(_saved_input(tmp_path / "split.mat"), split)
+
+    odd = np.arange(20, dtype=np.float64).reshape(4, 5)
+    indivisible = {"data": odd, "nbchan": 4, "pnts": 3, "trials": 2, "datfile": ""}
+    save_double_input(odd, tmp_path / "odd.mat", indivisible)
+    assert _saved_input(tmp_path / "odd.mat").shape == (4, 5)
 
 
 _MI_MATRIX = 14
