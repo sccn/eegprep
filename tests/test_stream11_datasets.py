@@ -45,11 +45,15 @@ def dialogs(qapp):
             state["dialog"] = dialog
             return
         handler = pending[0]
+        # Record the dialog before the handler. Accept and reject process Qt
+        # events, and this timer can run again before the handler returns.
+        state["dialog"] = dialog
         try:
             handler(dialog)
         except Exception as exc:
             state["attempts"] += 1
             if state["attempts"] < 3:
+                state["dialog"] = None
                 return
             failures.append(str(exc))
             dialog.reject()

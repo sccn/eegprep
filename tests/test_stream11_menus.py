@@ -55,14 +55,19 @@ def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
     window.show()
     before = window.window.menuBar().actions()
     seen = []
+    handled = set()
 
     def respond():
         dialog = qapp.activeModalWidget()
+        if dialog is None or dialog in handled:
+            return
         if isinstance(dialog, QFileDialog):
+            handled.add(dialog)
             seen.append("file")
             dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
             dialog.accept()
         elif isinstance(dialog, QMessageBox):
+            handled.add(dialog)
             seen.append("error")
             gc.collect()
             dialog.accept()
