@@ -18,6 +18,7 @@ from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
 from tests.fixtures import create_test_eeg
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 from tests.fuzz.harness import (
     EEGSpec,
     FuzzCase,
@@ -623,6 +624,56 @@ def test_minphase_fftfilt_nan_stays_in_one_block():
     time_case = FuzzCase(_MINPHASE_NAN.function, _MINPHASE_NAN.spec, freeze_params(params))
     time = np.asarray(dispatch_python(time_case, eeg)["data"])
     np.testing.assert_allclose(out[0], time[0], atol=1e-8, rtol=1e-8)
+
+
+def _reference_shorter_than_one_rms_window():
+    srate = 128.0
+    samples = 1024
+    window = int(srate)
+    offsets = matlab_window_offsets(samples, float(window), window * 0.34).astype(int)
+    quiet = np.zeros(samples, dtype=bool)
+    for index in (0, 7, 14):
+        quiet[int(offsets[index]) : int(offsets[index]) + window] = True
+    rng = np.random.default_rng(0)
+    data = rng.standard_normal((4, samples)) * 5.0
+    data[:, quiet] = rng.standard_normal((4, int(np.count_nonzero(quiet)))) * 0.5
+    return {
+        "data": data,
+        "srate": srate,
+        "nbchan": 4,
+        "pnts": samples,
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (samples - 1) / srate,
+        "event": [],
+    }
+
+
+def test_short_selected_reference_is_the_same_failure_as_eeglab():
+    """Line 191 is both sides failing. It is not an oracle-only asr_calibrate finding."""
+    eeg = _reference_shorter_than_one_rms_window()
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(4)), 0, 1024, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+
+    def oracle_error(_case, _dataset):
+        raise RuntimeError(_REFERENCE_DATA_ERROR)
+
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        PythonBackend(),
+        _Backend(oracle_error),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
+    assert outcome.cause == "both-error"
+    assert "Not enough calibration data" in outcome.detail
+    assert "needs 64" in outcome.detail
+    assert "No enough reference data" in outcome.detail
 
 
 def test_one_rms_window_is_the_same_failure_as_eeglab():

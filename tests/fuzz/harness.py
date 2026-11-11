@@ -1456,7 +1456,12 @@ def _effective_reference_tolerances(params: dict) -> tuple[float, float]:
 
 
 def _selected_reference_length(eeg: dict, params: dict) -> int:
-    """Samples ASR calibrates on, including the short-reference fallback."""
+    """Samples passed to calibration.
+
+    A ``clean_windows`` ``ValueError`` uses the whole recording, as
+    ``clean_asr.m`` does in its catch. A short selection is not replaced;
+    ``asr_calibrate`` errors when it is shorter than one RMS window.
+    """
     full = int(eeg["pnts"])
     ref = params["ref_maxbadchannels"]
     if isinstance(ref, str) or ref is None:
@@ -1468,12 +1473,9 @@ def _selected_reference_length(eeg: dict, params: dict) -> int:
             _effective_reference_tolerances(params),
             1.0,
         )
-        selected = int(cleaned["pnts"])
     except ValueError:
         return full
-    if selected < 64:
-        return full
-    return selected
+    return int(cleaned["pnts"])
 
 
 def _fit_failure_stack(oracle: SideResult) -> bool:

@@ -20,6 +20,7 @@ from eegprep.plugins.clean_rawdata.private.stats import fit_eeg_distribution
 from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from tests.fuzz.harness import compare_data, load_tolerances
 
@@ -77,6 +78,50 @@ def test_short_recording_calibration_falls_back_to_the_whole_recording():
     whole = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
     assert windowed["data"].shape == data.shape
     np.testing.assert_allclose(windowed["data"], whole["data"])
+
+
+def _reference_shorter_than_one_rms_window():
+    """Three isolated clean windows. Their surviving samples are under 0.5 s."""
+    srate = 128.0
+    samples = 1024
+    window = int(srate)
+    offsets = matlab_window_offsets(samples, float(window), window * 0.34).astype(int)
+    quiet = np.zeros(samples, dtype=bool)
+    for index in (0, 7, 14):
+        quiet[int(offsets[index]) : int(offsets[index]) + window] = True
+    rng = np.random.default_rng(0)
+    data = rng.standard_normal((4, samples)) * 5.0
+    data[:, quiet] = rng.standard_normal((4, int(np.count_nonzero(quiet)))) * 0.5
+    return {
+        "data": data,
+        "srate": srate,
+        "nbchan": 4,
+        "pnts": samples,
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (samples - 1) / srate,
+        "event": [],
+    }
+
+
+def test_short_selected_reference_is_not_replaced_by_the_recording():
+    """asr_calibrate.m:191 errors when the reference has fewer samples than one 0.5 s window."""
+    eeg = _reference_shorter_than_one_rms_window()
+    cleaned, _mask = clean_windows(eeg, 0.075, (-3.5, 5.5), 1.0)
+    kept = int(cleaned["pnts"])
+    needed = int(round_mat(0.5 * float(eeg["srate"])))
+    assert 0 < kept < needed
+    assert int(eeg["pnts"]) > needed
+    with pytest.raises(ASRCalibrationError, match=rf"has {kept} samples.*needs {needed}") as raised:
+        clean_asr(eeg, cutoff=5.0, ref_maxbadchannels=0.075, ref_tolerances=(-3.5, 5.5), ref_wndlen=1.0)
+    assert "Not enough calibration data" in str(raised.value)
+    whole = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+    assert whole["data"].shape == eeg["data"].shape
+
+
+def test_empty_calibration_names_the_missing_window():
+    with pytest.raises(ASRCalibrationError, match=r"has 0 samples.*needs 64"):
+        asr_calibrate(np.ones((2, 0)), 128.0)
 
 
 def test_very_short_recording_still_calibrates_with_reference_off():

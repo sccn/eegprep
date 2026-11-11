@@ -274,7 +274,10 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
    * - One ASR calibration window
      - ``clean_asr`` raises ``ASRCalibrationError`` when fewer than two
        calibration RMS windows are available, and when the calibration is
-       shorter than one window. The error names the window count or the
+       shorter than one window. The calibration is the reference
+       ``clean_windows`` kept, so a longer recording is not substituted
+       when that reference is shorter than one 0.5 s RMS window
+       (``asr_calibrate.m`` line 191). The error names the window count or the
        sample counts. EEGLAB's ``asr_calibrate`` asks for different
        ``BurstCriterionRefTolerances`` (``asr_calibrate.m`` lines 189-204).
        ``pop_clean_rawdata`` warns and skips the burst stage. A requested

@@ -46,7 +46,9 @@ def clean_asr(
     A recording that is too short for EEGLAB's calibration-time RMS fit, which
     indexes a zero window width, is still calibrated here. Fewer than two
     calibration RMS windows, and a calibration shorter than one window, raise
-    ``ASRCalibrationError``. Each names ``asr_calibrate`` or
+    ``ASRCalibrationError``. The calibration is the reference
+    ``clean_windows`` kept. A longer recording is not substituted when that
+    reference has fewer samples than one 0.5 s RMS window. Each names ``asr_calibrate`` or
     ``asr_calibrate_r``, the sample counts, and whether to record more data
     or set ``BurstCriterion`` off. EEGLAB raises an error that asks for different
     ``BurstCriterionRefTolerances`` in both cases. A sampling rate whose
@@ -125,14 +127,6 @@ def clean_asr(
             temp_EEG_for_cleanwin['data'] = data  # ensure it has the float64 data
             cleaned_EEG, _ = clean_windows(temp_EEG_for_cleanwin, ref_maxbadchannels, ref_tolerances, ref_wndlen)
             ref_section_data = np.asarray(cleaned_EEG['data'], dtype=np.float64)
-            if ref_section_data.size == 0 or ref_section_data.shape[1] == 0:
-                logger.warning("clean_windows returned no data. Falling back to using all data for calibration.")
-                ref_section_data = data
-            elif ref_section_data.shape[1] < 64:
-                logger.warning(
-                    "clean_windows returned insufficient data. Falling back to using all data for calibration."
-                )
-                ref_section_data = data
         except ValueError as e:
             # clean_windows raises ValueError for expected calibration-data problems
             # (empty data, window too small, not enough data for one window, or too

@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``clean_asr`` raises ``ASRCalibrationError`` when the selected reference
+  is shorter than one 0.5 s RMS window. That reference is not replaced by
+  the rest of the recording (``asr_calibrate.m`` line 191).
 - The nightly fuzz oracle receives the exact float64 input. NaN, +Inf, and
   -Inf are compared separately, and a MATLAB exception or a cleaning wrapper
   that returns its input is filed as an oracle failure. ``clean_windows``
