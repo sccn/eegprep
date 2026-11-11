@@ -190,13 +190,44 @@ def _shell_radii(vol: Any) -> np.ndarray:
 
 
 def _template_kind(dipfit: dict[str, Any]) -> str:
+    """Classify the head model from its file, then from ``model`` when no file is set.
+
+    An explicit ``hdmfile`` wins over a leftover ``model`` name. Otherwise a
+    BESA label would keep the four-shell sphere after the file changed.
+    """
     hdm = str(dipfit.get("hdmfile") or "").lower()
-    model = str(dipfit.get("model") or "").lower()
-    if "standard_besa" in hdm or model == "standardbesa":
+    if "standard_besa" in hdm:
         return "besa"
-    if "standard_vol" in hdm or "standard_bem" in hdm or model == "standardbem":
+    if "standard_vol" in hdm or "standard_bem" in hdm:
+        return "bem"
+    if hdm:
+        return ""
+    model = str(dipfit.get("model") or "").lower()
+    if model == "standardbesa":
+        return "besa"
+    if model == "standardbem":
         return "bem"
     return ""
+
+
+def sync_volume_to_hdmfile(dipfit: dict[str, Any]) -> None:
+    """Store the BESA sphere only while ``hdmfile`` names that template.
+
+    EEGLAB loads ``vol`` from ``hdmfile``. Replacing the file has to drop the
+    volume stored for the previous file.
+    """
+    hdm = str(dipfit.get("hdmfile") or "")
+    if not hdm:
+        return
+    if _template_kind(dipfit) == "besa":
+        dipfit["model"] = "standardBESA"
+        dipfit["vol"] = besa_four_shell_volume()
+        return
+    dipfit.pop("vol", None)
+    if _template_kind(dipfit) == "bem":
+        dipfit["model"] = "standardBEM"
+        return
+    dipfit["model"] = ""
 
 
 def fill_missing_besa_volume(EEG: dict[str, Any]) -> None:

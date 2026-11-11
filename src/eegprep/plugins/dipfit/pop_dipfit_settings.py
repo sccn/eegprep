@@ -15,6 +15,7 @@ from eegprep.plugins.dipfit._utils import (
     copy_eeg,
     dipfit_history,
     one_based_indices,
+    sync_volume_to_hdmfile,
     template_by_name,
     template_form_state,
 )
@@ -195,6 +196,8 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
         chansel = list(range(1, nbchan + 1))
     if "electrodes" in options:
         chansel = one_based_indices(options["electrodes"], limit=nbchan, default_all=True)
+    if any(str(options.get(key) or "").strip() for key in ("hdmfile", "model")):
+        sync_volume_to_hdmfile(dipfit)
     dipfit["chansel"] = [index for index in chansel if index in usable]
     if not dipfit["chansel"]:
         raise ValueError("No channel locations with coordinates remain for DIPFIT")

@@ -342,6 +342,27 @@ def test_settings_default_to_the_besa_sphere_and_fill_template_files():
         pop_dipfit_gridsearch(bem, [1], [0], [0], [40], 100)
 
 
+def test_replacing_the_besa_head_model_file_drops_the_stored_sphere():
+    eeg = pop_dipfit_settings(_ica_eeg(), model="standardBESA", gui=False)
+    assert eeg["dipfit"]["vol"]["r"] == [71.0, 72.0, 79.0, 85.0]
+
+    switched = pop_dipfit_settings(
+        eeg,
+        hdmfile="standard_BEM/standard_vol.mat",
+        coordformat="MNI",
+        gui=False,
+    )
+    custom = pop_dipfit_settings(eeg, hdmfile="custom/headmodel.mat", gui=False)
+
+    assert "vol" not in switched["dipfit"]
+    assert switched["dipfit"]["model"] == "standardBEM"
+    with pytest.raises(ValueError, match="standard_vol.mat is not bundled"):
+        pop_dipfit_gridsearch(switched, [1], gui=False)
+    assert "vol" not in custom["dipfit"]
+    assert custom["dipfit"]["model"] == ""
+    assert eeg["dipfit"]["vol"]["r"] == [71.0, 72.0, 79.0, 85.0]
+
+
 def test_besa_fit_stores_a_missing_volume_on_the_result_only():
     eeg = pop_dipfit_settings(
         create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBESA"
