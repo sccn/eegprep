@@ -47,6 +47,9 @@ def dialogs(qapp):
         dialog = qapp.activeModalWidget()
         if dialog is None:
             return
+        # A click can make a control inside the open window the active modal.
+        # That control still belongs to the window the handler is answering.
+        dialog = dialog.window()
         identity = _dialog_identity(dialog)
         if identity in done:
             return

@@ -63,6 +63,7 @@ def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
         dialog = qapp.activeModalWidget()
         if dialog is None:
             return
+        dialog = dialog.window()
         name = str(dialog.objectName() or "")
         identity = (
             ("name", name) if name else ("ptr", tuple(int(pointer) for pointer in Shiboken.getCppPointer(dialog)))
