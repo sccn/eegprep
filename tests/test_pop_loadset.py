@@ -1,3 +1,5 @@
+import copy
+
 import h5py
 import numpy as np
 import pytest
@@ -621,3 +623,60 @@ def test_pop_loadset_h5_unicode_decodes_via_general_path(tmp_path):
     eeg = pop_loadset_h5(str(filepath))
 
     assert eeg["unicode_string"] == "hello \U0001f496"
+
+
+def test_empty_etc_round_trip_is_a_dict(tmp_path):
+    from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+    from eegprep.plugins.clean_rawdata.clean_drifts import clean_drifts
+    from eegprep.plugins.clean_rawdata.clean_flatlines import clean_flatlines
+    from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
+
+    checked = eeg_checkset(
+        {
+            "data": np.zeros((1, 8), dtype=float),
+            "srate": 250.0,
+            "xmin": 0.0,
+            "xmax": 7 / 250.0,
+            "etc": np.empty((0, 0)),
+        }
+    )
+    assert isinstance(checked["etc"], dict)
+    assert checked["etc"] == {}
+
+    eeg = eeg_emptyset()
+    data = np.random.default_rng(0).standard_normal((4, 5000)).astype(np.float32)
+    data[3, 100:] = 0
+    eeg.update(
+        data=data,
+        nbchan=4,
+        pnts=5000,
+        trials=1,
+        srate=250.0,
+        xmin=0.0,
+        xmax=4999 / 250.0,
+        chanlocs=[{"labels": f"Ch{index + 1}"} for index in range(4)],
+    )
+    eeg = eeg_checkset(eeg)
+    path = tmp_path / "empty_etc.set"
+    pop_saveset(eeg, path)
+    loaded = pop_loadset(path)
+    assert isinstance(loaded["etc"], dict)
+    assert loaded["etc"] == {}
+
+    flat = clean_flatlines(copy.deepcopy(loaded))
+    assert flat["nbchan"] == 3
+    np.testing.assert_array_equal(flat["etc"]["clean_channel_mask"], [True, True, True, False])
+
+    drifted = clean_drifts(copy.deepcopy(loaded))
+    assert drifted["etc"]["clean_drifts_kernel"].ndim == 1
+    assert drifted["etc"]["clean_drifts_kernel"].size > 1
+
+    windowed, sample_mask = clean_windows(copy.deepcopy(loaded))
+    assert sample_mask.shape == (loaded["pnts"],)
+    np.testing.assert_array_equal(windowed["etc"]["clean_sample_mask"], sample_mask)
+
+    saved = tmp_path / "with_kernel.set"
+    pop_saveset(drifted, saved)
+    again = pop_loadset(saved)
+    assert isinstance(again["etc"], dict)
+    np.testing.assert_allclose(again["etc"]["clean_drifts_kernel"], drifted["etc"]["clean_drifts_kernel"])

@@ -645,6 +645,11 @@ def eeg_checkset(EEG, *checks, load_data=True):
         'roi': dict,
     }
 
+    # eeg_checkset.m:1266 stores a missing etc as []. Field assignment needs a dict.
+    etc_value = EEG.get('etc', None)
+    if 'etc' not in EEG or etc_value is None or (isinstance(etc_value, np.ndarray) and etc_value.size == 0):
+        EEG['etc'] = {}
+
     for field, expected_type in expected_types.items():
         if field not in EEG:
             logger.debug(f"Field '{field}' is missing from the EEG dictionary, adding it.")

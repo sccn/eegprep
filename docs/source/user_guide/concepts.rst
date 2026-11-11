@@ -76,6 +76,8 @@ Core fields include:
      - Dataset-level command history.
    * - ``etc``
      - Structured extension metadata, including ICLabel classifications.
+       A missing ``etc``, or an empty array loaded from a ``.set`` file, is
+       ``{}``.
 
 Events, Epochs, and Indexing
 ============================
