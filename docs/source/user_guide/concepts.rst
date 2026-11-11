@@ -77,7 +77,7 @@ Core fields include:
    * - ``etc``
      - Structured extension metadata, including ICLabel classifications.
        A missing ``etc``, or an empty array loaded from a ``.set`` file, is
-       ``{}``.
+       ``{}``. ``eeglabvers`` stays unset unless the file already stores it.
 
 Events, Epochs, and Indexing
 ============================

@@ -639,8 +639,13 @@ def test_empty_etc_round_trip_is_a_dict(tmp_path):
             "etc": np.empty((0, 0)),
         }
     )
+    # EEGLAB eeg_checkset(eeg_emptyset) returns a struct with eeglabvers
+    # (d0963be9, eeg_checkset.m:1298). EEGPrep leaves that field unset.
     assert isinstance(checked["etc"], dict)
     assert checked["etc"] == {}
+    assert "eeglabvers" not in checked["etc"]
+    preserved = eeg_checkset({**checked, "etc": {"eeglabvers": "dev"}})
+    assert preserved["etc"]["eeglabvers"] == "dev"
 
     eeg = eeg_emptyset()
     data = np.random.default_rng(0).standard_normal((4, 5000)).astype(np.float32)
@@ -661,6 +666,7 @@ def test_empty_etc_round_trip_is_a_dict(tmp_path):
     loaded = pop_loadset(path)
     assert isinstance(loaded["etc"], dict)
     assert loaded["etc"] == {}
+    assert "eeglabvers" not in loaded["etc"]
 
     flat = clean_flatlines(copy.deepcopy(loaded))
     assert flat["nbchan"] == 3

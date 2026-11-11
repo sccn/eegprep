@@ -645,7 +645,9 @@ def eeg_checkset(EEG, *checks, load_data=True):
         'roi': dict,
     }
 
-    # eeg_checkset.m:1266 stores a missing etc as []. Field assignment needs a dict.
+    # eeg_emptyset.m:83 sets etc to []. eeg_checkset.m:1298 writes
+    # EEG.etc.eeglabvers, so the returned value is a struct. EEGPrep uses {}
+    # and leaves eeglabvers unset.
     etc_value = EEG.get('etc')
     if etc_value is None or (isinstance(etc_value, np.ndarray) and etc_value.size == 0):
         EEG['etc'] = {}

@@ -186,11 +186,15 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
    * - Topic
      - What EEGPrep does
    * - Empty ``etc``
-     - ``eeg_checkset`` stores a missing or empty ``etc`` as ``{}``. EEGLAB
-       ``eeg_checkset.m`` line 1266 stores a missing ``etc`` as ``[]``, and
-       line 1297 reads ``EEG.etc.eeglabvers``. A ``.set`` file whose ``etc``
-       is an empty array reloads as ``{}``, so later steps can record results
-       in it. ``test_empty_etc_round_trip_is_a_dict`` locks the EEGPrep result.
+     - ``eeg_checkset`` stores a missing or empty ``etc`` as ``{}`` and leaves
+       ``eeglabvers`` unset. EEGLAB ``eeg_emptyset.m`` line 83 sets ``etc`` to
+       ``[]``. ``eeg_checkset.m`` lines 1297-1298 then assign
+       ``EEG.etc.eeglabvers``, and ``eeg_checkset(eeg_emptyset)`` on EEGLAB
+       ``d0963be9`` returns a struct. That field records the EEGLAB release
+       that last checked the dataset. EEGPrep has no EEGLAB release to record.
+       A saved empty dictionary is an empty array, which EEGLAB stamps when it
+       opens the file. An ``eeglabvers`` value already present is kept.
+       ``test_empty_etc_round_trip_is_a_dict`` locks the empty dictionary.
    * - BIDS TSV bytes
      - TSV sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed.
        A file that is not valid UTF-8 is decoded as Latin-1, so ``0xB5`` stays

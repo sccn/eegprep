@@ -10,10 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}``. A ``.set``
-  file written with an empty ``etc`` reloads as a dictionary, so
-  ``clean_flatlines``, ``clean_drifts``, and ``clean_windows`` can store
-  their results (#533).
+- ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
+  ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
+  as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and
+  ``clean_windows`` can store their results (#533).
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves
   the dataset and history; accepted imports update the GUI and console
