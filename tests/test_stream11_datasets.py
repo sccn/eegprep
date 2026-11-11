@@ -29,55 +29,42 @@ def _modal_key(dialog):
     return Shiboken.getCppPointer(dialog)[0]
 
 
+def _drop_destroyed(handled):
+    for key, widget in list(handled.items()):
+        if not Shiboken.isValid(widget):
+            del handled[key]
+
+
 @pytest.fixture
 def dialogs(qapp):
     pending, seen, failures = [], [], []
-    # Accept and reject process Qt events, so this timer can run again before
-    # the dialog has closed. A second look at the same window must not take
-    # the next handler. A different window that opens during accept still does.
-    state = {"key": None, "depth": 0, "attempts": 0}
+    # Accept and reject process Qt events before the window is destroyed, and
+    # the active modal can disappear for one timer tick in between. Remember
+    # each window until Qt destroys it so that tick cannot take the next handler.
+    handled = {}
 
     def respond():
+        _drop_destroyed(handled)
         dialog = qapp.activeModalWidget()
         if dialog is None:
-            if state["depth"] == 0:
-                state["key"] = None
-                state["attempts"] = 0
             return
         key = _modal_key(dialog)
-        if key == state["key"]:
+        if key in handled:
             return
+        handled[key] = dialog
         if not pending:
             failures.append(f"Unexpected dialog: {dialog.windowTitle()}")
             dialog.reject()
-            state["key"] = key
             return
-        handler = pending[0]
-        previous = state["key"]
-        state["key"] = key
-        state["depth"] += 1
-        retry = False
+        handler = pending.pop(0)
         try:
             handler(dialog)
         except Exception as exc:
-            state["attempts"] += 1
-            if state["attempts"] < 3:
-                retry = True
-                return
             failures.append(str(exc))
-            dialog.reject()
-            pending.pop(0)
-            state["attempts"] = 0
+            if Shiboken.isValid(dialog):
+                dialog.reject()
             return
-        finally:
-            state["depth"] -= 1
-            if state["depth"]:
-                state["key"] = previous
-            elif retry:
-                state["key"] = None
-        pending.pop(0)
         seen.append(dialog.windowTitle())
-        state["attempts"] = 0
 
     timer = QTimer()
     timer.timeout.connect(respond)

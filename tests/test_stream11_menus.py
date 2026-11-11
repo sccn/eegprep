@@ -56,35 +56,29 @@ def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
     window.show()
     before = window.window.menuBar().actions()
     seen = []
-    # The error dialog opens while the file dialog is still accepting, and
-    # accept can run this timer again on the same window.
-    state = {"key": None, "depth": 0}
+    # The error dialog opens while the file dialog is accepting, and accept
+    # can show the same error window to this timer again before Qt destroys it.
+    handled = {}
 
     def respond():
+        for key, widget in list(handled.items()):
+            if not Shiboken.isValid(widget):
+                del handled[key]
         dialog = qapp.activeModalWidget()
         if dialog is None:
-            if state["depth"] == 0:
-                state["key"] = None
             return
         key = Shiboken.getCppPointer(dialog)[0]
-        if key == state["key"]:
+        if key in handled:
             return
-        previous = state["key"]
-        state["key"] = key
-        state["depth"] += 1
-        try:
-            if isinstance(dialog, QFileDialog):
-                seen.append("file")
-                dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
-                dialog.accept()
-            elif isinstance(dialog, QMessageBox):
-                seen.append("error")
-                gc.collect()
-                dialog.accept()
-        finally:
-            state["depth"] -= 1
-            if state["depth"]:
-                state["key"] = previous
+        handled[key] = dialog
+        if isinstance(dialog, QFileDialog):
+            seen.append("file")
+            dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
+            dialog.accept()
+        elif isinstance(dialog, QMessageBox):
+            seen.append("error")
+            gc.collect()
+            dialog.accept()
 
     timer = QTimer()
     timer.timeout.connect(respond)
