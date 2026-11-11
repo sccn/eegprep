@@ -607,7 +607,9 @@ is channel-major, usually <code class="docutils literal notranslate"><span class
 <td><p>Dataset-level command history.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">etc</span></code></p></td>
-<td><p>Structured extension metadata, including ICLabel classifications.</p></td>
+<td><p>Structured extension metadata, including ICLabel classifications.
+A missing <code class="docutils literal notranslate"><span class="pre">etc</span></code>, or an empty array loaded from a <code class="docutils literal notranslate"><span class="pre">.set</span></code> file, is
+<code class="docutils literal notranslate"><span class="pre">{}</span></code>. <code class="docutils literal notranslate"><span class="pre">eeglabvers</span></code> stays unset unless the file already stores it.</p></td>
 </tr>
 </tbody>
 </table>
