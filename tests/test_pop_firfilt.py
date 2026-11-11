@@ -8,11 +8,13 @@ import numpy as np
 import pytest
 from scipy.signal import filtfilt
 
+import eegprep
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.plugins import firfilt
 from eegprep.plugins.firfilt._filtering import apply_eegfilt_legacy, apply_fir_filter, design_eegfiltnew
 from eegprep.plugins.firfilt.minphaserceps import minphaserceps
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
@@ -300,6 +302,114 @@ def test_design_eegfiltnew_default_order_recomputes_transition_width(srate):
     np.testing.assert_array_equal(coefficients, explicit)
     assert explicit_meta["df"] == pytest.approx(expected_df)
     assert explicit_meta["cutoff"] == pytest.approx(meta["cutoff"])
+
+
+def test_pop_eegfiltnew_records_each_applied_design():
+    """Stored designs are the coefficients that produced the filtered data."""
+    assert eegprep.design_eegfiltnew is firfilt.design_eegfiltnew is design_eegfiltnew
+
+    eeg = _continuous_eeg()
+    eeg["etc"]["kept"] = {"ok": True}
+    original = eeg["data"].copy()
+    srate = float(eeg["srate"])
+
+    lowpass, lowpass_command = pop_eegfiltnew(eeg, hicutoff=40, filtorder=80, plotfreqz=False, return_com=True)
+    notch, notch_command = pop_eegfiltnew(
+        lowpass,
+        locutoff=20,
+        hicutoff=40,
+        filtorder=100,
+        revfilt=True,
+        minphase=True,
+        channels=[2],
+        plotfreqz=False,
+        return_com=True,
+    )
+
+    np.testing.assert_array_equal(eeg["data"], original)
+    assert eeg["etc"] == {"kept": {"ok": True}}
+    assert lowpass_command == "EEG = pop_eegfiltnew(EEG, 'hicutoff', 40, 'filtorder', 80);"
+    assert notch_command == (
+        "EEG = pop_eegfiltnew(EEG, 'locutoff', 20, 'hicutoff', 40, 'filtorder', 100, "
+        "'revfilt', 1, 'minphase', 1, 'channels', [2]);"
+    )
+    assert lowpass["etc"]["kept"] == {"ok": True}
+    assert notch["etc"]["kept"] == {"ok": True}
+    assert len(lowpass["etc"]["eegfiltnew"]) == 1
+    designs = notch["etc"]["eegfiltnew"]
+    assert len(designs) == 2
+
+    lowpass_b, lowpass_meta = eegprep.design_eegfiltnew(srate, hicutoff=40, filtorder=80)
+    notch_b, notch_meta = eegprep.design_eegfiltnew(
+        srate, locutoff=20, hicutoff=40, filtorder=100, revfilt=True, minphase=True
+    )
+    _assert_applied_design(
+        lowpass["etc"]["eegfiltnew"][0],
+        lowpass_b,
+        lowpass_meta,
+        srate=srate,
+        channels=[1, 2, 3],
+        phase="zerophase",
+    )
+    _assert_applied_design(
+        designs[0],
+        lowpass_b,
+        lowpass_meta,
+        srate=srate,
+        channels=[1, 2, 3],
+        phase="zerophase",
+    )
+    _assert_applied_design(
+        designs[1],
+        notch_b,
+        notch_meta,
+        srate=srate,
+        channels=[2],
+        phase="minphase",
+    )
+    assert designs[0]["filtorder"] != designs[1]["filtorder"]
+    assert designs[0]["revfilt"] != designs[1]["revfilt"]
+    assert designs[0]["phase"] != designs[1]["phase"]
+    assert designs[0]["channels"] != designs[1]["channels"]
+    assert list(designs[0]["cutoff"]) != list(designs[1]["cutoff"])
+
+    replayed = eeg
+    for record in designs:
+        replayed = apply_fir_filter(
+            replayed,
+            record["coefficients"],
+            channels=record["channels"],
+            causal=record["phase"] == "minphase",
+        )
+    np.testing.assert_array_equal(replayed["data"], notch["data"])
+    np.testing.assert_array_equal(lowpass["data"][0], notch["data"][0])
+    np.testing.assert_array_equal(lowpass["data"][2], notch["data"][2])
+    assert not np.array_equal(lowpass["data"][1], notch["data"][1])
+    assert not np.array_equal(lowpass["data"], original)
+
+
+def _assert_applied_design(record, coefficients, metadata, *, srate, channels, phase):
+    assert record["srate"] == float(srate)
+    assert record["channels"] == list(channels)
+    assert record["phase"] == phase
+    assert record["minphase"] is (phase == "minphase")
+    assert record["minphase"] is bool(metadata["minphase"])
+    _assert_design_edge(record["locutoff"], metadata["locutoff"])
+    _assert_design_edge(record["hicutoff"], metadata["hicutoff"])
+    np.testing.assert_array_equal(
+        np.asarray(record["cutoff"], dtype=float), np.asarray(metadata["cutoff"], dtype=float)
+    )
+    assert record["filtorder"] == metadata["filtorder"]
+    assert record["df"] == metadata["df"]
+    assert record["revfilt"] is bool(metadata["revfilt"])
+    np.testing.assert_array_equal(record["coefficients"], coefficients)
+
+
+def _assert_design_edge(recorded, designed):
+    if designed is None:
+        assert np.isnan(recorded)
+        return
+    assert recorded == designed
 
 
 def test_pop_xfirws_designs_and_exports_filter_file(tmp_path):

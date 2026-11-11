@@ -82,7 +82,13 @@ Hamming-window defaults, respects continuous-data boundary events, clears stale
 ICA activations, and returns a replayable history command. ``minphase=True``
 converts the FIR to minimum phase with the real cepstrum before causal filtering.
 ``usefftfilt=True`` filters each segment by overlap-add, so a missing sample
-stays inside the FFT block that contains it.
+stays inside the FFT block that contains it. Each applied design is appended
+to ``EEG["etc"]["eegfiltnew"]``: sampling rate, 1-based channels, phase,
+passband edges, -6 dB cutoffs, order, transition width, ``revfilt``, and the
+coefficients. A missing passband edge is NaN. A highpass is stored as the
+reversed lowpass that was designed. Design the same FIR without
+filtering by calling ``design_eegfiltnew``. The history command still records
+the options you requested.
 
 Use FIRFilt helpers for custom filter design:
 

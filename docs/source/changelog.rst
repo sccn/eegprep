@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_eegfiltnew`` appends each applied FIR design to
+  ``EEG["etc"]["eegfiltnew"]``, including the sampling rate, affected
+  channels, phase, cutoffs, order, transition width, ``revfilt``, and the
+  coefficients that were applied. ``design_eegfiltnew`` is the public
+  designer. The ``(EEG, com)`` return and history command are unchanged
+  (#537).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and
