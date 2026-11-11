@@ -319,9 +319,9 @@ The MATLAB comparison entry point is `tests/matlab/main_compare.m`.
 
 If EEGPrep contributes to your research, please cite the preprint:
 
-Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., & Aristimunha,
-B. (2026). EEGPrep: a validated Python implementation of the EEGLAB
-preprocessing pipeline. arXiv:2607.16647.
+Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., &
+Aristimunha, B. (2026). EEGPrep: a validated Python implementation of the
+EEGLAB preprocessing pipeline. arXiv:2607.16647.
 <https://doi.org/10.48550/arXiv.2607.16647>
 
 ```bibtex
