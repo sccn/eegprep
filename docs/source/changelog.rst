@@ -39,6 +39,9 @@ Unreleased
   the current ICA, including labels left behind after the decomposition was
   removed (F7).
 
+- ``pop_load_frombids`` stores a missing channel coordinate as an empty
+  array, including a channel with no row in ``electrodes.tsv``. Saving and
+  reloading that dataset keeps the empty coordinates (#538).
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves
   the dataset and history; accepted imports update the GUI and console
@@ -82,7 +85,7 @@ Unreleased
   being reported as invalid MAT files.
 - Save as preserves the two-file layout of loaded datasets and appends
   ``.set`` to extensionless names; ``savemode="onefile"`` explicitly embeds
-  samples (F26). BIDS ``None`` channel metadata (#538) belongs to Stream 10.
+  samples (F26).
 
 - Long preference-file paths no longer push Preferences controls offscreen;
   the full path is available in the option-file tooltip (F89, #556).
