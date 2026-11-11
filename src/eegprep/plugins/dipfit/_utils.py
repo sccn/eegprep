@@ -199,8 +199,19 @@ def _template_kind(dipfit: dict[str, Any]) -> str:
     return ""
 
 
+def fill_missing_besa_volume(EEG: dict[str, Any]) -> None:
+    """Store the bundled BESA sphere when a working copy names that template and has no volume."""
+    dipfit = dipfit_record(EEG)
+    if _template_kind(dipfit) == "besa" and _shell_radii(dipfit.get("vol")).size == 0:
+        dipfit["vol"] = besa_four_shell_volume()
+
+
 def ensure_dipfit_settings(EEG: dict[str, Any], *, caller: str = "dipfit") -> dict[str, Any]:
-    """Return existing DIPFIT settings or raise an actionable error."""
+    """Return existing DIPFIT settings or raise an actionable error.
+
+    This check does not write ``EEG.dipfit``. Fitting copies the dataset and
+    calls :func:`fill_missing_besa_volume` on that copy.
+    """
     dipfit = dipfit_record(EEG)
     if not dipfit:
         raise ValueError(
@@ -208,8 +219,6 @@ def ensure_dipfit_settings(EEG: dict[str, Any], *, caller: str = "dipfit") -> di
             "Run pop_dipfit_settings and choose Template Spherical Four-Shell (BESA)."
         )
     kind = _template_kind(dipfit)
-    if kind == "besa" and _shell_radii(dipfit.get("vol")).size == 0:
-        dipfit["vol"] = besa_four_shell_volume()
     if kind == "bem" and _shell_radii(dipfit.get("vol")).size == 0:
         raise ValueError(
             f"{caller}: the MNI boundary-element volume standard_vol.mat is not bundled. "

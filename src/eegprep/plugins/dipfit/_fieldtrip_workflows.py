@@ -30,6 +30,7 @@ from eegprep.plugins.dipfit._utils import (
     dipfit_history,
     dipfit_record,
     ensure_channel_locations,
+    fill_missing_besa_volume,
     ensure_dipfit_settings,
     ensure_ica,
     matlab_plot_options,
@@ -237,6 +238,7 @@ def pop_leadfield(
     points = _source_points_from_option(options.get("sourcemodel"))
     out = copy_eeg(EEG)
     ensure_dipfit_settings(out, caller="pop_leadfield")
+    fill_missing_besa_volume(out)
     out["dipfit"]["sourcemodel"] = source_model_from_points(out, points)
     out["dipfit"]["sourcemodel"]["file"] = options.get("sourcemodel")
     if options.get("sourcemodel2mni") not in (None, ""):

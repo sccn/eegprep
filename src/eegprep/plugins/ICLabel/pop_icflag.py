@@ -10,6 +10,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import python_literal
+from eegprep.plugins.ICLabel._prop_numerics import require_ica_weights
 from eegprep.plugins.ICLabel.eeg_icalabelstat import eeg_icalabelstat
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
 
@@ -144,13 +145,7 @@ def _normalize_thresholds(thresholds: Any) -> np.ndarray:
 
 
 def _require_iclabel(EEG: dict) -> None:
-    weights = np.asarray(EEG.get("icaweights", []))
-    if getattr(weights, "ndim", 0) != 2 or weights.size == 0:
-        raise ValueError(
-            "pop_icflag needs the current ICA decomposition in EEG.icaweights. "
-            "Run pop_runica, then pop_iclabel. "
-            "ICLabel results stored after that decomposition was removed are not used."
-        )
+    weights = require_ica_weights(EEG, "pop_icflag")
     try:
         classifications = np.asarray(EEG["etc"]["ic_classification"]["ICLabel"]["classifications"], dtype=float)
     except (KeyError, TypeError) as exc:

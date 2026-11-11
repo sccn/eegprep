@@ -198,6 +198,17 @@ def component_count(EEG: dict[str, Any]) -> int:
     return 0
 
 
+def require_ica_weights(EEG: dict[str, Any], caller: str) -> np.ndarray:
+    """Return ``EEG.icaweights`` or raise when the current ICA decomposition is missing."""
+    weights = np.asarray(EEG.get("icaweights", [])) if isinstance(EEG, dict) else np.asarray([])
+    if weights.ndim != 2 or weights.size == 0:
+        raise ValueError(
+            f"{caller} needs an ICA decomposition in EEG.icaweights. "
+            "Run pop_runica first. ICLabel results stored after that decomposition was removed are not used."
+        )
+    return weights
+
+
 def has_component_classifier(EEG: dict[str, Any], classifier_name: str = "") -> bool:
     """Return whether usable classifier data are available for the current ICA."""
     try:
@@ -209,6 +220,11 @@ def has_component_classifier(EEG: dict[str, Any], classifier_name: str = "") -> 
         if "missing a 2-D classifications matrix" in str(exc):
             return False
         raise
+
+
+def validate_component_classifier(EEG: dict[str, Any], classifier_name: str = "") -> None:
+    """Raise when stored classifier rows do not match the current ICA decomposition."""
+    has_component_classifier(EEG, classifier_name)
 
 
 def component_rejection_status(
@@ -469,7 +485,9 @@ __all__ = [
     "component_count",
     "component_rejection_status",
     "has_component_classifier",
+    "require_ica_weights",
     "resolve_classifier_data",
+    "validate_component_classifier",
     "resolve_dipfit_data",
     "selected_property_indices",
 ]

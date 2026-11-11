@@ -24,6 +24,7 @@ from eegprep.plugins.dipfit._utils import (
     coordinate_channel_indices,
     copy_eeg,
     ensure_channel_locations,
+    fill_missing_besa_volume,
     ensure_dipfit_settings,
     ensure_ica,
     normalize_model_list,
@@ -62,14 +63,15 @@ def dipfit_gridsearch(
     reject: float | None = None,
 ) -> dict[str, Any]:
     """Fit initial single-dipole locations by scanning a regular grid."""
-    forward = prepare_forward_data(EEG, component)
+    out = copy_eeg(EEG)
+    fill_missing_besa_volume(out)
+    forward = prepare_forward_data(out, component)
     x_values = parse_grid_values(xgrid, default=np.linspace(-forward.head_radius, forward.head_radius, 11))
     y_values = parse_grid_values(ygrid, default=np.linspace(-forward.head_radius, forward.head_radius, 11))
     z_values = parse_grid_values(zgrid, default=np.linspace(0.0, forward.head_radius, 6))
     candidates = _candidate_grid(x_values, y_values, z_values, forward.head_radius)
     if candidates.size == 0:
         raise ValueError("grid does not contain any points inside the spherical head")
-    out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
     for component_index in forward.components:
         fit = fit_component_grid(forward, component_index, candidates)
@@ -89,8 +91,9 @@ def dipfit_nonlinear(
     maxiter: int = 200,
 ) -> dict[str, Any]:
     """Refine one component's dipole position and moment."""
-    forward = prepare_forward_data(EEG, [component])
     out = copy_eeg(EEG)
+    fill_missing_besa_volume(out)
+    forward = prepare_forward_data(out, [component])
     models = ensure_model_list(out, component_count(out))
     model = models[component - 1]
     positions = _model_positions(model, fallback=np.asarray([[0.0, 0.0, forward.head_radius * 0.5]]))

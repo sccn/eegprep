@@ -10,12 +10,12 @@ from eegprep.functions.popfunc._property_browser import property_activity_browse
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import one_based_indices
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+from eegprep.plugins.ICLabel._prop_numerics import require_ica_weights, validate_component_classifier
 from eegprep.plugins.ICLabel.pop_prop_extended import (
     classifier_default_index,
     classifier_name_from_gui,
     classifier_names,
     component_count,
-    has_component_classifier,
     pop_prop_extended,
 )
 
@@ -43,11 +43,8 @@ def pop_viewprops(
     """Render channel/component property overview figures and activity views."""
     if EEG is None:
         return ([], "") if return_com else []
-    if not int(bool(typecomp)) and not _has_ica_weights(EEG.get("icaweights")):
-        raise ValueError(
-            "pop_viewprops needs an ICA decomposition in EEG.icaweights. "
-            "Run pop_runica first. ICLabel results stored after that decomposition was removed are not used."
-        )
+    if not int(bool(typecomp)):
+        require_ica_weights(EEG, "pop_viewprops")
     if gui is None:
         gui = chanorcomp is None
     if gui:
@@ -136,7 +133,7 @@ def _plot_props(
         return []
     visible_indices = indices[:PLOTS_PER_FIGURE]
     if not typecomp:
-        has_component_classifier(EEG, classifier_name)
+        validate_component_classifier(EEG, classifier_name)
     activity_views = [
         property_activity_browser(EEG, typecomp, index, scroll_event=scroll_event, show=show_activity)
         for index in visible_indices
@@ -225,13 +222,6 @@ def _attach_component_clicks(figures: list[Any], indices: list[int], open_proper
 
         figure.canvas.mpl_connect("button_press_event", on_click)
         figure.eegprep_open_property = open_property
-
-
-def _has_ica_weights(weights: Any) -> bool:
-    try:
-        return len(weights) > 0 and len(weights[0]) > 0
-    except (TypeError, IndexError):
-        return False
 
 
 def _attach_activity_views(figures: list[Any], activity_views: list[Any]) -> None:
