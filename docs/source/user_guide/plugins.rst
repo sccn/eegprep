@@ -172,8 +172,8 @@ Review components visually with ``pop_viewprops`` before removing them.
 DIPFIT
 ======
 
-DIPFIT helpers support standalone spherical workflows. They store model fields
-under ``EEG["dipfit"]["model"]`` and keep command strings replayable:
+DIPFIT helpers fit ``standardBESA`` with the four-shell BESA leadfield. They store
+model fields under ``EEG["dipfit"]["model"]`` and keep command strings replayable:
 
 .. code-block:: python
 

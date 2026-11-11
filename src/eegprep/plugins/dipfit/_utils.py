@@ -14,11 +14,11 @@ from eegprep.functions.popfunc.plot_utils import numeric_vector, python_literal
 
 
 FIELDTRIP_LIMITATION = (
-    "This DIPFIT workflow requires MRI segmentation, BEM head-model, LORETA, "
-    "or FieldTrip source-analysis routines and assets that are not bundled in "
-    "standalone EEGPrep yet. EEGPrep can run deterministic spherical grid and "
-    "nonlinear dipole fitting, store DIPFIT settings, compute explicit-point "
-    "spherical leadfields, and plot existing dipole models."
+    "This DIPFIT workflow requires MRI segmentation, a boundary-element head model, "
+    "LORETA, or other FieldTrip routines that are not bundled in standalone EEGPrep yet. "
+    "standardBESA grid search and nonlinear fitting use the four-shell BESA leadfield. "
+    "EEGPrep can also store DIPFIT settings, compute explicit-point leadfields, and plot "
+    "existing dipole models."
 )
 
 

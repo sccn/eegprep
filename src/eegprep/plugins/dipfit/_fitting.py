@@ -1,10 +1,12 @@
 """EEGPrep-native DIPFIT fitting primitives.
 
-The backend implemented here is intentionally modest and deterministic: it
-uses a single-sphere primary-current leadfield and least-squares dipole moment
-fits. It is not a silent replacement for FieldTrip BEM or LORETA routines, but
-it gives EEGPrep standalone, inspectable source-localization behavior for the
-standard spherical workflow and tests the same EEG.dipfit model contract.
+``standardBESA`` uses the four-shell concentric-sphere EEG leadfield from
+FieldTrip (``eeg_leadfield4`` via ``ft_compute_leadfield``), with the radii
+and conductivities stored in ``standard_BESA.mat``. Grid search and nonlinear
+refinement follow ``ft_dipolefitting``: a 24 by 24 by 12 scan inside the brain
+shell, then Nelder-Mead with FieldTrip's ``fminsearch`` limits. MNI and BEM
+settings keep the infinite-medium kernel until the boundary-element model is
+ported through the same dispatch.
 """
 
 from __future__ import annotations
@@ -19,6 +21,11 @@ from scipy.optimize import minimize
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_channel_indices, component_maps, numeric_vector
 from eegprep.plugins.dipfit._coordinates import apply_transform, traditionaldipfit
+from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
+from eegprep.plugins.dipfit.forward.ft_headmodeltype import SPHERICAL_HEADMODELS, ft_headmodeltype, normalize_headmodel
+from eegprep.plugins.dipfit.forward.ft_inside_headmodel import ft_inside_headmodel
+from eegprep.plugins.dipfit.forward.ft_prepare_vol_sens import ft_prepare_vol_sens
+from eegprep.plugins.dipfit.forward.standard_besa import standard_besa_headmodel
 from eegprep.plugins.dipfit._utils import (
     component_count,
     coordinate_channel_indices,
@@ -33,6 +40,11 @@ from eegprep.plugins.dipfit._utils import (
 
 DEFAULT_HEAD_RADIUS_MM = 85.0
 MIN_DIPOLE_ELECTRODE_DISTANCE_MM = 1e-3
+DEFAULT_GRID_X_COUNT = 24
+DEFAULT_GRID_Y_COUNT = 24
+DEFAULT_GRID_Z_COUNT = 12
+_FMINSEARCH_USUAL_DELTA = 0.05
+_FMINSEARCH_ZERO_DELTA = 0.00025
 _LINSPACE_PATTERN = re.compile(
     r"^linspace\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\s*\)$",
     re.IGNORECASE,
@@ -50,6 +62,7 @@ class DipfitForwardData:
     labels: list[str]
     head_radius: float
     coordformat: str
+    headmodel: dict[str, Any] | None = None
 
 
 def dipfit_gridsearch(
@@ -63,16 +76,18 @@ def dipfit_gridsearch(
 ) -> dict[str, Any]:
     """Fit initial single-dipole locations by scanning a regular grid."""
     forward = prepare_forward_data(EEG, component)
-    x_values = parse_grid_values(xgrid, default=np.linspace(-forward.head_radius, forward.head_radius, 11))
-    y_values = parse_grid_values(ygrid, default=np.linspace(-forward.head_radius, forward.head_radius, 11))
-    z_values = parse_grid_values(zgrid, default=np.linspace(0.0, forward.head_radius, 6))
-    candidates = _candidate_grid(x_values, y_values, z_values, forward.head_radius)
+    x_default, y_default, z_default = default_scan_axes(forward.head_radius)
+    x_values = parse_grid_values(xgrid, default=x_default)
+    y_values = parse_grid_values(ygrid, default=y_default)
+    z_values = parse_grid_values(zgrid, default=z_default)
+    candidates = _candidate_grid(x_values, y_values, z_values, forward.head_radius, headmodel=forward.headmodel)
     if candidates.size == 0:
         raise ValueError("grid does not contain any points inside the spherical head")
     out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
+    fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
     for component_index in forward.components:
-        fit = fit_component_grid(forward, component_index, candidates)
+        fit = fit_component_grid(forward, component_index, candidates, fields)
         models[component_index - 1].update(fit)
     if reject is not None:
         models = dipfit_reject(models, reject)
@@ -86,7 +101,7 @@ def dipfit_nonlinear(
     component: int,
     nonlinear: str | bool = "yes",
     symmetry: str | None = None,
-    maxiter: int = 200,
+    maxiter: int = 3000,
 ) -> dict[str, Any]:
     """Refine one component's dipole position and moment."""
     forward = prepare_forward_data(EEG, [component])
@@ -160,10 +175,19 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
         raise ValueError("No channel locations with coordinates remain for DIPFIT")
     map_rows, chansel = _map_rows_for_channels(EEG, maps, chansel, len(chanlocs))
     positions = _channel_positions([chanlocs[index - 1] for index in chansel])
-    head_radius = _head_radius(dipfit, positions)
-    positions = _scale_or_project_to_head(positions, head_radius)
-    if dipfit.get("coord_transform"):
-        positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
+    headmodel = resolve_spherical_headmodel(dipfit)
+    if headmodel is not None:
+        head_radius = float(np.max(np.asarray(headmodel["r"], dtype=float)))
+        positions = _scale_subcentimeter_positions(positions, head_radius)
+        if dipfit.get("coord_transform"):
+            positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
+        _prepared, sensors = ft_prepare_vol_sens(headmodel, {"elecpos": positions})
+        positions = np.asarray(sensors["elecpos"], dtype=float)
+    else:
+        head_radius = _head_radius(dipfit, positions)
+        positions = _scale_or_project_to_head(positions, head_radius)
+        if dipfit.get("coord_transform"):
+            positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
     selected_maps = maps[map_rows, :][:, [component - 1 for component in selected_components]]
     labels = [str(chanlocs[index - 1].get("labels") or index) for index in chansel]
     return DipfitForwardData(
@@ -174,25 +198,37 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
         labels=labels,
         head_radius=head_radius,
         coordformat=str(dipfit.get("coordformat", "")),
+        headmodel=headmodel,
     )
 
 
-def fit_component_grid(forward: DipfitForwardData, component: int, candidates: np.ndarray) -> dict[str, Any]:
+def fit_component_grid(
+    forward: DipfitForwardData,
+    component: int,
+    candidates: np.ndarray,
+    fields: list[np.ndarray] | None = None,
+) -> dict[str, Any]:
     """Return the best single-dipole fit for one component over candidates."""
-    topography = _component_topography(forward, component)
-    best: dict[str, Any] | None = None
-    best_rv = np.inf
-    for position in candidates:
-        fit = _fit_positions_to_topography(forward.positions, topography, position.reshape(1, 3))
-        if fit["rv"] < best_rv:
-            best = fit
-            best_rv = fit["rv"]
-    if best is None:
+    topography = _average_reference(_component_topography(forward, component))
+    if fields is None:
+        fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
+    best_index: int | None = None
+    best_error = np.inf
+    for index, field in enumerate(fields):
+        if not np.isfinite(field).all():
+            continue
+        _moment, *_ = np.linalg.lstsq(field, topography, rcond=None)
+        residual = topography - field @ _moment
+        error = float(np.sum(residual**2))
+        if error < best_error:
+            best_error = error
+            best_index = index
+    if best_index is None:
         return empty_model(component)
-    best["component"] = component
-    best["select"] = [1]
-    best["active"] = [1]
-    return best
+    fit = fit_component_at_positions(forward, component, candidates[best_index])
+    fit["select"] = [1]
+    fit["active"] = [1]
+    return fit
 
 
 def fit_component_at_positions(
@@ -200,32 +236,62 @@ def fit_component_at_positions(
 ) -> dict[str, Any]:
     """Fit dipole moments at fixed positions for one component."""
     fit = _fit_positions_to_topography(
-        forward.positions, _component_topography(forward, component), np.asarray(positions)
+        forward.positions,
+        _component_topography(forward, component),
+        np.asarray(positions),
+        forward.headmodel,
     )
     fit["component"] = component
     fit["active"] = list(range(1, np.asarray(fit["posxyz"]).reshape(-1, 3).shape[0] + 1))
     return fit
 
 
-def leadfield_matrix(electrodes: np.ndarray, sources: np.ndarray) -> list[np.ndarray]:
-    """Return one average-referenced 3-column leadfield per source point."""
+def leadfield_matrix(
+    electrodes: np.ndarray, sources: np.ndarray, headmodel: dict[str, Any] | None = None
+) -> list[np.ndarray]:
+    """Return one average-referenced 3-column leadfield per source point.
+
+    A spherical ``headmodel`` uses ``ft_compute_leadfield``. Without one, the
+    columns are the infinite-medium kernel kept for MNI and BEM settings.
+    """
     source_points, _ = _as_positions(sources)
-    return [_average_reference(_unit_moment_leadfield(electrodes, point)) for point in source_points]
+    if headmodel is None:
+        return [_average_reference(_unit_moment_leadfield(electrodes, point)) for point in source_points]
+    stacked = ft_compute_leadfield(source_points, {"elecpos": np.asarray(electrodes, dtype=float)}, headmodel)
+    return [stacked[:, 3 * index : 3 * index + 3] for index in range(source_points.shape[0])]
 
 
 def source_model_from_points(EEG: dict[str, Any], points: Any, *, labels: list[str] | None = None) -> dict[str, Any]:
     """Build an EEGLAB-shaped source model with leadfields for explicit points."""
     forward = prepare_forward_data(EEG)
     source_points, _ = _as_positions(points)
-    fields = leadfield_matrix(forward.positions, source_points)
+    fields = leadfield_matrix(forward.positions, source_points, forward.headmodel)
+    if forward.headmodel is None:
+        inside = [True] * source_points.shape[0]
+    else:
+        inside = [bool(value) for value in ft_inside_headmodel(source_points, forward.headmodel)]
     return {
         "pos": source_points.tolist(),
-        "inside": [True] * source_points.shape[0],
+        "inside": inside,
         "leadfield": [field.tolist() for field in fields],
         "label": labels or forward.labels,
         "unit": "mm",
         "coordformat": forward.coordformat,
     }
+
+
+def default_scan_axes(head_radius: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return DIPFIT's default x, y, and z scan axes for a head radius in mm.
+
+    ``dipfitdefs.m`` builds ``linspace`` grids of 24, 24, and 12 samples out to
+    ``floor`` of the outer BESA radius.
+    """
+    radius = float(np.floor(float(head_radius)))
+    return (
+        np.linspace(-radius, radius, DEFAULT_GRID_X_COUNT),
+        np.linspace(-radius, radius, DEFAULT_GRID_Y_COUNT),
+        np.linspace(0.0, radius, DEFAULT_GRID_Z_COUNT),
+    )
 
 
 def parse_grid_values(value: Any, *, default: np.ndarray) -> np.ndarray:
@@ -283,31 +349,35 @@ def empty_model(component: int) -> dict[str, Any]:
 
 
 def _fit_positions_to_topography(
-    electrodes: np.ndarray, topography: np.ndarray, positions: np.ndarray
+    electrodes: np.ndarray,
+    topography: np.ndarray,
+    positions: np.ndarray,
+    headmodel: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     source_positions, _ = _as_positions(positions)
-    leadfield = np.column_stack(leadfield_matrix(electrodes, source_positions))
+    leadfield = np.column_stack(leadfield_matrix(electrodes, source_positions, headmodel))
     data = _average_reference(np.asarray(topography, dtype=float).ravel())
     if not np.any(np.isfinite(data)) or np.linalg.norm(data) == 0:
         return {
             "posxyz": source_positions.tolist(),
             "momxyz": np.zeros((source_positions.shape[0], 3)).tolist(),
             "rv": 1.0,
-            "diffmap": data.tolist(),
+            "diffmap": (-data).tolist(),
             "sourcepot": np.zeros_like(data).tolist(),
             "datapot": data.tolist(),
         }
     moment, *_ = np.linalg.lstsq(leadfield, data, rcond=None)
     model = leadfield @ moment
-    residual = data - model
+    # dipfit_nonlinear stores Vmodel - Vdata.
+    difference = model - data
     denominator = float(np.sum(data**2))
-    rv = float(np.sum(residual**2) / denominator) if denominator > 0 else 1.0
+    rv = float(np.sum(difference**2) / denominator) if denominator > 0 else 1.0
     moments = moment.reshape(source_positions.shape[0], 3)
     return {
         "posxyz": source_positions.tolist(),
         "momxyz": moments.tolist(),
         "rv": min(max(rv, 0.0), 1.0),
-        "diffmap": residual.tolist(),
+        "diffmap": difference.tolist(),
         "sourcepot": model.tolist(),
         "datapot": data.tolist(),
     }
@@ -325,9 +395,7 @@ def _optimize_positions(
     topography = _component_topography(forward, component)
     symmetry_axis = _symmetry_axis(symmetry)
     if symmetry_axis is not None and initial_positions.shape[0] == 2:
-        first = initial_positions[0].copy()
-        first[symmetry_axis] = abs(first[symmetry_axis]) or forward.head_radius * 0.45
-        initial_params = first
+        initial_params = initial_positions[0].copy()
 
         def unpack(values: np.ndarray) -> np.ndarray:
             mirrored = values.copy()
@@ -342,23 +410,59 @@ def _optimize_positions(
 
     def objective(values: np.ndarray) -> float:
         positions = unpack(values)
-        if np.any(np.linalg.norm(positions, axis=1) >= forward.head_radius * 0.995):
+        if forward.headmodel is None and np.any(np.linalg.norm(positions, axis=1) >= forward.head_radius * 0.995):
             return 1e3 + float(np.max(np.linalg.norm(positions, axis=1)))
-        return float(_fit_positions_to_topography(forward.positions, topography, positions)["rv"])
+        fit = _fit_positions_to_topography(forward.positions, topography, positions, forward.headmodel)
+        rv = float(fit["rv"])
+        if not np.isfinite(rv):
+            return 1.0
+        return rv
 
+    start = np.asarray(initial_params, dtype=float).ravel()
     result = minimize(
         objective,
-        initial_params,
+        start,
         method="Nelder-Mead",
-        options={"maxiter": int(maxiter), "xatol": 1e-4, "fatol": 1e-7, "disp": False},
+        options={
+            "maxiter": int(maxiter),
+            "maxfev": 2 * int(maxiter) * int(start.size),
+            "xatol": 1e-4,
+            "fatol": 1e-4,
+            "initial_simplex": _fminsearch_simplex(start),
+            "adaptive": False,
+            "disp": False,
+        },
     )
-    return unpack(result.x if result.success or np.isfinite(result.fun) else initial_params)
+    fitted = result.x if np.isfinite(result.x).all() else start
+    return unpack(fitted)
 
 
-def _candidate_grid(x_values: np.ndarray, y_values: np.ndarray, z_values: np.ndarray, head_radius: float) -> np.ndarray:
-    points = np.asarray(np.meshgrid(x_values, y_values, z_values, indexing="ij"), dtype=float).reshape(3, -1).T
-    inside = np.linalg.norm(points, axis=1) < float(head_radius) * 0.98
+def _candidate_grid(
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    z_values: np.ndarray,
+    head_radius: float,
+    headmodel: dict[str, Any] | None = None,
+) -> np.ndarray:
+    x_grid, y_grid, z_grid = np.meshgrid(x_values, y_values, z_values, indexing="ij")
+    points = np.column_stack((x_grid.ravel(order="F"), y_grid.ravel(order="F"), z_grid.ravel(order="F")))
+    if headmodel is None:
+        inside = np.linalg.norm(points, axis=1) < float(head_radius) * 0.98
+    else:
+        inside = ft_inside_headmodel(points, headmodel)
     return points[inside]
+
+
+def _fminsearch_simplex(start: np.ndarray) -> np.ndarray:
+    """Return MATLAB ``fminsearch``'s initial simplex around ``start``."""
+    origin = np.asarray(start, dtype=float).ravel()
+    simplex = np.tile(origin, (origin.size + 1, 1))
+    for index, value in enumerate(origin):
+        if value != 0.0:
+            simplex[index + 1, index] = (1.0 + _FMINSEARCH_USUAL_DELTA) * value
+        else:
+            simplex[index + 1, index] = _FMINSEARCH_ZERO_DELTA
+    return simplex
 
 
 def _component_topography(forward: DipfitForwardData, component: int) -> np.ndarray:
@@ -427,6 +531,33 @@ def _head_radius(dipfit: dict[str, Any], positions: np.ndarray) -> float:
     if finite.size and np.median(finite) > 20:
         return float(np.median(finite))
     return DEFAULT_HEAD_RADIUS_MM
+
+
+def resolve_spherical_headmodel(dipfit: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a concentric-sphere volume, or ``None`` for MNI and BEM settings."""
+    vol = dipfit.get("vol")
+    if isinstance(vol, dict) and "r" in vol and np.size(vol.get("r")):
+        model = normalize_headmodel(vol)
+        if ft_headmodeltype(model) in SPHERICAL_HEADMODELS:
+            return model
+        return None
+    hdmfile = str(dipfit.get("hdmfile") or "").lower()
+    coordformat = str(dipfit.get("coordformat") or "").lower()
+    if "standard_besa" in hdmfile or coordformat == "spherical":
+        return standard_besa_headmodel()
+    return None
+
+
+def _scale_subcentimeter_positions(positions: np.ndarray, head_radius: float) -> np.ndarray:
+    norms = np.linalg.norm(positions, axis=1)
+    finite = norms[np.isfinite(norms) & (norms > 0)]
+    if finite.size == 0:
+        raise ValueError("channel positions are degenerate")
+    scaled = np.asarray(positions, dtype=float).copy()
+    median = float(np.median(finite))
+    if median < 20:
+        scaled *= float(head_radius) / median
+    return scaled
 
 
 def _scale_or_project_to_head(positions: np.ndarray, head_radius: float) -> np.ndarray:
@@ -522,7 +653,9 @@ __all__ = [
     "fit_component_at_positions",
     "fit_component_grid",
     "leadfield_matrix",
+    "default_scan_axes",
     "parse_grid_values",
+    "resolve_spherical_headmodel",
     "prepare_forward_data",
     "remove_outside_head",
     "source_model_from_points",

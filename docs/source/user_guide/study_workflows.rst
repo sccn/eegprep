@@ -279,15 +279,18 @@ coarse grid search, nonlinear refinement, and dipole plotting:
    EEG, com = pop_dipfit_nonlinear(EEG, component=1, return_com=True)
    figures, com = pop_dipplot(EEG, [1], summary="on", projlines="on", return_com=True)
 
-The spherical backend fits an average-referenced leadfield, stores
+``standardBESA`` fits an average-referenced four-shell BESA leadfield and stores
 ``posxyz``, ``momxyz``, ``rv``, ``diffmap``, ``sourcepot``, and ``datapot`` in
-``EEG.dipfit.model``, and keeps command history replayable from
-``eegprep-console``. ``pop_multifit`` chains grid search, nonlinear fitting,
-RV rejection, optional outside-head removal, and optional dipole plotting.
+``EEG.dipfit.model``. Command history stays replayable from
+``eegprep-console``. ``pop_multifit`` chains the DIPFIT 24 by 24 by 12 grid
+search, nonlinear fitting, RV rejection, optional outside-head removal, and
+optional dipole plotting. MNI boundary-element settings do not use that
+four-shell model.
+
 The deprecated EEGLAB aliases ``pop_dipfit_batch`` and ``pop_dipfit_manual``
 remain available for script compatibility.
 
-``pop_leadfield`` can compute spherical leadfields for explicit source points
+``pop_leadfield`` can compute four-shell or infinite-medium leadfields for explicit source points
 provided as an ``Nx3`` array, ``{"pos": ...}`` dictionary, or simple file with
 source positions. MRI-derived BEM headmodel creation, AFNI atlas clipping, and
 LORETA source analysis remain explicit backend limits and fail clearly rather
