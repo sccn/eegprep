@@ -12,6 +12,7 @@ from eegprep import pop_loadset
 from eegprep.plugins.dipfit._fitting import (
     DipfitForwardData,
     default_search_grids,
+    dipfit_nonlinear,
     fit_component_grid,
     prepare_forward_data,
 )
@@ -284,6 +285,21 @@ def test_unreadable_headmodel_file_does_not_fall_back_to_the_sphere(tmp_path):
     missing = tmp_path / "missing_headmodel.mat"
     with pytest.raises(FileNotFoundError, match="not found"):
         prepare_forward_data(_custom_headmodel_eeg(missing), [1])
+
+
+def test_bem_nonlinear_uses_the_callers_maxiter(tmp_path):
+    path = tmp_path / "subject_bem.mat"
+    _write_volume_mat(path, kind="dipoli", with_boundary=True)
+    eeg = _custom_headmodel_eeg(path)
+    eeg["dipfit"]["model"] = [{"posxyz": [[0.4, 0.2, 0.3]], "component": 1, "select": [1]}]
+    limited = dipfit_nonlinear(eeg, component=1, maxiter=1)
+    default = dipfit_nonlinear(eeg, component=1)
+    longer = dipfit_nonlinear(eeg, component=1, maxiter=1000)
+    limited_pos = np.asarray(limited["dipfit"]["model"][0]["posxyz"], dtype=float)
+    default_pos = np.asarray(default["dipfit"]["model"][0]["posxyz"], dtype=float)
+    longer_pos = np.asarray(longer["dipfit"]["model"][0]["posxyz"], dtype=float)
+    assert not np.allclose(limited_pos, longer_pos, atol=1e-4)
+    np.testing.assert_allclose(default_pos, longer_pos, atol=1e-8)
 
 
 def test_openmeeg_file_is_rejected(tmp_path):

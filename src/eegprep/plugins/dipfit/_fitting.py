@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_HEAD_RADIUS_MM = 85.0
 MIN_DIPOLE_ELECTRODE_DISTANCE_MM = 1e-3
 _BESA_TEMPLATE_NAME = "standard_besa.mat"
+_BEM_DEFAULT_MAXITER = 1000
+_SPHERE_DEFAULT_MAXITER = 200
 _BEM_XGRID = np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 24)
 _BEM_YGRID = np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 24)
 _BEM_ZGRID = np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 12)
@@ -114,9 +116,13 @@ def dipfit_nonlinear(
     component: int,
     nonlinear: str | bool = "yes",
     symmetry: str | None = None,
-    maxiter: int = 200,
+    maxiter: int | None = None,
 ) -> dict[str, Any]:
-    """Refine one component's dipole position and moment."""
+    """Refine one component's dipole position and moment.
+
+    ``maxiter`` limits both optimizers. When it is omitted, a boundary-element
+    model uses 1000 iterations and a spherical model uses 200.
+    """
     forward = prepare_forward_data(EEG, [component])
     out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
@@ -126,6 +132,8 @@ def dipfit_nonlinear(
     positions = positions[selected]
     optimize_position = _is_nonlinear_enabled(nonlinear)
     if optimize_position:
+        if maxiter is None:
+            maxiter = _BEM_DEFAULT_MAXITER if forward.headmodel is not None else _SPHERE_DEFAULT_MAXITER
         positions = _optimize_positions(forward, component, positions, symmetry=symmetry, maxiter=maxiter)
     fit = fit_component_at_positions(forward, component, positions)
     fit["select"] = [index + 1 for index in selected]
@@ -447,7 +455,7 @@ def _optimize_positions(
             objective,
             initial_params,
             method="BFGS",
-            options={"maxiter": _BEM_OPTIMIZER_MAXITER, "gtol": 1e-9, "eps": 1e-3, "disp": False},
+            options={"maxiter": int(maxiter), "gtol": 1e-9, "eps": 1e-3, "disp": False},
         )
     return unpack(result.x if result.success or np.isfinite(result.fun) else initial_params)
 
