@@ -22,7 +22,7 @@ def iclabel(EEG, algorithm='default', engine=None, *, feature='iclabel'):
     algorithm : str
         Algorithm to use for classification, passed to the MATLAB/Octave implementation.
         Default is 'default'.
-        engine : str or None
+    engine : str or None
         Engine to use for implementation. Options are:
         - None: Use the packaged float32 ONNX network (needs ``eegprep[iclabel]``)
         - 'matlab': Use MATLAB engine
