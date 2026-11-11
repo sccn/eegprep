@@ -142,7 +142,7 @@ def calc_projector(
     if subroutine == 'sphericalSplineInterpolate':
 
         def op(src, dest):
-            return sphericalSplineInterpolate(src.T, dest.T)[0]
+            return sphericalSplineInterpolate(src.T, dest.T, _check_positions=False)[0]
 
     elif subroutine == 'matlab':
         matlab = get_eeglab('MAT', feature='clean_channels')

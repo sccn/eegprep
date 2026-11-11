@@ -34,7 +34,9 @@ Behavior:
 - GUI choices are converted to the same named options used by the command-line API.
 - Channel correlation cleaning uses spatial channel coordinates when they are
   available. An empty `EEG['chanlocs']` automatically selects the location-free
-  correlation method.
+  correlation method. Identical or collinear locations raise `ValueError`.
+  A planar layout warns and channel cleaning still runs. EEGLAB does not
+  reject these layouts.
 - `Distance='Riemannian'` runs Riemannian ASR calibration and processing
   (`clean_asr(..., useriemannian=True)`). `useriemannian='calib'` remains
   available for a Riemannian calibration covariance with Euclidean processing.

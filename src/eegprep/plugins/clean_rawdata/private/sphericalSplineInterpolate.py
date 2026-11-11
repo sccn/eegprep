@@ -4,6 +4,7 @@ import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.miscfunc.pinv import pinv
+from eegprep.functions.sigprocfunc.electrode_geometry import validate_electrode_positions
 
 
 # Helper function (vectorized version of MATLAB's interpMx)
@@ -76,7 +77,9 @@ def _interpMx(cosEE, order, tol):
 
 
 # Main function mirroring the MATLAB sphericalSplineInterpolate
-def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps):
+def sphericalSplineInterpolate(
+    src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps, *, _check_positions=True
+):
     """Interpolation matrix for spherical interpolation. Python port of Jason Farquhar's MATLAB code.
 
     Args:
@@ -90,6 +93,10 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
                                'slap'   -> surface Laplician (aka CSD)
         tol (float, optional): Tolerance for the Legendre polynomial approximation convergence.
                                Defaults to machine epsilon for float.
+        _check_positions (bool, optional): When true, identical or collinear source positions
+                               raise ``ValueError`` and planar source positions warn. RANSAC
+                               passes false after the full montage has already been checked;
+                               a random subset of a valid cap can be collinear.
 
     Returns
     -------
@@ -121,6 +128,8 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
         raise ValueError(f"src must be a 2D array with shape (3, N), got {src.shape}")
     if dest.ndim != 2 or dest.shape[0] != 3:
         raise ValueError(f"dest must be a 2D array with shape (3, M), got {dest.shape}")
+    if _check_positions:
+        validate_electrode_positions(src.T, operation="sphericalSplineInterpolate")
 
     n_src = src.shape[1]
     n_dest = dest.shape[1]

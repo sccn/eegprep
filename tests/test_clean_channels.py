@@ -38,13 +38,14 @@ def _located_eeg(n_channels: int, n_samples: int, srate: float) -> dict:
 
 def test_subset_size_is_always_a_fraction_of_channel_count():
     """clean_channels.m line 70 always rounds subset_size * nchans."""
-    kept = clean_channels(
-        _located_eeg(4, 800, 128.0),
-        subset_size=0.25,
-        corr_threshold=-1.0,
-        noise_threshold=100.0,
-        num_samples=4,
-    )
+    with pytest.warns(UserWarning, match="planar"):
+        kept = clean_channels(
+            _located_eeg(4, 800, 128.0),
+            subset_size=0.25,
+            corr_threshold=-1.0,
+            noise_threshold=100.0,
+            num_samples=4,
+        )
     assert kept["nbchan"] == 4
 
     # clean_channels.m:70 gives round(2 * 4) = 8. randsample then indexes past

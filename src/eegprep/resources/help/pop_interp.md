@@ -22,6 +22,8 @@ Interpolation methods:
 - `invdist` or `v4`: inverse-distance scalp interpolation.
 - `spacetime`: space-time interpolation.
 
+Identical or collinear electrode positions raise `ValueError`. A planar layout, including a ring around the head, warns and spherical interpolation still runs. Inverse-distance and space-time interpolation do not warn on a planar layout. EEGLAB does not check these cases.
+
 Graphic interface:
 
 - "Select from removed channels" uses channels stored as removed/non-data channels.

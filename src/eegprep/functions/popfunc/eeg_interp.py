@@ -11,6 +11,7 @@ from scipy.special import lpmv
 from copy import deepcopy
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.electrode_geometry import validate_electrode_positions
 
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype=None):
@@ -40,7 +41,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         Precision for the spherical-spline computation. The default follows
         the floating-point dtype of ``EEG['data']``, and uses ``float64`` when
         the data are not floating point. Pass ``"float32"`` for the
-        lower-memory path.
+        lower-memory path. Identical or collinear electrode positions raise
+        ``ValueError``. Planar positions warn; inverse-distance and
+        space-time interpolation stay quiet on a planar layout and raise
+        only when the flat coordinates are identical or collinear.
 
     Returns
     -------
@@ -146,6 +150,13 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         rad = np.linalg.norm(xyz, axis=0)
         return xyz / rad
 
+    located = good_idx + bad_idx
+    if located and method in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast'):
+        raw = np.vstack([[locs[i][c] for i in located] for c in ('X', 'Y', 'Z')]).astype(float).T
+        validate_electrode_positions(raw, operation='eeg_interp')
+    elif located and method in ('invdist', 'v4', 'spacetime'):
+        validate_electrode_positions(_planar_points(locs, located), operation='eeg_interp')
+
     xyz_good = _norm(good_idx)
     xyz_bad = _norm(bad_idx)
 
@@ -165,6 +176,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
             values=d[good_idx, :],
             params=params,
             dtype=dtype,
+            _check_positions=False,
         )
     elif method in ('invdist', 'v4'):
         bad_data = _planar_v4_interpolate(locs, good_idx, bad_idx, d[good_idx, :])
@@ -434,7 +446,7 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         return EEG, bad_idx
 
 
-def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
+def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32', *, _check_positions=True):
     """Perform spherical spline interpolation.
 
     Parameters
@@ -449,6 +461,11 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
         Interpolation parameters (lambda, m, maxn).
     dtype : str or dtype, optional
         Data type for computation.
+    _check_positions : bool, optional
+        When true, identical or collinear electrodes raise ``ValueError``
+        and planar electrodes warn. ``eeg_interp`` passes false after it
+        has checked the whole montage, so a collinear leftover subset does
+        not raise on its own.
 
     Returns
     -------
@@ -456,6 +473,11 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
         Interpolated values at bad electrode positions.
     """
     dtype = np.dtype(dtype)
+    if _check_positions:
+        validate_electrode_positions(
+            np.column_stack((np.ravel(xelec), np.ravel(yelec), np.ravel(zelec))),
+            operation='spheric_spline',
+        )
 
     # values: (n_good, n_points)
     Gelec = computeg(xelec, yelec, zelec, xelec, yelec, zelec, params)
