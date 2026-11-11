@@ -12,7 +12,7 @@ from matplotlib.patches import ConnectionPatch
 from scipy.signal import get_window, welch
 
 from eegprep.functions.miscfunc.misc import round_mat
-from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list, channel_has_coordinates
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
 # Lowest frequency plotted on the spectra axis, matching EEGLAB ``spectopo`` LOPLOTHZ.
@@ -55,6 +55,7 @@ def spectopo(
     and optional scalp maps are drawn at requested frequencies when channel
     locations are available.
     """
+    _validate_freqrange(freqrange, float(srate) / 2.0)
     spectra, frequency_values, specstd = compute_spectra(
         data,
         frames,
@@ -76,6 +77,7 @@ def spectopo(
             chanlocs=chanlocs,
             topoplot_options=topoplot_options,
             title=title,
+            nyquist=float(srate) / 2.0,
         )
     return spectra, frequency_values, None, None, specstd, figure
 
@@ -181,6 +183,7 @@ def plot_spectra(
     chanlocs: Any = None,
     topoplot_options: dict[str, Any] | None = None,
     title: str = "",
+    nyquist: float | None = None,
 ):
     """Plot spectra and optional scalp maps, mirroring EEGLAB ``spectopo``.
 
@@ -191,7 +194,7 @@ def plot_spectra(
     requested_freqs = np.sort(_numeric_values(freqs))
     scalp_values, scalp_labels = _scalp_maps(spectra, frequency_values, requested_freqs)
     locs = chanlocs_as_list(chanlocs)
-    draw_maps = bool(scalp_values) and bool(locs)
+    draw_maps = bool(scalp_values) and _locations_usable(locs)
 
     if draw_maps:
         fig = plt.figure(figsize=(7.6, 6.2))
@@ -210,7 +213,7 @@ def plot_spectra(
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
     spec_ax.spines[["top", "right"]].set_visible(False)
 
-    low, high, min_idx, max_idx = frequency_window(frequency_values, requested_freqs, freqrange)
+    low, high, min_idx, max_idx = frequency_window(frequency_values, requested_freqs, freqrange, nyquist=nyquist)
     spec_ax.set_xlim(low, high)
     y_low, y_high = spectra_ylim(spectra, min_idx, max_idx)
     if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
@@ -236,13 +239,35 @@ def plot_spectra(
     return fig
 
 
+def _validate_freqrange(freqrange: Any, nyquist: float) -> None:
+    bounds = _numeric_values(freqrange)
+    if bounds.size < 2:
+        return
+    low, high = float(bounds[0]), float(bounds[1])
+    if not (np.isfinite(low) and np.isfinite(high) and 0 <= low < high <= float(nyquist) + 1e-6):
+        raise ValueError(
+            "spectopo: freqrange must be [lo hi] with 0 <= lo < hi <= Nyquist "
+            f"({float(nyquist):g} Hz). Put the lower frequency first."
+        )
+
+
+def _locations_usable(chanlocs: Any) -> bool:
+    return any(channel_has_coordinates(loc) for loc in chanlocs_as_list(chanlocs))
+
+
 def frequency_window(
-    frequency_values: np.ndarray, requested_freqs: np.ndarray, freqrange: Any
+    frequency_values: np.ndarray,
+    requested_freqs: np.ndarray,
+    freqrange: Any,
+    nyquist: float | None = None,
 ) -> tuple[float, float, int, int]:
     """Return the (low, high) x-limits and their frequency indices, as EEGLAB does."""
     bounds = _numeric_values(freqrange)
     if bounds.size >= 2:
         low, high = float(bounds[0]), float(bounds[1])
+        step = float(np.nanmedian(np.diff(frequency_values))) if frequency_values.size > 1 else 0.0
+        ceiling = float(nyquist) if nyquist is not None else float(np.nanmax(frequency_values)) + max(step, 0.0)
+        _validate_freqrange([low, high], ceiling)
     else:
         low = LOPLOTHZ
         maxfreq = float(np.nanmax(requested_freqs)) if requested_freqs.size else float(np.nanmax(frequency_values))
@@ -489,7 +514,7 @@ def plot_component_spectra(
             )
         )
 
-    draw_maps = bool(comp_locs)
+    draw_maps = _locations_usable(comp_locs)
     if draw_maps:
         count = len(map_specs)
         top_y, top_h = 0.68, 0.24

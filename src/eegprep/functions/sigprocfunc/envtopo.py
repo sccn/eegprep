@@ -220,14 +220,20 @@ def _reference(data_win, metric_mode):
     return float(np.mean(np.var(data_win, axis=0))) if metric_mode == "pv" else float(np.mean(data_win**2))
 
 
+def _percent(numerator: float, reference: float) -> float:
+    if reference == 0:
+        return 0.0
+    return numerator / reference
+
+
 def _sort_metric(metric_mode, max_power, data_win, proj_win, reference):
     if metric_mode == "mp":
         return max_power
     if metric_mode == "pv":
-        return 100.0 - 100.0 * float(np.mean(np.var(data_win - proj_win, axis=0))) / reference
+        return 100.0 - 100.0 * _percent(float(np.mean(np.var(data_win - proj_win, axis=0))), reference)
     if metric_mode == "pp":
-        return 100.0 - 100.0 * float(np.mean((data_win - proj_win) ** 2)) / reference
-    return 100.0 * float(np.mean(proj_win**2)) / reference  # "rp"
+        return 100.0 - 100.0 * _percent(float(np.mean((data_win - proj_win) ** 2)), reference)
+    return 100.0 * _percent(float(np.mean(proj_win**2)), reference)  # "rp"
 
 
 def _summed_metric(metric_mode, data_win, sum_win, reference):
@@ -236,10 +242,10 @@ def _summed_metric(metric_mode, data_win, sum_win, reference):
     Mirrors EEGLAB: ``pv`` -> pvaf, ``rp`` -> rp, and ``mp``/``pp`` -> ppaf.
     """
     if metric_mode == "pv":
-        return 100.0 - 100.0 * float(np.mean(np.var(data_win - sum_win, axis=0))) / reference, "pvaf"
+        return 100.0 - 100.0 * _percent(float(np.mean(np.var(data_win - sum_win, axis=0))), reference), "pvaf"
     if metric_mode == "rp":
-        return 100.0 * float(np.mean(sum_win**2)) / reference, "rp"
-    return 100.0 - 100.0 * float(np.mean((data_win - sum_win) ** 2)) / reference, "ppaf"
+        return 100.0 * _percent(float(np.mean(sum_win**2)), reference), "rp"
+    return 100.0 - 100.0 * _percent(float(np.mean((data_win - sum_win) ** 2)), reference), "ppaf"
 
 
 def _envelope(data, envmode):

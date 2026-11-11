@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value, parse_numeric_sequence
 
 # matplotlib's file-output backends cannot open a figure window.
 _NONINTERACTIVE_BACKENDS = frozenset({"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"})
@@ -290,14 +290,44 @@ def parse_plot_options_text(text: Any) -> dict[str, Any]:
     return options
 
 
-def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwargs: Any) -> str:
-    """Build a valid Python console command for a plotting pop function."""
+def history_command(
+    function_name: str,
+    *args: Any,
+    eeg_name: str = "EEG",
+    leading_figure: bool = False,
+    **kwargs: Any,
+) -> str:
+    """Build an EEGLAB history command for a plotting pop function.
+
+    Positional values and ``'key', value`` pairs use MATLAB literals. The
+    console converts that text back into a Python call. ``leading_figure``
+    prefixes ``figure;`` the way the EEGLAB plot menus do.
+    """
     pieces = [eeg_name]
-    pieces.extend(python_literal(arg) for arg in args)
-    pieces.extend(
-        f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_history_value(value)
-    )
-    return f"{function_name}({', '.join(pieces)})"
+    pieces.extend(format_history_value(arg) for arg in args)
+    for key, value in kwargs.items():
+        if _is_empty_history_value(value):
+            continue
+        pieces.append(f"{format_history_value(key)}, {_format_history_option(key, value)}")
+    command = f"{function_name}({', '.join(pieces)});"
+    if leading_figure:
+        command = f"figure; {command}"
+    return command
+
+
+def _format_history_option(key: str, value: Any) -> str:
+    if isinstance(value, (bool, np.bool_)):
+        value = int(value)
+    if key == "setup" and isinstance(value, dict):
+        parts = [format_history_value(str(value.get("splinefile", "")))]
+        for name in ("meshfile", "transform"):
+            item = value.get(name)
+            if item is None or item == "" or (isinstance(item, (list, tuple)) and not item):
+                continue
+            parts.append(format_history_value(name))
+            parts.append(format_history_value(item))
+        return "{" + " ".join(parts) + "}"
+    return format_history_value(value)
 
 
 def plot_enabled(plot: str | bool) -> bool:

@@ -43,20 +43,35 @@ def pop_timtopo(
         plottimes = result["plottimes"]
         kwargs.update(result["options"])
     command_kwargs = dict(kwargs)
-    data, times = data_time_slice(EEG, kwargs.pop("timerange", None))
+    timerange = command_kwargs.pop("timerange", None)
+    plot_title = str(command_kwargs.pop("title", EEG.get("setname") or "Channel ERPs"))
+    winsize_value = command_kwargs.pop("winsize", None)
+    data, times = data_time_slice(EEG, timerange)
     erp = np.nanmean(data, axis=2)
-    winsize = _first_float(kwargs.pop("winsize", None), default=0.0)
-    topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
+    winsize = _first_float(winsize_value, default=0.0)
+    topoplot_options = parse_plot_options_text(command_kwargs.pop("options", ""))
     figure = timtopo(
         erp,
         EEG.get("chanlocs", []),
         times=times,
         plottimes=numeric_vector(plottimes).tolist(),
         winsize=winsize,
-        title=str(kwargs.pop("title", EEG.get("setname") or "Channel ERPs")),
+        title=plot_title,
         topoplot_options=topoplot_options,
     )
-    command = history_command("pop_timtopo", plottimes, **command_kwargs)
+    history_range = timerange
+    if history_range is None or history_range == []:
+        history_range = [float(times[0]), float(times[-1])] if len(times) else []
+    if winsize:
+        command_kwargs["winsize"] = winsize_value
+    command = history_command(
+        "pop_timtopo",
+        history_range,
+        numeric_vector(plottimes).tolist(),
+        plot_title,
+        leading_figure=True,
+        **command_kwargs,
+    )
     show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 
