@@ -164,6 +164,34 @@ def test_dipfit_native_gridsearch_and_nonlinear_fit_known_spherical_source():
     assert _console_python_command(com) == "EEG = pop_dipfit_nonlinear(EEG, component=1, nonlinear='yes')"
 
 
+def test_mni_nonlinear_fit_stays_inside_the_head():
+    eeg = create_test_eeg_with_ica(n_channels=18, n_samples=40, n_components=1)
+    phi = np.linspace(0.35, np.pi - 0.35, 3)
+    theta = np.linspace(0, 2 * np.pi, 6, endpoint=False)
+    points = [
+        [85.0 * np.sin(polar) * np.cos(azimuth), 85.0 * np.sin(polar) * np.sin(azimuth), 85.0 * np.cos(polar)]
+        for polar in phi
+        for azimuth in theta
+    ]
+    eeg["chanlocs"] = [
+        {"labels": f"E{index + 1}", "type": "EEG", "X": float(point[0]), "Y": float(point[1]), "Z": float(point[2])}
+        for index, point in enumerate(points)
+    ]
+    topography = np.zeros(len(points))
+    topography[0] = 1.0
+    eeg["icawinv"] = topography[:, np.newaxis]
+    eeg["icaweights"] = np.linalg.pinv(eeg["icawinv"])
+    eeg["icasphere"] = np.eye(eeg["nbchan"])
+    eeg["icachansind"] = np.arange(eeg["nbchan"])
+    eeg, _com = pop_dipfit_settings(eeg, model="standardBEM", return_com=True)
+    eeg["dipfit"]["model"] = [{"posxyz": [[0.0, 0.0, 40.0]], "momxyz": [[0.0, 0.0, 1.0]], "rv": 1.0, "component": 1}]
+
+    refined = pop_dipfit_nonlinear(eeg, component=1, gui=False)
+
+    position = np.asarray(refined["dipfit"]["model"][0]["posxyz"], dtype=float)[0]
+    assert np.linalg.norm(position) < 85.0
+
+
 def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset():
     eeg, true_pos, _true_mom = _known_dipole_eeg()
     eeg["chanlocs"].extend(

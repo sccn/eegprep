@@ -85,8 +85,9 @@ def dipfit_gridsearch(
         raise ValueError("grid does not contain any points inside the spherical head")
     out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
+    fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
     for component_index in forward.components:
-        fit = fit_component_grid(forward, component_index, candidates)
+        fit = fit_component_grid(forward, component_index, candidates, fields)
         models[component_index - 1].update(fit)
     if reject is not None:
         models = dipfit_reject(models, reject)
@@ -201,10 +202,16 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
     )
 
 
-def fit_component_grid(forward: DipfitForwardData, component: int, candidates: np.ndarray) -> dict[str, Any]:
+def fit_component_grid(
+    forward: DipfitForwardData,
+    component: int,
+    candidates: np.ndarray,
+    fields: list[np.ndarray] | None = None,
+) -> dict[str, Any]:
     """Return the best single-dipole fit for one component over candidates."""
     topography = _average_reference(_component_topography(forward, component))
-    fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
+    if fields is None:
+        fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
     best_index: int | None = None
     best_error = np.inf
     for index, field in enumerate(fields):
@@ -402,7 +409,10 @@ def _optimize_positions(
             return values.reshape(initial_positions.shape)
 
     def objective(values: np.ndarray) -> float:
-        fit = _fit_positions_to_topography(forward.positions, topography, unpack(values), forward.headmodel)
+        positions = unpack(values)
+        if forward.headmodel is None and np.any(np.linalg.norm(positions, axis=1) >= forward.head_radius * 0.995):
+            return 1e3 + float(np.max(np.linalg.norm(positions, axis=1)))
+        fit = _fit_positions_to_topography(forward.positions, topography, positions, forward.headmodel)
         rv = float(fit["rv"])
         if not np.isfinite(rv):
             return 1.0
