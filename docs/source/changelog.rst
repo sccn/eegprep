@@ -19,6 +19,8 @@ Unreleased
   reloading that dataset keeps the empty coordinates (#538).
 - ``eeg_getdatact`` computes component activity when ``icaact`` is missing,
   empty, or ``None`` (#506).
+- ``gauss`` with one frame returns ``exp(-sds**2)``, the single sample at
+  ``-sds`` (#507).
 - ``topoplot`` raises ``ValueError`` when an interpolated map has ``None`` or
   empty channel locations. The message names ``topoplot`` and points to
   ``pop_chanedit`` or ``pop_readlocs``. A blank map with an empty location
