@@ -738,6 +738,47 @@ class _OptionsFileEngine:
             self.option_single = 1
 
 
+def test_run_repro_restores_eeg_options(tmp_path, monkeypatch):
+    path = tmp_path / "eeg_options.m"
+    original = b"% local note\noption_single = 1;\n"
+    path.write_bytes(original)
+    raw = _OptionsFileEngine(path)
+
+    def connect():
+        return SimpleNamespace(engine=raw), suspend_option_single(raw)
+
+    monkeypatch.setattr("tests.fuzz.harness.connect_matlab", connect)
+    repro = tmp_path / "repro.json"
+    repro.write_text(
+        json.dumps(
+            {
+                "function": "pop_reref",
+                "params": {"ref": [], "keepref": "off", "exclude": []},
+                "spec": {
+                    "channels": [0],
+                    "start": 0,
+                    "length": 8,
+                    "decimate": 1,
+                    "nan_channel": -1,
+                    "nan_start": 0,
+                    "nan_length": 0,
+                },
+            }
+        )
+    )
+
+    run_repro(repro, materialize=_ones)
+
+    assert path.read_bytes() == original
+    assert raw.option_single == 1
+
+    from tests.fuzz.__main__ import main
+
+    main(["reproduce", str(repro)])
+    assert path.read_bytes() == original
+    assert raw.option_single == 1
+
+
 def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
     path = tmp_path / "eeg_options.m"
     original = b"% local note\noption_single = 1;\n"

@@ -6,6 +6,7 @@ EEGLAB output is the oracle. Absolute and relative tolerances are loaded from
 
 from __future__ import annotations
 
+import atexit
 import copy
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
@@ -783,6 +784,14 @@ class MatlabBackend:
     def __init__(self):
         self._engine = None
         self._options = None
+        self._restore_at_exit = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
 
     def run(self, case: FuzzCase, eeg: dict) -> SideResult:
         try:
@@ -793,14 +802,26 @@ class MatlabBackend:
     def engine(self):
         if self._engine is None:
             self._engine, self._options = connect_matlab()
+            atexit.register(self.close)
+            self._restore_at_exit = True
         return self._engine
 
     def close(self):
         if self._engine is None or self._options is None:
+            self._drop_exit_hook()
             return
         snapshot = self._options
         self._options = None
-        resume_eeg_options(self._engine.engine, snapshot)
+        try:
+            resume_eeg_options(self._engine.engine, snapshot)
+        finally:
+            self._drop_exit_hook()
+
+    def _drop_exit_hook(self):
+        if not self._restore_at_exit:
+            return
+        atexit.unregister(self.close)
+        self._restore_at_exit = False
 
 
 class FakeOracle:
@@ -1005,13 +1026,58 @@ def run_session(
     functions: tuple[str, ...] | None = None,
 ) -> SessionResult:
     """Run sanity, then a seeded survey, then shrink confirmed divergences."""
+    owns_oracle = oracle_backend is None
+    if owns_oracle:
+        oracle_backend = MatlabBackend()
+    try:
+        return _run_session_body(
+            seed_value=seed_value,
+            output_dir=output_dir,
+            examples=examples,
+            shrink_budget=shrink_budget,
+            max_shrinks=max_shrinks,
+            issue_cap=issue_cap,
+            python_backend=python_backend,
+            oracle_backend=oracle_backend,
+            strategies=strategies,
+            sanity=sanity,
+            materialize=materialize,
+            tolerances=tolerances,
+            tracker=tracker,
+            run_url=run_url,
+            summary_path=summary_path,
+            functions=functions,
+        )
+    finally:
+        if owns_oracle:
+            oracle_backend.close()
+
+
+def _run_session_body(
+    *,
+    seed_value: int,
+    output_dir: Path,
+    examples: int = 6,
+    shrink_budget: int = 12,
+    max_shrinks: int = 4,
+    issue_cap: int = 3,
+    python_backend=None,
+    oracle_backend=None,
+    strategies: dict | None = None,
+    sanity: list[FuzzCase] | None = None,
+    materialize: Materialize | None = None,
+    tolerances: dict[str, Tolerance] | None = None,
+    tracker=None,
+    run_url: str = "",
+    summary_path: Path | None = None,
+    functions: tuple[str, ...] | None = None,
+) -> SessionResult:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info("fuzz seed %s", seed_value)
     (output_dir / "seed.txt").write_text(f"{seed_value}\n")
 
     python_backend = python_backend or PythonBackend()
-    oracle_backend = oracle_backend or MatlabBackend()
     injected = strategies is not None
     caller_sanity = sanity
     strategies = dict(strategies or default_strategies())
@@ -1156,17 +1222,24 @@ def run_repro(
     """Re-run a saved repro against the oracle and check the saved input hash."""
     payload = json.loads(Path(path).read_text())
     case = case_from_payload(payload)
-    outcome = evaluate_case(
-        case,
-        materialize or materialize_eeg,
-        python_backend or PythonBackend(),
-        oracle_backend or MatlabBackend(),
-        load_tolerances(),
-    )
-    expected = payload.get("input_sha256", "")
-    if expected and outcome.input_sha256 != expected:
-        raise RuntimeError(f"input hash {outcome.input_sha256} does not match saved {expected}")
-    return outcome
+    owns_oracle = oracle_backend is None
+    if owns_oracle:
+        oracle_backend = MatlabBackend()
+    try:
+        outcome = evaluate_case(
+            case,
+            materialize or materialize_eeg,
+            python_backend or PythonBackend(),
+            oracle_backend,
+            load_tolerances(),
+        )
+        expected = payload.get("input_sha256", "")
+        if expected and outcome.input_sha256 != expected:
+            raise RuntimeError(f"input hash {outcome.input_sha256} does not match saved {expected}")
+        return outcome
+    finally:
+        if owns_oracle:
+            oracle_backend.close()
 
 
 def case_from_payload(payload: dict) -> FuzzCase:
