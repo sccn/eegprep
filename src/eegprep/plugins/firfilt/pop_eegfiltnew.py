@@ -230,7 +230,6 @@ def _append_applied_design(
             "filtorder": int(metadata["filtorder"]),
             "df": float(metadata["df"]),
             "revfilt": bool(metadata["revfilt"]),
-            "minphase": minphase,
             "coefficients": coefficients.copy(),
         }
     )

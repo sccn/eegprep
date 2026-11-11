@@ -392,8 +392,7 @@ def _assert_applied_design(record, coefficients, metadata, *, srate, channels, p
     assert record["srate"] == float(srate)
     assert record["channels"] == list(channels)
     assert record["phase"] == phase
-    assert record["minphase"] is (phase == "minphase")
-    assert record["minphase"] is bool(metadata["minphase"])
+    assert record["phase"] == ("minphase" if metadata["minphase"] else "zerophase")
     _assert_design_edge(record["locutoff"], metadata["locutoff"])
     _assert_design_edge(record["hicutoff"], metadata["hicutoff"])
     np.testing.assert_array_equal(
