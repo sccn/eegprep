@@ -24,7 +24,7 @@ Unreleased
   72, 79, and 85 mm. The MNI boundary-element template names the missing
   ``standard_vol.mat`` file and fitting asks for the BESA sphere (F65, F113,
   F114). Replacing the head-model file drops the volume stored for the
-  previous file, so a BESA sphere does not stay behind a different model.
+  previous file. Fitted dipoles in ``dipfit.model`` stay in place.
 - Coarse fit and autofit run with the BESA sphere. A ``linspace`` expression
   from the coarse-fit dialog stays in the history command (F114, F115).
 - The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid and a

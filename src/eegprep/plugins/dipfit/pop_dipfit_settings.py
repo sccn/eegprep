@@ -220,11 +220,9 @@ def _index_list(value: Any) -> list[int]:
 def _template_index(dipfit: dict[str, Any]) -> int:
     hdmfile = str(dipfit.get("hdmfile") or "").lower()
     for index, template in enumerate(STANDARD_TEMPLATES, start=1):
-        if template.hdmfile and (
-            template.hdmfile.lower() == hdmfile or template.shortname.lower() == str(dipfit.get("model", "")).lower()
-        ):
+        if template.hdmfile and template.hdmfile.lower() == hdmfile:
             return index
-    if hdmfile or str(dipfit.get("model") or "").strip():
+    if hdmfile:
         return len(STANDARD_TEMPLATES)
     return 1
 
