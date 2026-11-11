@@ -12,7 +12,7 @@ classes.
 Two-File ``.set`` / ``.fdt`` Datasets
 =====================================
 
-``pop_saveset`` saves one-file ``.set`` files by default. To write a two-file
+``pop_saveset`` saves new datasets as one-file ``.set`` files by default. To write a two-file
 ``.set`` header plus float32 data sidecar, pass ``savemode="twofiles"`` or set
 ``EEG_OPTIONS["option_savetwofiles"] = 1``:
 
@@ -49,9 +49,17 @@ file is left unchanged. File > Save current dataset as asks before replacing
 the ``.set`` file that will be written. If the parent folder cannot be created or the
 ``.set`` file is not written, ``pop_saveset`` raises an error and does not
 mark the dataset saved. A missing parent folder is created when that is
-possible. A plain save without
-``savemode`` follows the current ``option_savetwofiles`` setting; if that
-option is disabled, the data is saved inline in the ``.set`` file.
+possible. Save as also preserves a loaded dataset's two-file layout, naming
+both files after the new target. Use ``savemode="onefile"`` to embed samples
+explicitly. New datasets follow ``option_savetwofiles``.
+
+MATLAB v7.3 datasets load through the same API, preserving complete Unicode
+labels and event types, nested metadata, and empty events. Companion references
+in the header must be bare filenames without directories, drives, or path
+separators. The named files must sit beside the header, but may be symlinks
+to data elsewhere, as in DataLad/git-annex OpenNeuro checkouts. Keep the
+``.set`` and ``.fdt`` names together when moving a dataset. BrainVision
+headers apply the same rule to their sample and marker files.
 
 Memory-Mapped Data
 ==================
@@ -151,3 +159,25 @@ and clears ICA fields that no longer describe the selected channel matrix.
 Derived caches such as ``icaact`` are not managed by a separate lazy-storage
 layer, and EEGPrep does not provide multi-process write coordination for shared
 ``.fdt`` files.
+
+Importing MFF and Neuroscan recordings
+======================================
+
+For EGI MFF, select the ``.mff`` folder itself. Install the reader and XML
+support with ``pip install "eegprep[mne]"``. For ``.eeg`` and ``.EEG`` files,
+``pop_fileio`` first looks for a sibling ``.vhdr`` or ``.ahdr`` header and
+uses the BrainVision reader when one exists. Without a sibling header it
+uses the native Neuroscan epoch reader, which does not require MNE.
+Each sweep retains trial, accept, correct, response, and reaction-time events,
+including rejected sweeps. That matches EEGLAB's ``loadeeg`` /
+``pop_loadeeg`` default (``accepttype='all'``), which also keeps rejected
+sweeps and exposes the per-sweep ``accept`` field (0 rejected, 1 accepted)
+so callers can filter later.
+
+The F119 audit's File-IO comparison reports 1,193 trials and 5,960 events.
+The same recording contains 1,200 sweeps, including seven marked rejected.
+FieldTrip's ``read_ns_hdr`` uses the accepted-count field at byte 364 as
+``nsweeps``; its reader then reads that many leading sweeps. EEGPrep uses the
+total-sweep field at byte 362 and retains all complete sweeps and their
+acceptance metadata, matching EEGLAB rather than FieldTrip. This
+source-based difference from FieldTrip is regression-tested.

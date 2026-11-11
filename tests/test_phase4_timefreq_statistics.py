@@ -1219,9 +1219,9 @@ def test_correctfit_applies_gamma_parameters_and_zero_mode():
         ),
     ],
 )
-def test_timefreq_statistics_menu_dispatch_records_history(sample_eeg, action, module_path, expected_kwargs, command):
+def test_timefreq_statistics_menu_dispatch_records_history(ica_epoch, action, module_path, expected_kwargs, command):
     session = EEGPrepSession()
-    session.store_current(sample_eeg, new=True)
+    session.store_current(ica_epoch, new=True)
     stored_eeg = session.EEG
     dispatcher = MenuActionDispatcher(session)
 

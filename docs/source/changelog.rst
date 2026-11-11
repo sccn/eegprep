@@ -10,6 +10,85 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Import dialogs expose data shape, sampling, metadata, channel selection,
+  ranges, event fields, units, alignment, and epoch options. Cancel preserves
+  the dataset and history; accepted imports update the GUI and console
+  together (F10/F19/F21/F22). CNT and EGI Simple Binary imports use their
+  native readers; BrainVision import returns float32 samples (F23).
+- ASCII imports transpose samples-by-channels input, use float32 samples,
+  keep channel locations and the dataset name empty unless supplied, and
+  record the effective sampling rate. Epoch reshaping keeps consecutive
+  samples together (F21).
+- Event import rejects capitalized reserved fields with correction advice.
+  History accepts NumPy arrays of field names and preserves NaN options.
+  Epoch-file import requires explicit column names and header-line counts
+  (F19/F22). Channel-event extraction retains both types when falling and
+  rising edges coincide (F20).
+- Presentation import offers type, latency, and duration column selection
+  and records the choices for replay. ERPLAB import maps event lists and
+  bin definitions onto existing events, with safe cancellation (F10/F31).
+  CNT history retains the selected start and duration; ASCII history can
+  replay imported channel metadata (F10/F21/F23).
+
+- MFF import selects the recording folder, and the MNE extra installs the XML
+  parser required by its MFF reader (F18). Missing XML support uses the shared
+  optional-dependency error with the extra's installation command.
+- Neuroscan ``.EEG`` import uses the native epoch reader and retains sweep
+  events, channel calibration, and rejected sweeps (F119), matching EEGLAB
+  ``loadeeg``/``pop_loadeeg`` (``accepttype='all'``). Generic File-IO
+  also recognizes EGI Simple Binary ``.raw`` files (F23). Files ending in
+  ``.eeg`` or ``.EEG`` use BrainVision when a sibling ``.vhdr`` or ``.ahdr``
+  exists, including channel/sample selections and time-range imports.
+  BrainVision time ranges use the same native reader and channel layout as
+  full imports; ``blockrange`` converts seconds to samples at the header's
+  sampling rate without requiring MNE.
+
+- MATLAB v7.3 datasets preserve complete labels, nested references, empty
+  events, and channel-major data even when dimensions coincide (F15, #497).
+- Dataset and BrainVision readers require bare companion filenames in header
+  references, rejecting directories, traversal, and Windows drives (#561).
+  Adjacent symlinks into DataLad/git-annex storage remain supported. Invalid
+  datasets and missing sample files give recovery instructions (F34).
+  HDF5 field-decoding errors retain their specific exception rather than
+  being reported as invalid MAT files.
+- Save as preserves the two-file layout of loaded datasets and appends
+  ``.set`` to extensionless names; ``savemode="onefile"`` explicitly embeds
+  samples (F26). BIDS ``None`` channel metadata (#538) belongs to Stream 10.
+
+- Long preference-file paths no longer push Preferences controls offscreen;
+  the full path is available in the option-file tooltip (F89, #556).
+- Console startup tolerates missing or closed logging streams and restores
+  active handlers after the console exits (#556).
+- Copying rejection marks between data and ICA fields does not require an ICA
+  decomposition. Component processing and plots retain their ICA preconditions
+  (F64/F81, #556).
+- Saved preferences load in the interactive launchers. Imports and window or
+  workspace constructors preserve in-process options, including when opening
+  another GUI from a running console (F89, #556).
+- Console history replay expands MATLAB colon ranges, including stepped ranges,
+  and accepts the three-output dataset commands stored for EEGLAB. Stored
+  history remains unchanged (Stream 2 handover and F27/F49/F94, #556).
+- Component actions check for ICA before opening dialogs. Warnings identify the
+  failing operation and preserve source errors; ICA and empty-result
+  preconditions provide recovery guidance at the failure site. Help renders
+  Markdown, updates are checked in-app, and File > Quit asks before discarding
+  unsaved datasets (F47/F64/F81/F96/F97 and Quit audit, #556).
+- Preferences exposes memory/storage and advanced options, saves GUI choices
+  to ``~/.eegprep/options.json``, restores them on launch, and updates menu
+  visibility immediately. Unsupported global preferences are disabled and
+  documented; native-dialog choices stay out of MATLAB history. Clear retains
+  the dataset-number confirmation dialog supplied by the data-safety fixes
+  (F29/F89, #556).
+- Dataset processing warns before overwriting multiple selections, rejects empty
+  results, and opens Dataset info after merging. Session scripts and copy/select/
+  store commands use runnable EEGLAB forms and concrete indices; saved file
+  history separates filename and filepath (F27/F38/F42/F49/F90/F94, #556).
+- Main-window menus retain their Qt objects across dataset refreshes and nested
+  dialogs, including failed imports (F54/F121/F30, #556).
+- The main window shows channel-reference consensus, consistent epoch-time
+  precision, total dataset memory, and mixed ICA status. Single-dataset selection
+  and empty-result recovery keep the Datasets menu usable; component scrolling
+  and ICLabel menus follow EEGLAB availability (F1/F95/F2/F3/F4/F5/F38/F93, #556).
 - Event selection records numeric criteria for numeric event codes and preserves
   string codes as text. Data selection preserves input precision; embedded
   save precision remains with the S1 stream (F50, #548).

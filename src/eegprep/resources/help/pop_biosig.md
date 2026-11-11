@@ -30,3 +30,5 @@ Use `pop_fileio` for other formats such as BrainVision, EGI MFF, CNT, or
 EEGLAB `.set` files.
 
 See also: POP_FILEIO, POP_IMPORTDATA, POP_LOADSET
+
+Use `gui=True` for channel/range/event/reference options. References are 1-based indices in the loaded channels after Status removal. `importannot="off"` suppresses annotations independently of marker-event import. `memorymapped="on"` stores the imported samples in a temporary mapping. Install readers with `pip install "eegprep[mne]"`. Python readers expose calibrated continuous data; MATLAB mexSLOAD and overflow/uncalibrated options do not apply.

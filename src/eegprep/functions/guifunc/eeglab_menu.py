@@ -8,7 +8,6 @@ from eegprep.functions.guifunc.menu_spec import MenuItemSpec, menu_item, visible
 ON = "study:on"
 ON_NO_STUDY = ""
 ON_DATA = "startup:off"
-ON_DATA_ICA = "startup:off;ica:on"
 ON_DATA_NO_ROI = "startup:off;roi:off"
 ON_EPOCH = "startup:off;continuous:off"
 ON_EPOCH_ICA = "startup:off;continuous:off;ica:on"
@@ -247,7 +246,7 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
             menu_item(
                 "Component activations (scroll)",
                 action="pop_eegplot:components",
-                userdata=ON_DATA_ICA,
+                userdata=ON_DATA,
                 separator=True,
             ),
             menu_item("Component spectra and maps", action="pop_spectopo:components", userdata=ON_DATA_NO_ROI),

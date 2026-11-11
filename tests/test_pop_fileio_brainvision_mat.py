@@ -216,7 +216,7 @@ def test_menu_import_uses_the_analyzer_layout(tmp_path):
     assert len(_events(eeg)) == 2
     assert eeg["filename"] == ""
     assert path.is_file()
-    assert "pop_fileio_brainvision_mat" in session.LASTCOM
+    assert any("pop_fileio_brainvision_mat" in command for command in session.ALLCOM)
 
 
 def _wrap_degrees(value):
