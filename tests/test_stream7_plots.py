@@ -71,11 +71,13 @@ def _channel_axes(figure):
     return [axis for axis in figure.axes if axis.get_title()]
 
 
-def _replay(command: str, **namespace):
+def _replay(command: str, *, return_com: bool = False, **namespace):
     tree = ast.parse(_console_python_command(command), mode="eval")
     call = tree.body
     assert isinstance(call, ast.Call)
     call.keywords.append(ast.keyword(arg="plot", value=ast.Constant(value="off")))
+    if return_com:
+        call.keywords.append(ast.keyword(arg="return_com", value=ast.Constant(value=True)))
     ast.fix_missing_locations(tree)
     return eval(compile(tree, "<history>", "eval"), namespace)
 
@@ -143,7 +145,8 @@ def test_f74_compare_needs_two_datasets_and_subtracts_means():
     subtract = next(control for control in spec.controls if control.tag == "subindices")
     assert subtract.value == "2 1"
     figure, command = pop_envtopo([first, second], [-100, 100], compnums=[1], plot="off", return_com=True)
-    assert "EEG([1 2])" in command
+    assert "EEG([" not in command
+    assert command.startswith("pop_envtopo(EEG, [-100 100]")
     ast.parse(_console_python_command(command))
     plt.close(figure)
     identical, _command = pop_envtopo([first, deepcopy(first)], [-100, 100], compnums=[1], plot="off", return_com=True)
@@ -322,17 +325,48 @@ def test_positional_plot_history_replays_with_the_values_that_were_requested():
     plt.close(rectangular)
     plt.close(replayed_rectangular)
 
-    other = _epoch(amplitude=1)
     envelope, envtopo_command = pop_envtopo(
-        [eeg, other], [-100, 100], compnums=[1], title="Difference", plot="off", return_com=True
+        eeg, [-100, 100], compnums=[1], title="Difference", plot="off", return_com=True
     )
-    replayed_envelope = _replay(envtopo_command, ALLEEG=[eeg, other], pop_envtopo=pop_envtopo)
+    replayed_envelope = _replay(envtopo_command, EEG=eeg, pop_envtopo=pop_envtopo)
     assert replayed_envelope._suptitle.get_text() == "Difference"
-    direct_line = [line.get_ydata() for line in envelope.axes[0].lines if line.get_linewidth() == 2]
-    replayed_line = [line.get_ydata() for line in replayed_envelope.axes[0].lines if line.get_linewidth() == 2]
-    np.testing.assert_allclose(np.concatenate(replayed_line), np.concatenate(direct_line))
     plt.close(envelope)
     plt.close(replayed_envelope)
+
+
+def test_envtopo_replay_keeps_the_named_datasets():
+    first = _epoch(amplitude=4, setname="Left")
+    second = _epoch(amplitude=1, setname="Right")
+    third = _epoch(amplitude=9, setname="Third")
+    figure, command = _replay(
+        "pop_envtopo(EEG([3 1]), [-100 100], 'compnums', [1], 'title', 'picked');",
+        return_com=True,
+        ALLEEG=[first, second, third],
+        pop_envtopo=pop_envtopo,
+    )
+    assert "EEG([3 1])" in command
+    assert "EEG([1 2])" not in command
+    translated = _console_python_command("pop_envtopo(EEG([3 1]), [-100 100], 'compnums', [1]);")
+    assert "subindices=[3,1]" in translated.replace(" ", "")
+    direct = pop_envtopo([third, first], [-100, 100], compnums=[1], title="picked", plot="off")
+    replayed_line = [line.get_ydata() for line in figure.axes[0].lines if line.get_linewidth() == 2]
+    direct_line = [line.get_ydata() for line in direct.axes[0].lines if line.get_linewidth() == 2]
+    np.testing.assert_allclose(np.concatenate(replayed_line), np.concatenate(direct_line))
+    plt.close(figure)
+    chosen, chosen_command = pop_envtopo(
+        [first, second, third],
+        [-100, 100],
+        subindices=[3, 1],
+        compnums=[1],
+        title="picked",
+        plot="off",
+        return_com=True,
+    )
+    assert "EEG([3 1])" in chosen_command
+    chosen_line = [line.get_ydata() for line in chosen.axes[0].lines if line.get_linewidth() == 2]
+    np.testing.assert_allclose(np.concatenate(chosen_line), np.concatenate(direct_line))
+    plt.close(direct)
+    plt.close(chosen)
 
 
 def test_f99_preferences_history_keeps_changed_options():

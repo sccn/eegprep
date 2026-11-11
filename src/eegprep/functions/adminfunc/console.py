@@ -816,7 +816,12 @@ def _is_figure_statement(statement: str) -> bool:
 
 
 def _matlab_eeg_index_to_alleeg(text: str) -> str:
-    """Translate ``EEG([2, 1])`` into the console's ``ALLEEG`` list."""
+    """Translate ``EEG([2, 1])`` into the console's ``ALLEEG`` list.
+
+    ``pop_envtopo`` also receives those dataset numbers as ``subindices`` so
+    the returned history can name the same datasets.
+    """
+    text = _pop_envtopo_dataset_indices(text)
 
     def repl(match: re.Match[str]) -> str:
         numbers = [int(float(token)) for token in match.group(1).replace(",", " ").split() if token]
@@ -824,6 +829,21 @@ def _matlab_eeg_index_to_alleeg(text: str) -> str:
         return f"[{items}]"
 
     return re.sub(r"\bEEG\(\[([0-9,\s]+)\]\)", repl, text)
+
+
+def _pop_envtopo_dataset_indices(text: str) -> str:
+    match = re.search(r"pop_envtopo\(\s*EEG\(\[([0-9,\s]+)\]\)", text)
+    if match is None:
+        return text
+    numbers = [int(float(token)) for token in match.group(1).replace(",", " ").split() if token]
+    items = ", ".join(f"ALLEEG[{number - 1}]" for number in numbers)
+    indices = ", ".join(str(number) for number in numbers)
+    replaced = f"{text[: match.start()]}pop_envtopo([{items}]{text[match.end() :]}"
+    open_paren = replaced.find("(", match.start())
+    close = _delimiter_end(replaced, open_paren, "(", ")")
+    if close is None:
+        return replaced
+    return f"{replaced[:close]}, subindices=[{indices}]{replaced[close:]}"
 
 
 def _split_history_statements(text: str) -> list[str]:

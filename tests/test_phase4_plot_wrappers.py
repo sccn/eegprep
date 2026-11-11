@@ -820,7 +820,7 @@ def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
     _assert_python_command(command)
     plt.close(figure)
     compared, compared_command = pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1], return_com=True)
-    assert "EEG([1 2])" in compared_command
+    assert "EEG([" not in compared_command
     _assert_python_command(compared_command)
     plt.close(compared)
 

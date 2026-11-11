@@ -19,6 +19,10 @@ Unreleased
   reloading that dataset keeps the empty coordinates (#538).
 - Component-envelope comparison can choose two datasets from a longer list.
   The two-dataset limit applies after that choice.
+- ``pop_envtopo`` history names ``EEG([i j])`` when the dialog or ``subindices``
+  supplies those ``ALLEEG`` numbers. A two-dataset list with no indices is
+  recorded as ``pop_envtopo(EEG, ...)``. Replaying ``EEG([3 1])`` keeps
+  ``[3 1]``.
 - ``pop_timtopo`` history replays in the console with the EEGLAB argument
   order: time range, scalp-map latencies, then the plot title.
 - ``eeg_getdatact`` computes component activity when ``icaact`` is missing,

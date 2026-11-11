@@ -36,12 +36,15 @@ def pop_envtopo(
     """Plot largest component ERP envelopes and component maps.
 
     Pass ``plot='off'`` to build and return the figure without opening a window.
+    ``subindices`` records that ``ALLEEG`` pair in history. When more than two
+    datasets are passed, it also selects the pair.
     """
     if EEG is None:
         return (None, "") if return_com else None
     datasets = list(EEG) if isinstance(EEG, list) else [EEG]
+    explicit_subindices = kwargs.pop("subindices", None)
     if gui is None:
-        gui = timerange is None and not kwargs
+        gui = timerange is None and explicit_subindices is None and not kwargs
     subindices: tuple[int, int] | None = None
     if gui:
         compare_gui = len(datasets) > 1
@@ -53,11 +56,15 @@ def pop_envtopo(
         if compare_gui:
             subindices = result["subindices"]
             datasets = [datasets[subindices[0] - 1], datasets[subindices[1] - 1]]
+    elif explicit_subindices is not None and len(datasets) > 1:
+        if len(datasets) > 2:
+            subindices = _parse_subindices(explicit_subindices, len(datasets))
+            datasets = [datasets[subindices[0] - 1], datasets[subindices[1] - 1]]
+        else:
+            subindices = _index_pair(explicit_subindices)
     if len(datasets) > 2:
         raise ValueError("pop_envtopo: Cannot process more than two datasets")
     compare = len(datasets) > 1
-    if compare and subindices is None:
-        subindices = (1, 2)
     if compare:
         dataset = datasets[0]
         other = datasets[1]
@@ -189,13 +196,18 @@ def _envtopo_title(EEG: dict[str, Any]) -> str:
     return "Largest ERP components"
 
 
-def _parse_subindices(value: Any, count: int) -> tuple[int, int]:
+def _index_pair(value: Any) -> tuple[int, int]:
     indices = numeric_vector(value, dtype=int)
-    if indices.size < 2:
+    if indices.size < 2 or np.any(indices < 1):
         raise ValueError("pop_envtopo: enter two dataset indices to subtract, for example 2 1")
-    if np.any(indices < 1) or np.any(indices > count):
-        raise ValueError(f"pop_envtopo: dataset indices must be within 1..{count}")
     return int(indices[0]), int(indices[1])
+
+
+def _parse_subindices(value: Any, count: int) -> tuple[int, int]:
+    first, second = _index_pair(value)
+    if first > count or second > count:
+        raise ValueError(f"pop_envtopo: dataset indices must be within 1..{count}")
+    return first, second
 
 
 def _component_mean(EEG: dict[str, Any], timerange: Any) -> dict[str, Any]:

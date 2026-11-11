@@ -401,6 +401,14 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
    * - Identical dataset comparison
      - ``pop_envtopo`` on two identical datasets plots the near-zero
        difference. EEGLAB can raise an axes-limit error on that difference.
+   * - Component-envelope dataset indices
+     - ``pop_envtopo`` records ``EEG([i j])`` when the dialog or an explicit
+       ``subindices`` value names that pair in ``ALLEEG``. A two-dataset list
+       with no indices is recorded as ``pop_envtopo(EEG, ...)``. Replaying
+       ``EEG([3 1])`` keeps ``[3 1]``. EEGLAB ``pop_envtopo.m`` lines 170-174
+       write ``EEG([subindices])`` only after the dialog creates
+       ``subindices``. A scripted two-dataset call leaves that history line
+       unset, so the returned command does not name the datasets.
    * - Component head-plot color scale
      - Component ``pop_headplot`` maps use per-map ``absmax`` limits and the
        ``jet`` colormap. EEGLAB ``pop_headplot.m`` lines 424-439 fix component
