@@ -208,6 +208,12 @@ class BatchEngine:
             time.sleep(0.05)
 
 
+def _publish_mat(path: Path, payload: dict) -> None:
+    partial = path.with_suffix(".part")
+    scipy.io.savemat(partial, payload)
+    os.replace(partial, path)
+
+
 def install(directory):
     """Register fake ``matlab`` / ``matlab.engine`` modules backed by the served directory."""
     engine = types.ModuleType("matlab.engine")
@@ -234,12 +240,13 @@ if __name__ == "__main__":  # self-check against a fake server, no MATLAB needed
                 n = int(r["nargout"][0, 0])
                 res = req.with_name(req.name.replace("req_", "res_"))
                 if str(r["name"][0]) == "boom":
-                    scipy.io.savemat(res, {"error": {"identifier": "x", "message": "Unknown mode", "stack": ""}})
+                    payload = {"error": {"identifier": "x", "message": "Unknown mode", "stack": ""}}
                 else:
                     outs = np.empty((1, n), dtype=object)
                     for i in range(n):
                         outs[0, i] = r["args"][0, i] if i < r["args"].shape[1] else np.array([[42.0]])
-                    scipy.io.savemat(res, {"outputs": outs})
+                    payload = {"outputs": outs}
+                _publish_mat(res, payload)
                 req.unlink()
             time.sleep(0.005)
 
