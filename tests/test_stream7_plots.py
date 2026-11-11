@@ -80,6 +80,15 @@ def test_f71_missing_coordinates_skip_maps_and_disable_frequency_field():
     assert freqs.enabled is False
     with pytest.raises(ValueError, match="topoplot: no channel has a finite theta and radius"):
         topoplot(np.ones(3), eeg["chanlocs"])
+    usable = [
+        {"labels": "Fz", "theta": 0.0, "radius": 0.4},
+        {"labels": "EOG", "theta": np.array([]), "radius": np.array([])},
+        {"labels": "Pz", "theta": 180.0, "radius": 0.4},
+    ]
+    values = np.array([1.0, 5.0, -1.0])
+    _, mixed, *_rest = topoplot(values, usable, noplot="on")
+    _, kept, *_rest = topoplot(values[[0, 2]], [usable[0], usable[2]], noplot="on")
+    np.testing.assert_allclose(mixed, kept, equal_nan=True)
 
 
 def test_f72_empty_channels_stay_beside_a_shared_scale():

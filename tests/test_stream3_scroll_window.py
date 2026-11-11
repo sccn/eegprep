@@ -55,7 +55,7 @@ def test_show_false_omitted_reject_does_not_open_a_dialog() -> None:
     out, command = pop_eegplot(eeg, return_com=True, show=False)
 
     assert out is eeg
-    assert command == "pop_eegplot(EEG, 1, 0, 1)"
+    assert command == "pop_eegplot(EEG, 1, 0, 1);"
 
 
 def test_apply_eegplot_rejections_empty_continuous_reject_records_nothing() -> None:
@@ -325,7 +325,7 @@ def test_gui_channel_scroll_skips_instruction_dialog(qapp) -> None:
 
     assert state["box"] is False
     assert len(_browser_windows()) == 1
-    assert session.ALLCOM == ["pop_eegplot(EEG, 1, 1, 1)"]
+    assert session.ALLCOM == ["pop_eegplot(EEG, 1, 1, 1);"]
     _browser_windows()[0].close()
     parent.close()
     qapp.processEvents()
@@ -358,7 +358,7 @@ def test_gui_reject_cancel_keeps_dataset_and_ok_records_eeg_eegrej_and_pop_newse
 
     assert len(session.ALLEEG) == 1
     np.testing.assert_array_equal(session.EEG["data"], original)
-    assert session.ALLCOM == ["pop_eegplot(EEG, 1, 0, 1)"]
+    assert session.ALLCOM == ["pop_eegplot(EEG, 1, 0, 1);"]
     assert _browser_windows() == []
 
     _drive(qapp, qt_widgets, [_click_message("Continue")])

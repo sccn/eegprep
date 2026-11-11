@@ -336,7 +336,7 @@ def test_f92_prestimulus_window_rounds_half_away_from_zero():
             }
 
     _result, command = pop_newtimef(eeg, gui=True, renderer=Renderer(), plot="off", return_com=True)
-    assert "winsize=26" in command
+    assert "'winsize', 26" in command
 
 
 def test_pointrange_half_sample_starts_at_sample_3():

@@ -254,7 +254,7 @@ def test_pop_eegplot_returns_unchanged_eeg_and_history_command() -> None:
 
     assert out is eeg
     np.testing.assert_array_equal(eeg["data"], data_before)
-    assert command == "pop_eegplot(EEG, 1, 0, 1)"
+    assert command == "pop_eegplot(EEG, 1, 0, 1);"
 
 
 def test_pop_eegplot_return_com_with_callback_does_not_return_stale_eeg(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -271,7 +271,7 @@ def test_pop_eegplot_return_com_with_callback_does_not_return_stale_eeg(monkeypa
     out, command = pop_eegplot(eeg, reject=1, return_com=True, command_callback=lambda _eeg, _command: None)
 
     assert out is None
-    assert command == "pop_eegplot(EEG, 1, 0, 1)"
+    assert command == "pop_eegplot(EEG, 1, 0, 1);"
     assert callable(captured["command_callback"])
 
 
@@ -343,7 +343,7 @@ def test_clearing_every_epoch_mark_stores_rejmanual_without_history(monkeypatch:
 
     np.testing.assert_array_equal(session.EEG["reject"]["rejmanual"], [False, False, False])
     assert session.EEG["trials"] == 3
-    assert session.ALLCOM == ["pop_eegplot(EEG, 1, 0, 1)"]
+    assert session.ALLCOM == ["pop_eegplot(EEG, 1, 0, 1);"]
 
 
 def test_apply_eegplot_rejections_updates_continuous_mark_only_rows() -> None:
@@ -352,7 +352,7 @@ def test_apply_eegplot_rejections_updates_continuous_mark_only_rows() -> None:
 
     out, command = apply_eegplot_rejections(eeg, rows, reject=0, return_com=True)
 
-    assert command == "pop_eegplot(EEG, 1, 0, 0)"
+    assert command == "pop_eegplot(EEG, 1, 0, 0);"
     np.testing.assert_array_equal(out["data"], eeg["data"])
     np.testing.assert_array_equal(out["reject"]["rejmanualwinrej"], rows)
     np.testing.assert_array_equal(out["reject"]["rejmanualcol"], [1.0, 0.9, 0.9])

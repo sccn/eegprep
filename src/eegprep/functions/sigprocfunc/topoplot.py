@@ -167,14 +167,15 @@ def topoplot(datavector, chan_locs, **kwargs):
         plotchans = list(set(plotchans) - set(inds))
 
     x, y = np.cos(Th) * Rd, np.sin(Th) * Rd
-    plotchans = [index for index in plotchans if np.isfinite(Th[index]) and np.isfinite(Rd[index])]
-    if not plotchans:
+    # Keep the original channel positions. Dropping a channel here would renumber
+    # datavector[pltchans] and move later values onto the wrong electrodes.
+    if not plotchans or not np.any(np.isfinite(Th[plotchans]) & np.isfinite(Rd[plotchans])):
         raise ValueError(
             "topoplot: no channel has a finite theta and radius. "
             "Import channel locations with Edit > Channel locations before drawing a scalp map."
         )
-    plotchans = np.asarray(plotchans, dtype=int)
-    allchansind = np.asarray(allchansind, dtype=int)[plotchans]
+    plotchans = np.abs(plotchans)
+    allchansind = np.array(allchansind)[plotchans]
     Th, Rd, x, y = Th[plotchans], Rd[plotchans], x[plotchans], y[plotchans]
     labels = np.array(labels)[plotchans]
 
