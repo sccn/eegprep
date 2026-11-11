@@ -26,6 +26,18 @@ and Datasets become available when the shared session contains a compatible
 dataset or STUDY. The Datasets menu reflects ``ALLEEG`` and ``CURRENTSET`` and
 can select one or more loaded datasets.
 
+``Select multiple datasets`` is available even when only one dataset is loaded.
+The Datasets menu remains available if the current dataset has no samples, so
+you can return to another loaded dataset. Component commands check for an ICA
+decomposition when invoked, before opening their settings dialogs.
+
+The summary uses the most frequent ``chanlocs.ref`` value, choosing the first
+in sorted order on ties and displaying ``unknown`` only when that value is
+empty. It formats both epoch limits with the same precision and distinguishes
+mixed ICA status across a selection. Dataset size includes arrays, ICA results,
+events, and metadata. It measures Python memory, including container overhead and shared
+array storage once; it can differ from MATLAB's ``whos`` byte count.
+
 Actions that are not implemented yet are marked as coming soon and are backed
 by machine-readable placeholder metadata. EEGBrowser/eegplot-style scrolling
 workflows are implemented as packaged EEGPrep runtime code and are covered by
@@ -39,6 +51,12 @@ Dialog Help buttons and Help-menu topics open packaged Markdown resources from
 ``eegprep.resources.help``. Installed EEGPrep does not read from the vendored
 ``src/eegprep/eeglab`` reference tree for help text.
 
+The viewer renders headings, lists, links, and code examples. Help text describes
+EEGPrep's own functions and Python arguments. Help > Check for EEGPrep updates
+checks the published package version and reports the result in a dialog; a
+connection failure leaves the installed version unchanged and explains how to
+retry.
+
 When adding a new GUI-reachable function or Help-menu topic, add a matching
 ``src/eegprep/resources/help/<function_name>.md`` file and cover it in tests.
 Missing help resources fail clearly so incomplete runtime help cannot silently
@@ -49,13 +67,22 @@ Admin and File Workflows
 
 Implemented admin and File-menu surfaces include dataset load/save, import and
 export wrappers, BIDS import/export and metadata helpers, dataset deletion,
-preferences, history save/run, STUDY load/save, update links, issue links, and
+preferences, history save/run, STUDY load/save, update checks, issue links, and
 the read-only EEGPrep extension inventory.
 
 Successful GUI actions update the shared ``EEGPrepSession`` and append history
 once. In ``eegprep-console``, the corresponding ``EEG``, ``ALLEEG``,
 ``CURRENTSET``, ``LASTCOM``, ``ALLCOM``, ``STUDY``, and ``CURRENTSTUDY`` names
 refresh from the same session.
+
+File > Quit asks before discarding unsaved datasets. Cancel lets you save them
+first. This prompt is an EEGPrep addition; EEGLAB's Quit callback closes its
+window directly. Closing the GUI does not clear a shared console's session.
+
+EEGPrep retains its own branding and Report an EEGPrep issue link. Unsupported
+and MATLAB-only preferences are disabled (see :doc:`configuration`), and native
+file-dialog preferences live in EEGPrep's JSON options file rather than in
+MATLAB history.
 
 Menu Inventory Parity
 =====================

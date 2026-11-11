@@ -4,6 +4,25 @@
 GUI and Console Together
 ========================
 
+.. note::
+
+   Processing a selection of multiple datasets first asks whether to overwrite
+   those datasets. Cancel leaves the selection and history unchanged. Appending
+   datasets opens Dataset info so you can name or save the merged result. An
+   empty processing result is rejected before replacing the current dataset.
+
+   Saved session history scripts use MATLAB commands, including dataset storage,
+   concrete selection indices, and ``eeglab redraw``. These scripts are for
+   EEGLAB; File > History scripts > Run script executes Python ``.py`` files.
+   The console translates displayed commands to Python while preserving the
+   MATLAB form in ``ALLCOM`` and dataset history.
+
+   Replaying MATLAB vectors such as ``[1:32]`` or ``[1:2:7]`` expands inclusive
+   colon ranges in Python. Channel selections still cross the MATLAB 1-based
+   to Python 0-based boundary. Dataset selection and copy commands also handle
+   Python's extra returned history value without changing the saved commands.
+
+
 EEGPrep is designed for a mixed interactive workflow. You can load and review
 data from the GUI, inspect the live workspace in ``eegprep-console``, run a
 Python command, then return to the GUI without manually copying datasets between
@@ -11,6 +30,10 @@ tools.
 
 The important idea is simple: the GUI and console are two views of one
 ``EEGPrepSession``.
+
+Calling ``gui()`` or ``eeglab()`` from the console opens another window on its
+existing session. It keeps scripted ``pop_editoptions(..., persist=False)``
+changes without reloading saved preferences.
 
 When to Use This Workflow
 =========================
@@ -100,6 +123,11 @@ GUI actions should update state through session helpers such as
 ``store_current()``, ``add_history()``, ``set_study()``, and
 ``notify_changed()``. They should not mutate a GUI-only copy of ``EEG`` that
 the console cannot see.
+
+Wrap menu operations in ``session.gui_action(action)`` so errors can identify
+the active function through ``active_gui_action()`` and console output stays
+associated with the operation. The context restores the previous action when
+the operation exits, including on errors.
 
 Long-running GUI actions use the same session boundary. For example,
 GUI-launched ICA opens the EEGLAB-like ``pop_runica`` options dialog on the main

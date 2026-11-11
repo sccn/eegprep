@@ -74,7 +74,7 @@ def test_pop_editoptions_updates_known_options_and_returns_history_command():
 
     assert EEG_OPTIONS["option_computeica"] == 0
     assert EEG_OPTIONS["option_storedisk"] == 1
-    assert command == "LASTCOM = pop_editoptions();"
+    assert command == "pop_editoptions('option_computeica', 0, 'option_storedisk', 1);"
 
 
 def test_pop_editoptions_accepts_matlab_name_value_pairs():
@@ -82,7 +82,7 @@ def test_pop_editoptions_accepts_matlab_name_value_pairs():
 
     assert EEG_OPTIONS["option_computeica"] == 0
     assert EEG_OPTIONS["option_storedisk"] == 1
-    assert command == "LASTCOM = pop_editoptions();"
+    assert command == "pop_editoptions('option_computeica', 0, 'option_storedisk', 1);"
 
 
 def test_eeg_readoptions_parses_packaged_matlab_option_template():

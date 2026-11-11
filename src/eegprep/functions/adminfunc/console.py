@@ -13,6 +13,7 @@ import sys
 import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping
+from functools import partial
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -21,9 +22,11 @@ import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
+from eegprep.functions.adminfunc.pop_editoptions import load_eegprep_options
 from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 
 
 WORKSPACE_NAMES = ("EEG", "ALLEEG", "CURRENTSET", "ALLCOM", "LASTCOM", "STUDY", "CURRENTSTUDY")
@@ -39,6 +42,7 @@ _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-
 _ALLEEG_ASSIGNMENT_PATTERN = re.compile(r"^\s*ALLEEG\s*=")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
+_SESSION_LAUNCHERS = {"gui", "eeglab"}
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_autorej",
     "pop_eegthresh",
@@ -273,6 +277,8 @@ class ConsoleEEGPrepModule:
             return self._bridge.pop_wrapper(name)
         if name == "eegh":
             return self._bridge.namespace["eegh"]
+        if name in _SESSION_LAUNCHERS:
+            return partial(getattr(eegprep, name), session=self._bridge.session)
         return getattr(eegprep, name)
 
     def __dir__(self) -> list[str]:
@@ -541,6 +547,9 @@ class EEGPrepConsoleWorkspace:
                 self.namespace[name] = eegprep.__version__
             elif name == "eegh":
                 continue
+            elif name in _SESSION_LAUNCHERS:
+                function = getattr(eegprep, name) if exports is None else exports[name]
+                self.namespace[name] = partial(function, session=self.session)
             elif name.startswith("pop_"):
                 wrapped = ConsolePopFunction(name, self, None if exports is None else exports[name])
                 self._wrapped_pop_exports[name] = wrapped
@@ -587,6 +596,8 @@ class EEGPrepConsoleWorkspace:
                 self.namespace[local_name] = self._eegprep_proxy
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
+            elif export_name in _SESSION_LAUNCHERS:
+                self.namespace[local_name] = partial(getattr(eegprep, export_name), session=self.session)
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True
@@ -672,6 +683,7 @@ def run_console(
     )
     args = parser.parse_args(argv)
 
+    load_eegprep_options()
     session = EEGPrepSession()
     try:
         window = gui_launcher(
@@ -852,6 +864,10 @@ def _matlab_multi_assign_to_python(text: str) -> str:
     if not match:
         return text
     names = ", ".join(match.group(1).split())
+    if names == "ALLEEG, EEG, CURRENTSET" and re.match(
+        r"\s*(?:eegprep\.)?pop_(?:newset|copyset)\s*\(", text[match.end() :]
+    ):
+        names += ", LASTCOM"
     return f"{names} =" + text[match.end() :]
 
 
@@ -896,6 +912,8 @@ def _format_matlab_list_content(content: str, original: str) -> str:
     rows = [row.strip() for row in content.split(";")]
     if not all(_is_matlab_list_row(row) for row in rows):
         return original
+    if len(rows) == 1 and (expression := _matlab_colon_range(content)) is not None:
+        return expression
     formatted_rows = [_comma_join_matlab_row(row) for row in rows]
     if len(formatted_rows) == 1:
         return f"[{formatted_rows[0]}]"
@@ -939,11 +957,34 @@ def _string_end(text: str, start: int) -> int:
 def _is_matlab_list_row(row: str) -> bool:
     if not row:
         return True
-    return all(_is_python_literal_token(token) for token in row.replace(",", " ").split())
+    return all(
+        _is_python_literal_token(token) or _matlab_colon_range(token) is not None
+        for token in row.replace(",", " ").split()
+    )
 
 
 def _comma_join_matlab_row(row: str) -> str:
-    return ", ".join(row.replace(",", " ").split())
+    values = []
+    for token in row.replace(",", " ").split():
+        expression = _matlab_colon_range(token)
+        values.append(f"*{expression}" if expression is not None else token)
+    return ", ".join(values)
+
+
+def _matlab_colon_range(token: str) -> str | None:
+    parts = token.split(":")
+    if len(parts) not in (2, 3) or not all(
+        re.fullmatch(r"[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?", part) for part in parts
+    ):
+        return None
+    if all(re.fullmatch(r"[+-]?\d+", part) for part in parts):
+        values = [int(part) for part in parts]
+        start, step, stop = (values[0], 1, values[1]) if len(values) == 2 else values
+        if step == 0:
+            raise ValueError("Console history: colon range step must be nonzero.")
+        end = stop + (1 if step > 0 else -1)
+        return f"list(range({start}, {end}, {step}))"
+    return repr(parse_numeric_sequence(token))
 
 
 def _is_python_literal_token(token: str) -> bool:
@@ -1057,7 +1098,29 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
                 node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
 
     def _zero_base_channel_arg(self, node: ast.AST) -> ast.AST:
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "list"
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Call)
+            and isinstance(node.args[0].func, ast.Name)
+            and node.args[0].func.id == "range"
+            and len(node.args[0].args) == 3
+        ):
+            bounds = node.args[0].args
+            self.changed = True
+            bounds[:2] = [ast.BinOp(left=bound, op=ast.Sub(), right=ast.Constant(value=1)) for bound in bounds[:2]]
+            return node
         if isinstance(node, ast.List):
+            if any(isinstance(item, ast.Starred) for item in node.elts):
+                node.elts = [
+                    ast.Starred(value=self._zero_base_channel_arg(item.value), ctx=ast.Load())
+                    if isinstance(item, ast.Starred)
+                    else self._zero_base_channel_arg(item)
+                    for item in node.elts
+                ]
+                return node
             values = [_numeric_ast_constant_value(item) for item in node.elts]
             if not all(value is not None for value in values):
                 return node
@@ -1241,7 +1304,8 @@ class _PromptSafeStream:
         return len(message)
 
     def flush(self) -> None:
-        self.stream.flush()
+        if self.stream is not None:
+            self.stream.flush()
 
     def isatty(self) -> bool:
         return bool(getattr(self.stream, "isatty", lambda: False)())
@@ -1262,10 +1326,17 @@ def _install_prompt_safe_logging() -> Callable[[], None]:
     patched: list[tuple[logging.StreamHandler[Any], Any]] = []
     for logger in _logging_tree():
         for handler in logger.handlers:
-            if isinstance(handler, logging.StreamHandler) and not isinstance(handler.stream, _PromptSafeStream):
-                original_stream = handler.stream
-                handler.setStream(_PromptSafeStream(original_stream))
-                patched.append((handler, original_stream))
+            if not isinstance(handler, logging.StreamHandler):
+                continue
+            original_stream = handler.stream
+            if (
+                original_stream is None
+                or getattr(original_stream, "closed", False)
+                or isinstance(original_stream, _PromptSafeStream)
+            ):
+                continue
+            handler.setStream(_PromptSafeStream(original_stream))
+            patched.append((handler, original_stream))
     original_emit = logging.StreamHandler.emit
 
     def emit(handler: logging.StreamHandler[Any], record: logging.LogRecord) -> None:
@@ -1555,7 +1626,7 @@ def _eegprep_import_aliases(source: str) -> dict[str, str]:
                     aliases[alias.asname or "eegprep"] = "eegprep"
         elif isinstance(node, ast.ImportFrom) and node.module == "eegprep":
             for alias in node.names:
-                if alias.name.startswith("pop_"):
+                if alias.name.startswith("pop_") or alias.name in _SESSION_LAUNCHERS:
                     aliases[alias.asname or alias.name] = alias.name
     return aliases
 
