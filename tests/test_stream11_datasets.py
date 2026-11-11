@@ -27,22 +27,40 @@ pytestmark = [pytest.mark.gui, pytest.mark.modal_dialogs]
 @pytest.fixture
 def dialogs(qapp):
     pending, seen, failures = [], [], []
+    # The 10 ms timer can observe one modal again before its accept or reject
+    # has closed it. A second observation must not consume the next handler.
+    state = {"dialog": None, "attempts": 0}
 
     def respond():
         dialog = qapp.activeModalWidget()
         if dialog is None:
+            state["dialog"] = None
+            state["attempts"] = 0
             return
-        seen.append(dialog.windowTitle())
+        if dialog is state["dialog"]:
+            return
         if not pending:
             failures.append(f"Unexpected dialog: {dialog.windowTitle()}")
             dialog.reject()
+            state["dialog"] = dialog
             return
-        handler = pending.pop(0)
+        handler = pending[0]
         try:
             handler(dialog)
         except Exception as exc:
+            state["attempts"] += 1
+            if state["attempts"] < 3:
+                return
             failures.append(str(exc))
             dialog.reject()
+            pending.pop(0)
+            state["dialog"] = dialog
+            state["attempts"] = 0
+            return
+        pending.pop(0)
+        seen.append(dialog.windowTitle())
+        state["dialog"] = dialog
+        state["attempts"] = 0
 
     timer = QTimer()
     timer.timeout.connect(respond)
