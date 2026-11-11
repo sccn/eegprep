@@ -17,6 +17,8 @@ Unreleased
 - ``pop_load_frombids`` stores a missing channel coordinate as an empty
   array, including a channel with no row in ``electrodes.tsv``. Saving and
   reloading that dataset keeps the empty coordinates (#538).
+- Component-envelope comparison can choose two datasets from a longer list.
+  The two-dataset limit applies after that choice.
 - ``pop_timtopo`` history replays in the console with the EEGLAB argument
   order: time range, scalp-map latencies, then the plot title.
 - ``eeg_getdatact`` computes component activity when ``icaact`` is missing,

@@ -141,8 +141,6 @@ def pop_spectopo(
     }
     if "freqs" in history_options:
         history_options["freq"] = history_options.pop("freqs")
-    elif freqs:
-        history_options["freq"] = freqs
     history_range = timerange
     if history_range is None or history_range == []:
         history_range = [float(times[0]), float(times[-1])] if len(times) else []

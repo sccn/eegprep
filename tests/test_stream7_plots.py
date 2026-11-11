@@ -17,9 +17,12 @@ from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_comperp import pop_comperp
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo, pop_envtopo_dialog_spec
 from eegprep.functions.popfunc.pop_eventstat import event_values
-from eegprep.functions.popfunc.pop_headplot import pop_headplot_dialog_spec
+from eegprep.functions.popfunc.pop_headplot import pop_headplot, pop_headplot_dialog_spec
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
+from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo, pop_spectopo_dialog_spec
+from tests.fixtures import SAMPLE_DATASET_PATH
 from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 from eegprep.functions.sigprocfunc.signalstat import signalstat
@@ -66,6 +69,15 @@ def _epoch(*, amplitude=1.0, trials=4, setname="Demo", theta=True):
 
 def _channel_axes(figure):
     return [axis for axis in figure.axes if axis.get_title()]
+
+
+def _replay(command: str, **namespace):
+    tree = ast.parse(_console_python_command(command), mode="eval")
+    call = tree.body
+    assert isinstance(call, ast.Call)
+    call.keywords.append(ast.keyword(arg="plot", value=ast.Constant(value="off")))
+    ast.fix_missing_locations(tree)
+    return eval(compile(tree, "<history>", "eval"), namespace)
 
 
 def test_f71_missing_coordinates_skip_maps_and_disable_frequency_field():
@@ -143,6 +155,29 @@ def test_f74_compare_needs_two_datasets_and_subtracts_means():
     with pytest.raises(ValueError, match="Cannot process more than two datasets"):
         pop_envtopo([first, second, deepcopy(first)], [-100, 100], compnums=[1], plot="off")
 
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "subindices": "3 1",
+                "timerange": "-100 100",
+                "limcontrib": "-100 100",
+                "compsplot": "7",
+                "components": "1",
+                "subcomps": "",
+                "title": "picked",
+                "options": "",
+            }
+
+    third = _epoch(amplitude=9, setname="Third")
+    picked, command = pop_envtopo([first, second, third], gui=True, renderer=Renderer(), plot="off", return_com=True)
+    assert "EEG([3 1])" in command
+    direct = pop_envtopo([third, first], [-100, 100], compnums=[1], title="picked", plot="off")
+    picked_line = [line.get_ydata() for line in picked.axes[0].lines if line.get_linewidth() == 2]
+    direct_line = [line.get_ydata() for line in direct.axes[0].lines if line.get_linewidth() == 2]
+    np.testing.assert_allclose(np.concatenate(picked_line), np.concatenate(direct_line))
+    plt.close(picked)
+    plt.close(direct)
+
 
 def test_f76_default_envelope_title_includes_the_dataset_name():
     eeg = _epoch(setname="Demo")
@@ -158,12 +193,27 @@ def test_f76_default_envelope_title_includes_the_dataset_name():
     assert title.value == "Largest ERP components"
 
 
-def test_f77_component_headplot_dialog_coregisters_and_documents_jet():
+def test_f77_component_headplot_dialog_coregisters_and_documents_jet(tmp_path):
     eeg = _epoch()
     labels = " ".join(control.string or "" for control in pop_headplot_dialog_spec(eeg, typeplot=0).controls)
     assert "Co-register" in labels
     assert "Talairach" in labels
     assert "Manual coreg" in labels
+    recorded = pop_loadset(SAMPLE_DATASET_PATH.parent / "eeglab_data_with_ica_tmp.set")
+    figures = pop_headplot(
+        recorded,
+        typeplot=0,
+        items=[1],
+        setup={
+            "splinefile": str(tmp_path / "component.spl"),
+            "transform": [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100],
+        },
+        plot="off",
+    )
+    mesh = next(collection for collection in figures[0].axes[1].collections if collection.get_cmap().name == "jet")
+    assert mesh.norm.vmin == pytest.approx(-mesh.norm.vmax)
+    assert mesh.norm.vmin != pytest.approx(-1)
+    plt.close(figures[0])
 
 
 def test_f78_channel_location_footer_and_name_toggle():
@@ -242,6 +292,47 @@ def test_f87_statistics_figure_shows_trimmed_values_and_a_channel_marker():
     assert "Kolmogorov-Smirnov test" in text
     assert result.figure.axes[3].collections
     plt.close(result.figure)
+
+
+def test_positional_plot_history_replays_with_the_values_that_were_requested():
+    eeg = _epoch(amplitude=5)
+    spectra, spectopo_command = pop_spectopo(eeg, 1, [-100, 100], "EEG", freqrange=[4, 12], plot="off", return_com=True)
+    replayed_spectra = _replay(spectopo_command, EEG=eeg, pop_spectopo=pop_spectopo)
+    assert any(axis.get_xlim() == pytest.approx((4, 12)) for axis in replayed_spectra["figure"].axes)
+    plt.close(spectra["figure"])
+    plt.close(replayed_spectra["figure"])
+
+    array, plottopo_command = pop_plottopo(eeg, [1], "only Fz", 0, timerange=[-50, 50], plot="off", return_com=True)
+    replayed_array = _replay(plottopo_command, EEG=eeg, pop_plottopo=pop_plottopo)
+    assert replayed_array._suptitle.get_text() == "only Fz"
+    titled = _channel_axes(replayed_array)
+    assert [axis.get_title() for axis in titled] == ["Fz"]
+    assert titled[0].get_xlim() == pytest.approx((-50, 50))
+    plt.close(array)
+    plt.close(replayed_array)
+
+    rectangular, plotdata_command = pop_plotdata(
+        eeg, 1, [2], [1], "second channel", 0, 1, [-2, 2], plot="off", return_com=True
+    )
+    replayed_rectangular = _replay(plotdata_command, EEG=eeg, pop_plotdata=pop_plotdata)
+    assert replayed_rectangular._suptitle.get_text() == "second channel"
+    replayed_channels = _channel_axes(replayed_rectangular)
+    assert len(replayed_channels) == 1
+    assert replayed_channels[0].get_ylim() == pytest.approx((-2, 2))
+    plt.close(rectangular)
+    plt.close(replayed_rectangular)
+
+    other = _epoch(amplitude=1)
+    envelope, envtopo_command = pop_envtopo(
+        [eeg, other], [-100, 100], compnums=[1], title="Difference", plot="off", return_com=True
+    )
+    replayed_envelope = _replay(envtopo_command, ALLEEG=[eeg, other], pop_envtopo=pop_envtopo)
+    assert replayed_envelope._suptitle.get_text() == "Difference"
+    direct_line = [line.get_ydata() for line in envelope.axes[0].lines if line.get_linewidth() == 2]
+    replayed_line = [line.get_ydata() for line in replayed_envelope.axes[0].lines if line.get_linewidth() == 2]
+    np.testing.assert_allclose(np.concatenate(replayed_line), np.concatenate(direct_line))
+    plt.close(envelope)
+    plt.close(replayed_envelope)
 
 
 def test_f99_preferences_history_keeps_changed_options():

@@ -40,24 +40,27 @@ def pop_envtopo(
     if EEG is None:
         return (None, "") if return_com else None
     datasets = list(EEG) if isinstance(EEG, list) else [EEG]
-    if len(datasets) > 2:
-        raise ValueError("pop_envtopo: Cannot process more than two datasets")
-    compare = len(datasets) > 1
-    subindices: tuple[int, int] | None = (1, 2) if compare else None
     if gui is None:
         gui = timerange is None and not kwargs
+    subindices: tuple[int, int] | None = None
     if gui:
-        result = _run_gui(datasets if compare else datasets[0], renderer=renderer, compare=compare)
+        compare_gui = len(datasets) > 1
+        result = _run_gui(datasets if compare_gui else datasets[0], renderer=renderer, compare=compare_gui)
         if result is None:
             return (None, "") if return_com else None
         timerange = result["timerange"]
         kwargs.update(result["options"])
-        if compare:
+        if compare_gui:
             subindices = result["subindices"]
+            datasets = [datasets[subindices[0] - 1], datasets[subindices[1] - 1]]
+    if len(datasets) > 2:
+        raise ValueError("pop_envtopo: Cannot process more than two datasets")
+    compare = len(datasets) > 1
+    if compare and subindices is None:
+        subindices = (1, 2)
     if compare:
-        assert subindices is not None
-        dataset = datasets[subindices[0] - 1]
-        other = datasets[subindices[1] - 1]
+        dataset = datasets[0]
+        other = datasets[1]
     else:
         dataset = datasets[0]
         other = None
