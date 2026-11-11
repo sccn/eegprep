@@ -552,6 +552,30 @@ dialogs, including failed imports (F54/F121/F30, #556).</p></li>
 precision, total dataset memory, and mixed ICA status. Single-dataset selection
 and empty-result recovery keep the Datasets menu usable; component scrolling
 and ICLabel menus follow EEGLAB availability (F1/F95/F2/F3/F4/F5/F38/F93, #556).</p></li>
+<li><p>Channel locations: enable Read, Look up, Plot 2-D/3-D, head-center optimization,
+rotation, transforms, coordinate conversions, head radius, type/reference
+editing, insertion/deletion, and both Save actions. Navigation and action
+history preserve edits in order, and datasets retain their data channels.
+Channel labels without coordinates trigger a lookup prompt using a packaged
+montage. Channel-edit history uses replayable MATLAB cell arguments
+(Stream 5, #550; F36, F49).</p></li>
+<li><p>Standard montage lookup applies the EEGLAB nose-axis rotation for
+<code class="docutils literal notranslate"><span class="pre">standard_1005.elc</span></code> and recognizes BESA <code class="docutils literal notranslate"><span class="pre">.elp</span></code> files. Reading polar
+<code class="docutils literal notranslate"><span class="pre">.locs</span></code> files uses an 85 mm head radius and preserves labels after repeated
+tabs. A lookup with no matching labels preserves existing coordinates
+(#550; F45, F46).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> reference, exclusion, and related channel numbers, and
+<code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code> channel numbers, are now <strong>1-based</strong> in scripts and GUI fields,
+matching <code class="docutils literal notranslate"><span class="pre">pop_interp</span></code>. Existing scripts using NumPy row indices must add 1
+at these API boundaries; array indexing and low-level <code class="docutils literal notranslate"><span class="pre">reref</span></code> remain
+zero-based. GUI entry <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">6</span></code> excludes channels 2 and 6 and records those
+numbers in history. Console replay, CLI rereferencing, and spectral rejection
+use the same convention. Empty reference state displays as <code class="docutils literal notranslate"><span class="pre">unknown</span></code>
+(#550, #569; F12, F61, F62, F70).</p></li>
+<li><p>Channel-coordinate edits reject nonnumeric or nonfinite values with a field
+name and correction instructions. This deliberately differs from the
+audited EEGLAB behavior that accepted <code class="docutils literal notranslate"><span class="pre">theta='abc'</span></code>; a regression test
+locks the validation (#550; F43).</p></li>
 <li><p>Event selection records numeric criteria for numeric event codes and preserves
 string codes as text. Data selection preserves input precision; embedded
 save precision remains with the S1 stream (F50, #548).</p></li>

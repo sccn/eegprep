@@ -753,6 +753,13 @@ durations are stored as sample counts.</p>
 </section>
 <section id="preprocessing">
 <h2>Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> uses 1-based channel numbers for <code class="docutils literal notranslate"><span class="pre">ref</span></code> and <code class="docutils literal notranslate"><span class="pre">exclude</span></code>;
+<code class="docutils literal notranslate"><span class="pre">interpchan</span></code> numbers index <code class="docutils literal notranslate"><span class="pre">urchanlocs</span></code> and <code class="docutils literal notranslate"><span class="pre">refloc</span></code> numbers index the
+non-fiducial reference locations. <code class="docutils literal notranslate"><span class="pre">pop_interp</span></code> and <code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code> also use
+1-based channel numbers. Channel labels and location dictionaries remain
+available where documented. When starting with NumPy row indices, add 1 at
+these API boundaries. The low-level <code class="docutils literal notranslate"><span class="pre">reref</span></code> function still uses zero-based
+array indices.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_autorej.html#eegprep.pop_autorej" title="eegprep.pop_autorej"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_autorej</span></code></a>(EEG, *args[, gui, ...])</p></td>

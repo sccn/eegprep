@@ -392,7 +392,7 @@ Perform Channel Interpolation
 Use spherical spline interpolation to recover data from bad channels
 based on neighboring channel information
 
-.. GENERATED FROM PYTHON SOURCE LINES 259-314
+.. GENERATED FROM PYTHON SOURCE LINES 259-315
 
 .. code-block:: Python
 
@@ -444,7 +444,8 @@ based on neighboring channel information
     }
 
     # Perform interpolation
-    EEG_interp = eegprep.eeg_interp(EEG_dict, bad_chans=bad_channel_indices)
+    # Convert NumPy row indices to 1-based channel numbers at the API boundary.
+    EEG_interp = eegprep.eeg_interp(EEG_dict, bad_chans=np.asarray(bad_channel_indices) + 1)
     interpolated_data = EEG_interp['data']
 
     print("Interpolation complete!")
@@ -469,13 +470,13 @@ based on neighboring channel information
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 315-318
+.. GENERATED FROM PYTHON SOURCE LINES 316-319
 
 Compare Original and Interpolated Data
 ----------------------------------------
 Visualize the effect of interpolation on bad channels
 
-.. GENERATED FROM PYTHON SOURCE LINES 318-362
+.. GENERATED FROM PYTHON SOURCE LINES 319-363
 
 .. code-block:: Python
 
@@ -535,13 +536,13 @@ Visualize the effect of interpolation on bad channels
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 363-366
+.. GENERATED FROM PYTHON SOURCE LINES 364-367
 
 Assess Interpolation Quality
 ----------------------------
 Evaluate how well the interpolation recovered the bad channels
 
-.. GENERATED FROM PYTHON SOURCE LINES 366-396
+.. GENERATED FROM PYTHON SOURCE LINES 367-397
 
 .. code-block:: Python
 
@@ -609,13 +610,13 @@ Evaluate how well the interpolation recovered the bad channels
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 397-400
+.. GENERATED FROM PYTHON SOURCE LINES 398-401
 
 Correlation Analysis
 --------------------
 Analyze correlation between original and interpolated data
 
-.. GENERATED FROM PYTHON SOURCE LINES 400-474
+.. GENERATED FROM PYTHON SOURCE LINES 401-475
 
 .. code-block:: Python
 
@@ -720,12 +721,12 @@ Analyze correlation between original and interpolated data
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 475-477
+.. GENERATED FROM PYTHON SOURCE LINES 476-478
 
 Summary and Recommendations
 ----------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 477-501
+.. GENERATED FROM PYTHON SOURCE LINES 478-502
 
 .. code-block:: Python
 
@@ -790,7 +791,7 @@ Summary and Recommendations
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 502-519
+.. GENERATED FROM PYTHON SOURCE LINES 503-520
 
 Key Takeaways
 ---------------
@@ -813,7 +814,7 @@ Best practices:
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.594 seconds)
+   **Total running time of the script:** (0 minutes 1.051 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_channel_interpolation.py:

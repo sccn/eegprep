@@ -549,7 +549,8 @@
 <dl class="simple">
 <dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure with ‘data’, ‘chanlocs’, ‘nbchan’, etc.</p>
 </dd>
-<dt>bad_chans<span class="classifier">list, array-like, or list of dicts</span></dt><dd><p>Channel names, channel indices, or channel-location dictionaries.
+<dt>bad_chans<span class="classifier">list, array-like, or list of dicts</span></dt><dd><p>Channel names, 1-based channel indices, or channel-location dictionaries.
+Channel 1 is the first channel, as in <code class="docutils literal notranslate"><span class="pre">pop_interp</span></code> and EEGLAB.
 When channel-location dictionaries are provided, the function can
 return unchanged data for identical locations, append new channels when
 no existing locations overlap, or remap data when existing channels are

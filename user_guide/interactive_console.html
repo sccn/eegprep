@@ -578,6 +578,30 @@ wraps <code class="docutils literal notranslate"><span class="pre">pop_*</span><
 <p>This console behavior is specific to <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.</p>
 </section>
+<section id="channel-locations-and-reference">
+<h2>Channel Locations and Reference<a class="headerlink" href="#channel-locations-and-reference" title="Link to this heading">#</a></h2>
+<p>Open <code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">locations</span></code> to read a location file, look up labels in a
+montage, plot the channels, or edit coordinates and reference metadata. If only
+labels are present, the editor offers a packaged montage for lookup. Type a
+channel number and press Enter to navigate; Ok applies edits from every visited
+channel and records the actions in order. You can inspect the resulting
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;chanlocs&quot;]</span></code>, <code class="docutils literal notranslate"><span class="pre">EEG[&quot;chaninfo&quot;]</span></code>, and <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> in the console.</p>
+<p>Reference labels describe the recording. To change the signal reference, use
+<code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Re-reference</span></code> or the console:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pop_reref</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[],</span> <span class="n">exclude</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>This excludes channels 2 and 6 from the reference calculation and leaves their
+data unchanged. <code class="docutils literal notranslate"><span class="pre">pop_reref</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_interp</span></code>, and <code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code> take 1-based
+channel numbers, as do the corresponding dialog fields and history commands.
+NumPy still uses zero-based rows: channel 2 is <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;][1]</span></code>. Add 1 when
+passing NumPy row indices to these APIs. Replaying their history preserves the
+same channel numbers.</p>
+<p>The channel editor’s Insert/Append buttons add non-data locations, such as a
+reference electrode, to <code class="docutils literal notranslate"><span class="pre">EEG[&quot;chaninfo&quot;][&quot;nodatchans&quot;]</span></code>. Use data selection to
+remove recorded channels. Coordinate fields accept finite numbers or blank;
+invalid text names the field and explains how to correct it.</p>
+</section>
 <section id="in-place-workspace-edits">
 <h2>In-place Workspace Edits<a class="headerlink" href="#in-place-workspace-edits" title="Link to this heading">#</a></h2>
 <p>The console also synchronizes known in-place method calls rooted directly in
@@ -694,6 +718,7 @@ package installation for you.</p>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sample-data-walkthrough">Sample Data Walkthrough</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#channel-locations-and-reference">Channel Locations and Reference</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#in-place-workspace-edits">In-place Workspace Edits</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-replay">History Replay</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#gui-help-study-and-extensions">GUI Help, STUDY, and Extensions</a></li>
