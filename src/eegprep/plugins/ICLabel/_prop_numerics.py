@@ -19,7 +19,7 @@ from eegprep.functions.popfunc.plot_utils import (
 )
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._rejection import component_rejection_flags, one_based_indices
-from eegprep.functions.sigprocfunc.spectopo import compute_spectra
+from eegprep.functions.sigprocfunc.spectra import compute_spectra
 from eegprep.plugins.dipfit._utils import normalize_model_list
 
 

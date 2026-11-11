@@ -1,41 +1,45 @@
 """EEGLAB-style signal processing function modules."""
 
-from .cbar import cbar
-from .celltomat import celltomat
-from .copyaxis import copyaxis
-from .eyelike import eyelike
-from .fastif import fastif
-from .forcelocs import forcelocs
-from .headplot import headplot
-from .matsel import matsel
-from .mattocell import mattocell
-from .nan_mean import nan_mean
-from .openbdf import openbdf
-from .plotcurve import plotcurve
-from .quantile import quantile
-from .readbdf import readbdf
-from .sbplot import sbplot
-from .shuffle import shuffle
-from .slider import slider
-from .writegdf import writegdf
+from __future__ import annotations
 
-__all__ = [
-    "cbar",
-    "celltomat",
-    "copyaxis",
-    "eyelike",
-    "fastif",
-    "forcelocs",
-    "headplot",
-    "matsel",
-    "mattocell",
-    "nan_mean",
-    "openbdf",
-    "plotcurve",
-    "quantile",
-    "readbdf",
-    "sbplot",
-    "shuffle",
-    "slider",
-    "writegdf",
-]
+from importlib import import_module
+from typing import Any
+
+# Importing this package must not import Matplotlib. Plotting helpers load on
+# first use so a numerical submodule such as ``spectra`` stays headless.
+_LAZY_EXPORTS = {
+    "cbar": ("eegprep.functions.sigprocfunc.cbar", "cbar"),
+    "celltomat": ("eegprep.functions.sigprocfunc.celltomat", "celltomat"),
+    "copyaxis": ("eegprep.functions.sigprocfunc.copyaxis", "copyaxis"),
+    "eyelike": ("eegprep.functions.sigprocfunc.eyelike", "eyelike"),
+    "fastif": ("eegprep.functions.sigprocfunc.fastif", "fastif"),
+    "forcelocs": ("eegprep.functions.sigprocfunc.forcelocs", "forcelocs"),
+    "headplot": ("eegprep.functions.sigprocfunc.headplot", "headplot"),
+    "matsel": ("eegprep.functions.sigprocfunc.matsel", "matsel"),
+    "mattocell": ("eegprep.functions.sigprocfunc.mattocell", "mattocell"),
+    "nan_mean": ("eegprep.functions.sigprocfunc.nan_mean", "nan_mean"),
+    "openbdf": ("eegprep.functions.sigprocfunc.openbdf", "openbdf"),
+    "plotcurve": ("eegprep.functions.sigprocfunc.plotcurve", "plotcurve"),
+    "quantile": ("eegprep.functions.sigprocfunc.quantile", "quantile"),
+    "readbdf": ("eegprep.functions.sigprocfunc.readbdf", "readbdf"),
+    "sbplot": ("eegprep.functions.sigprocfunc.sbplot", "sbplot"),
+    "shuffle": ("eegprep.functions.sigprocfunc.shuffle", "shuffle"),
+    "slider": ("eegprep.functions.sigprocfunc.slider", "slider"),
+    "writegdf": ("eegprep.functions.sigprocfunc.writegdf", "writegdf"),
+}
+
+__all__ = list(_LAZY_EXPORTS)
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        module_name, attr_name = _LAZY_EXPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    value = getattr(import_module(module_name), attr_name)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted(set(_LAZY_EXPORTS) | set(globals()))

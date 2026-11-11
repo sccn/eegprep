@@ -24,7 +24,8 @@ from eegprep.functions.popfunc.plot_utils import (
 )
 from eegprep.functions.sigprocfunc.erpimage import erpimage
 from eegprep.functions.sigprocfunc.erpimage_engine import order_of_magnitude
-from eegprep.functions.sigprocfunc.spectopo import compute_spectra, frequency_window, spectra_ylim
+from eegprep.functions.sigprocfunc.spectra import compute_spectra
+from eegprep.functions.sigprocfunc.spectopo import frequency_window, spectra_ylim
 from eegprep.functions.sigprocfunc.topoplot import plot_channel_location, topoplot
 
 # EEGLAB pop_prop() spectrum-axis label and 3-contour component map. EEGLAB draws the

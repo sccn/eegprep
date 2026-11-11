@@ -10,6 +10,17 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``compute_spectra`` is exported from the package root and can be imported
+  without Matplotlib. It returns Welch density in dB on the FFT grid, with
+  1 Hz spacing when the sampling rate is an integer and the record is at
+  least one second. That is a density sample at each grid frequency, not
+  power integrated over a band. Epochs are averaged in linear power before
+  the dB conversion. ``line_noise_excess_db`` subtracts the mean of the
+  neighboring dB bins, and ``channel_robust_amplitude`` is a normal-scaled
+  MAD (about 1.4826 times the raw MAD) in the units of the data. A requested
+  line above Nyquist raises ``ValueError``. ``spectopo`` numeric output is
+  unchanged. Importing ``eegprep.functions.sigprocfunc`` no longer loads
+  Matplotlib; its plotting helpers load on first use (#536).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and
