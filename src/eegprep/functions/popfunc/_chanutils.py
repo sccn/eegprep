@@ -51,3 +51,17 @@ def normalise_reflocs(refloc: Any) -> list[dict[str, Any]]:
             raise TypeError("refloc entries must be dictionaries or [label, theta, radius]")
         locs.append(copy.deepcopy(loc))
     return locs
+
+
+def channel_has_coordinates(loc: Any) -> bool:
+    """Return True when a channel location has a finite theta and radius."""
+    if not isinstance(loc, dict):
+        return False
+    for key in ("theta", "radius"):
+        raw = loc.get(key)
+        if raw is None:
+            return False
+        array = np.asarray(raw, dtype=float).reshape(-1)
+        if array.size == 0 or not np.isfinite(float(array[0])):
+            return False
+    return True

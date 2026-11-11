@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from eegprep.functions.sigprocfunc.topoplot import topoplot
+from eegprep.functions.sigprocfunc.topoplot import plot_channel_location, topoplot
 
 
 @dataclass(frozen=True)
@@ -78,7 +78,21 @@ def signalstat(
     kstest_h = _kstest_h(values, mean, std)
     figure = None
     if int(plotlab) == 1:
-        figure = _plot_signalstat(values, mean, std, dlabel or "Potential [V]", dlabel2, map, chan_locs)
+        figure = _plot_signalstat(
+            values,
+            mean,
+            std,
+            trimmed_mean,
+            trimmed_std,
+            zlow,
+            zhigh,
+            kstest_h,
+            float(percent),
+            dlabel or "Potential [V]",
+            dlabel2,
+            map,
+            chan_locs,
+        )
     elif int(plotlab) != 0:
         raise ValueError("signalstat plotlab must be 0 or 1")
     return SignalStatResult(
@@ -110,22 +124,36 @@ def _plot_signalstat(
     values: np.ndarray,
     mean: float,
     std: float,
+    trimmed_mean: float,
+    trimmed_std: float,
+    zlow: float,
+    zhigh: float,
+    kstest_h: int,
+    percent: float,
     dlabel: str,
     dlabel2: str,
     map_values: Any,
     chan_locs: Any,
 ):
     has_map = _has_topomap(map_values, chan_locs)
-    fig, axes = plt.subplots(2, 3 if has_map else 2, figsize=(9.5 if has_map else 8.0, 6.0))
+    fig, axes = plt.subplots(2, 3 if has_map else 2, figsize=(8.2 if has_map else 7.2, 5.4))
     axes = axes.ravel()
     axes[0].hist(values, bins=max(10, min(80, round(values.size / 100))), color=(0.56, 0.66, 0.9), edgecolor="black")
     axes[0].set_title("Data histogram")
     axes[0].set_xlabel(dlabel)
     axes[0].set_ylabel("Count")
+    xs = np.linspace(float(np.min(values)), float(np.max(values)), 200)
+    bin_width = xs[1] - xs[0]
     if std > 0:
-        xs = np.linspace(float(np.min(values)), float(np.max(values)), 200)
-        density = stats.norm.pdf(xs, mean, std) * values.size * (xs[1] - xs[0])
-        axes[0].plot(xs, density, color="black")
+        axes[0].plot(xs, stats.norm.pdf(xs, mean, std) * values.size * bin_width, color="black", label="normal")
+    if trimmed_std > 0:
+        axes[0].plot(
+            xs,
+            stats.norm.pdf(xs, trimmed_mean, trimmed_std) * values.size * bin_width,
+            color="tab:red",
+            linestyle="--",
+            label="trimmed",
+        )
     axes[1].boxplot(values)
     axes[1].set_title("Boxplot")
     stats.probplot(values, dist="norm", plot=axes[2])
@@ -137,17 +165,36 @@ def _plot_signalstat(
     else:
         text_axis = axes[3]
     text_axis.axis("off")
+    variance = std * std
+    if kstest_h == 1:
+        ks_text = "Kolmogorov-Smirnov test: not Gaussian"
+    elif kstest_h == 0:
+        ks_text = "Kolmogorov-Smirnov test: verified Gaussian"
+    else:
+        ks_text = "Kolmogorov-Smirnov test: not enough data"
     text = (
         f"Mean: {mean:.6g}\n"
-        f"Std: {std:.6g}\n"
+        f"Trimmed mean: {trimmed_mean:.6g}\n"
+        f"Standard dev.: {std:.6g}\n"
+        f"Trimmed st.d.: {trimmed_std:.6g}\n"
+        f"Variance: {variance:.6g}\n"
+        f"Range: {float(np.min(values)):.6g} {float(np.max(values)):.6g}\n"
+        f"Data points: {values.size}\n"
+        f"{percent / 2:g}% quantile: {zlow:.6g}\n"
         f"Median: {np.median(values):.6g}\n"
+        f"{100 - percent / 2:g}% quantile: {zhigh:.6g}\n"
         f"Skewness: {stats.skew(values, bias=False) if values.size > 2 and std else 0:.6g}\n"
-        f"Kurtosis: {stats.kurtosis(values, fisher=True, bias=False) if values.size > 3 and std else 0:.6g}"
+        f"Kurtosis: {stats.kurtosis(values, fisher=True, bias=False) if values.size > 3 and std else 0:.6g}\n"
+        f"{ks_text}"
     )
-    text_axis.text(0.02, 0.98, text, va="top", family="monospace")
+    text_axis.text(0.02, 0.98, text, va="top", family="monospace", fontsize=8)
     if dlabel2:
         fig.suptitle(dlabel2)
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.06, right=0.98, bottom=0.08, top=0.88, wspace=0.35, hspace=0.35)
+    manager = getattr(fig.canvas, "manager", None)
+    window = getattr(manager, "window", None)
+    if window is not None and hasattr(window, "setGeometry"):
+        window.setGeometry(40, 40, 860, 560)
     return fig
 
 
@@ -163,7 +210,7 @@ def _has_topomap(map_values: Any, chan_locs: Any) -> bool:
 def _plot_stat_topomap(axis: Any, map_values: Any, chan_locs: Any) -> None:
     values = np.asarray(map_values, dtype=float).ravel()
     if values.size == 1:
-        topoplot([], chan_locs, style="blank", electrodes="off", axes=axis)
+        plot_channel_location(axis, list(chan_locs), int(values[0]))
         axis.set_title(f"Channel {int(values[0])}")
         return
     topoplot(values, chan_locs, electrodes="off", axes=axis, colorbar=False)

@@ -794,16 +794,56 @@ def _console_python_command(command: str) -> str:
     text = command.strip()
     if text.endswith(";"):
         text = text[:-1].rstrip()
+    if _is_figure_statement(text):
+        return ""
     statements = _split_history_statements(text)
     if len(statements) > 1:
-        return "; ".join(_console_python_command(statement) for statement in statements)
+        converted = [item for item in (_console_python_command(statement) for statement in statements) if item.strip()]
+        return "; ".join(converted)
     text = _matlab_strings_to_python(text)
     text = _matlab_multi_assign_to_python(text)
     text = _matlab_cells_to_python_lists(text)
     text = _matlab_vectors_to_python_lists(text)
+    text = _matlab_eeg_index_to_alleeg(text)
     text = _pythonize_known_pop_arguments(text)
     text = _keywordize_console_pop_calls(text)
     return _normalise_python_command(text)
+
+
+def _is_figure_statement(statement: str) -> bool:
+    compact = statement.replace(" ", "")
+    return compact in {"figure", "figure()"}
+
+
+def _matlab_eeg_index_to_alleeg(text: str) -> str:
+    """Translate ``EEG([2, 1])`` into the console's ``ALLEEG`` list.
+
+    ``pop_envtopo`` also receives those dataset numbers as ``subindices`` so
+    the returned history can name the same datasets.
+    """
+    text = _pop_envtopo_dataset_indices(text)
+
+    def repl(match: re.Match[str]) -> str:
+        numbers = [int(float(token)) for token in match.group(1).replace(",", " ").split() if token]
+        items = ", ".join(f"ALLEEG[{number - 1}]" for number in numbers)
+        return f"[{items}]"
+
+    return re.sub(r"\bEEG\(\[([0-9,\s]+)\]\)", repl, text)
+
+
+def _pop_envtopo_dataset_indices(text: str) -> str:
+    match = re.search(r"pop_envtopo\(\s*EEG\(\[([0-9,\s]+)\]\)", text)
+    if match is None:
+        return text
+    numbers = [int(float(token)) for token in match.group(1).replace(",", " ").split() if token]
+    items = ", ".join(f"ALLEEG[{number - 1}]" for number in numbers)
+    indices = ", ".join(str(number) for number in numbers)
+    replaced = f"{text[: match.start()]}pop_envtopo([{items}]{text[match.end() :]}"
+    open_paren = replaced.find("(", match.start())
+    close = _delimiter_end(replaced, open_paren, "(", ")")
+    if close is None:
+        return replaced
+    return f"{replaced[:close]}, subindices=[{indices}]{replaced[close:]}"
 
 
 def _split_history_statements(text: str) -> list[str]:
@@ -911,7 +951,17 @@ def _format_matlab_list_content(content: str, original: str) -> str:
         return "[]"
     rows = [row.strip() for row in content.split(";")]
     if not all(_is_matlab_list_row(row) for row in rows):
-        return original
+        tokens = _matlab_value_tokens(content)
+        if tokens is None:
+            return original
+        formatted = []
+        for token in tokens:
+            if token.startswith("["):
+                formatted.append(_format_matlab_list_content(token[1:-1], token))
+            else:
+                expression = _matlab_colon_range(token)
+                formatted.append(token if expression is None else expression)
+        return "[" + ", ".join(formatted) + "]"
     if len(rows) == 1 and (expression := _matlab_colon_range(content)) is not None:
         return expression
     formatted_rows = [_comma_join_matlab_row(row) for row in rows]
@@ -952,6 +1002,40 @@ def _string_end(text: str, start: int) -> int:
             return index + 1
         index += 1
     return len(text)
+
+
+def _matlab_value_tokens(content: str) -> list[str] | None:
+    tokens = []
+    index = 0
+    length = len(content)
+    while index < length:
+        while index < length and content[index] in " ,":
+            index += 1
+        if index >= length:
+            break
+        char = content[index]
+        if char in {"'", '"'}:
+            end = _string_end(content, index)
+            tokens.append(content[index:end])
+            index = end
+            continue
+        if char in "[({":
+            close = {"[": "]", "(": ")", "{": "}"}[char]
+            end = _delimiter_end(content, index, char, close)
+            if end is None:
+                return None
+            tokens.append(content[index : end + 1])
+            index = end + 1
+            continue
+        end = index
+        while end < length and content[end] not in " ,[{(":
+            end += 1
+        token = content[index:end]
+        if not (_is_python_literal_token(token) or _matlab_colon_range(token) is not None):
+            return None
+        tokens.append(token)
+        index = end
+    return tokens or None
 
 
 def _is_matlab_list_row(row: str) -> bool:

@@ -7,6 +7,8 @@ fig, com = pop_envtopo(EEG, timerange=[-100, 300], return_com=True)
 ```
 
 This requires epoched data, channel locations, and ICA weights/maps.
+With two datasets, the dialog asks which dataset to subtract. The default
+title is ``Largest ERP components of`` plus the dataset name.
 
 `compnums=-N` retains EEGLAB's legacy shorthand for ranking all components and
 plotting the `N` largest contributors. Positive component indices restrict the
