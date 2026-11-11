@@ -38,24 +38,27 @@ def _dialog_identity(dialog):
 def dialogs(qapp):
     pending, seen, failures = [], [], []
     # Accept and reject process Qt events, so this timer can see the same
-    # window again before the next one opens. A handler that refuses the
-    # window leaves the handler queued and closes that window.
+    # window again, including through a control inside it. Claim the window
+    # title before the handler runs. A handler that refuses the window is
+    # queued again and that window is closed.
     done = set()
-    state = {"attempts": 0, "last": ""}
+    answered = set()
+    state = {"last": ""}
 
     def respond():
         dialog = qapp.activeModalWidget()
         if dialog is None:
             return
-        # A click can make a control inside the open window the active modal.
-        # That control still belongs to the window the handler is answering.
         dialog = dialog.window()
+        title = str(dialog.windowTitle() or "")
         identity = _dialog_identity(dialog)
-        if identity in done:
+        if identity in done or (title and title in answered):
             return
         done.add(identity)
+        if title:
+            answered.add(title)
         if not pending:
-            failures.append(f"Unexpected dialog: {dialog.windowTitle()}")
+            failures.append(f"Unexpected dialog: {title}")
             dialog.reject()
             return
         # Take the handler before running it. Accept can open the next
@@ -65,19 +68,11 @@ def dialogs(qapp):
             handler(dialog)
         except Exception as exc:
             pending.insert(0, handler)
-            state["attempts"] += 1
             state["last"] = str(exc)
-            if state["attempts"] >= 20:
-                # This window is not the one the handler asked for. Close it
-                # and let the same handler answer the next window.
-                if Shiboken.isValid(dialog):
-                    dialog.reject()
-                state["attempts"] = 0
-                return
-            done.discard(identity)
+            if Shiboken.isValid(dialog):
+                dialog.reject()
             return
-        seen.append(dialog.windowTitle())
-        state["attempts"] = 0
+        seen.append(title)
 
     timer = QTimer()
     timer.timeout.connect(respond)

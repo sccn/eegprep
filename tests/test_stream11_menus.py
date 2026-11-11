@@ -56,21 +56,25 @@ def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
     window.show()
     before = window.window.menuBar().actions()
     seen = []
-    # Accept can show the same named window to this timer again.
+    # Accept can show the same window, or a control inside it, to this timer again.
     done = set()
+    answered = set()
 
     def respond():
         dialog = qapp.activeModalWidget()
         if dialog is None:
             return
         dialog = dialog.window()
+        title = str(dialog.windowTitle() or "")
         name = str(dialog.objectName() or "")
         identity = (
             ("name", name) if name else ("ptr", tuple(int(pointer) for pointer in Shiboken.getCppPointer(dialog)))
         )
-        if identity in done:
+        if identity in done or (title and title in answered):
             return
         done.add(identity)
+        if title:
+            answered.add(title)
         if isinstance(dialog, QFileDialog):
             seen.append("file")
             dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
