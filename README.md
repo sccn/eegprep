@@ -315,14 +315,50 @@ engine.eval("disp('hello world');", nargout=0)
 
 The MATLAB comparison entry point is `tests/matlab/main_compare.m`.
 
-## Cite
+## Citing EEGPrep
 
-If EEGPrep contributes to your research, please cite EEGPrep and the EEGLAB
-methods it ports. For EEGLAB, cite:
+If EEGPrep contributes to your research, please cite the preprint:
+
+Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., &
+Aristimunha, B. (2026). EEGPrep: a validated Python implementation of the
+EEGLAB preprocessing pipeline. arXiv:2607.16647.
+<https://doi.org/10.48550/arXiv.2607.16647>
+
+```bibtex
+@misc{delorme2026eegprep,
+  author = {Delorme, Arnaud and Ranganath, Suraj and Kothe, Christian and Jaiswal, Aman and Makeig, Scott and Aristimunha, Bruno},
+  title = {EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline},
+  year = {2026},
+  eprint = {2607.16647},
+  archivePrefix = {arXiv},
+  primaryClass = {eess.SP},
+  doi = {10.48550/arXiv.2607.16647},
+  url = {https://arxiv.org/abs/2607.16647}
+}
+```
+
+EEGPrep builds on EEGLAB. Please also cite:
 
 Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for analysis
 of single-trial EEG dynamics including independent component analysis. *Journal
 of Neuroscience Methods*, 134(1), 9-21.
+<https://doi.org/10.1016/j.jneumeth.2003.10.009>
+
+```bibtex
+@article{delorme2004eeglab,
+  author = {Delorme, Arnaud and Makeig, Scott},
+  title = {EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis},
+  journal = {Journal of Neuroscience Methods},
+  volume = {134},
+  number = {1},
+  pages = {9--21},
+  year = {2004},
+  doi = {10.1016/j.jneumeth.2003.10.009}
+}
+```
+
+Citations for the other methods EEGPrep implements are on the
+[References](https://sccn.github.io/eegprep/references.html) page.
 
 ## Core Maintainers
 
