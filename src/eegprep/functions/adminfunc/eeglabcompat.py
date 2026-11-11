@@ -74,6 +74,46 @@ def _restore_double_eeg_data(eeg, path: str) -> None:
         eeg["icaact"] = np.asarray(saved["eegprep_roundtrip_icaact"])
 
 
+def _matlab_quote(path: str) -> str:
+    return str(path).replace("'", "''")
+
+
+def save_double_input(data, path: str) -> None:
+    """Write ``data`` as MATLAB double, including NaN and infinities."""
+    array = np.array(np.asarray(data), dtype=np.float64, copy=True)
+    scipy.io.savemat(path, {"eegprep_input_data": array}, do_compression=False)
+
+
+def matlab_restore_input(path: str) -> str:
+    """Assign the saved double array onto ``EEG.data`` after ``pop_loadset``.
+
+    ``pop_saveset`` may have written a float32 ``.fdt``. The shape check fails
+    the call instead of continuing with that quantized array.
+    """
+    quoted = _matlab_quote(path)
+    return (
+        f"eegprep_input = load('{quoted}'); "
+        "if ~(isfield(eegprep_input, 'eegprep_input_data') && isnumeric(eegprep_input.eegprep_input_data) "
+        "&& isequal(size(eegprep_input.eegprep_input_data), size(EEG.data))), "
+        "error('eegprep:InputTransport', 'double input does not match EEG.data'); "
+        "end; "
+        "EEG.data = eegprep_input.eegprep_input_data; "
+        "clear eegprep_input"
+    )
+
+
+def matlab_capture_input(path: str) -> str:
+    """Save ``EEG.data`` as MATLAB holds it after the double restore."""
+    quoted = _matlab_quote(path)
+    return f"eegprep_seen_data = EEG.data; save('{quoted}', 'eegprep_seen_data', '-v7'); clear eegprep_seen_data"
+
+
+def load_seen_input(path: str) -> np.ndarray:
+    """Load ``EEG.data`` as MATLAB saved it, without changing its dtype."""
+    saved = scipy.io.loadmat(path, squeeze_me=False)
+    return np.array(saved["eegprep_seen_data"], copy=True)
+
+
 def _matlab_args_cell(values) -> np.ndarray:
     """Return ``values`` as a 1-by-n object array for ``savemat``.
 
@@ -156,6 +196,7 @@ class MatlabWrapper:
             The MATLAB or Octave engine.
         """
         self.engine = engine
+        self.last_input_data = None
 
     @staticmethod
     def marshal(a: Any) -> str:
@@ -193,6 +234,7 @@ class MatlabWrapper:
         """
 
         def wrapper(*args, **kwargs):
+            self.last_input_data = None
             nargout = kwargs.pop("nargout", None)
             # arg list
             new_args = list(args)
@@ -245,6 +287,8 @@ class MatlabWrapper:
                 result_filename = temp_filename1 + '.result.set'
                 result_extra_filename = temp_filename1 + '.result.mat'
                 double_data_filename = temp_filename1 + '.double.mat'
+                input_double_filename = temp_filename1 + '.input.mat'
+                seen_filename = temp_filename1 + '.seen.mat'
                 logger.debug("MATLAB roundtrip input set path: %s", temp_filename1)
                 logger.debug("MATLAB roundtrip args path: %s", temp_filename2)
                 logger.debug("MATLAB roundtrip result set path: %s", result_filename)
@@ -261,9 +305,12 @@ class MatlabWrapper:
                     self.engine.eval("args.args = {};", nargout=0)
 
                 if needs_roundtrip:
-                    # passage data through a file
                     pop_saveset(args[0], temp_filename1)
+                    save_double_input(args[0]["data"], input_double_filename)
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
+                    self.engine.eval(matlab_restore_input(input_double_filename), nargout=0)
+                    self.engine.eval(matlab_capture_input(seen_filename), nargout=0)
+                    self.last_input_data = load_seen_input(seen_filename)
 
                 logger.debug("Running in MATLAB/Octave: %s", eval_str)
                 self.engine.eval(eval_str, nargout=0)
@@ -332,6 +379,10 @@ class MatlabWrapper:
                         os.remove(result_extra_filename)
                     if os.path.exists(double_data_filename):
                         os.remove(double_data_filename)
+                    if os.path.exists(input_double_filename):
+                        os.remove(input_double_filename)
+                    if os.path.exists(seen_filename):
+                        os.remove(seen_filename)
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
 

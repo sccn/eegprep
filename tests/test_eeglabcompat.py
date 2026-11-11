@@ -17,6 +17,9 @@ from eegprep.functions.adminfunc.eeglabcompat import (
     _prepare_matlab_arg,
     _restore_double_eeg_data,
     _stash_double_eeg_data,
+    load_seen_input,
+    matlab_restore_input,
+    save_double_input,
 )
 from eegprep.functions.miscfunc.misc import matlab_mtimes
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -112,6 +115,87 @@ def test_matlab_bridge_round_trip_preserves_icaact(tmp_path):
         assert loaded["icaact"].dtype == icaact.dtype
         assert loaded["icaact"].shape == icaact.shape
         np.testing.assert_array_equal(loaded["icaact"], icaact)
+
+
+def test_double_input_round_trip_keeps_values_float32_cannot_store(tmp_path):
+    signal = np.array(
+        [
+            [np.nextafter(np.float64(1.0), np.float64(2.0)), np.float64(-26.488021850585973)],
+            [np.float64(-26.488021850585902), np.nan],
+            [np.inf, -np.inf],
+        ],
+        dtype=np.float64,
+    )
+    assert not np.array_equal(signal, signal.astype(np.float32).astype(np.float64), equal_nan=True)
+    path = tmp_path / "input.mat"
+    seen = tmp_path / "seen.mat"
+    save_double_input(signal, path)
+    saved = scipy.io.loadmat(path, squeeze_me=False)
+    scipy.io.savemat(seen, {"eegprep_seen_data": saved["eegprep_input_data"]}, do_compression=False)
+
+    loaded = load_seen_input(seen)
+
+    assert loaded.dtype == np.dtype(np.float64)
+    assert loaded.shape == signal.shape
+    assert np.array_equal(loaded, signal, equal_nan=True)
+    restore = matlab_restore_input(path)
+    assert "EEG.data = eegprep_input.eegprep_input_data" in restore
+    assert "eegprep:InputTransport" in restore
+
+
+def test_matlab_bridge_restores_double_input_before_the_target(monkeypatch):
+    signal = np.array(
+        [[np.nextafter(np.float64(1.0), np.float64(2.0)), np.nan], [np.inf, -np.inf]],
+        dtype=np.float64,
+    )
+    eeg = {"data": signal, "nbchan": 2, "pnts": 2, "trials": 1, "srate": 128.0, "event": []}
+
+    class _Engine:
+        def __init__(self):
+            self.evals = []
+
+        def eval(self, code, nargout=0):
+            del nargout
+            self.evals.append(code)
+            if "eegprep_seen_data = EEG.data" in code:
+                seen = code.split("save('", 1)[1].split("'", 1)[0]
+                saved = scipy.io.loadmat(seen.replace(".seen.mat", ".input.mat"), squeeze_me=False)
+                scipy.io.savemat(seen, {"eegprep_seen_data": saved["eegprep_input_data"]}, do_compression=False)
+            if "eegprep_roundtrip_data = double(" in code:
+                path = code.split("save('", 1)[1].split("'", 1)[0]
+                saved = scipy.io.loadmat(path.replace(".double.mat", ".input.mat"), squeeze_me=False)
+                scipy.io.savemat(
+                    path,
+                    {
+                        "eegprep_roundtrip_data": saved["eegprep_input_data"],
+                        "eegprep_roundtrip_icaact": np.array([]),
+                    },
+                    do_compression=False,
+                )
+
+    def _save(_eeg, _path):
+        return None
+
+    def _load(_path):
+        return {"data": np.zeros(signal.shape, dtype=np.float32), "trials": 1, "srate": 128.0, "event": []}
+
+    monkeypatch.setattr(eeglabcompat, "pop_saveset", _save)
+    monkeypatch.setattr(eeglabcompat, "pop_loadset", _load)
+    engine = _Engine()
+
+    wrapper = MatlabWrapper(engine)
+    returned = wrapper.eegprep_identity(eeg)
+
+    load_at = next(index for index, code in enumerate(engine.evals) if "pop_loadset" in code)
+    restore_at = next(index for index, code in enumerate(engine.evals) if "eegprep_input_data" in code)
+    capture_at = next(index for index, code in enumerate(engine.evals) if "eegprep_seen_data = EEG.data" in code)
+    target_at = next(index for index, code in enumerate(engine.evals) if "eegprep_identity" in code)
+    assert load_at < restore_at < capture_at < target_at
+    seen = wrapper.last_input_data
+    assert isinstance(seen, np.ndarray)
+    assert seen.dtype == np.dtype(np.float64)
+    assert np.array_equal(seen, signal, equal_nan=True)
+    assert np.array_equal(returned["data"], signal, equal_nan=True)
 
 
 def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):

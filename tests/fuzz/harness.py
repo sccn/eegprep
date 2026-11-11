@@ -30,6 +30,7 @@ from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.plugins.clean_rawdata.asr_calibrate import spectral_shaping_filter_available
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
@@ -144,6 +145,8 @@ class SideResult:
     extra: tuple = ()
     steps: tuple = ()
     halt: str = ""
+    error_identifier: str = ""
+    error_stack: str = ""
 
 
 @dataclass
@@ -158,6 +161,8 @@ class Outcome:
     input_sha256: str = ""
     repro_command: str = ""
     confirmed: bool = False
+    oracle_identifier: str = ""
+    oracle_stack: str = ""
 
     @property
     def report(self) -> str:
@@ -168,14 +173,34 @@ class Outcome:
         return thaw_params(self.case.params)
 
     @property
-    def signature(self) -> str:
+    def cause(self) -> str:
+        if self.error_class == "transport":
+            return "transport"
+        if self.error_class == "oracle-unchanged":
+            return "oracle-unchanged"
+        if self.error_class.startswith("oracle-only:"):
+            identifier = self.oracle_identifier or self.error_class.split(":", 1)[1]
+            frame = _top_frame(self.oracle_stack) or "nostack"
+            return f"oracle:{identifier}:{frame}"
+        if self.error_class == "numeric":
+            return "numeric"
+        return self.error_class
+
+    @property
+    def mechanism(self) -> str:
         if not self.diverged:
             return ""
-        if self.error_class == "numeric":
-            magnitude = rounded_magnitude(self.max_abs if self.max_abs > 0 else self.max_rel)
-        else:
-            magnitude = "na"
-        return f"{self.report}|{self.error_class}|{magnitude}"
+        return f"{self.report}|{self.cause}"
+
+    @property
+    def signature(self) -> str:
+        """Issue identity. Diagnosed causes omit the input hash; other failures keep it."""
+        if not self.diverged:
+            return ""
+        if _groups_by_cause(self.cause):
+            return self.mechanism
+        identity = self.input_sha256 or rounded_magnitude(self.max_abs if self.max_abs > 0 else self.max_rel)
+        return f"{self.mechanism}|{identity}"
 
 
 @dataclass
@@ -203,6 +228,38 @@ def rounded_magnitude(value: float) -> str:
         return "0"
     mantissa, exponent = f"{value:.0e}".split("e")
     return f"{int(mantissa)}e{int(exponent)}"
+
+
+def _groups_by_cause(cause: str) -> bool:
+    return cause in {"transport", "oracle-unchanged"} or cause.startswith("oracle:")
+
+
+def _top_frame(stack: str) -> str:
+    for line in stack.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        name = text.split(" (line", 1)[0].strip()
+        if ">" in name:
+            name = name.rsplit(">", 1)[-1]
+        return name
+    return ""
+
+
+def _mechanism_key(signature: str) -> str:
+    """Drop a trailing input hash or magnitude bucket from an issue signature."""
+    parts = signature.split("|")
+    if len(parts) >= 3 and _identity_token(parts[-1]):
+        return "|".join(parts[:-1])
+    return signature
+
+
+def _identity_token(token: str) -> bool:
+    if token == "0":
+        return True
+    if len(token) == 64 and all(char in "0123456789abcdef" for char in token):
+        return True
+    return re.fullmatch(r"\d+e-?\d+", token) is not None
 
 
 def report_name(case: FuzzCase) -> str:
@@ -254,8 +311,12 @@ def materialize_eeg(case: FuzzCase) -> dict:
     keeps the cropped events from the named recording.
     """
     if is_legacy_spec(case.spec):
-        return _materialize_legacy(case)
-    return _event_targets().materialize_rich(case)
+        eeg = _materialize_legacy(case)
+    else:
+        eeg = _event_targets().materialize_rich(case)
+    if case.function == "identity":
+        eeg["data"] = _identity_signal(np.asarray(eeg["data"]).shape)
+    return eeg
 
 
 def _materialize_legacy(case: FuzzCase) -> dict:
@@ -432,12 +493,15 @@ def compare_data(
     oracle = np.asarray(oracle_data, dtype=np.float64)
     if python.shape != oracle.shape:
         return True, "shape", 0.0, 0.0, f"shape {python.shape} != {oracle.shape}"
-    python_bad = ~np.isfinite(python)
-    oracle_bad = ~np.isfinite(oracle)
-    if np.any(python_bad != oracle_bad):
-        count = int(np.count_nonzero(python_bad != oracle_bad))
-        return True, "nan-mask", float(count), 0.0, f"non-finite mask differs at {count} samples"
-    finite = ~oracle_bad
+    for name, left, right in (
+        ("NaN", np.isnan(python), np.isnan(oracle)),
+        ("+Inf", np.isposinf(python), np.isposinf(oracle)),
+        ("-Inf", np.isneginf(python), np.isneginf(oracle)),
+    ):
+        if np.any(left != right):
+            count = int(np.count_nonzero(left != right))
+            return True, "nan-mask", float(count), 0.0, f"{name} mask differs at {count} samples"
+    finite = np.isfinite(oracle)
     if not np.any(finite):
         return _srate_or_match(python_srate, oracle_srate, 0.0, 0.0)
     diff = np.abs(python[finite] - oracle[finite])
@@ -521,21 +585,30 @@ def _judge_pair(
     comparators: tuple[str, ...],
 ) -> Outcome:
     if _oracle_filter_unavailable(oracle):
-        return _outcome(case, False, False, "oracle-infrastructure", 0.0, 0.0, oracle.error_message or "", digest)
+        return _remember_oracle(
+            _outcome(case, False, False, "oracle-infrastructure", 0.0, 0.0, oracle.error_message or "", digest),
+            oracle,
+        )
     if not python.ok and not oracle.ok:
         detail = (
             f"python {python.error_type}: {python.error_message}; oracle {oracle.error_type}: {oracle.error_message}"
         )
         if _same_failure(python, oracle):
-            return _outcome(case, False, False, "both-error", 0.0, 0.0, detail, digest)
+            return _remember_oracle(_outcome(case, False, False, "both-error", 0.0, 0.0, detail, digest), oracle)
         error_class = f"exception-mismatch:{python.error_type}/{oracle.error_type}"
-        return _outcome(case, True, False, error_class, 0.0, 0.0, detail, digest)
+        return _remember_oracle(_outcome(case, True, False, error_class, 0.0, 0.0, detail, digest), oracle)
     if not python.ok:
         detail = f"python {python.error_type}: {python.error_message}"
-        return _outcome(case, True, False, f"python-only:{python.error_type}", 0.0, 0.0, detail, digest)
+        return _remember_oracle(
+            _outcome(case, True, False, f"python-only:{python.error_type}", 0.0, 0.0, detail, digest),
+            oracle,
+        )
     if not oracle.ok:
         detail = f"oracle {oracle.error_type}: {oracle.error_message}"
-        return _outcome(case, True, False, f"oracle-only:{oracle.error_type}", 0.0, 0.0, detail, digest)
+        return _remember_oracle(
+            _outcome(case, True, False, f"oracle-only:{oracle.error_type}", 0.0, 0.0, detail, digest),
+            oracle,
+        )
     return _compare_success(python, oracle, tolerance, case, digest, comparators)
 
 
@@ -756,6 +829,20 @@ def default_strategies() -> dict:
     return default_strategies._cache  # type: ignore[attr-defined]
 
 
+def _identity_case() -> FuzzCase:
+    return FuzzCase("identity", EEGSpec((0, 1), 0, 8, 1, -1, 0, 0), freeze_params({}), sanity=True)
+
+
+def _transport_sanity() -> list[FuzzCase]:
+    return [_identity_case()]
+
+
+def _ensure_transport_sanity(cases: list[FuzzCase]) -> list[FuzzCase]:
+    if any(case.function == "identity" for case in cases):
+        return cases
+    return [*_transport_sanity(), *cases]
+
+
 def _original_sanity() -> list[FuzzCase]:
     info, _eeg = load_seed()
     spec = EEGSpec(
@@ -907,7 +994,8 @@ def run_session(
     selected = list(functions) if functions else list(FUNCTION_NAMES)
     if injected:
         selected = [name for name in FUNCTION_NAMES if name in strategies]
-        failed = sanity_failure(default_sanity() if caller_sanity is None else caller_sanity)
+        sanity_cases = caller_sanity if caller_sanity is not None else _ensure_transport_sanity(default_sanity())
+        failed = sanity_failure(sanity_cases)
         if failed is not None:
             return failed
         survey, confirmed = survey_names(selected)
@@ -918,6 +1006,8 @@ def run_session(
             original_cases = [case for case in _original_sanity() if case.function in original_names]
         else:
             original_cases = [case for case in caller_sanity if case.function in original_names]
+        if caller_sanity is None:
+            original_cases = _ensure_transport_sanity(original_cases)
         failed = sanity_failure(original_cases)
         if failed is not None:
             return failed
@@ -1005,6 +1095,9 @@ def write_repro(directory: Path, outcome: Outcome, seed_value: int, eeg: dict) -
         "detail": outcome.detail,
         "input_sha256": outcome.input_sha256,
         "command": outcome.repro_command,
+        "cause": outcome.cause,
+        "oracle_identifier": outcome.oracle_identifier,
+        "oracle_stack": outcome.oracle_stack,
     }
     if outcome.case.pipeline:
         payload["pipeline"] = [[name, thaw_params(params)] for name, params in outcome.case.pipeline]
@@ -1120,7 +1213,7 @@ def shrink_signature(strategy, seed_value: int, examples: int, signature: str, e
         outcome = evaluate(case, budget=budget, counter=counter)
         if outcome is None:
             return
-        if outcome.diverged and outcome.signature == signature:
+        if outcome.diverged and outcome.mechanism == _mechanism_key(signature):
             found["outcome"] = outcome
             raise _Divergence(outcome)
 
@@ -1341,16 +1434,69 @@ def _asr_short_calibration_is_oracle_defect(
     return not fallback_gap
 
 
+def _effective_reference_tolerances(params: dict) -> tuple[float, float]:
+    """Tolerances the call actually uses.
+
+    ``pop_clean_rawdata`` leaves ``clean_artifacts``'s ``[-inf, 5.5]``.
+    A direct ``clean_asr`` draw passes ``[-3.5, 5.5]``.
+    """
+    if params.get("entry") == "clean_rawdata":
+        return (-np.inf, 5.5)
+    return (-3.5, 5.5)
+
+
+def _selected_reference_length(eeg: dict, params: dict) -> int:
+    """Samples ASR calibrates on, including the short-reference fallback."""
+    full = int(eeg["pnts"])
+    ref = params["ref_maxbadchannels"]
+    if isinstance(ref, str) or ref is None:
+        return full
+    try:
+        cleaned, _mask = clean_windows(
+            copy.deepcopy(eeg),
+            float(ref),
+            _effective_reference_tolerances(params),
+            1.0,
+        )
+        selected = int(cleaned["pnts"])
+    except ValueError:
+        return full
+    if selected < 64:
+        return full
+    return selected
+
+
+def _fit_failure_stack(oracle: SideResult) -> bool:
+    """True when the captured stack is the ``X(m,:)`` fit index error."""
+    if "fit_eeg_distribution" not in (oracle.error_stack or ""):
+        return False
+    identifier = oracle.error_identifier or ""
+    message = oracle.error_message or ""
+    return identifier == "MATLAB:badsubscript" or "Index in position 1 is invalid" in message
+
+
+def _zero_width_reference(eeg: dict, params: dict) -> bool:
+    length = _selected_reference_length(eeg, params)
+    return _fit_width_reaches_zero(_asr_rms_window_count(length, float(eeg["srate"])))
+
+
 def _asr_zero_width_index_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
-    """EEGLAB's calibration RMS fit indexes a zero window width and errors."""
+    """EEGLAB's calibration RMS fit indexes a zero window width and errors.
+
+    Reference selection off uses the whole recording. Automatic selection uses
+    the length actually kept. That path also requires the fit stack, so a
+    different index error is not swallowed.
+    """
     if case.function != "clean_asr" or not python.ok or oracle.ok:
         return False
     if "Index in position 1 is invalid" not in (oracle.error_message or ""):
         return False
     params = thaw_params(case.params)
-    if params["ref_maxbadchannels"] != "off":
+    if params.get("entry") == "clean_rawdata":
         return False
-    return _fit_width_reaches_zero(_asr_rms_window_count(int(eeg["pnts"]), float(eeg["srate"])))
+    if not isinstance(params["ref_maxbadchannels"], str) and not _fit_failure_stack(oracle):
+        return False
+    return _zero_width_reference(eeg, params)
 
 
 def _pop_clean_rawdata_zero_width_is_known(
@@ -1358,27 +1504,72 @@ def _pop_clean_rawdata_zero_width_is_known(
 ) -> bool:
     """EEGLAB returned the input after its RMS fit indexed a width of 0.
 
-    ``pop_clean_rawdata`` catches that error. EEGPrep calibrates on the
-    positive widths and still removes bursts. A direct ``clean_asr`` call
-    stays with the index-error check above, because EEGLAB does not catch it.
+    ``pop_clean_rawdata`` catches that error. The reference length is the
+    section automatic selection kept, not the whole recording. EEGPrep
+    calibrates on the positive widths and still removes bursts.
     """
     if case.function != "clean_asr" or not python.ok or not oracle.ok:
         return False
     if python.data is None or oracle.data is None:
         return False
     params = thaw_params(case.params)
-    if params["entry"] != "clean_rawdata" or params["ref_maxbadchannels"] != "off":
+    if params.get("entry") != "clean_rawdata":
         return False
     original = np.asarray(eeg["data"], dtype=np.float64)
-    n_windows = _asr_rms_window_count(int(original.shape[-1]), float(eeg["srate"]))
-    if not _fit_width_reaches_zero(n_windows):
-        return False
     oracle_gap, *_rest = compare_data(original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance)
     if oracle_gap:
         return False
-    cleaned = clean_asr(copy.deepcopy(eeg), cutoff=float(params["cutoff"]), ref_maxbadchannels="off")
+    if not _zero_width_reference(eeg, params):
+        return False
+    kwargs = {"cutoff": float(params["cutoff"]), "ref_maxbadchannels": params["ref_maxbadchannels"]}
+    if not isinstance(params["ref_maxbadchannels"], str):
+        kwargs["ref_tolerances"] = _effective_reference_tolerances(params)
+        kwargs["ref_wndlen"] = 1.0
+    cleaned = clean_asr(copy.deepcopy(eeg), **kwargs)
     python_gap, *_rest = compare_data(python.data, cleaned["data"], float(python.srate), float(eeg["srate"]), tolerance)
     return not python_gap
+
+
+def _one_channel_sort_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
+    """``clean_windows.m`` sorts a one-row score matrix across time.
+
+    The channel-axis selection must not itself be a two- or three-window
+    reference. That case is the zero-width fit, without this sort.
+    """
+    if case.function != "clean_asr" or not python.ok or oracle.ok:
+        return False
+    data = np.asarray(eeg["data"])
+    if data.ndim != 2 or data.shape[0] != 1:
+        return False
+    params = thaw_params(case.params)
+    if params.get("entry") == "clean_rawdata" or isinstance(params["ref_maxbadchannels"], str):
+        return False
+    if not _fit_failure_stack(oracle):
+        return False
+    if "Index in position 1 is invalid" not in (oracle.error_message or ""):
+        return False
+    if _zero_width_reference(eeg, params):
+        return False
+    full = _asr_rms_window_count(int(eeg["pnts"]), float(eeg["srate"]))
+    return not _fit_width_reaches_zero(full)
+
+
+def _wrapper_returned_unchanged(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
+    """True when ``pop_clean_rawdata`` gave back the input and EEGPrep did not."""
+    if case.function != "clean_asr" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None:
+        return False
+    if thaw_params(case.params).get("entry") != "clean_rawdata":
+        return False
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    oracle_data = np.asarray(oracle.data, dtype=np.float64)
+    python_data = np.asarray(python.data, dtype=np.float64)
+    if oracle_data.shape != original.shape or python_data.shape != original.shape:
+        return False
+    if not np.array_equal(oracle_data, original):
+        return False
+    return not np.array_equal(python_data, original)
 
 
 def _low_rate_spectral_filter_is_known(
@@ -1428,6 +1619,54 @@ def _explicit_reref(data: np.ndarray, ref: list[int], exclude: list[int], keepre
     return out
 
 
+def transport_mismatch(expected, seen) -> str | None:
+    """Return why ``seen`` is not the Python input, or ``None`` when it is."""
+    expected64 = np.asarray(expected, dtype=np.float64)
+    seen64 = np.asarray(seen)
+    if seen64.shape != expected64.shape:
+        return f"shape {tuple(seen64.shape)} != {tuple(expected64.shape)}"
+    if seen64.dtype != np.dtype(np.float64):
+        return f"dtype {seen64.dtype}"
+    for name, left, right in (
+        ("NaN", np.isnan(expected64), np.isnan(seen64)),
+        ("+Inf", np.isposinf(expected64), np.isposinf(seen64)),
+        ("-Inf", np.isneginf(expected64), np.isneginf(seen64)),
+    ):
+        if not np.array_equal(left, right):
+            return f"{name} placement differs"
+    finite = np.isfinite(expected64)
+    if not np.array_equal(expected64[finite], seen64[finite]):
+        return "values differ"
+    return None
+
+
+def _seen_input(backend):
+    engine = getattr(backend, "_engine", None)
+    if engine is None:
+        return None
+    return getattr(engine, "last_input_data", None)
+
+
+def _transport_problem(backend, eeg: dict) -> str | None:
+    seen = _seen_input(backend)
+    if seen is None:
+        return None
+    return transport_mismatch(np.asarray(eeg["data"]), seen)
+
+
+def _remember_oracle(outcome: Outcome, oracle: SideResult) -> Outcome:
+    if not oracle.ok:
+        outcome.oracle_identifier = oracle.error_identifier
+        outcome.oracle_stack = oracle.error_stack
+    return outcome
+
+
+def _transport_from_oracle(oracle: SideResult) -> str | None:
+    if oracle.error_identifier == "eegprep:InputTransport":
+        return oracle.error_message or "double input does not match EEG.data"
+    return None
+
+
 def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances) -> Outcome:
     if case.sanity:
         try:
@@ -1441,6 +1680,36 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         return _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest)
     python = python_backend.run(case, copy.deepcopy(eeg))
     oracle = oracle_backend.run(case, copy.deepcopy(eeg))
+    transport = _transport_from_oracle(oracle) or _transport_problem(oracle_backend, eeg)
+    if (
+        case.function == "identity"
+        and isinstance(oracle_backend, MatlabBackend)
+        and _seen_input(oracle_backend) is None
+    ):
+        transport = transport or "oracle did not report the input it ran"
+    if transport:
+        return _remember_oracle(
+            _outcome(case, True, False, "transport", 0.0, 0.0, f"oracle input transport: {transport}", digest),
+            oracle,
+        )
+    if case.function == "identity":
+        if not python.ok or not oracle.ok or python.data is None or oracle.data is None:
+            detail = (
+                oracle.error_message
+                if not oracle.ok
+                else python.error_message or "identity transfer did not return data"
+            )
+            return _remember_oracle(
+                _outcome(case, True, False, "transport", 0.0, 0.0, f"oracle input transport: {detail}", digest),
+                oracle,
+            )
+        diverged, error_class, max_abs, max_rel, detail = compare_data(
+            python.data, oracle.data, float(python.srate or 0.0), float(oracle.srate or 0.0), Tolerance(0.0, 0.0)
+        )
+        return _remember_oracle(
+            _outcome(case, diverged, True, error_class, max_abs, max_rel, detail, digest),
+            oracle,
+        )
     tolerance = tolerance_for(report_name(case), tolerances)
     if _explicit_reref_nan_is_oracle_defect(case, eeg, python, oracle, tolerance):
         # reref.m multiplies by a reference matrix that contains explicit zeros.
@@ -1454,17 +1723,62 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # on the same grid and uses the same all-data calibration.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     if _asr_zero_width_index_is_known(case, eeg, python, oracle):
-        # asr_calibrate.m's own RMS fit, with reference selection off, indexes
-        # X(m,:) at m = 0 for two or three windows. EEGPrep still calibrates.
-        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+        # asr_calibrate.m indexes X(m,:) at m = 0 for two or three RMS windows.
+        # EEGPrep skips the non-positive widths and still calibrates.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known EEGLAB defect: asr_calibrate indexes a zero fit width (#582)",
+            digest,
+        )
     if _pop_clean_rawdata_zero_width_is_known(case, eeg, python, oracle, tolerance):
-        # The same m = 0 index is caught by clean_artifacts.m:270-275, which
-        # returns the recording. EEGPrep skips the non-positive widths.
-        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+        # clean_artifacts.m:270-275 catches that index error and returns the
+        # recording. EEGPrep skips the non-positive widths.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known EEGLAB defect: pop_clean_rawdata returns the input after a zero-width fit (#582)",
+            digest,
+        )
     if _low_rate_spectral_filter_is_known(case, eeg, python, oracle, tolerance):
         # Below the rate where the default breakpoints stay monotonic,
         # clean_artifacts.m catches the filter error and returns the recording.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if _one_channel_sort_is_known(case, eeg, python, oracle):
+        # clean_windows.m:115 sorts a 1-by-N score row across time. EEGPrep
+        # sorts across channels, so the loud window stays at its time index.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known EEGLAB defect: clean_windows sorts one channel across time (#583)",
+            digest,
+        )
+    if _wrapper_returned_unchanged(case, eeg, python, oracle):
+        return _remember_oracle(
+            _outcome(
+                case,
+                True,
+                True,
+                "oracle-unchanged",
+                0.0,
+                0.0,
+                "oracle returned the input unchanged after cleaning",
+                digest,
+            ),
+            oracle,
+        )
     if not python.ok and not oracle.ok and _clean_windows_short_fit(case, eeg):
         # fit_eeg_distribution.m:112 indexes a rounded width of 1 or less.
         # clean_windows has no all-data fallback, so both sides raise.
@@ -1532,7 +1846,7 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         )
     if outcome.error_class == "mask" and case.function == "clean_channels":
         outcome.detail = f"{outcome.detail}; {_event_targets().clean_channels_margins(eeg, case.params)}"
-    return outcome
+    return _remember_oracle(outcome, oracle)
 
 
 def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome:
@@ -1545,6 +1859,21 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         step = FuzzCase(name, case.spec, frozen, sanity=case.sanity)
         python_side, _python_eeg = _invoke(dispatch_python, step, copy.deepcopy(current))
         oracle_side, oracle_eeg = _oracle_invoke(oracle_backend, step, copy.deepcopy(current))
+        transport = _transport_from_oracle(oracle_side) or _transport_problem(oracle_backend, current)
+        if transport:
+            return _remember_oracle(
+                _outcome(
+                    case,
+                    True,
+                    False,
+                    f"{name}:transport",
+                    0.0,
+                    0.0,
+                    f"oracle input transport: {transport}",
+                    digest,
+                ),
+                oracle_side,
+            )
         if not python_side.ok and not oracle_side.ok and _clean_windows_short_fit(step, current):
             return _outcome(
                 case,
@@ -1592,7 +1921,7 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             and not known_trials_order
             and (outcome.diverged or outcome.error_class != "match")
         ):
-            return _outcome(
+            returned = _outcome(
                 case,
                 outcome.diverged,
                 outcome.both_ok,
@@ -1602,6 +1931,9 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
                 outcome.detail,
                 digest,
             )
+            returned.oracle_identifier = outcome.oracle_identifier
+            returned.oracle_stack = outcome.oracle_stack
+            return _remember_oracle(returned, oracle_side)
         # Continue from the Python EEG when MATLAB's output is the known
         # defect: a NaN spread by the reference matrix, events dropped
         # because trials was still 0, or mean() filling a channel from one
@@ -1680,6 +2012,8 @@ def _perturb_eeg(raw):
 
 def dispatch_python(case: FuzzCase, eeg: dict):
     params = thaw_params(case.params)
+    if case.function == "identity":
+        return eeg
     if case.function == "pop_eegfiltnew":
         return pop_eegfiltnew(eeg, gui=False, plotfreqz=False, **_filter_kwargs(params))
     if case.function == "pop_reref":
@@ -1720,6 +2054,8 @@ def _chaninfo_nones_to_empty(eeg: dict) -> dict:
 def dispatch_matlab(engine, case: FuzzCase, eeg: dict):
     eeg = _chaninfo_nones_to_empty(eeg)
     params = thaw_params(case.params)
+    if case.function == "identity":
+        return engine.eegprep_identity(eeg)
     if case.function == "pop_eegfiltnew":
         args = []
         for key, value in _filter_kwargs(params).items():
@@ -1850,8 +2186,16 @@ def side_from_eeg(eeg, extra=()) -> SideResult:
 
 
 def side_from_error(exc: Exception) -> SideResult:
-    message = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
-    return SideResult(False, None, None, exc.__class__.__name__, message[:300])
+    text = str(exc)
+    lines = text.splitlines()
+    message = lines[0] if lines else exc.__class__.__name__
+    identifier = str(getattr(exc, "identifier", "") or "")
+    stack = str(getattr(exc, "stack", "") or "")
+    if not stack and len(lines) > 1:
+        stack = "\n".join(lines[1:])
+    return SideResult(
+        False, None, None, exc.__class__.__name__, message[:300], error_identifier=identifier, error_stack=stack
+    )
 
 
 def _compare_events(python: SideResult, oracle: SideResult, tolerance: Tolerance):
@@ -2043,6 +2387,24 @@ def _srate_or_match(python_srate: float, oracle_srate: float, max_abs: float, ma
         delta = abs(float(python_srate) - float(oracle_srate))
         return True, "srate", delta, 0.0, f"srate {python_srate} != {oracle_srate}"
     return False, "match", max_abs, max_rel, "match"
+
+
+def _identity_signal(shape: tuple[int, ...]) -> np.ndarray:
+    """Values a float32 ``.fdt`` cannot carry, plus jitter, NaN, and both infinities."""
+    data = np.zeros(shape, dtype=np.float64)
+    flat = data.reshape(-1)
+    flat[0] = np.nextafter(np.float64(1.0), np.float64(2.0))
+    if flat.size > 1:
+        flat[1] = np.float64(-26.488021850585973)
+    if flat.size > 2:
+        flat[2] = np.float64(-26.488021850585902)
+    if flat.size > 3:
+        flat[3] = np.nan
+    if flat.size > 4:
+        flat[4] = np.inf
+    if flat.size > 5:
+        flat[5] = -np.inf
+    return data
 
 
 def _exact_reref_signal(shape: tuple[int, int]) -> np.ndarray:

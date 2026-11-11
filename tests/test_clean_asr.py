@@ -16,6 +16,8 @@ import pytest
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError, asr_calibrate
+from eegprep.plugins.clean_rawdata.private.stats import fit_eeg_distribution
+from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
@@ -234,6 +236,30 @@ def test_trailing_nans_are_reflected_before_processing_zeros_them():
     window = slice(raw.shape[1] - n_extrap, None)
     signal_scale = np.max(np.abs(cleaned["data"][:, window][finite[:, window]]))
     np.testing.assert_allclose(gap.max() / signal_scale, 0.15200149020594309, rtol=0, atol=1e-9)
+
+
+def test_three_rms_windows_skip_zero_fit_widths():
+    """A 124-sample reference at 128 Hz has three RMS windows and a zero fit width.
+
+    ``asr_calibrate.m`` line 392 rounds ``3*(0.578:-0.01:0.1445)`` and line 395
+    indexes that width. EEGPrep skips the non-positive widths.
+    """
+    srate = 128.0
+    samples = 124
+    window = int(round_mat(0.5 * srate))
+    offsets = matlab_window_offsets(samples, window, window * (1.0 - 0.66))
+    assert offsets.tolist() == [0, 22, 44]
+    max_width = 0.6 - 0.022
+    widths = np.int32(round_mat(3 * np.arange(max_width, 0.25 * max_width, -0.01)))
+    assert 0 in widths
+    mu, sig, alpha, beta = fit_eeg_distribution(np.array([1.0, 1.1, 0.9]))
+    assert np.isfinite([mu, sig, alpha, beta]).all()
+    time = np.arange(samples) / srate
+    signal = np.vstack([np.sin(2 * np.pi * 8 * time), np.cos(2 * np.pi * 10 * time)])
+    state = asr_calibrate(signal, srate, cutoff=5.0)
+    assert state["M"].shape == (2, 2)
+    assert np.isfinite(state["M"]).all()
+    assert np.isfinite(state["T"]).all()
 
 
 if __name__ == '__main__':

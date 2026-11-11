@@ -31,7 +31,16 @@ RESTART_READY_TIMEOUT = 300
 
 
 class MatlabExecutionError(Exception):
-    pass
+    """MATLAB ``MException`` returned by the batch server.
+
+    ``identifier`` and ``stack`` are the server fields. ``str(exc)`` stays the
+    message plus the stack so existing text checks keep working.
+    """
+
+    def __init__(self, message: str, *, identifier: str = "", stack: str = ""):
+        super().__init__(message)
+        self.identifier = identifier
+        self.stack = stack
 
 
 def _bash_executable() -> str:
@@ -176,7 +185,11 @@ class BatchEngine:
             response.unlink(missing_ok=True)
         if "error" in raw:
             err = raw["error"]
-            raise MatlabExecutionError(f"{_decode(err['message'][0, 0])}\n{_decode(err['stack'][0, 0])}")
+            message = str(_decode(err["message"][0, 0]))
+            stack = str(_decode(err["stack"][0, 0]))
+            identifier = str(_decode(err["identifier"][0, 0])) if "identifier" in err.dtype.names else ""
+            text = message if not stack else f"{message}\n{stack}"
+            raise MatlabExecutionError(text, identifier=identifier, stack=stack)
         outputs = raw.get("outputs")
         if outputs is None or outputs.size == 0 or nargout == 0:
             return None
@@ -234,7 +247,16 @@ if __name__ == "__main__":  # self-check against a fake server, no MATLAB needed
                 n = int(r["nargout"][0, 0])
                 res = req.with_name(req.name.replace("req_", "res_"))
                 if str(r["name"][0]) == "boom":
-                    scipy.io.savemat(res, {"error": {"identifier": "x", "message": "Unknown mode", "stack": ""}})
+                    scipy.io.savemat(
+                        res,
+                        {
+                            "error": {
+                                "identifier": "MATLAB:badsubscript",
+                                "message": "Unknown mode",
+                                "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+                            }
+                        },
+                    )
                 else:
                     outs = np.empty((1, n), dtype=object)
                     for i in range(n):
@@ -260,5 +282,7 @@ if __name__ == "__main__":  # self-check against a fake server, no MATLAB needed
         raise AssertionError("no error")
     except matlab.engine.MatlabExecutionError as exc:
         assert "Unknown mode" in str(exc)
+        assert exc.identifier == "MATLAB:badsubscript"
+        assert "fit_eeg_distribution" in exc.stack
     (d / "quit").touch()
     print("ok")

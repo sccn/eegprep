@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- The nightly fuzz oracle receives the exact float64 input. NaN, +Inf, and
+  -Inf are compared separately, and a MATLAB exception or a cleaning wrapper
+  that returns its input is filed as an oracle failure. ``clean_windows``
+  sorts a one-channel score across channels, and ASR calibration skips a
+  zero fit width, including a reference that leaves three RMS windows
+  (#576, #577, #578, #581, #582, #583, #584).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and

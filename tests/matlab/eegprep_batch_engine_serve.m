@@ -98,8 +98,10 @@ end
 
 function d = describe_error(err)
 stack = '';
-for i = 1:min(numel(err.stack), 10)
-    stack = sprintf('%s  %s (line %d)\n', stack, err.stack(i).name, err.stack(i).line);
+for i = 1:min(numel(err.stack), 20)
+    frame = err.stack(i);
+    [~, file] = fileparts(frame.file);
+    stack = sprintf('%s  %s>%s (line %d)\n', stack, file, frame.name, frame.line);
 end
 d = struct('identifier', err.identifier, 'message', err.message, 'stack', stack);
 end

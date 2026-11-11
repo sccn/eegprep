@@ -157,39 +157,82 @@ def publish_findings(
     return result
 
 
+def _cause_tag(cause: str) -> str:
+    if cause == "transport":
+        return "transport"
+    if cause == "oracle-unchanged" or cause.startswith("oracle:"):
+        return "oracle"
+    return cause.split(":", 1)[0]
+
+
+def _cause_summary(outcome) -> str:
+    if outcome.cause == "transport":
+        return f"float32 input loss in {outcome.report}"
+    if outcome.cause == "oracle-unchanged":
+        return f"MATLAB returned the input unchanged in {outcome.report}"
+    if outcome.cause.startswith("oracle:"):
+        identifier = outcome.oracle_identifier or "MATLAB exception"
+        return f"{identifier} in {outcome.report}"
+    return f"{outcome.cause} in {outcome.report}"
+
+
+def _lead(outcome) -> str:
+    if outcome.cause == "transport":
+        return "The MATLAB oracle did not receive the float64 input EEGPrep ran."
+    if outcome.cause == "oracle-unchanged" or outcome.cause.startswith("oracle:"):
+        return "The MATLAB oracle failed or returned its input unchanged. This is not an EEGPrep numeric mismatch."
+    return "Confirmed differential fuzz divergence. EEGLAB output is the oracle."
+
+
 def _issue_title(outcome) -> str:
-    return f"[fuzz] {outcome.signature}"
+    return f"[fuzz][{_cause_tag(outcome.cause)}] {_cause_summary(outcome)}"
 
 
 def _issue_body(outcome, seed: int, run_url: str) -> str:
     artifact = f"{run_url}#artifacts" if run_url else "local run (no artifact)"
     params = json.dumps(outcome.params, sort_keys=True)
-    return "\n".join(
-        [
-            SIGNATURE_MARKER.format(signature=outcome.signature),
-            "",
-            "Confirmed differential fuzz divergence. EEGLAB output is the oracle.",
-            "",
-            f"- Function: `{outcome.report}`",
-            f"- Seed: `{seed}`",
-            f"- Params: `{params}`",
-            f"- Max abs error: `{outcome.max_abs}`",
-            f"- Max rel error: `{outcome.max_rel}`",
-            f"- Error class: `{outcome.error_class}`",
-            f"- Repro: `{outcome.repro_command}`",
-            f"- Artifact: {artifact}",
-            "",
-            outcome.detail,
-            "",
-        ]
-    )
+    lines = [
+        SIGNATURE_MARKER.format(signature=outcome.signature),
+        "",
+        _lead(outcome),
+        "",
+        f"- Cause: `{outcome.cause}`",
+        f"- Function: `{outcome.report}`",
+        f"- Seed: `{seed}`",
+        f"- Input sha256: `{outcome.input_sha256}`",
+        f"- Params: `{params}`",
+        f"- Max abs error: `{outcome.max_abs}`",
+        f"- Max rel error: `{outcome.max_rel}`",
+        f"- Error class: `{outcome.error_class}`",
+        f"- Repro: `{outcome.repro_command}`",
+        f"- Artifact: {artifact}",
+        "",
+        outcome.detail,
+    ]
+    if outcome.oracle_identifier or outcome.oracle_stack:
+        lines.extend(
+            [
+                "",
+                f"Oracle identifier: `{outcome.oracle_identifier}`",
+                "",
+                "```",
+                outcome.oracle_stack,
+                "```",
+            ]
+        )
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _comment_body(outcome, seed: int, run_url: str) -> str:
     run = run_url or "local"
+    params = json.dumps(outcome.params, sort_keys=True)
     return "\n".join(
         [
             f"Reproduced on seed {seed}.",
+            f"- Cause: `{outcome.cause}`",
+            f"- Input sha256: `{outcome.input_sha256}`",
+            f"- Params: `{params}`",
             f"- Max abs error: `{outcome.max_abs}`",
             f"- Max rel error: `{outcome.max_rel}`",
             f"- Repro: `{outcome.repro_command}`",
