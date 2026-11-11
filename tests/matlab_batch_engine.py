@@ -145,6 +145,7 @@ class BatchEngine:
         self.directory = Path(directory)
         self._counter = itertools.count(1)
         self.workspace = _Workspace(self)
+        self.last_caught_error = None
 
     def eval(self, statement, nargout=0, **_):  # noqa: A003
         return self._request("eval", statement, [], nargout)
@@ -184,12 +185,14 @@ class BatchEngine:
         finally:
             response.unlink(missing_ok=True)
         if "error" in raw:
+            self.last_caught_error = None
             err = raw["error"]
             message = str(_decode(err["message"][0, 0]))
             stack = str(_decode(err["stack"][0, 0]))
             identifier = str(_decode(err["identifier"][0, 0])) if "identifier" in err.dtype.names else ""
             text = message if not stack else f"{message}\n{stack}"
             raise MatlabExecutionError(text, identifier=identifier, stack=stack)
+        self.last_caught_error = _caught_from_response(raw)
         outputs = raw.get("outputs")
         if outputs is None or outputs.size == 0 or nargout == 0:
             return None
@@ -219,6 +222,27 @@ class BatchEngine:
         deadline = time.monotonic() + RESTART_READY_TIMEOUT
         while not ready.exists() and time.monotonic() < deadline:
             time.sleep(0.05)
+
+
+def _caught_from_response(raw) -> dict | None:
+    """Return a caught ``lasterror`` from a successful batch response, if one was set."""
+    if "caught" not in raw:
+        return None
+    caught = raw["caught"]
+    names = getattr(getattr(caught, "dtype", None), "names", None) or ()
+
+    def field(name: str) -> str:
+        if name not in names:
+            return ""
+        return str(_decode(caught[name][0, 0])).strip()
+
+    identifier = field("identifier")
+    message = field("message")
+    stack = field("stack")
+    printed = field("printed")
+    if not identifier and not message and not stack:
+        return None
+    return {"identifier": identifier, "message": message, "stack": stack, "printed": printed}
 
 
 def install(directory):

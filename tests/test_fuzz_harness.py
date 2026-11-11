@@ -1408,6 +1408,8 @@ def test_auto_reference_zero_width_needs_the_fit_stack():
     matched = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(fail), load_tolerances())
     assert matched.diverged is False
     assert "#582" in matched.detail
+    assert matched.oracle_identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in matched.oracle_stack
 
     def bare(_case, _dataset):
         raise RuntimeError("Index in position 1 is invalid. Array indices must be positive integers or logical values.")
@@ -1416,7 +1418,7 @@ def test_auto_reference_zero_width_needs_the_fit_stack():
     assert unmatched.diverged is True
 
 
-def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence():
+def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence(tmp_path):
     case = FuzzCase(
         "clean_asr",
         EEGSpec((0, 1), 0, 124, 1, -1, 0, 0),
@@ -1427,12 +1429,32 @@ def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence(
     def unchanged(_case, dataset):
         return np.array(dataset["data"], dtype=np.float64, copy=True)
 
-    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(unchanged), load_tolerances())
+    backend = _Backend(unchanged)
+    backend._engine = SimpleNamespace(
+        last_caught_error={
+            "identifier": "MATLAB:badsubscript",
+            "message": "Index in position 1 is invalid. Array indices must be positive integers or logical values.",
+            "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+            "printed": "Index in position 1 is invalid. Array indices must be positive integers or logical values.\n",
+        }
+    )
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), backend, load_tolerances())
     assert outcome.diverged is False
     assert "#582" in outcome.detail
+    assert outcome.oracle_identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in outcome.oracle_stack
+    assert outcome.reference_samples
+    assert "-inf" in outcome.reference_tolerances and "5.5" in outcome.reference_tolerances
+    assert outcome.oracle_returned_input is True
+    saved = json.loads(write_repro(tmp_path, outcome, 1, eeg).read_text())
+    assert saved["oracle_identifier"] == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in saved["oracle_stack"]
+    assert saved["reference_samples"] == outcome.reference_samples
+    assert saved["reference_tolerances"] == outcome.reference_tolerances
+    assert saved["oracle_returned_input"] is True
 
 
-def test_one_channel_sort_defect_is_not_a_divergence():
+def test_one_channel_sort_defect_is_not_a_divergence(tmp_path):
     case = FuzzCase(
         "clean_asr",
         EEGSpec((0,), 0, 1024, 1, -1, 0, 0),
@@ -1446,6 +1468,11 @@ def test_one_channel_sort_defect_is_not_a_divergence():
     outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(fail), load_tolerances())
     assert outcome.diverged is False
     assert "#583" in outcome.detail
+    assert outcome.oracle_identifier == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in outcome.oracle_stack
+    saved = json.loads(write_repro(tmp_path, outcome, 1, eeg).read_text())
+    assert saved["oracle_identifier"] == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in saved["oracle_stack"]
 
     two = FuzzCase(
         "clean_asr",
@@ -1455,6 +1482,35 @@ def test_one_channel_sort_defect_is_not_a_divergence():
     two_eeg = materialize_eeg(two)
     other = evaluate_case(two, lambda _case: two_eeg, PythonBackend(), _Backend(fail), load_tolerances())
     assert other.diverged is True
+
+
+def test_batch_response_keeps_a_caught_lasterror(tmp_path):
+    import scipy.io
+
+    from tests.matlab_batch_engine import _caught_from_response
+
+    path = tmp_path / "caught.mat"
+    scipy.io.savemat(
+        path,
+        {
+            "caught": {
+                "identifier": "MATLAB:badsubscript",
+                "message": "Index in position 1 is invalid.",
+                "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+                "printed": "Index in position 1 is invalid.\n",
+            }
+        },
+    )
+    caught = _caught_from_response(scipy.io.loadmat(path, squeeze_me=False))
+    assert caught is not None
+    assert caught["identifier"] == "MATLAB:badsubscript"
+    assert "fit_eeg_distribution" in caught["stack"]
+    empty = tmp_path / "empty.mat"
+    scipy.io.savemat(
+        empty,
+        {"caught": {"identifier": "", "message": "", "stack": "", "printed": "Detecting flat line...\n"}},
+    )
+    assert _caught_from_response(scipy.io.loadmat(empty, squeeze_me=False)) is None
 
 
 def test_repro_keeps_the_oracle_identifier_and_stack(tmp_path):

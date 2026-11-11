@@ -157,6 +157,15 @@ def test_matlab_bridge_restores_double_input_before_the_target(monkeypatch):
         def eval(self, code, nargout=0):
             del nargout
             self.evals.append(code)
+            if "eegprep_identity" in code:
+                self.last_caught_error = {
+                    "identifier": "MATLAB:badsubscript",
+                    "message": "Index in position 1 is invalid.",
+                    "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
+                    "printed": "",
+                }
+            else:
+                self.last_caught_error = None
             if "eegprep_seen_data = EEG.data" in code:
                 seen = code.split("save('", 1)[1].split("'", 1)[0]
                 saved = scipy.io.loadmat(seen.replace(".seen.mat", ".input.mat"), squeeze_me=False)
@@ -196,6 +205,8 @@ def test_matlab_bridge_restores_double_input_before_the_target(monkeypatch):
     assert seen.dtype == np.dtype(np.float64)
     assert np.array_equal(seen, signal, equal_nan=True)
     assert np.array_equal(returned["data"], signal, equal_nan=True)
+    assert wrapper.last_caught_error["identifier"] == "MATLAB:badsubscript"
+    assert engine.last_caught_error is None
 
 
 def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):

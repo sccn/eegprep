@@ -163,6 +163,9 @@ class Outcome:
     confirmed: bool = False
     oracle_identifier: str = ""
     oracle_stack: str = ""
+    reference_samples: int | None = None
+    reference_tolerances: str = ""
+    oracle_returned_input: bool = False
 
     @property
     def report(self) -> str:
@@ -1035,6 +1038,10 @@ def run_session(
     for outcome in confirmed:
         eeg = materialize(outcome.case)
         write_repro(output_dir / "repros", outcome, seed_value, eeg)
+    for outcome in survey:
+        if outcome.diverged or not (outcome.oracle_identifier or outcome.oracle_stack):
+            continue
+        write_repro(output_dir / "repros", outcome, seed_value, materialize(outcome.case))
 
     result = SessionResult(seed_value, True, counts, confirmed, output_dir, [], [], [], [])
     _write_reports(result, summary_path, tracker, run_url, "tracker" if tracker else "skipped", issue_cap)
@@ -1079,7 +1086,7 @@ def case_from_payload(payload: dict) -> FuzzCase:
 
 def write_repro(directory: Path, outcome: Outcome, seed_value: int, eeg: dict) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
-    stem = repro_stem(outcome.signature)
+    stem = repro_stem(outcome.signature) or f"known-{outcome.case.function}-{outcome.input_sha256[:16]}"
     json_path = directory / f"{stem}.json"
     outcome.repro_command = f"uv run python -m tests.fuzz reproduce repros/{json_path.name}"
     payload = {
@@ -1098,6 +1105,9 @@ def write_repro(directory: Path, outcome: Outcome, seed_value: int, eeg: dict) -
         "cause": outcome.cause,
         "oracle_identifier": outcome.oracle_identifier,
         "oracle_stack": outcome.oracle_stack,
+        "reference_samples": outcome.reference_samples,
+        "reference_tolerances": outcome.reference_tolerances,
+        "oracle_returned_input": outcome.oracle_returned_input,
     }
     if outcome.case.pipeline:
         payload["pipeline"] = [[name, thaw_params(params)] for name, params in outcome.case.pipeline]
@@ -1655,9 +1665,51 @@ def _transport_problem(backend, eeg: dict) -> str | None:
 
 
 def _remember_oracle(outcome: Outcome, oracle: SideResult) -> Outcome:
-    if not oracle.ok:
+    if not oracle.ok or oracle.error_identifier or oracle.error_stack:
         outcome.oracle_identifier = oracle.error_identifier
         outcome.oracle_stack = oracle.error_stack
+    return outcome
+
+
+def _caught_evidence(backend) -> tuple[str, str]:
+    """Identifier and stack recorded when MATLAB caught an error and still returned."""
+    engine = getattr(backend, "_engine", None)
+    caught = getattr(engine, "last_caught_error", None) if engine is not None else None
+    if not isinstance(caught, dict):
+        return "", ""
+    identifier = str(caught.get("identifier") or "")
+    message = str(caught.get("message") or "")
+    stack = str(caught.get("stack") or "")
+    printed = str(caught.get("printed") or "")
+    if printed and printed not in stack:
+        stack = f"{stack}\n{printed}".strip()
+    if message and message not in stack:
+        stack = f"{message}\n{stack}".strip()
+    return identifier, stack
+
+
+def _known_wrapper_zero_width(case: FuzzCase, eeg: dict, backend, digest: str) -> Outcome:
+    params = thaw_params(case.params)
+    length = _selected_reference_length(eeg, params)
+    tolerances = _effective_reference_tolerances(params)
+    rendered = f"[{tolerances[0]}, {tolerances[1]}]"
+    identifier, stack = _caught_evidence(backend)
+    detail = "\n".join(
+        [
+            "known EEGLAB defect: pop_clean_rawdata returns the input after a zero-width fit (#582)",
+            f"selected reference length: {length}",
+            f"reference tolerances: {rendered}",
+            "oracle returned the input unchanged: true",
+            identifier,
+            stack,
+        ]
+    )
+    outcome = _outcome(case, False, True, "match", 0.0, 0.0, detail.strip(), digest)
+    outcome.oracle_identifier = identifier
+    outcome.oracle_stack = stack
+    outcome.reference_samples = length
+    outcome.reference_tolerances = rendered
+    outcome.oracle_returned_input = True
     return outcome
 
 
@@ -1725,29 +1777,23 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
     if _asr_zero_width_index_is_known(case, eeg, python, oracle):
         # asr_calibrate.m indexes X(m,:) at m = 0 for two or three RMS windows.
         # EEGPrep skips the non-positive widths and still calibrates.
-        return _outcome(
-            case,
-            False,
-            True,
-            "match",
-            0.0,
-            0.0,
-            "known EEGLAB defect: asr_calibrate indexes a zero fit width (#582)",
-            digest,
+        return _remember_oracle(
+            _outcome(
+                case,
+                False,
+                True,
+                "match",
+                0.0,
+                0.0,
+                "known EEGLAB defect: asr_calibrate indexes a zero fit width (#582)",
+                digest,
+            ),
+            oracle,
         )
     if _pop_clean_rawdata_zero_width_is_known(case, eeg, python, oracle, tolerance):
-        # clean_artifacts.m:270-275 catches that index error and returns the
-        # recording. EEGPrep skips the non-positive widths.
-        return _outcome(
-            case,
-            False,
-            True,
-            "match",
-            0.0,
-            0.0,
-            "known EEGLAB defect: pop_clean_rawdata returns the input after a zero-width fit (#582)",
-            digest,
-        )
+        # clean_artifacts.m catches that index error, prints it with lasterr,
+        # and returns the recording. EEGPrep skips the non-positive widths.
+        return _known_wrapper_zero_width(case, eeg, oracle_backend, digest)
     if _low_rate_spectral_filter_is_known(case, eeg, python, oracle, tolerance):
         # Below the rate where the default breakpoints stay monotonic,
         # clean_artifacts.m catches the filter error and returns the recording.
@@ -1755,15 +1801,18 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
     if _one_channel_sort_is_known(case, eeg, python, oracle):
         # clean_windows.m:115 sorts a 1-by-N score row across time. EEGPrep
         # sorts across channels, so the loud window stays at its time index.
-        return _outcome(
-            case,
-            False,
-            True,
-            "match",
-            0.0,
-            0.0,
-            "known EEGLAB defect: clean_windows sorts one channel across time (#583)",
-            digest,
+        return _remember_oracle(
+            _outcome(
+                case,
+                False,
+                True,
+                "match",
+                0.0,
+                0.0,
+                "known EEGLAB defect: clean_windows sorts one channel across time (#583)",
+                digest,
+            ),
+            oracle,
         )
     if _wrapper_returned_unchanged(case, eeg, python, oracle):
         return _remember_oracle(

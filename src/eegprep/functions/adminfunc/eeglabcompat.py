@@ -197,6 +197,7 @@ class MatlabWrapper:
         """
         self.engine = engine
         self.last_input_data = None
+        self.last_caught_error = None
 
     @staticmethod
     def marshal(a: Any) -> str:
@@ -235,6 +236,7 @@ class MatlabWrapper:
 
         def wrapper(*args, **kwargs):
             self.last_input_data = None
+            self.last_caught_error = None
             nargout = kwargs.pop("nargout", None)
             # arg list
             new_args = list(args)
@@ -314,6 +316,7 @@ class MatlabWrapper:
 
                 logger.debug("Running in MATLAB/Octave: %s", eval_str)
                 self.engine.eval(eval_str, nargout=0)
+                self.last_caught_error = getattr(self.engine, "last_caught_error", None)
 
                 # output
                 # Functions that return numeric arrays instead of EEG structures
