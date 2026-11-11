@@ -10,6 +10,25 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``clean_asr`` raises ``ASRCalibrationError`` when the selected reference
+  is shorter than one 0.5 s RMS window. That reference is not replaced by
+  the rest of the recording (``asr_calibrate.m`` line 191).
+- The nightly fuzz oracle receives the exact float64 input and reads each
+  saved array as the class MATLAB holds. ``save -v7`` may pack an
+  integer-valued double into smaller storage; that array still compares as
+  float64. Epoched input is compared in the shape ``pop_loadset`` holds:
+  a 2-D channel-by-frame array whose frame count is a multiple of ``pnts``
+  is the 3-D epoch array, and a two-file one-trial array has no trailing
+  singleton.   A ``pop_epoch`` result with no trials is compared and the
+  pipeline stops there. Suspending ``option_single`` restores the options
+  file and reloads it into the MATLAB session. NaN, +Inf, and -Inf are compared separately, and a MATLAB
+  exception or a cleaning wrapper that returns its input is filed as an
+  oracle failure. ``clean_windows`` sorts a one-channel score across
+  channels. A one-channel reference shorter than one RMS window raises
+  ``ASRCalibrationError``; EEGLAB's sort can reach the fit first. ASR
+  calibration skips a zero fit width, including a reference that leaves
+  three RMS windows
+  (#576, #577, #578, #581, #582, #583, #584).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and
