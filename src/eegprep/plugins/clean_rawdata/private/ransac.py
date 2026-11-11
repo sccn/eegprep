@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 
 from ....functions.adminfunc.eeglabcompat import get_eeglab
-from .sphericalSplineInterpolate import sphericalSplineInterpolate
+from .sphericalSplineInterpolate import _spherical_spline_weights
 
 
 def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
@@ -142,7 +142,7 @@ def calc_projector(
     if subroutine == 'sphericalSplineInterpolate':
 
         def op(src, dest):
-            return sphericalSplineInterpolate(src.T, dest.T)[0]
+            return _spherical_spline_weights(src.T, dest.T)[0]
 
     elif subroutine == 'matlab':
         matlab = get_eeglab('MAT', feature='clean_channels')

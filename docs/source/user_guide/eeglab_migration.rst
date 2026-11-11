@@ -448,6 +448,25 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_headplot`` returns the dataset. EEGPrep writes the spline file
        onto the dataset during the call and returns the figures, so the
        history command does not assign over ``EEG``.
+   * - Degenerate electrode positions
+     - ``clean_channels``, spherical ``eeg_interp``, ``spheric_spline``,
+       ``sphericalSplineInterpolate``, and ``headplot`` raise ``ValueError``
+       when Cartesian electrode positions are identical or collinear. Planar
+       or nearly planar positions, including a ring around the head, produce
+       a ``UserWarning`` and the call still runs. The test uses singular
+       values of the centered position matrix, which are unchanged by
+       translation and uniform scaling. A uniform hemispherical shell has
+       thickness ratio 1/2; an axis below one quarter of that ratio is
+       treated as missing. Inverse-distance and space-time interpolation
+       stay quiet on a planar cap and raise only when the flat coordinates
+       are identical or collinear. ``eeg_interp`` classifies the channels
+       it interpolates from once three or more remain, so a collinear strip
+       raises even when the filled-in channels sit off that strip. Two
+       source channels are always collinear and are not rejected. EEGLAB
+       ``clean_channels`` and
+       ``eeg_interp`` do not test the layout, so a collinear montage can
+       come back as a channel deletion or an interpolation that does not
+       reflect the recording.
 
 Plugin Migration
 ================

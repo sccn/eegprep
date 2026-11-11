@@ -8,6 +8,7 @@ import numpy as np
 from eegprep.plugins.firfilt.design import design_fir
 
 from ...functions.miscfunc.misc import finite_matmul, round_mat
+from ...functions.sigprocfunc.electrode_geometry import validate_electrode_positions
 from .private.channel_removal import remove_channels_without_pop_select, update_clean_channel_mask
 from .private.ransac import calc_projector
 from .private.sigproc import filtfilt_fast
@@ -55,6 +56,10 @@ def clean_channels(
         ``round(subset_size * nbchan)`` channels are drawn, including when
         ``subset_size`` is greater than or equal to 1. A count larger than
         the number of channels raises ``ValueError``.
+
+    Identical or collinear electrode positions raise ``ValueError``.
+    Planar or nearly planar positions, including a ring, warn and channel
+    removal still runs. EEGLAB does not reject those layouts.
 
     Returns
     -------
@@ -107,6 +112,7 @@ def clean_channels(
     usable_channels = np.where(~np.any(np.isnan(xyz), axis=0))[0]
 
     locs = xyz[:, usable_channels].T
+    validate_electrode_positions(locs, operation="clean_channels")
     X = np.asarray(X[:, usable_channels])
 
     # replicate MATLAB's default randseed, for exact compatibility
