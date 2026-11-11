@@ -309,4 +309,4 @@ unverified last-folder observation. EEGPrep passes an empty initial folder
 to Qt, leaving last-folder behavior to the native picker; no custom
 last-folder policy is introduced. Tests cover these dispositions and the
 import options. Fresh MATLAB numerical and side-by-side GUI verification
-remain a human follow-up. BIDS metadata issue #538 belongs to Stream 10.
+remain a human follow-up.

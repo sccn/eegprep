@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_load_frombids`` stores a missing channel coordinate as an empty
+  array, including a channel with no row in ``electrodes.tsv``. Saving and
+  reloading that dataset keeps the empty coordinates (#538).
 - ``eeg_getdatact`` computes component activity when ``icaact`` is missing,
   empty, or ``None`` (#506).
 
@@ -56,7 +59,7 @@ Unreleased
   being reported as invalid MAT files.
 - Save as preserves the two-file layout of loaded datasets and appends
   ``.set`` to extensionless names; ``savemode="onefile"`` explicitly embeds
-  samples (F26). BIDS ``None`` channel metadata (#538) belongs to Stream 10.
+  samples (F26).
 
 - Long preference-file paths no longer push Preferences controls offscreen;
   the full path is available in the option-file tooltip (F89, #556).
@@ -92,6 +95,32 @@ Unreleased
   precision, total dataset memory, and mixed ICA status. Single-dataset selection
   and empty-result recovery keep the Datasets menu usable; component scrolling
   and ICLabel menus follow EEGLAB availability (F1/F95/F2/F3/F4/F5/F38/F93, #556).
+
+- Channel locations: enable Read, Look up, Plot 2-D/3-D, head-center optimization,
+  rotation, transforms, coordinate conversions, head radius, type/reference
+  editing, insertion/deletion, and both Save actions. Navigation and action
+  history preserve edits in order, and datasets retain their data channels.
+  Channel labels without coordinates trigger a lookup prompt using a packaged
+  montage. Channel-edit history uses replayable MATLAB cell arguments
+  (Stream 5, #550; F36, F49).
+- Standard montage lookup applies the EEGLAB nose-axis rotation for
+  ``standard_1005.elc`` and recognizes BESA ``.elp`` files. Reading polar
+  ``.locs`` files uses an 85 mm head radius and preserves labels after repeated
+  tabs. A lookup with no matching labels preserves existing coordinates
+  (#550; F45, F46).
+- ``pop_reref`` reference, exclusion, and related channel numbers, and
+  ``eeg_interp`` channel numbers, are now **1-based** in scripts and GUI fields,
+  matching ``pop_interp``. Existing scripts using NumPy row indices must add 1
+  at these API boundaries; array indexing and low-level ``reref`` remain
+  zero-based. GUI entry ``2 6`` excludes channels 2 and 6 and records those
+  numbers in history. Console replay, CLI rereferencing, and spectral rejection
+  use the same convention. Empty reference state displays as ``unknown``
+  (#550, #569; F12, F61, F62, F70).
+- Channel-coordinate edits reject nonnumeric or nonfinite values with a field
+  name and correction instructions. This deliberately differs from the
+  audited EEGLAB behavior that accepted ``theta='abc'``; a regression test
+  locks the validation (#550; F43).
+
 - Event selection records numeric criteria for numeric event codes and preserves
   string codes as text. Data selection preserves input precision; embedded
   save precision remains with the S1 stream (F50, #548).
