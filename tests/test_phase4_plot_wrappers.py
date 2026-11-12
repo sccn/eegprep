@@ -748,6 +748,13 @@ def test_pop_plottopo_scalp_array_places_channels_on_correct_side(sample_epoch):
     plt.close(fig)
 
 
+def test_plot_channel_location_draws_a_blank_head_without_locations():
+    fig, ax = plt.subplots()
+    plot_channel_location(ax, [], 1)
+    assert ax.lines
+    plt.close(fig)
+
+
 def test_erpimage_scalp_inset_marks_channel_on_correct_side():
     """The erpimage scalp inset marks the plotted channel on its true side (no L/R mirror)."""
     chan_locs = [

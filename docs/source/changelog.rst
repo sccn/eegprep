@@ -74,6 +74,10 @@ Unreleased
   those traces. Event latency statistics use epoch-relative milliseconds. The
   statistics figure shows the trimmed mean, the quantiles, and the
   Kolmogorov-Smirnov result, and it marks the selected channel (F83, F85, F87).
+- ``topoplot`` raises ``ValueError`` when an interpolated map has ``None`` or
+  empty channel locations. The message names ``topoplot`` and points to
+  ``pop_chanedit`` or ``pop_readlocs``. A blank map with an empty location
+  list still draws the head (#509).
 
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves
