@@ -242,6 +242,11 @@ Average reference:
 
    EEG, com = pop_reref(EEG, [], return_com=True)
 
+Float32 average reference is summed in float64 and stored as float32. On the
+64-channel ds003061 sub-001 recording (194048 samples, peak 259369.28125 µV),
+EEGLAB's single-precision product differs from that correctly rounded float32
+result by at most 0.15625 µV. See :ref:`eeglab_migration`.
+
 Interpolate known bad channels after channel removal or rejection:
 
 .. code-block:: python

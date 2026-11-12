@@ -182,6 +182,88 @@ def test_reref_nan_stays_on_channels_that_depend_on_it():
     assert np.isnan(excluded[1:, 1]).all()
 
 
+def exact_float32_average_reference(data: np.ndarray) -> np.ndarray:
+    """Return the average reference rounded once to float32.
+
+    Each finite sample is an integer multiple of one power of two. Those
+    integers form ``channels * sample - sum(sample)``, and long double divides
+    by the channel count. The channel count must be a power of two so that
+    division is exact, and the numerator must fit in the long double significand.
+    """
+    values = np.ascontiguousarray(np.asarray(data), dtype=np.float32)
+    if values.ndim < 2:
+        raise AssertionError("average reference expects channel-major data")
+    channels = int(values.shape[0])
+    if channels < 1 or channels & (channels - 1):
+        raise AssertionError("exact float32 average reference expects a power-of-two channel count")
+    flat = values.reshape(channels, -1)
+    if not np.isfinite(flat).all():
+        raise AssertionError("exact float32 average reference expects finite samples")
+    nonzero = flat[flat != 0]
+    if nonzero.size == 0:
+        return np.zeros_like(values)
+
+    exponent = int(np.frexp(np.min(np.abs(nonzero)))[1])
+    shift = 24 - exponent
+    scaled = np.ldexp(flat.astype(np.float64), shift)
+    recovered = np.rint(scaled)
+    if not np.array_equal(scaled, recovered):
+        raise AssertionError("float32 samples are not integer multiples of the scale")
+    ints = recovered.astype(np.int64)
+    if not np.array_equal(np.ldexp(ints.astype(np.float64), -shift), flat):
+        raise AssertionError("scaled integers do not recover the float32 samples")
+    if int(np.max(np.abs(ints))) > np.iinfo(np.int64).max // (2 * channels):
+        raise AssertionError("scaled samples do not fit the int64 numerator")
+    numerators = channels * ints - ints.sum(axis=0, dtype=np.int64)
+    peak = max(abs(int(np.max(numerators))), abs(int(np.min(numerators))))
+    if peak.bit_length() > int(np.finfo(np.longdouble).nmant):
+        raise AssertionError("numerator does not fit exactly in long double")
+    places = channels.bit_length() - 1
+    exact = np.ldexp(numerators.astype(np.longdouble), -shift - places)
+    return np.asarray(exact, dtype=np.float32).reshape(values.shape)
+
+
+def _adversarial_float32_channels(channels: int, samples: int) -> np.ndarray:
+    """Large float32 values whose float32 channel sum is not the real sum."""
+    data = np.full((channels, samples), np.float32(2**22 + 3), dtype=np.float32)
+    steps = np.arange(1, samples + 1, dtype=np.float32)
+    data[0, :] = np.float32(2**22 + 3) + steps
+    data[1, :] = np.float32(2**22 + 3) - steps
+    return data
+
+
+def test_float32_average_reference_matches_exact_rounding():
+    """Float32 average reference equals one rounding of the real mean."""
+    known = np.array([[1.0, 4.0], [3.0, 8.0]], dtype=np.float32)
+    known_oracle = exact_float32_average_reference(known)
+    np.testing.assert_array_equal(known_oracle, np.array([[-1.0, -2.0], [1.0, 2.0]], dtype=np.float32))
+
+    data = _adversarial_float32_channels(256, 8)
+    oracle = exact_float32_average_reference(data)
+    naive = (data - data.mean(axis=0, dtype=np.float32)).astype(np.float32)
+    assert not np.array_equal(naive, oracle)
+
+    result, *_rest = reref(data, [])
+    assert result.dtype == np.float32
+    np.testing.assert_array_equal(result, oracle)
+
+    epoched, *_rest = reref(data.reshape(256, 2, 4), [])
+    assert epoched.dtype == np.float32
+    np.testing.assert_array_equal(epoched, oracle.reshape(256, 2, 4))
+
+    excluded_source = np.vstack([np.full((1, data.shape[1]), np.float32(2**20), dtype=np.float32), data])
+    excluded, *_rest = reref(excluded_source, [], exclude=[0])
+    assert excluded.dtype == np.float32
+    np.testing.assert_array_equal(excluded[0], excluded_source[0])
+    np.testing.assert_array_equal(excluded[1:], oracle)
+
+    restored_source = _adversarial_float32_channels(127, 4)
+    restored, *_rest = reref(restored_source, [], refloc={"labels": "old"})
+    augmented = np.vstack([restored_source, np.zeros((1, restored_source.shape[1]), dtype=np.float32)])
+    assert restored.dtype == np.float32
+    np.testing.assert_array_equal(restored, exact_float32_average_reference(augmented))
+
+
 def test_python_regression_low_level_reref_continuous_and_epoched_contracts():
     rng = np.random.default_rng(42)
     locs = [{"labels": f"Ch{index + 1}"} for index in range(32)]

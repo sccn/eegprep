@@ -10,6 +10,17 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``reref`` and ``pop_reref`` sum an average reference in float64 and cast
+  once back to the input dtype, so a float32 recording stays float32 and the
+  result does not depend on the BLAS kernel or thread count. On the
+  64-channel float32 ds003061 sub-001 recording (194048 samples, peak
+  259369.28125 µV), EEGLAB's single-precision product differs from this
+  correctly rounded float32 result by at most 0.15625 µV (RMS
+  0.004684294629 µV). The same EEGLAB result differs from an OpenBLAS
+  Haswell float32 product by 0.109375 µV (RMS 0.00235126327796 µV), and
+  that Haswell result changes with the thread count. Correctly rounded
+  float32 is at most 0.0078125 µV from the exact real average (RMS
+  0.000584188801266 µV) (#579).
 - ``pop_eegfiltnew`` appends each applied FIR design to
   ``EEG["etc"]["eegfiltnew"]``, including the sampling rate, affected
   channels, phase, cutoffs, order, transition width, ``revfilt``, and the

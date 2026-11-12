@@ -303,6 +303,22 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time. ``test_pop_reref_keeps_a_nan_on_its_channel`` locks the
        EEGPrep result.
+   * - Float32 average reference
+     - ``pop_reref`` and ``reref`` sum the reference in float64 and cast once
+       back to float32. EEGLAB multiplies a single-precision reference matrix.
+       On ds003061 sub-001 (64 channels, 194048 samples, peak 259369.28125 µV)
+       that EEGLAB product differs from the correctly rounded float32 result
+       by at most 0.15625 µV (RMS 0.004684294629 µV). An OpenBLAS Haswell
+       single-precision product of the same recording differs from the EEGLAB
+       result by 0.109375 µV (RMS 0.00235126327796 µV) and changes with the
+       thread count. The correctly rounded float32 values are at most
+       0.0078125 µV from the exact real average (RMS 0.000584188801266 µV).
+       ``test_average_reference_matches_matlab_on_64_channel_float32`` compares
+       EEGPrep with the exactly rounded float32 result at 1e-5 µV and checks
+       that EEGPrep is at least as close to that result as EEGLAB.
+       ``test_float32_average_reference_matches_exact_rounding`` locks the
+       same rounding on a large-magnitude input whose float32 channel sum is
+       not the real sum.
    * - Repeated ``pop_select`` trials
      - With ``sorttrial='off'``, a repeated trial is kept at its first
        position. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``.

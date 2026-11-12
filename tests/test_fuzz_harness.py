@@ -599,18 +599,22 @@ _REFERENCE_DATA_ERROR = (
 
 @pytest.mark.parametrize("case", [_REREF_2E5, _REREF_1E5])
 def test_average_reref_survey_compares_the_float64_product(case):
-    """The filed 1e-5 gap is the float32 product. The survey compares float64."""
+    """A float32 crop stays within the float64 survey tolerance.
+
+    The nightly survey compares float64 with EEGLAB. Average reference of
+    the same crop stored as float32 used to miss that float64 result by
+    about 1e-5. The float64 sum, cast once to float32, stays inside the
+    approved pop_reref tolerance.
+    """
     eeg = materialize_eeg(case)
     assert eeg["data"].dtype == np.float64
     wide = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
-    narrow = np.asarray(
-        dispatch_python(case, {**eeg, "data": np.asarray(eeg["data"], dtype=np.float32)})["data"],
-        dtype=np.float64,
-    )
+    narrow_eeg = dispatch_python(case, {**eeg, "data": np.asarray(eeg["data"], dtype=np.float32)})
+    assert np.asarray(narrow_eeg["data"]).dtype == np.float32
+    narrow = np.asarray(narrow_eeg["data"], dtype=np.float64)
     tolerance = load_tolerances()["pop_reref"]
-    diverged, _, max_abs, _, _ = compare_data(narrow, wide, 128.0, 128.0, tolerance)
-    assert diverged is True
-    assert 1e-6 < max_abs < 1e-3
+    diverged, _, _max_abs, _, detail = compare_data(narrow, wide, 128.0, 128.0, tolerance)
+    assert diverged is False, detail
     assert compare_data(wide, wide, 128.0, 128.0, tolerance)[0] is False
 
 

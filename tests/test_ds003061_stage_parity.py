@@ -50,6 +50,7 @@ from eegprep.plugins.ICLabel.iclabel import iclabel
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.eeglab_tests.backend import skip_without_matlab_plugin
+from tests.test_pop_reref import exact_float32_average_reference
 
 SUBJECT = "sub-001"
 EPOCH_TYPES = ["standard", "oddball", "oddball_with_reponse"]
@@ -86,6 +87,8 @@ INTERP_NEW_ATOL = 1e-4
 SUBCOMP_ATOL = 1e-6
 PICARD_AMARI_MAX = 1e-5
 PICARD_CORR_MIN = 0.9999
+PICARD_TOL = 1e-10
+PICARD_MAX_ITER = 2048
 EVENT_ATOL = 1e-6
 EXPECTED_SUMMARY = Path(__file__).resolve().parent / "parity_expected" / "ds003061_pipeline.json"
 EXACT_SUMMARY_KEYS = {
@@ -507,16 +510,37 @@ def pipeline_parity(request):
 
 
 def test_average_reference_matches_matlab_on_64_channel_float32(p300_imported, matlab):
-    """Guard the column-major float32 accumulation against EEGLAB on a real 64-channel recording."""
+    """Compare a 64-channel float32 average reference with the exactly rounded float32 result.
+
+    EEGLAB's single-precision product on this recording was measured at
+    0.15625 uV from that result (RMS 0.004684294629 uV), above REREF_ATOL.
+    The measured EEGLAB gap is recorded, and EEGPrep must stay at least as
+    close to the exact result as EEGLAB.
+    """
     source = p300_imported
+    data = np.asarray(source["data"])
     assert int(source["nbchan"]) == 64
-    assert np.asarray(source["data"]).dtype == np.float32
+    assert data.dtype == np.float32
 
     python_eeg = _Side().reref(source)
     matlab_eeg = _Side(matlab.engine).reref(source)
 
     assert _labels(python_eeg) == _labels(matlab_eeg)
-    _assert_data_close(python_eeg, matlab_eeg, REREF_ATOL, f"{SUBJECT} pop_reref")
+    oracle = exact_float32_average_reference(data)
+    python_gap, _python_rms = _assert_data_close(
+        {"data": np.asarray(python_eeg["data"])},
+        {"data": oracle},
+        REREF_ATOL,
+        f"{SUBJECT} pop_reref exact float32",
+    )
+    matlab_gap, _matlab_rms = _numeric_diff(
+        {"data": np.asarray(matlab_eeg["data"])},
+        {"data": oracle},
+        f"{SUBJECT} pop_reref EEGLAB vs exact float32",
+    )
+    assert python_gap <= matlab_gap, (
+        f"{SUBJECT} pop_reref exact gap {python_gap:.6e} uV is wider than EEGLAB {matlab_gap:.6e} uV"
+    )
 
 
 def test_clean_artifacts_matches_matlab_with_burst_rejection(p300_reref, matlab):
@@ -539,20 +563,24 @@ def test_clean_artifacts_matches_matlab_with_burst_rejection(p300_reref, matlab)
     _assert_data_close(python_eeg, matlab_eeg, CLEAN_ATOL, f"{SUBJECT} clean_artifacts")
 
 
-def test_picard_amari_and_matched_correlation_on_cleaned_data(p300_clean, p300_picard, matlab):
+@pytest.mark.timeout(1800)
+def test_picard_amari_and_matched_correlation_on_cleaned_data(p300_clean, matlab):
     _require_picard(matlab.engine)
     assert np.asarray(p300_clean["data"]).dtype == np.float64
-    matlab_eeg = _Side(matlab.engine).picard(p300_clean)
-    python_unmixing = _unmixing(p300_picard)
+    picard_options = {"tol": PICARD_TOL, "max_iter": PICARD_MAX_ITER}
+    python_eeg = eeg_picard(p300_clean, **picard_options)
+    matlab_eeg = _Side(matlab.engine).wrapper.eeg_picard(p300_clean, **picard_options)
+    python_unmixing = _unmixing(python_eeg)
     matlab_unmixing = _unmixing(matlab_eeg)
     assert python_unmixing.shape == matlab_unmixing.shape, (
         f"unmixing shape {python_unmixing.shape} vs {matlab_unmixing.shape}"
     )
 
     distance = amari_distance(python_unmixing, np.asarray(matlab_eeg["icawinv"], dtype=float))
-    mean_correlation, min_correlation = matched_mixing_correlation(p300_picard["icawinv"], matlab_eeg["icawinv"])
+    mean_correlation, min_correlation = matched_mixing_correlation(python_eeg["icawinv"], matlab_eeg["icawinv"])
     warnings.warn(
-        f"{SUBJECT} picard: amari={distance:.6e} corr_mean={mean_correlation:.6f} corr_min={min_correlation:.6f}",
+        f"{SUBJECT} picard: tol={PICARD_TOL:.0e} max_iter={PICARD_MAX_ITER} "
+        f"amari={distance:.6e} corr_mean={mean_correlation:.6f} corr_min={min_correlation:.6f}",
         UserWarning,
         stacklevel=1,
     )
