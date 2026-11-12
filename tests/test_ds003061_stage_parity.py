@@ -87,6 +87,8 @@ INTERP_NEW_ATOL = 1e-4
 SUBCOMP_ATOL = 1e-6
 PICARD_AMARI_MAX = 1e-5
 PICARD_CORR_MIN = 0.9999
+PICARD_TOL = 1e-10
+PICARD_MAX_ITER = 2048
 EVENT_ATOL = 1e-6
 EXPECTED_SUMMARY = Path(__file__).resolve().parent / "parity_expected" / "ds003061_pipeline.json"
 EXACT_SUMMARY_KEYS = {
@@ -561,20 +563,24 @@ def test_clean_artifacts_matches_matlab_with_burst_rejection(p300_reref, matlab)
     _assert_data_close(python_eeg, matlab_eeg, CLEAN_ATOL, f"{SUBJECT} clean_artifacts")
 
 
-def test_picard_amari_and_matched_correlation_on_cleaned_data(p300_clean, p300_picard, matlab):
+@pytest.mark.timeout(1800)
+def test_picard_amari_and_matched_correlation_on_cleaned_data(p300_clean, matlab):
     _require_picard(matlab.engine)
     assert np.asarray(p300_clean["data"]).dtype == np.float64
-    matlab_eeg = _Side(matlab.engine).picard(p300_clean)
-    python_unmixing = _unmixing(p300_picard)
+    picard_options = {"tol": PICARD_TOL, "max_iter": PICARD_MAX_ITER}
+    python_eeg = eeg_picard(p300_clean, **picard_options)
+    matlab_eeg = _Side(matlab.engine).wrapper.eeg_picard(p300_clean, **picard_options)
+    python_unmixing = _unmixing(python_eeg)
     matlab_unmixing = _unmixing(matlab_eeg)
     assert python_unmixing.shape == matlab_unmixing.shape, (
         f"unmixing shape {python_unmixing.shape} vs {matlab_unmixing.shape}"
     )
 
     distance = amari_distance(python_unmixing, np.asarray(matlab_eeg["icawinv"], dtype=float))
-    mean_correlation, min_correlation = matched_mixing_correlation(p300_picard["icawinv"], matlab_eeg["icawinv"])
+    mean_correlation, min_correlation = matched_mixing_correlation(python_eeg["icawinv"], matlab_eeg["icawinv"])
     warnings.warn(
-        f"{SUBJECT} picard: amari={distance:.6e} corr_mean={mean_correlation:.6f} corr_min={min_correlation:.6f}",
+        f"{SUBJECT} picard: tol={PICARD_TOL:.0e} max_iter={PICARD_MAX_ITER} "
+        f"amari={distance:.6e} corr_mean={mean_correlation:.6f} corr_min={min_correlation:.6f}",
         UserWarning,
         stacklevel=1,
     )
