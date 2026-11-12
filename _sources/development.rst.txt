@@ -1157,6 +1157,16 @@ Rows use these statuses:
 - ``external_dependency_skip``: the function depends on external MATLAB
   toolboxes/plugins or web/path integration outside this epic.
 
+``status`` records the implementation decision. ``test_notes`` name the tests
+and what each test asserts. A status of ``implemented`` or ``consolidated``
+records that an EEGPrep path exists. A ``test_notes`` string is not
+unconditional proof of MATLAB parity. Keep four kinds of evidence distinct: a
+provenance-linked smoke call, a Python behavioral test, a live MATLAB
+comparison, and a selected strict expected failure. An ``@eeglab_test`` source
+link, a pinned suite SHA, or a filename containing ``eeglab_tests`` does not
+by itself establish a live MATLAB comparison. A ``gui``-marked contract
+excluded by ``-m "not gui"`` stays outside the normal non-GUI CI lane.
+
 Use ``stale_skip`` only when every stale-policy field in the matrix is false:
 the function is not menu-reachable, not a documented user API, not called by an
 in-scope workflow, not required by parity tests, not needed as a helper for the
@@ -1202,7 +1212,8 @@ The final standalone parity epic uses a second machine-readable matrix at
 ``docs/parity/eeglab_final_parity_matrix.json``. It extends the core matrix into
 the remaining product surfaces that are not simple core-function parity rows:
 bundled plugin depth, MATLAB object/storage semantics, optional-toolbox
-workflows, and documentation/tutorial coverage.
+workflows, and documentation/tutorial coverage. Final-matrix ``test_notes``
+follow the core-matrix evidence rule above.
 
 Rows group source files into user workflows, but every discovered final-epic
 EEGLAB reference path must be covered exactly once. The validator discovers:

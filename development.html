@@ -1515,6 +1515,15 @@ standalone EEGPrep package code.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">external_dependency_skip</span></code>: the function depends on external MATLAB
 toolboxes/plugins or web/path integration outside this epic.</p></li>
 </ul>
+<p><code class="docutils literal notranslate"><span class="pre">status</span></code> records the implementation decision. <code class="docutils literal notranslate"><span class="pre">test_notes</span></code> name the tests
+and what each test asserts. A status of <code class="docutils literal notranslate"><span class="pre">implemented</span></code> or <code class="docutils literal notranslate"><span class="pre">consolidated</span></code>
+records that an EEGPrep path exists. A <code class="docutils literal notranslate"><span class="pre">test_notes</span></code> string is not
+unconditional proof of MATLAB parity. Keep four kinds of evidence distinct: a
+provenance-linked smoke call, a Python behavioral test, a live MATLAB
+comparison, and a selected strict expected failure. An <code class="docutils literal notranslate"><span class="pre">&#64;eeglab_test</span></code> source
+link, a pinned suite SHA, or a filename containing <code class="docutils literal notranslate"><span class="pre">eeglab_tests</span></code> does not
+by itself establish a live MATLAB comparison. A <code class="docutils literal notranslate"><span class="pre">gui</span></code>-marked contract
+excluded by <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">&quot;not</span> <span class="pre">gui&quot;</span></code> stays outside the normal non-GUI CI lane.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">stale_skip</span></code> only when every stale-policy field in the matrix is false:
 the function is not menu-reachable, not a documented user API, not called by an
 in-scope workflow, not required by parity tests, not needed as a helper for the
@@ -1557,7 +1566,8 @@ reference tree.</p>
 <code class="docutils literal notranslate"><span class="pre">docs/parity/eeglab_final_parity_matrix.json</span></code>. It extends the core matrix into
 the remaining product surfaces that are not simple core-function parity rows:
 bundled plugin depth, MATLAB object/storage semantics, optional-toolbox
-workflows, and documentation/tutorial coverage.</p>
+workflows, and documentation/tutorial coverage. Final-matrix <code class="docutils literal notranslate"><span class="pre">test_notes</span></code>
+follow the core-matrix evidence rule above.</p>
 <p>Rows group source files into user workflows, but every discovered final-epic
 EEGLAB reference path must be covered exactly once. The validator discovers:</p>
 <ul class="simple">
