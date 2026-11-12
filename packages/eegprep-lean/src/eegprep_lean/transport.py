@@ -184,10 +184,10 @@ async def _pyfetch(url: str, *, headers: dict[str, str], timeout_s: float) -> tu
     Imported lazily so this module stays importable off Pyodide; the tests install a
     stand-in module at ``sys.modules["pyodide.http"]`` to exercise this off Pyodide too.
 
-    ``timeout_s`` is bound by :class:`PyfetchTransport`. Pyodide 0.29.5 applies the
-    ``signal`` passed to ``pyfetch`` to ``FetchResponse.bytes`` as well, and
-    ``AbortSignal.timeout`` takes milliseconds. A deadline abort is reported as a
-    timeout; any other failure, including cancellation of this task, propagates.
+    ``timeout_s`` is read from :class:`PyfetchTransport` when each request starts.
+    Pyodide 0.29.5 applies the ``signal`` passed to ``pyfetch`` to ``FetchResponse.bytes``
+    as well, and ``AbortSignal.timeout`` takes milliseconds. A deadline abort is reported
+    as a timeout; any other failure, including cancellation of this task, propagates.
     """
     from js import AbortSignal  # ty: ignore[unresolved-import]
     from pyodide.http import pyfetch  # ty: ignore[unresolved-import]
