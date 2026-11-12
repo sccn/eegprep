@@ -27,7 +27,6 @@ import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from functools import partial
 from typing import Protocol
 
 #: Sent on every request from :class:`UrllibTransport`. The NEMAR hosts have been
@@ -220,7 +219,10 @@ class PyfetchTransport:
 
     def __init__(self, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
         self.timeout_s = timeout_s
-        self._transport = FetchTransport(partial(_pyfetch, timeout_s=timeout_s))
+        self._transport = FetchTransport(self._fetch)
+
+    async def _fetch(self, url: str, *, headers: dict[str, str]) -> tuple[int, bytes]:
+        return await _pyfetch(url, headers=headers, timeout_s=self.timeout_s)
 
     async def get(self, url: str, *, start: int | None = None, end: int | None = None) -> Response:
         return await self._transport.get(url, start=start, end=end)

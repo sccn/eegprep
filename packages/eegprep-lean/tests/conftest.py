@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import sys
+import threading
 import types
 import urllib.error
-import urllib.parse
 import urllib.request
-from collections.abc import Awaitable, Callable, Iterator
-from typing import TypeVar
+from collections.abc import Iterator
 
 import pytest
 
@@ -89,133 +87,109 @@ class _AbortSignal:
         return signal
 
 
+def _forget(future: asyncio.Future) -> None:
+    if not future.cancelled():
+        future.exception()
+
+
+def _deliver(
+    loop: asyncio.AbstractEventLoop,
+    future: asyncio.Future,
+    result: object,
+    error: BaseException | None,
+) -> None:
+    def apply() -> None:
+        if future.done():
+            return
+        if error is not None:
+            future.set_exception(error)
+            return
+        future.set_result(result)
+
+    try:
+        loop.call_soon_threadsafe(apply)
+    except RuntimeError:
+        return
+
+
+async def _await_in_thread(fn, signal: _AbortSignal | None):
+    """Run ``fn`` on a daemon thread, and stop waiting if ``signal`` aborts.
+
+    The thread is a daemon so a stall that outlives the test cannot hold
+    ``asyncio.run`` open. ``urlopen`` still follows redirects and returns HTTP
+    errors as responses.
+    """
+    loop = asyncio.get_running_loop()
+    future = loop.create_future()
+    future.add_done_callback(_forget)
+
+    def work() -> None:
+        try:
+            result = fn()
+        except Exception as err:
+            _deliver(loop, future, None, err)
+        else:
+            _deliver(loop, future, result, None)
+
+    threading.Thread(target=work, daemon=True).start()
+    abort_task = asyncio.create_task(signal.wait()) if signal is not None else None
+    try:
+        if abort_task is None:
+            return await future
+        done, _pending = await asyncio.wait({future, abort_task}, return_when=asyncio.FIRST_COMPLETED)
+        if future in done and (abort_task not in done or future.exception() is None):
+            return future.result()
+        raise OSError("The operation was aborted.")
+    finally:
+        if abort_task is not None:
+            abort_task.cancel()
+
+
+def _open(url: str, headers: dict[str, str]):
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        return urllib.request.urlopen(request, timeout=10)
+    except urllib.error.HTTPError as err:
+        return err
+
+
 class _FakePyodideResponse:
     """The slice of ``pyodide.http.FetchResponse`` that :class:`~eegprep_lean.PyfetchTransport` reads.
 
-    Headers are already in hand. ``bytes`` reads the body, and an abort signal that fires
-    during that read closes the socket instead of returning a short body.
+    ``urlopen`` has already returned the headers. ``bytes`` reads the body, and an
+    abort signal ends that wait instead of letting a stalled body finish.
     """
 
-    def __init__(
-        self,
-        status: int,
-        headers: dict[str, str],
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-        leftover: bytes,
-        signal: _AbortSignal | None,
-    ) -> None:
-        self.status = status
-        self.headers = headers
-        self._reader = reader
-        self._writer = writer
-        self._leftover = leftover
+    def __init__(self, raw, signal: _AbortSignal | None) -> None:
+        self.status = raw.status
+        self._raw = raw
         self._signal = signal
 
     async def bytes(self) -> bytes:
-        async def read_body() -> bytes:
-            chunks = [self._leftover] if self._leftover else []
-            try:
-                while True:
-                    block = await self._reader.read(65536)
-                    if not block:
-                        break
-                    chunks.append(block)
-            finally:
-                self._writer.close()
-            return b"".join(chunks)
-
         try:
-            return await _await_fetch(read_body(), self._signal, self._writer.close)
+            return await _await_in_thread(self._read, self._signal)
         finally:
             if self._signal is not None:
                 self._signal.cancel_timer()
 
-    def close(self) -> None:
-        self._writer.close()
-
-
-def _request_target(url: str) -> tuple[str, int, str]:
-    parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme != "http" or parsed.hostname is None or parsed.port is None:
-        raise OSError(f"unsupported url: {url}")
-    path = parsed.path or "/"
-    if parsed.query:
-        path = f"{path}?{parsed.query}"
-    return parsed.hostname, parsed.port, path
-
-
-def _encode_request(path: str, host: str, headers: dict[str, str]) -> bytes:
-    lines = [f"GET {path} HTTP/1.0", f"Host: {host}", "Connection: close"]
-    lines.extend(f"{name}: {value}" for name, value in headers.items())
-    return ("\r\n".join(lines) + "\r\n\r\n").encode("ascii")
-
-
-async def _read_response_head(reader: asyncio.StreamReader) -> tuple[int, dict[str, str], bytes]:
-    buffer = bytearray()
-    while b"\r\n\r\n" not in buffer:
-        chunk = await reader.read(4096)
-        if not chunk:
-            raise ConnectionError("connection closed before headers")
-        buffer.extend(chunk)
-        if len(buffer) > 65536:
-            raise ConnectionError("response headers are too large")
-    head, _, leftover = bytes(buffer).partition(b"\r\n\r\n")
-    lines = head.decode("iso-8859-1").split("\r\n")
-    status = int(lines[0].split()[1])
-    headers: dict[str, str] = {}
-    for line in lines[1:]:
-        if not line:
-            continue
-        name, _, value = line.partition(":")
-        headers[name.lower()] = value.strip()
-    return status, headers, leftover
-
-
-_T = TypeVar("_T")
-
-
-async def _await_fetch(awaitable: Awaitable[_T], signal: _AbortSignal | None, close: Callable[[], None]) -> _T:
-    """Await ``awaitable`` until it finishes or ``signal`` aborts the socket."""
-    task = asyncio.ensure_future(awaitable)
-    abort_task = asyncio.create_task(signal.wait()) if signal is not None else None
-    try:
-        if abort_task is None:
-            return await task
-        done, _pending = await asyncio.wait({task, abort_task}, return_when=asyncio.FIRST_COMPLETED)
-        if task in done and (abort_task not in done or task.exception() is None):
-            return task.result()
-        raise OSError("The operation was aborted.")
-    except asyncio.CancelledError:
-        task.cancel()
-        close()
-        with contextlib.suppress(Exception, asyncio.CancelledError):
-            await task
-        raise
-    finally:
-        if abort_task is not None:
-            abort_task.cancel()
-        if signal is not None and signal.aborted and not task.done():
-            task.cancel()
-            close()
-            with contextlib.suppress(Exception, asyncio.CancelledError):
-                await task
-
-
-_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
-_MAX_REDIRECTS = 10
+    def _read(self) -> bytes:
+        try:
+            return self._raw.read()
+        finally:
+            self._raw.close()
 
 
 class FakePyfetch:
-    """Stands in for ``pyodide.http.pyfetch``: a real request to the loopback server, wrapped
-    in the shape Pyodide's binding returns, so :class:`~eegprep_lean.PyfetchTransport` can be
-    exercised off Pyodide.
+    """Stands in for ``pyodide.http.pyfetch``: a real ``urllib`` request, wrapped in the
+    shape Pyodide's binding returns, so :class:`~eegprep_lean.PyfetchTransport` can be
+    exercised off Pyodide, against the same loopback server the other transports use.
 
-    Follows redirects and never raises for an HTTP error status, which is what a browser's
-    ``fetch()`` does; raises only when no response arrives at all. Headers come back before
-    the body, so a stall in either place is visible. An abort ``signal`` closes the socket
-    instead of letting that stall run out. Records each request's headers, so a test can
-    assert what was actually sent.
+    Follows redirects and never raises for an HTTP error status, which is what a
+    browser's ``fetch()`` does; raises only when no response arrives at all. Headers
+    come back before the body, so a stall in either place is visible. An abort
+    ``signal`` ends the wait; the blocking read is a daemon thread, so the test does
+    not sit out the stall. Records each request's headers, so a test can assert what
+    was actually sent.
     """
 
     def __init__(self) -> None:
@@ -230,31 +204,12 @@ class FakePyfetch:
     ) -> _FakePyodideResponse:
         self.seen.append((url, dict(headers)))
         try:
-            current = url
-            for _redirect in range(_MAX_REDIRECTS):
-                response = await self._once(current, headers, signal)
-                location = response.headers.get("location")
-                if response.status not in _REDIRECT_STATUSES or location is None:
-                    return response
-                response.close()
-                current = urllib.parse.urljoin(current, location)
-            raise OSError("too many redirects")
+            raw = await _await_in_thread(lambda: _open(url, headers), signal)
         except BaseException:
             if signal is not None:
                 signal.cancel_timer()
             raise
-
-    async def _once(self, url: str, headers: dict[str, str], signal: _AbortSignal | None) -> _FakePyodideResponse:
-        host, port, path = _request_target(url)
-        reader, writer = await _await_fetch(asyncio.open_connection(host, port), signal, lambda: None)
-        writer.write(_encode_request(path, f"{host}:{port}", headers))
-        try:
-            await _await_fetch(writer.drain(), signal, writer.close)
-            status, response_headers, leftover = await _await_fetch(_read_response_head(reader), signal, writer.close)
-        except BaseException:
-            writer.close()
-            raise
-        return _FakePyodideResponse(status, response_headers, reader, writer, leftover, signal)
+        return _FakePyodideResponse(raw, signal)
 
 
 @pytest.fixture

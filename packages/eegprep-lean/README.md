@@ -107,8 +107,8 @@ That never touches the window, and `demean=False` draws the values as they are.
 ## In a runtime that owns the network
 
 In a plain Pyodide, reads go through `pyodide.http.pyfetch`.
-`PyfetchTransport` applies its `timeout_s` to that request and to reading the body,
-and aborts the browser fetch when the deadline passes.
+`PyfetchTransport(timeout_s=60)` aborts the browser fetch if the response headers
+and the body have not both arrived within `timeout_s` seconds.
 A sandboxed runtime may remove that module and offer its own client instead,
 one that enforces what executed code is allowed to reach.
 The runtime registers a transport over that client once, before any reader code runs,

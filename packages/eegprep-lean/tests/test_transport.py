@@ -314,6 +314,24 @@ class TestPyfetchTransport:
 
         assert [headers for _, headers in pyodide_http.seen] == [{}]
 
+    def test_pyfetch_deadline_is_the_value_at_call_time(self, base_url: str, pyodide_http) -> None:
+        """Assigning ``timeout_s`` after construction changes the next read, as it does for urllib."""
+        transport = PyfetchTransport(timeout_s=30)
+        transport.timeout_s = _DEADLINE_S
+        url = f"{base_url}/stall-headers"
+        started = time.perf_counter()
+
+        async def run() -> None:
+            await asyncio.wait_for(transport.get(url), _WATCHDOG_S)
+
+        with pytest.raises(TransportError) as caught:
+            asyncio.run(run())
+
+        assert time.perf_counter() - started < _WATCHDOG_S
+        assert caught.value.url == url
+        assert f"{_DEADLINE_S:g}" in str(caught.value)
+        assert [headers for _, headers in pyodide_http.seen] == [{}]
+
     def test_pyfetch_fast_response_with_deadline(self, base_url: str, pyodide_http) -> None:
         """A deadline does not change a ranged read that finishes, or the headers it sends."""
         transport = PyfetchTransport(timeout_s=2)

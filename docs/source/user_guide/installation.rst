@@ -36,6 +36,12 @@ distribution (import name ``eegprep_lean``). NumPy, SciPy, Matplotlib,
 psutil, pyedflib, and h5py are part of this base install. Loading, cleaning,
 plotting, and EDF, BDF, and GDF export work with no brackets.
 
+In Pyodide, ``eegprep-lean`` reads with ``PyfetchTransport(timeout_s=60)``.
+The browser request is aborted if the response headers and the body have not
+both arrived within ``timeout_s`` seconds. A host that registers its own
+client with ``FetchTransport`` keeps that client's deadline.
+``eegprep-lean`` does not add a second one.
+
 Octave, MNE, PyBIDS, and Picard are extras. Install them together with:
 
 .. code-block:: bash
@@ -82,16 +88,6 @@ To develop or build documentation from source, include the docs extra:
 .. code-block:: bash
 
     uv sync --group dev --extra docs
-
-Browser reads
--------------
-
-``eegprep-lean`` (imported as ``eegprep_lean``) is a separate distribution.
-It is not installed by the commands above. In Pyodide it reads with
-``PyfetchTransport``. That deadline covers the response headers and reading
-the body, and it aborts the browser request when the deadline passes. A
-host that registers its own client with ``FetchTransport`` keeps that
-client's deadline. ``eegprep-lean`` does not add a second one.
 
 Optional Dependencies
 =====================
