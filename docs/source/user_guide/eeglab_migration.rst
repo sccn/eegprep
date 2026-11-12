@@ -98,6 +98,27 @@ the limits. Cancelling the menu discards its changes.
      - MATLAB-only LIMO, FieldTrip STUDY source statistics, MRI BEM creation,
        AFNI atlas clipping, and unavailable ICLabel network artifacts fail
        clearly instead of being faked.
+   * - DIPFIT MNI model
+     - The default head model is the packaged dipoli boundary-element volume
+       from DIPFIT ``standard_vol.mat``. Grid search uses EEGLAB's
+       ``linspace(-85,85,24)`` and ``linspace(0,85,12)`` points that fall
+       inside the brain mesh, then refines each dipole with SciPy BFGS.
+       That optimizer is the analogue of ``fminunc`` and is not bit-identical
+       to MATLAB. Components 1 and 2 of the sample dataset land within 1 mm
+       of EEGLAB. ``fminunc`` can stop at a higher-residual local minimum,
+       and EEGPrep keeps the lower-residual fit. EEGLAB's settings
+       dialog switches a channel file whose name contains
+       ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
+       model and applies that file's cap385-to-MNI coregistration. A channel
+       file that matches no keyword keeps the template transform. An empty
+       transform is left unchanged and a fit logs a warning, because those
+       electrodes are not rotated into the head model.
+       ``standardBESA`` still uses the single-sphere leadfield. A custom
+       head-model file is a boundary-element volume when it contains
+       ``bnd``, ``mat``, and ``cond`` with type dipoli, bemcp, or openmeeg.
+       OpenMEEG is recognized and rejected. Any other head-model file raises
+       instead of falling back to the sphere. Creating a bemcp or dipoli
+       system matrix from an MRI, and eLORETA, stay unsupported.
    * - Scripts
      - Assign return values explicitly outside ``eegprep-console``.
 

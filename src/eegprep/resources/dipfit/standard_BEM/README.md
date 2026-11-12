@@ -10,10 +10,18 @@ The NPZ contains the fields needed for native Python dashboard rendering:
 - `transform`: voxel-to-MNI homogeneous transform
 - `xgrid`, `ygrid`, `zgrid`: 1-based MRI grid coordinates from the source file
 
-It is used only for visualization of localized dipoles in EEGLAB-compatible
-viewprops dashboards. It is not a volume-conductor model and is not used for
-FieldTrip/DIPFIT fitting.
+It is used for visualization of localized dipoles in viewprops dashboards.
+It is not the volume conductor.
 
-Provenance: converted from `sccn/dipfit` commit `b0b660e`.
-The accompanying `standard_mri_license.txt` preserves the MNI permission notice
-used for EEGPrep's packaged MNI resources.
+`standard_vol.npz` is the DIPFIT `standard_BEM/standard_vol.mat` dipoli model
+distributed with the plugin (MATLAB 5 file dated 2012-03-09, three
+compartments, conductivities 0.33 / 0.004125 / 0.33 S/m, and the 3000 by 3000
+system matrix). EEGPrep applies that matrix to EEG electrodes. It does not
+rebuild it. Triangle indices in the NPZ are the original one-based MATLAB
+indices. `elec/standard_1005.elc` is the DIPFIT template electrode file for
+this model (ASA, millimetres, no separate copyright header).
+
+Provenance: MRI converted from `sccn/dipfit` commit `b0b660e`. The volume and
+electrode file are the copies shipped by that plugin. The volume is derived
+from the same MNI anatomy as the MRI. The accompanying `standard_mri_license.txt`
+preserves the MNI permission notice used for these packaged resources.

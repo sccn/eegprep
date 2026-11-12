@@ -7,8 +7,8 @@ Mirrors EEGLAB's "Source analysis" tutorial workflow: choose a head model,
 coarse-fit component dipoles on a grid, refine them, then read the resulting
 ``EEG.dipfit.model`` entries.
 
-EEGPrep's bundled DIPFIT backend is a single-sphere analytic leadfield, so
-positions are approximate and will not match FieldTrip BEM coordinates.
+This example selects ``standardBESA``, which uses the single-sphere leadfield.
+The default DIPFIT model is the packaged MNI boundary-element volume.
 """
 
 import matplotlib
