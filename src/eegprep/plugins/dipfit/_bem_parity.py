@@ -27,16 +27,20 @@ def bem_parity_payload(dataset: str | Path) -> dict[str, object]:
     leadfield = ft_compute_leadfield(PARITY_DIPOLES_MM, forward.sens, forward.headmodel)
     fitted = pop_multifit(eeg, list(PARITY_COMPONENTS), threshold=100)
     positions = []
+    residual = []
     for component in PARITY_COMPONENTS:
-        raw = np.asarray(fitted["dipfit"]["model"][component - 1].get("posxyz", []), dtype=float)
+        model = fitted["dipfit"]["model"][component - 1]
+        raw = np.asarray(model.get("posxyz", []), dtype=float)
         if raw.size < 3:
             positions.append([float("nan"), float("nan"), float("nan")])
         else:
             positions.append(raw.reshape(-1, 3)[0].tolist())
+        residual.append(float(model.get("rv", float("nan"))))
     return {
         "labels": forward.labels,
         "dipoles": PARITY_DIPOLES_MM.tolist(),
         "leadfield": np.asarray(leadfield, dtype=float).tolist(),
         "positions": positions,
+        "rv": residual,
         "coord_transform": [float(value) for value in eeg["dipfit"]["coord_transform"]],
     }

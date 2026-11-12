@@ -6,10 +6,10 @@ function dipfit_standard_bem_parity(dataset)
 %   eeglab nogui
 %   dipfit_standard_bem_parity
 %
-% Prints the leadfield max relative error and the 3-D distance, in mm, of
-% components 1 to 3 on sample_data/eeglab_data_epochs_ica.set. Both sides use
-% standardBEM, the cap385 coregistration stored by pop_dipfit_settings, and
-% EEGLAB's default grid.
+% Prints the leadfield max relative error, the 3-D distance in mm, and the
+% residual variance of components 1 to 3 on sample_data/eeglab_data_epochs_ica.set.
+% Both sides use standardBEM, the cap385 coregistration stored by
+% pop_dipfit_settings, and EEGLAB's default grid.
 
 if exist('ft_compute_leadfield', 'file') ~= 2
     error('dipfit_standard_bem_parity:FieldTrip', ...
@@ -44,9 +44,12 @@ relative = max(abs(pythonLeadfield(:) - matlabLeadfield(:))) / max(abs(matlabLea
 fprintf('leadfield max relative error: %.6e\n', relative);
 
 pythonPositions = payload.positions;
+pythonRv = payload.rv(:);
+matlabRv = reference.rv(:);
 for component = 1:size(reference.positions, 1)
     distance = norm(pythonPositions(component, :) - reference.positions(component, :));
-    fprintf('component %d distance_mm: %.4f\n', component, distance);
+    fprintf('component %d distance_mm: %.4f python_rv: %.8f eeglab_rv: %.8f\n', ...
+        component, distance, pythonRv(component), matlabRv(component));
 end
 end
 

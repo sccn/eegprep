@@ -35,14 +35,17 @@ leadfield = ft_compute_leadfield(dipoles, elec, vol);
 
 fitted = pop_multifit(EEG, 1:3, 'threshold', 100, 'dipplot', 'off');
 positions = zeros(3, 3);
+residual = zeros(1, 3);
 for component = 1:3
     xyz = fitted.dipfit.model(component).posxyz;
     xyz = xyz(:)';
     positions(component, :) = xyz(1:3);
+    residual(component) = fitted.dipfit.model(component).rv;
 end
 
 result.labels = strjoin(labels, sprintf('\n'));
 result.leadfield = leadfield;
 result.positions = positions;
+result.rv = residual;
 result.dipoles = dipoles;
 end

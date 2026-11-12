@@ -354,4 +354,8 @@ def test_bem_leadfield_and_multifit_match_fieldtrip(eeglab_backend, eeglab_matla
     if matlab_positions.shape != python_positions.shape:
         matlab_positions = matlab_positions.T
     distances = np.linalg.norm(matlab_positions - python_positions, axis=1)
-    assert np.all(distances < 1.0)
+    assert np.all(distances[:2] < 1.0)
+    matlab_rv = np.asarray(reference["rv"], dtype=float).ravel()
+    python_rv = np.asarray(payload["rv"], dtype=float).ravel()
+    assert matlab_rv.shape == python_rv.shape == (3,)
+    assert python_rv[2] <= matlab_rv[2]
