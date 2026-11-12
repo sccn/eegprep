@@ -504,7 +504,7 @@
         "docs/source/user_guide/ica_rejection.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Covered by tests/test_pop_prop_extended.py data-model tests, tests/test_gui_pop_prop_extended.py rejection commit/cancel and epoched-event tests, and visual parity cases."
+      "test_notes": "Python data-model tests in tests/test_pop_prop_extended.py: test_component_rejection_flags_use_one_based_component_indices asserts 1-based reject flags, test_dashboard_data_assembly_includes_classification_surfaces asserts the IC2 title and ICLabel probability 0.94, and test_dashboard_data_assembly_includes_localized_dipfit_model asserts dipole positions and residual-variance percent. tests/test_gui_pop_prop_extended.py::test_gui_dashboard_rejection_controls_commit_selected_component_flags asserts OK writes gcompreject [1, 1, 0, 0]; test_gui_dashboard_rejection_cancel_discards_pending_flags asserts cancel leaves [0, 0, 0, 0]. test_gui_dashboard_epoched_static_events_use_flattened_event_latencies asserts flattened epoch event positions. Visual parity cases pop_viewprops_dialog and iclabel_pop_prop_extended_dashboard capture dialogs and leave numerical outputs unchecked. The File-menu dispatch loop in tests/test_gui_main_window.py patches pop_iclabel, so it is a session-history check of the patched return value and leaves a classification round trip unchecked."
     },
     {
       "row_id": "iclabel-matconvnet-activation",
@@ -699,7 +699,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/api/signal_processing.rst"
       ],
-      "test_notes": "Covered by deterministic mni2tal, headcoordinates, traditional transform, warp_apply, electroderealign, and atlas/backend limitation tests."
+      "test_notes": "Python behavioral tests. tests/test_dipfit_workflows.py::test_dipfit_coordinate_transform_and_realign_helpers_are_deterministic asserts mni2tal([[10, 12, 14]]) near [[9.9, 12.270032, 12.282544]], headcoordinates of the fiducial triad is identity, warp_apply of traditionaldipfit([1, 2, 3, 0, 0, 0, 2, 3, 4]) maps [1, 1, 1] to [3, 5, 7], and fiducial realignment restores the template points. test_homogenous2traditional_roundtrips_nonzero_rotation_and_scale asserts the traditional parameter round trip. test_load_afni_atlas_uses_nibabel_zero_based_voxel_affine asserts voxel (1, 2, 0) with label 7 maps to xyz [11, 24, 30]. No surviving test asserts a backend limitation. This row leaves BESA forward-model parity unchecked; that gap is https://github.com/sccn/eegprep/issues/600."
     },
     {
       "row_id": "eegobj-python-dataset-contract",
