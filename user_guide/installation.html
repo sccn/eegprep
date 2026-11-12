@@ -677,6 +677,16 @@ uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> <
 </div>
 </section>
 </section>
+<section id="eegprep-lean">
+<h2>eegprep-lean<a class="headerlink" href="#eegprep-lean" title="Link to this heading">#</a></h2>
+<p>The commands on this page install EEGPrep. They do not install the separate
+<code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code> distribution (import name <code class="docutils literal notranslate"><span class="pre">eegprep_lean</span></code>). In Pyodide that
+package reads with <code class="docutils literal notranslate"><span class="pre">PyfetchTransport(timeout_s=60)</span></code>. The browser request is
+aborted if the response headers and the body have not both arrived within
+<code class="docutils literal notranslate"><span class="pre">timeout_s</span></code> seconds. A host that registers its own client with
+<code class="docutils literal notranslate"><span class="pre">FetchTransport</span></code> keeps that client’s deadline. <code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code> does not
+add a second one.</p>
+</section>
 <section id="verification">
 <h2>Verification<a class="headerlink" href="#verification" title="Link to this heading">#</a></h2>
 <p>After installation, verify that eegprep is correctly installed by running:</p>
@@ -853,6 +863,7 @@ any companion <code class="docutils literal notranslate"><span class="pre">.fdt<
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#all-optional-dependencies">All Optional Dependencies</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep-lean">eegprep-lean</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#verification">Verification</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">Troubleshooting</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#import-errors">Import Errors</a></li>
