@@ -202,6 +202,17 @@ Or with specific extras:
 
     uv add "eegprep[torch,gui,docs]"
 
+eegprep-lean
+============
+
+The commands on this page install EEGPrep. They do not install the separate
+``eegprep-lean`` distribution (import name ``eegprep_lean``). In Pyodide that
+package reads with ``PyfetchTransport(timeout_s=60)``. The browser request is
+aborted if the response headers and the body have not both arrived within
+``timeout_s`` seconds. A host that registers its own client with
+``FetchTransport`` keeps that client's deadline. ``eegprep-lean`` does not
+add a second one.
+
 Verification
 ============
 
