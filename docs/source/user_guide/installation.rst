@@ -83,6 +83,16 @@ To develop or build documentation from source, include the docs extra:
 
     uv sync --group dev --extra docs
 
+Browser reads
+-------------
+
+``eegprep-lean`` (imported as ``eegprep_lean``) is a separate distribution.
+It is not installed by the commands above. In Pyodide it reads with
+``PyfetchTransport``. That deadline covers the response headers and reading
+the body, and it aborts the browser request when the deadline passes. A
+host that registers its own client with ``FetchTransport`` keeps that
+client's deadline. ``eegprep-lean`` does not add a second one.
+
 Optional Dependencies
 =====================
 

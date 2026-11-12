@@ -107,6 +107,8 @@ That never touches the window, and `demean=False` draws the values as they are.
 ## In a runtime that owns the network
 
 In a plain Pyodide, reads go through `pyodide.http.pyfetch`.
+`PyfetchTransport` applies its `timeout_s` to that request and to reading the body,
+and aborts the browser fetch when the deadline passes.
 A sandboxed runtime may remove that module and offer its own client instead,
 one that enforces what executed code is allowed to reach.
 The runtime registers a transport over that client once, before any reader code runs,
@@ -123,6 +125,7 @@ eegprep_lean.set_default_transport(eegprep_lean.FetchTransport(client))
 and accepts only a `2xx`:
 any other status is a `TransportError`, a redirect included, since it follows none,
 and so is a range request answered in full.
+It does not set a deadline; that stays with the host's client.
 A request the host refuses must raise rather than answer with a status of its own,
 because the store reads 403, 404 and 416 as a key that does not exist.
 An explicit `transport=` argument still wins over the registered default,
