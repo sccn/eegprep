@@ -664,6 +664,7 @@ def _chain_subject(subject, imported, engine):
     python = _Side()
     matlab = _Side(engine)
     summary = {}
+    imported = _as_float64(imported)
     python_ref, matlab_ref, max_abs, rms = _step_pair("reref", python.reref, matlab.reref, imported, imported)
     summary["reref"] = {"max_abs": max_abs, "rms": rms}
     python_ref = _as_float64(python_ref)
