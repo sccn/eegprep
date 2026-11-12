@@ -3788,7 +3788,7 @@
         "gui",
         "file_channel"
       ],
-      "test_notes": "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_empty_center asserts the fitted center is within 0.11 of the origin. test_reference_pop_chancenter_no_omitchans and test_reference_pop_chancenter_with_omitchans assert translated coordinates against convertlocs. Those three compare recorded expectations through eeglab_backend and become a live MATLAB comparison only with --eeglab-backend=matlab. test_reference_pop_chancenter_nine_recorded_location_calls is a provenance-linked smoke call of nine centers and omit lists and asserts nothing. Python behavioral tests: test_pop_chancenter_uses_one_based_omit_indices_and_console_return_shape asserts omit index 4 leaves Cz in place and the history command uses [4]; test_pop_chancenter_gui_cancel_path_returns_original_without_history asserts gui=True with no submitted result returns the same EEG and an empty command; test_console_pop_chancenter_updates_session_history_and_current_dataset asserts CURRENTSET [1] and the same history command."
+      "test_notes": "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_empty_center asserts the fitted center is within 0.11 of the origin. test_reference_pop_chancenter_no_omitchans and test_reference_pop_chancenter_with_omitchans assert translated coordinates against convertlocs. Those three compare recorded expectations through eeglab_backend and become a live MATLAB comparison only with --eeglab-backend=matlab. test_reference_pop_chancenter_nine_recorded_location_calls is a provenance-linked smoke call of nine centers and omit lists and asserts nothing. Python behavioral tests: test_pop_chancenter_uses_one_based_omit_indices_and_console_return_shape asserts the history command records omit index [4]; the zero center leaves the coordinate assertion unable to distinguish omitted channels; test_pop_chancenter_gui_cancel_path_returns_original_without_history asserts gui=True with no submitted result returns the same EEG and an empty command; test_console_pop_chancenter_updates_session_history_and_current_dataset asserts CURRENTSET [1] and the same history command."
     },
     {
       "eeglab_path": "functions/popfunc/pop_chancoresp.m",
@@ -4535,7 +4535,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "tests/test_phase7_long_tail_helpers.py::test_reference_rejchanspec_original_workflow is a provenance-linked GUI smoke call of six option combinations and asserts no rejected channels. test_pop_rejchanspec_rejects_spectral_outlier_and_returns_history is a Python behavioral test: it asserts the outlier channel is removed (nbchan 2, labels Ch1 and Ch3) and that the history command starts with pop_rejchanspec."
+      "test_notes": "tests/test_phase7_long_tail_helpers.py::test_reference_rejchanspec_original_workflow is a provenance-linked GUI smoke call of six option combinations and asserts nothing about the result. The gui marker keeps that smoke call out of the normal non-GUI CI lane. test_pop_rejchanspec_rejects_spectral_outlier_and_returns_history is a Python behavioral test: it asserts the outlier channel is removed (nbchan 2, labels Ch1 and Ch3) and that the history command starts with pop_rejchanspec."
     },
     {
       "eeglab_path": "functions/popfunc/pop_rejcont.m",
@@ -5511,7 +5511,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "tests/test_sigprocfunc_plotting_eeglab_tests.py::test_reference_headplot_example_commands is a provenance-linked GUI smoke call of the cartesian and example commands and asserts no head-plot values. tests/test_phase4_plot_wrappers.py::test_reference_headplot_original_spline_workflows asserts the spline file exists after setup. test_headplot_setup_spline_metadata_matches_eeglab, test_headplot_interpolated_values_match_eeglab, and test_headplot_setup_ica_metadata_matches_eeglab are live MATLAB comparisons of spline metadata and interpolated values; each skips when MATLAB or the EEGLAB checkout is unavailable."
+      "test_notes": "tests/test_sigprocfunc_plotting_eeglab_tests.py::test_reference_headplot_example_commands is a provenance-linked GUI smoke call of the cartesian and example commands and asserts nothing about head-plot values. tests/test_phase4_plot_wrappers.py::test_reference_headplot_original_spline_workflows asserts the spline file exists after setup. test_headplot_setup_spline_metadata_matches_eeglab, test_headplot_interpolated_values_match_eeglab, and test_headplot_setup_ica_metadata_matches_eeglab are live MATLAB comparisons of spline metadata and interpolated values; each skips when MATLAB or the EEGLAB checkout is unavailable."
     },
     {
       "eeglab_path": "functions/sigprocfunc/icaact.m",
@@ -6108,7 +6108,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "tests/test_phase2_file_channel_location.py::test_reference_readlocs_bugzilla_339 and test_reference_readlocs_bugzilla_72 are provenance-linked smoke calls and assert no channel fields. Python behavioral tests assert a 342-channel packaged montage (test_readlocs_reads_packaged_mat_backed_montage), custom-format order and 1-based readchans (test_readlocs_custom_format_reorders_and_applies_one_based_readchans), BESA column radii [7.3, 7.6, 8.1, 8.7] (test_readlocs_custom_besa_columns_accept_upstream_regression_values), quoted CED types (test_readlocs_ced_preserves_upstream_quoted_channel_type), and the locs/CED label round trip (test_readlocs_and_writelocs_round_trip_locs_and_ced)."
+      "test_notes": "tests/test_phase2_file_channel_location.py::test_reference_readlocs_bugzilla_339 and test_reference_readlocs_bugzilla_72 are provenance-linked smoke calls and assert nothing about channel fields. Python behavioral tests assert a 342-channel packaged montage (test_readlocs_reads_packaged_mat_backed_montage), custom-format order and 1-based readchans (test_readlocs_custom_format_reorders_and_applies_one_based_readchans), BESA column radii [7.3, 7.6, 8.1, 8.7] (test_readlocs_custom_besa_columns_accept_upstream_regression_values), quoted CED types (test_readlocs_ced_preserves_upstream_quoted_channel_type), and the locs/CED label round trip (test_readlocs_and_writelocs_round_trip_locs_and_ced)."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readneurodat.m",
@@ -6838,7 +6838,7 @@
         "helper",
         "study"
       ],
-      "test_notes": "Consolidated into std_precomp time-frequency caches. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp calls precompute with ersp options and asserts no time or frequency values; it is a slow gui provenance-linked smoke call, deselected unless --eeglab-backend is set, and outside the normal non-GUI parity lane. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches with datatype ersp is a Python behavioral test that a precompute using timesout 5 and nfreqs 4 yields plotted ERSP cells matching the single-trial cache. The ERP cache tests in tests/test_study_measures.py assert ERP values and leave the ERSP time axis unchecked. This is a live MATLAB comparison only when a cited test runs on the MATLAB backend.",
+      "test_notes": "Consolidated into std_precomp time-frequency caches. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp calls precompute with ersp options and asserts nothing about time or frequency values; it is a slow gui provenance-linked smoke call, deselected unless --eeglab-backend is set, and outside the normal non-GUI parity lane. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches with datatype ersp is a Python behavioral test that a precompute using timesout 5 and nfreqs 4 yields plotted ERSP cells matching the single-trial cache. The ERP cache tests in tests/test_study_measures.py assert ERP values and leave the ERSP time axis unchecked. This is a live MATLAB comparison only when a cited test runs on the MATLAB backend.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7615,7 +7615,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Consolidated into channel precompute. tests/test_study_measures.py::test_std_precomp_recompute_off_preserves_cached_channel_measures asserts recompute off keeps a sentinel changrp ERP cache and recompute on restores the computed ERP. test_std_precomp_baseline_and_design_contract asserts the cached ERP is baseline-zero on the requested window and that measureinfo design is 2. tests/test_study_end_to_end.py::test_study_end_to_end_workflow_roundtrips_and_syncs_console asserts the reloaded changrp measure list includes erp. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches with datatype erp asserts plotted ERP cells match the single-trial cache. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp is a provenance-linked smoke call and asserts no ERP values.",
+      "test_notes": "Consolidated into channel precompute. tests/test_study_measures.py::test_std_precomp_recompute_off_preserves_cached_channel_measures asserts recompute off keeps a sentinel changrp ERP cache and recompute on restores the computed ERP. test_std_precomp_baseline_and_design_contract asserts the cached ERP is baseline-zero on the requested window and that measureinfo design is 2. tests/test_study_end_to_end.py::test_study_end_to_end_workflow_roundtrips_and_syncs_console asserts the reloaded changrp measure list includes erp. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches with datatype erp asserts plotted ERP cells match the single-trial cache. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp is a provenance-linked smoke call and asserts nothing about ERP values.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7674,7 +7674,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Consolidated into the precompute pipeline. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches and test_trial_factor_component_cluster_preserves_membership_in_every_cell, both with datatype ersp, are Python behavioral tests that plotted ERSP cells match the single-trial cache. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp calls ersp precompute and asserts no ERSP values; it is a slow gui provenance-linked smoke call outside the normal non-GUI parity lane. The ERP cache assertions in tests/test_study_measures.py leave ERSP unchecked.",
+      "test_notes": "Consolidated into the precompute pipeline. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches and test_trial_factor_component_cluster_preserves_membership_in_every_cell, both with datatype ersp, are Python behavioral tests that plotted ERSP cells match the single-trial cache. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp calls ersp precompute and asserts nothing about ERSP values; it is a slow gui provenance-linked smoke call outside the normal non-GUI parity lane. The ERP cache assertions in tests/test_study_measures.py leave ERSP unchecked.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8664,7 +8664,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Consolidated into channel precompute. tests/test_study_end_to_end.py::test_study_end_to_end_workflow_roundtrips_and_syncs_console asserts the reloaded changrp measure list includes spec. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches with datatype spec asserts plotted spectrum cells match the single-trial cache in dB. tests/test_study_measures.py::test_std_precomp_recompute_off_preserves_cached_channel_measures requests spec precompute and asserts the ERP cache, so it leaves the spectrum values unchecked. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp is a provenance-linked smoke call and asserts no spectrum values.",
+      "test_notes": "Consolidated into channel precompute. tests/test_study_end_to_end.py::test_study_end_to_end_workflow_roundtrips_and_syncs_console asserts the reloaded changrp measure list includes spec. tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches with datatype spec asserts plotted spectrum cells match the single-trial cache in dB. tests/test_study_measures.py::test_std_precomp_recompute_off_preserves_cached_channel_measures requests spec precompute and asserts the ERP cache, so it leaves the spectrum values unchecked. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp is a provenance-linked smoke call and asserts nothing about spectrum values.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8679,7 +8679,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Consolidated with spectrum and time-frequency precompute. No current test asserts a separate spectrogram cache. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp calls precompute and asserts no measure values; it is a slow gui provenance-linked smoke call outside the normal non-GUI parity lane. Spectrum evidence that does exist is the Python spec cell reconstruction in tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches and the reloaded measure list in tests/test_study_end_to_end.py::test_study_end_to_end_workflow_roundtrips_and_syncs_console. Those checks leave byte-identical MATLAB spectrogram output unchecked.",
+      "test_notes": "Consolidated with spectrum and time-frequency precompute. No current test asserts a separate spectrogram cache. tests/test_study_workflows_eeglab_tests.py::test_reference_std_precomp calls precompute and asserts nothing about measure values; it is a slow gui provenance-linked smoke call outside the normal non-GUI parity lane. Spectrum evidence that does exist is the Python spec cell reconstruction in tests/test_study_trial_factor_measures.py::test_trial_factor_channel_cells_reconstruct_from_single_trial_caches and the reloaded measure list in tests/test_study_end_to_end.py::test_study_end_to_end_workflow_roundtrips_and_syncs_console. Those checks leave byte-identical MATLAB spectrogram output unchecked.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8738,7 +8738,7 @@
         "api",
         "study"
       ],
-      "test_notes": "tests/test_study_measures.py::test_component_measure_reads_map_requested_component_ids_to_cached_axis asserts a requested component ERP matches the cached axis and rejects an unknown component id. test_component_precompute_preserves_per_dataset_component_pairs asserts per-dataset set/component pairs [[1, 1, 2, 2]] and comps [1, 2, 3, 4]. tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_topoplot is a provenance-linked GUI smoke call of four topoplot option sets and asserts no topography values.",
+      "test_notes": "tests/test_study_measures.py::test_component_measure_reads_map_requested_component_ids_to_cached_axis asserts a requested component ERP matches the cached axis and rejects an unknown component id. test_component_precompute_preserves_per_dataset_component_pairs asserts per-dataset set/component pairs [[1, 1, 2, 2]] and comps [1, 2, 3, 4]. tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_topoplot is a provenance-linked GUI smoke call of four topoplot option sets and asserts nothing about topography values.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
