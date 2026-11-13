@@ -17,6 +17,7 @@ from __future__ import annotations
 EXTRA_ROOTS = {
     "zarr": frozenset({"zarr", "numpy"}),
     "plot": frozenset({"matplotlib", "numpy"}),
+    "mne": frozenset({"mne", "numpy"}),
 }
 
 #: The browser line is the part worth keeping: zarr's ``numcodecs>=0.14`` pin is metadata,
@@ -31,6 +32,7 @@ EXTRA_HINTS = {
     "plot": (
         "pip install 'eegprep-lean[plot]'. In a browser, micropip.install(\"matplotlib\"), which Pyodide bundles."
     ),
+    "mne": "pip install 'eegprep-lean[mne]'.",
 }
 
 
