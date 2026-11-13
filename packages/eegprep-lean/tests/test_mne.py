@@ -22,13 +22,13 @@ LABELS = ("E1", "E2", "E3")
 DATA = [[1.0, 2.0, 3.0, 4.0], [10.0, 20.0, 30.0, 40.0], [-1.0, -2.0, -3.0, -4.0]]
 
 
-def window(data=DATA, *, unit: str | None = "uV", labels=LABELS, physical: bool = True) -> Window:
+def window(data=DATA, *, unit: str | None = "uV", labels=LABELS, physical: bool = True, rate: float = RATE) -> Window:
     array = np.asarray(data, dtype=np.float64)
     return Window(
         data=array,
         channels=tuple(range(array.shape[0])),
         start_sample=0,
-        rate=RATE,
+        rate=rate,
         group_name="eeg_250hz",
         physical=physical,
         labels=labels,
@@ -63,6 +63,9 @@ class TestWithMne:
         assert raw.ch_names == list(LABELS)
         assert raw.get_channel_types() == ["eeg", "eeg", "eeg"]
         assert raw.n_times == 4
+
+    def test_a_non_integer_rate_is_kept_exactly(self) -> None:
+        assert to_mne_raw(window(rate=256.5)).info["sfreq"] == 256.5
 
     def test_ch_types_can_be_one_string_or_one_per_channel(self) -> None:
         assert to_mne_raw(window(), ch_types="eog").get_channel_types() == ["eog"] * 3

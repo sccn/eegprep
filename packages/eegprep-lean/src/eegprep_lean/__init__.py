@@ -64,7 +64,8 @@ _EXTRA_NAMES = {
     "open_array": ("eegprep_lean.store", "zarr"),
     "read_window": ("eegprep_lean.window", "zarr"),
     "load_recording": ("eegprep_lean.recording", "zarr"),
-    "to_eeg": ("eegprep_lean.eeg", "zarr"),
+    # numpy only, like Window: it works under the plot extra alone.
+    "to_eeg": ("eegprep_lean.eeg", "plot"),
     "to_mne_raw": ("eegprep_lean.mne", "mne"),
     # numpy, not zarr: window.py imports zarr only inside read_window, so these two work
     # under the plot extra alone.

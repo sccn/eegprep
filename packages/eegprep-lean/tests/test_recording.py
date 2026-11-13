@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import gc
 import hashlib
 import json
 import pathlib
 import threading
+import warnings
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
@@ -41,8 +43,21 @@ LABELS = ("E1", "E2", "E3")
 FIRST_PATH = "sub-01/eeg/sub-01_task-test_eeg.set"
 TWO_EEG_PATH = "sub-02/eeg/sub-02_task-test_eeg.set"
 MIXED_PATH = "sub-03/meg/sub-03_task-test_meg.fif"
+RAGGED_PATH = "sub-04/eeg/sub-04_task-test_eeg.set"
+# 700 samples in chunks of 125 and shards of 500: the second shard holds 200 samples, whose
+# last chunk holds 75. Neither the shard nor the chunk grid divides the length.
+RAGGED_SAMPLES = 700
+# Written out here and not imported from the code: the peak bytes per channel-sample that
+# max_bytes is counted in. Float64 window (8) + float64 dictionary data (8) + one channel's
+# worth of times (8).
+PEAK = 24
 # The fixture's group names, for the stores that have several.
 SLOW, FAST = "eeg_125hz", "eeg_250hz"
+
+
+def _ragged(channel: int, sample: int) -> int:
+    """Distinct per cell of the ragged store, and in range for int16."""
+    return channel * 1000 + sample
 
 
 def _digital(channel: int, sample: int) -> int:
@@ -191,6 +206,18 @@ def served(tmp_path_factory):
         offset=[0.0],
     )
 
+    _write_group(
+        zarr.create_group(store=LocalStore(root / "rec4.zarr"), overwrite=True),
+        FAST,
+        modality="EEG",
+        rate=RATE,
+        unit="uV",
+        data=np.array([[_ragged(c, s) for s in range(RAGGED_SAMPLES)] for c in range(N_CHANNELS)]),
+        scale=SCALE,
+        offset=OFFSET,
+        sharded=True,
+    )
+
     requested: list[tuple[str, str | None, str | None]] = []
     documents: dict[str, bytes] = {}
     handler = type("Handler", (_Handler,), {"root": root, "documents": documents, "requested": requested})
@@ -213,7 +240,7 @@ def served(tmp_path_factory):
         "format_version": 3,
         "dataset_id": DATASET,
         "contract_base": base_url,
-        "store_count": 3,
+        "store_count": 4,
         "stores": [
             {
                 "path": FIRST_PATH,
@@ -229,6 +256,11 @@ def served(tmp_path_factory):
                 "path": MIXED_PATH,
                 "zarr": "rec3.zarr",
                 "groups": [group_entry("meg_250hz", "MEG", 250.0, 2, 100), group_entry(FAST, "EEG", 250.0, 1, 100)],
+            },
+            {
+                "path": RAGGED_PATH,
+                "zarr": "rec4.zarr",
+                "groups": [group_entry(FAST, "EEG", RATE, N_CHANNELS, RAGGED_SAMPLES)],
             },
         ],
     }
@@ -298,6 +330,20 @@ class TestIndexSha256:
 
         assert [agent for _, _, agent in requested] == ["eegprep-lean"]
 
+    def test_a_running_event_loop_is_refused_clearly_and_leaves_no_coroutine_behind(self, served) -> None:
+        _, base_url, _ = served
+
+        async def inside() -> None:
+            with pytest.raises(RuntimeError, match="await read_index and read_window"):
+                index_sha256(DATASET, index_url=f"{base_url}index.json")
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            asyncio.run(inside())
+            gc.collect()
+
+        assert [str(w.message) for w in caught if "never awaited" in str(w.message)] == []
+
 
 class TestLoadRecording:
     def test_returns_the_whole_recording_in_physical_units(self, served, local_index) -> None:
@@ -361,7 +407,7 @@ class TestLoadRecording:
     def test_a_recording_over_max_bytes_is_refused_before_any_signal_is_read(self, served, local_index) -> None:
         _, _, requested = served
         requested.clear()
-        needed = N_CHANNELS * N_SAMPLES * 8
+        needed = N_CHANNELS * N_SAMPLES * PEAK
 
         with pytest.raises(ValueError, match=str(needed)):
             load_recording(DATASET, FIRST_PATH, index=local_index, max_bytes=needed - 1)
@@ -369,11 +415,69 @@ class TestLoadRecording:
         assert requested == [], "the size was checked after reading rather than before"
 
     def test_a_recording_exactly_max_bytes_is_read(self, served, local_index) -> None:
-        needed = N_CHANNELS * N_SAMPLES * 8
+        needed = N_CHANNELS * N_SAMPLES * PEAK
 
         window = load_recording(DATASET, FIRST_PATH, index=local_index, max_bytes=needed)
 
-        assert window.data.size * 8 == needed
+        assert window.data.shape == (N_CHANNELS, N_SAMPLES)
+
+    def test_the_cap_counts_peak_memory_and_not_only_the_decoded_array(self, served, local_index) -> None:
+        """A cap of the float64 array alone (8 bytes per channel-sample) lets through a
+        recording whose conversion peaks at three times that."""
+        float64_array = N_CHANNELS * N_SAMPLES * 8
+
+        with pytest.raises(ValueError, match="peak"):
+            load_recording(DATASET, FIRST_PATH, index=local_index, max_bytes=float64_array)
+
+    def test_the_whole_ragged_recording_comes_back_with_every_value(self, served, local_index) -> None:
+        """700 samples in shards of 500 and chunks of 125, so the last shard and the last
+        chunk are short. Shape alone would not notice a short chunk padded with fill
+        values or a last shard dropped: every cell is checked."""
+        np = pytest.importorskip("numpy")
+
+        window = load_recording(DATASET, RAGGED_PATH, index=local_index)
+
+        expected = np.array(
+            [[_ragged(c, s) * SCALE[c] + OFFSET[c] for s in range(RAGGED_SAMPLES)] for c in range(N_CHANNELS)]
+        )
+        assert window.data.shape == (N_CHANNELS, RAGGED_SAMPLES)
+        assert (window.data == expected).all()
+        # The two seams by name: the first sample of the short shard and the last of the
+        # short chunk.
+        assert window.data[0, 500] == _ragged(0, 500) * SCALE[0] + OFFSET[0]
+        assert window.data[2, 699] == _ragged(2, 699) * SCALE[2] + OFFSET[2]
+
+    def test_a_store_shorter_than_its_index_says_is_refused(self, served, local_index) -> None:
+        """read_window clamps to the array's real length, so a store reconverted shorter
+        than the index read earlier comes back as a smaller window and no error."""
+        group = local_index.store(RAGGED_PATH).groups[0]
+        longer = dataclasses.replace(group, n_samples=1000)
+        stale = dataclasses.replace(local_index, stores=(Store(path=RAGGED_PATH, zarr="rec4.zarr", groups=(longer,)),))
+
+        with pytest.raises(IndexError_, match=r"3 channels by 700 samples.*3 by 1000"):
+            load_recording(DATASET, RAGGED_PATH, index=stale)
+
+    def test_index_url_names_the_index_that_is_read(self, served) -> None:
+        _, base_url, requested = served
+        requested.clear()
+
+        window = load_recording(DATASET, FIRST_PATH, index_url=f"{base_url}index.json")
+
+        assert window.data.shape == (N_CHANNELS, N_SAMPLES)
+        assert requested[0][0] == "/index.json"
+
+    def test_a_running_event_loop_is_refused_clearly_and_leaves_no_coroutine_behind(self, local_index) -> None:
+        async def inside() -> str:
+            with pytest.raises(RuntimeError, match="await read_index and read_window") as caught:
+                load_recording(DATASET, FIRST_PATH, index=local_index)
+            return str(caught.value)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            asyncio.run(inside())
+            gc.collect()
+
+        assert [str(w.message) for w in caught if "never awaited" in str(w.message)] == []
 
     def test_the_default_cap_is_two_gibibytes(self) -> None:
         import inspect

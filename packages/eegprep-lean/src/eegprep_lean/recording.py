@@ -13,7 +13,8 @@ there instead.
 
 Reading a whole recording is the one place this package can ask for gigabytes, so the
 size is checked against ``max_bytes`` from the index's own counts *before* any signal is
-fetched, and nothing is ever written to disk.
+fetched, and nothing is ever written to disk. The check counts peak memory, not just the
+decoded array: see :data:`PEAK_BYTES_PER_SAMPLE`.
 
 :func:`index_sha256` is base tier, standard library only. It records which index the
 recording was read against, so a result can say what it was computed from.
@@ -32,11 +33,24 @@ from .transport import Transport, default_transport
 if TYPE_CHECKING:
     from .window import Window
 
-#: The cap on the decoded recording, as float64: channels times samples times 8 bytes.
-DEFAULT_MAX_BYTES = 2 * 1024**3
+#: Peak resident bytes per channel-sample of reading a recording and then calling
+#: :func:`~eegprep_lean.to_eeg` on it, which is what ``max_bytes`` is counted in.
+#:
+#: Reading peaks at 10: the stored ``int16`` counts (2) are alive while their ``float64``
+#: conversion (8) is built in place. ``to_eeg`` then peaks higher, at 8 for the window
+#: still held by the caller, plus 8 for the dictionary's own ``data``, plus the ``times``
+#: vector of 8 bytes per time point, which is 8 per channel-sample only for one channel
+#: and is counted that way here as the worst case: 8 + 8 + 8 = 24. Measured with
+#: ``tracemalloc`` on a 33-channel recording, reading peaked at 10.0 bytes per
+#: channel-sample and ``to_eeg`` at 16.5, inside this bound.
+#:
+#: ``to_mne_raw`` is not inside it: MNE keeps its own time vector and bookkeeping, and
+#: the volts copy and MNE's side measured about 42 bytes per channel-sample in all. A
+#: caller going to MNE passes a ``max_bytes`` a third of what it can afford.
+PEAK_BYTES_PER_SAMPLE = 24
 
-#: Physical level-0 data is held as float64.
-_BYTES_PER_SAMPLE = 8
+#: What ``max_bytes`` is when a caller names none: peak resident memory, 2 GiB.
+DEFAULT_MAX_BYTES = 2 * 1024**3
 
 
 def index_sha256(
@@ -53,12 +67,13 @@ def index_sha256(
     the digest describe a newer index than the one a read used; read both close together
     and treat a mismatch on a later run as the dataset having changed.
 
-    ``index_url`` is as for :func:`~eegprep_lean.read_index`. Not callable from inside a
-    running event loop.
+    ``index_url`` is as for :func:`~eegprep_lean.read_index`; pass the one given to
+    :func:`load_recording` so both describe the same document. Not callable from inside a
+    running event loop (``RuntimeError``).
     """
     client = transport or default_transport()
     url = index_url if index_url is not None else INDEX_URL_TEMPLATE.format(dataset_id=dataset_id)
-    response = asyncio.run(client.get(url))
+    response = _run_sync("index_sha256", lambda: client.get(url))
     return hashlib.sha256(response.body).hexdigest()
 
 
@@ -80,6 +95,22 @@ def _choose_group(store: Store, name: str | None) -> ChannelGroup:
     return store.group()
 
 
+def _run_sync(name: str, make):
+    """Run ``make()``'s coroutine to completion, or say why this cannot be done here.
+
+    Checked before the coroutine exists, so refusing inside a running loop leaves no
+    coroutine that was never awaited behind it.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(make())
+    raise RuntimeError(
+        f"{name} is synchronous and cannot be called from a running event loop (a notebook cell, "
+        "or the browser's main thread); await read_index and read_window instead"
+    )
+
+
 async def _load(
     dataset_id: str,
     store_path: str,
@@ -87,6 +118,7 @@ async def _load(
     max_bytes: int,
     transport: Transport | None,
     index: DatasetIndex | None,
+    index_url: str | None,
 ) -> Window:
     try:
         from .window import read_window
@@ -96,17 +128,18 @@ async def _load(
         raise missing_extra_error("load_recording", "zarr", err) from err
 
     if index is None:
-        index = await read_index(dataset_id, transport=transport)
+        index = await read_index(dataset_id, transport=transport, index_url=index_url)
     store = index.store(store_path)
     group = _choose_group(store, group_name)
 
-    needed = group.n_channels * group.n_samples * _BYTES_PER_SAMPLE
+    needed = group.n_channels * group.n_samples * PEAK_BYTES_PER_SAMPLE
     if needed > max_bytes:
         raise ValueError(
             f"{dataset_id}/{store_path} ({group.name}) is {group.n_channels} channels by "
-            f"{group.n_samples} samples, {needed} bytes as float64, over max_bytes={max_bytes}"
+            f"{group.n_samples} samples, {needed} bytes at peak ({PEAK_BYTES_PER_SAMPLE} per "
+            f"channel-sample), over max_bytes={max_bytes}"
         )
-    return await read_window(
+    window = await read_window(
         index,
         store,
         start_sample=0,
@@ -114,6 +147,17 @@ async def _load(
         group=group,
         transport=transport,
     )
+    # read_window clamps to the array's real length, so a store reconverted shorter than
+    # its index says comes back as a smaller window and not as an error. A whole recording
+    # that is not the whole recording must not pass as one.
+    expected = (group.n_channels, group.n_samples)
+    if window.data.shape != expected:
+        raise IndexError_(
+            f"{dataset_id}/{store_path} ({group.name}) was read as {window.data.shape[0]} channels by "
+            f"{window.data.shape[1]} samples, and its index says {expected[0]} by {expected[1]}. "
+            "The store and its index disagree, which is a dataset reconverted since the index was read."
+        )
+    return window
 
 
 def load_recording(
@@ -124,14 +168,19 @@ def load_recording(
     max_bytes: int = DEFAULT_MAX_BYTES,
     transport: Transport | None = None,
     index: DatasetIndex | None = None,
+    index_url: str | None = None,
 ) -> Window:
     """Read one whole recording at level 0, in physical units, as a :class:`~eegprep_lean.Window`.
 
     ``store`` is the recording's source path in the index, for example
     ``sub-01/eeg/sub-01_task-rest_eeg.set``. ``group`` names a channel group; left out, it
     is the store's one EEG group. ``index`` skips fetching the index when the caller
-    already holds it. Raises :class:`ValueError` when channels times samples times 8
-    exceeds ``max_bytes``, before any signal is read. Needs the ``zarr`` extra, and is not
-    callable from inside a running event loop.
+    already holds it, and then ``index_url`` is unused; otherwise ``index_url`` is as for
+    :func:`~eegprep_lean.read_index`, and :func:`index_sha256` should be given the same one.
+    Raises :class:`ValueError` when channels times samples times
+    :data:`PEAK_BYTES_PER_SAMPLE` exceeds ``max_bytes``, before any signal is read, and
+    :class:`~eegprep_lean.IndexError_` when what was read is not the size the index
+    declares. Needs the ``zarr`` extra. Not callable from inside a running event loop
+    (``RuntimeError``).
     """
-    return asyncio.run(_load(dataset_id, store, group, max_bytes, transport, index))
+    return _run_sync("load_recording", lambda: _load(dataset_id, store, group, max_bytes, transport, index, index_url))

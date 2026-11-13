@@ -132,8 +132,14 @@ def to_physical(digital: np.ndarray, attributes: dict[str, Any], channels: Seque
         )
     scale = np.asarray(attributes["scale"], dtype=np.float64)[list(channels)]
     offset = np.asarray(attributes["offset"], dtype=np.float64)[list(channels)]
-    # Column vectors so each channel's constants apply along its own row.
-    return digital.astype(np.float64) * scale[:, None] + offset[:, None]
+    # Column vectors so each channel's constants apply along its own row. In place on the
+    # one float64 copy, so the peak is that copy and not two or three of them; the
+    # operations and their order are the same as ``digital * scale + offset``, so the
+    # values are bit-identical.
+    physical = digital.astype(np.float64)
+    physical *= scale[:, None]
+    physical += offset[:, None]
+    return physical
 
 
 async def read_window(
@@ -191,7 +197,11 @@ async def read_window(
     # shape spans every channel), so any subset fetches the same chunks regardless.
     first, last = min(wanted), max(wanted)
     span = await array.getitem((slice(first, last + 1), slice(start_sample, stop)))
-    digital = np.asarray(span)[[channel - first for channel in wanted], :]
+    digital = np.asarray(span)
+    if wanted != tuple(range(first, last + 1)):
+        # A subset or a reordering needs its own copy; the whole contiguous span, which is
+        # what a whole-recording read asks for, does not.
+        digital = digital[[channel - first for channel in wanted], :]
 
     data = to_physical(digital, dict(array.metadata.attributes), wanted) if physical else np.asarray(digital)
 

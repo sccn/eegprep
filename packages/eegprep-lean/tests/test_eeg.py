@@ -12,6 +12,8 @@ eegprep's own checker.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import sys
 
 import pytest
 
@@ -133,19 +135,38 @@ class TestTheDictionary:
                 "dataset_id": "xx099999",
                 "store": "sub-01/eeg/sub-01_task-test_eeg.set",
                 "index_sha256": "ab" * 32,
-                "reader": f"eegprep-lean@{eegprep_lean.__version__}",
+                # The marker is the API's own, because the version field is not bumped when
+                # this API is added and 0.5.0 predates it.
+                "reader": f"eegprep-lean@{eegprep_lean.__version__} recording-v1",
             }
         }
 
-    def test_the_data_is_a_copy(self) -> None:
-        """A microvolt window would otherwise hand back its own array, and an in-place
-        step on the dictionary would rewrite the Window it came from."""
-        source = window(DATA)
+    def test_the_data_is_a_copy_even_when_no_conversion_is_needed(self) -> None:
+        """A microvolt window needs no arithmetic, which is exactly when returning the
+        window's own array is tempting, and an in-place step on the dictionary would then
+        rewrite the Window it came from."""
+        source = window(DATA, unit="uV")
 
         eeg = to_eeg(source, **IDS)
         eeg["data"][0, 0] = 999.0
 
         assert source.data[0, 0] == 1.0
+        assert not np.shares_memory(eeg["data"], source.data)
+
+    def test_the_data_is_float64_whatever_the_window_holds(self) -> None:
+        source = dataclasses.replace(window(DATA, unit="uV"), data=np.asarray(DATA, dtype=np.float32))
+        assert source.data.dtype == np.float32
+
+        assert to_eeg(source, **IDS)["data"].dtype == np.float64
+
+    def test_a_non_integer_rate_is_kept_exactly(self) -> None:
+        """int() on the rate would turn 256.5 Hz into 256 and shift every time after the
+        first sample, with nothing raising."""
+        eeg = to_eeg(window(DATA, rate=256.5), **IDS)
+
+        assert eeg["srate"] == 256.5
+        assert eeg["xmax"] == pytest.approx(3 / 256.5)
+        assert eeg["times"][1] == pytest.approx(1000 / 256.5)
 
     def test_each_call_returns_fresh_containers(self) -> None:
         first = to_eeg(window(DATA), **IDS)
@@ -156,6 +177,22 @@ class TestTheDictionary:
 
         assert second["event"] == []
         assert "extra" not in second["etc"]
+
+
+class TestWithoutNumpy:
+    def test_the_error_names_an_extra_that_brings_numpy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """numpy arrives with the zarr or the plot extra, and to_eeg is not behind zarr:
+        it works under plot alone, so naming zarr would send a plot-only install to
+        install the wrong thing."""
+        monkeypatch.setitem(sys.modules, "numpy", None)
+        monkeypatch.delitem(sys.modules, "eegprep_lean.eeg", raising=False)
+        monkeypatch.delitem(sys.modules, "eegprep_lean.window", raising=False)
+
+        with pytest.raises(ImportError, match="to_eeg needs the plot extra") as caught:
+            eegprep_lean.to_eeg
+        monkeypatch.undo()
+
+        assert "zarr" not in str(caught.value).split(":")[0]
 
 
 class TestUnits:

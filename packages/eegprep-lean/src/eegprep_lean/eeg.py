@@ -17,6 +17,11 @@ import numpy as np
 from . import __version__
 from .window import Window
 
+#: Marks the API that wrote ``etc["nemar"]``, next to the package version. The version field
+#: is not bumped when this API is added, so the 0.5.0 that predates it and the one that has
+#: it would otherwise record the same reader.
+API_MARKER = "recording-v1"
+
 #: Microvolts per one of each voltage unit a channel group can declare. Anything else is
 #: not a voltage, or not one this table knows, and converting it would be a guess.
 _MICROVOLTS_PER = {"V": 1e6, "mV": 1e3, "uV": 1.0}
@@ -106,7 +111,9 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
     """
     labels = require_physical(window)
     factor = microvolts_per(window.unit)
-    data = np.array(window.data, dtype=np.float64) * factor
+    # One new float64 array, whatever the window's dtype or unit: a uV window is multiplied
+    # by 1.0 rather than returned as it is, so the dictionary never aliases the window.
+    data = np.multiply(window.data, factor, dtype=np.float64)
     nbchan, pnts = data.shape
     srate = float(window.rate)
 
@@ -127,7 +134,7 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
                 "dataset_id": dataset_id,
                 "store": store,
                 "index_sha256": index_digest,
-                "reader": f"eegprep-lean@{__version__}",
+                "reader": f"eegprep-lean@{__version__} {API_MARKER}",
             }
         },
     )
