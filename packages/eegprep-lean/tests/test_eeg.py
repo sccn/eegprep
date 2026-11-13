@@ -202,7 +202,17 @@ class TestUnits:
 
         np.testing.assert_allclose(eeg["data"], np.asarray(DATA) * factor, rtol=1e-12)
 
-    @pytest.mark.parametrize("unit", ["T", "nT", "degC", "", "UV"])
+    @pytest.mark.parametrize("unit", ["uV", "\u00b5V", "\u03bcV"], ids=["ascii-u", "micro-sign", "greek-mu"])
+    def test_every_spelling_of_microvolts_gives_the_same_values(self, unit: str) -> None:
+        """The archive's own index says the micro sign (U+00B5), and the Greek small letter
+        mu (U+03BC) is what some tools write for the same unit. Refusing either would make
+        most real stores unreadable while the plain ascii one, which the first dataset
+        tested happened to use, passed."""
+        eeg = to_eeg(window(DATA, unit=unit), **IDS)
+
+        np.testing.assert_array_equal(eeg["data"], np.asarray(DATA))
+
+    @pytest.mark.parametrize("unit", ["T", "nT", "degC", "", "UV", "mu", "\u00b5v", "\u00b5", "m\u00b5V"])
     def test_any_other_unit_is_refused(self, unit: str) -> None:
         with pytest.raises(ValueError, match="unit"):
             to_eeg(window(DATA, unit=unit), **IDS)
@@ -233,10 +243,33 @@ class TestEegprepAcceptsIt:
 
 
 LIVE_DATASET = "nm000132"
+# A second public dataset, because the first one's index spells microvolts in ascii and the
+# archive's other stores do not.
+MICRO_SIGN_DATASET = "nm000274"
 
 
 @pytest.mark.network
 class TestAgainstTheLiveArchive:
+    def test_the_unit_string_a_live_index_really_carries_is_accepted(self) -> None:
+        """The string is read from the live group, not typed here: what the archive serves
+        is the thing under test, and a typed copy would pass for the wrong reason."""
+        from eegprep_lean import read_group_metadata, read_index
+
+        async def run():
+            index = await read_index(MICRO_SIGN_DATASET)
+            store = min(index.stores, key=lambda s: sum(g.n_channels * g.n_samples for g in s.groups))
+            return await read_group_metadata(index, store)
+
+        metadata = asyncio.run(run())
+        rows = tuple(range(metadata.n_channels))
+        unit = metadata.unit(rows)
+        assert unit is not None, "the live group's channels do not share one unit"
+
+        source = window(DATA)
+        eeg = to_eeg(dataclasses.replace(source, unit=unit), **IDS)
+
+        np.testing.assert_array_equal(eeg["data"], np.asarray(DATA))
+
     def test_a_live_recording_passes_eegprep_checkset_with_the_indexs_values(self) -> None:
         pytest.importorskip("zarr", reason="needs the zarr extra")
         eeg_checkset = pytest.importorskip("eegprep").eeg_checkset

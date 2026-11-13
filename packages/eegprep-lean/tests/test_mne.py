@@ -71,7 +71,13 @@ class TestWithMne:
         assert to_mne_raw(window(), ch_types="eog").get_channel_types() == ["eog"] * 3
         assert to_mne_raw(window(), ch_types=["eeg", "eog", "eeg"]).get_channel_types() == ["eeg", "eog", "eeg"]
 
-    @pytest.mark.parametrize("unit", ["T", "nT", "degC", "", "UV"])
+    @pytest.mark.parametrize("unit", ["uV", "\u00b5V", "\u03bcV"], ids=["ascii-u", "micro-sign", "greek-mu"])
+    def test_every_spelling_of_microvolts_gives_the_same_volts(self, unit: str) -> None:
+        raw = to_mne_raw(window(unit=unit))
+
+        np.testing.assert_allclose(raw.get_data(), np.asarray(DATA) * 1e-6, rtol=1e-12)
+
+    @pytest.mark.parametrize("unit", ["T", "nT", "degC", "", "UV", "mu", "\u00b5v"])
     def test_any_other_unit_is_refused(self, unit: str) -> None:
         with pytest.raises(ValueError, match="unit"):
             to_mne_raw(window(unit=unit))

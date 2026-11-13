@@ -24,14 +24,19 @@ API_MARKER = "recording-v1"
 
 #: Microvolts per one of each voltage unit a channel group can declare. Anything else is
 #: not a voltage, or not one this table knows, and converting it would be a guess.
-_MICROVOLTS_PER = {"V": 1e6, "mV": 1e3, "uV": 1.0}
+#:
+#: Microvolts has three spellings, all the same unit: ascii ``uV``, the micro sign U+00B5
+#: that the archive's own index uses for most stores, and the Greek small letter mu U+03BC
+#: that some tools write. They are escaped here because the three look alike on screen.
+_MICROVOLTS_PER = {"V": 1e6, "mV": 1e3, "uV": 1.0, "\u00b5V": 1.0, "\u03bcV": 1.0}
 
 
 def microvolts_per(unit: str | None) -> float:
     """The factor taking ``unit`` to microvolts, or a ``ValueError`` naming what is accepted."""
     if unit not in _MICROVOLTS_PER:
         raise ValueError(
-            f"cannot treat unit {unit!r} as a voltage: only {', '.join(_MICROVOLTS_PER)} are accepted, "
+            f"cannot treat unit {unit!r} as a voltage: only V, mV and uV (also spelled with U+00B5 or "
+            "U+03BC) are accepted, "
             "and a window whose channels do not share one unit has none (unit is None)"
         )
     return _MICROVOLTS_PER[unit]
