@@ -169,14 +169,14 @@ _INT_PARAMS = {
     'field_dim',
     'num_samples',
     'field_blocksize',
-    'min_dll',
-    'min_grad_norm',
 }
 
 # Parameters that use scientific notation format
 _SCI_PARAMS = {
     'minlrate',
     'mineig',
+    'min_dll',
+    'min_grad_norm',
 }
 
 # Parameters that use string format
