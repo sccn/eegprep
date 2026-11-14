@@ -460,7 +460,13 @@ def _amica_options(options):
     return mapped
 
 
-_PAMICA_OPTION_NAMES = {"maxiter": "max_iter", "num_models": "n_models", "num_mix_comps": "n_mix"}
+_PAMICA_OPTION_NAMES = {
+    "maxiter": "max_iter",
+    "num_models": "n_models",
+    "num_mix_comps": "n_mix",
+    "max_decs": "maxdecs",
+    "min_grad_norm": "min_nd",
+}
 
 
 def _pamica_options(options):
