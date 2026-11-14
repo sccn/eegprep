@@ -16,6 +16,7 @@ from eegprep.functions.popfunc._ica_utils import flatten_ica_data
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value, is_on, parse_key_value_args
 from eegprep.functions.popfunc.eeg_amica import eeg_amica
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
+from eegprep.functions.popfunc.eeg_pamica import eeg_pamica
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.eeg_runica import eeg_runica
 
@@ -416,8 +417,10 @@ def _run_ica_backend(EEG, icatype, options, *, reorder):
         )
     if icatype == "runamica15":
         return eeg_amica(EEG, sortcomps=reorder, **_amica_options(options))
+    if icatype == "pamica":
+        return eeg_pamica(EEG, sortcomps=reorder, **_pamica_options(options))
     raise NotImplementedError(
-        "EEGPrep pop_runica supports runica, picard, and runamica15/amica. "
+        "EEGPrep pop_runica supports runica, picard, runamica15/amica, and pamica. "
         f"The '{icatype}' ICA algorithm is not ported yet."
     )
 
@@ -455,6 +458,13 @@ def _amica_options(options):
         lower_key = str(key).lower()
         mapped["max_iter" if lower_key == "maxiter" else lower_key] = value
     return mapped
+
+
+_PAMICA_OPTION_NAMES = {"maxiter": "max_iter", "num_models": "n_models", "num_mix_comps": "n_mix"}
+
+
+def _pamica_options(options):
+    return {_PAMICA_OPTION_NAMES.get(str(key).lower(), str(key).lower()): value for key, value in options.items()}
 
 
 def _dataset_indices(EEG, dataset):
