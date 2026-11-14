@@ -476,6 +476,13 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_runica(EEG,</span> <span class="pre">icatype=&quot;pamica&quot;)</span></code> decomposes with pAMICA, the PyTorch implementation of AMICA,
+through the new <code class="docutils literal notranslate"><span class="pre">eeg_pamica</span></code>.
+Install it with the <code class="docutils literal notranslate"><span class="pre">pamica</span></code> extra, <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[pamica]&quot;</span></code>.
+The decomposition is computed by the <code class="docutils literal notranslate"><span class="pre">pamica</span></code> package, through <code class="docutils literal notranslate"><span class="pre">pamica.AMICA(backend='torch').fit</span></code>, and not by EEGLAB’s AMICA binary.
+Reproducibility is pamica’s promise: the same seed, data, settings and versions give bit-identical weights in float64 on the CPU with one thread, on one machine.
+Settings you do not pass take eegprep’s <code class="docutils literal notranslate"><span class="pre">runamica15</span></code> defaults.
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;]</span></code> records the pamica version, backend, pipeline and the settings that reproduce the run, and a fit that stops on <code class="docutils literal notranslate"><span class="pre">max_iter</span></code> reports <code class="docutils literal notranslate"><span class="pre">did_converge</span></code> false.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">return_state=True)</span></code> returns <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">state)</span></code>, where
 <code class="docutils literal notranslate"><span class="pre">state</span></code> is the calibration state before processing plus the sampling
 rate, the channel labels, and the processing arguments.

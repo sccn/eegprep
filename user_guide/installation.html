@@ -636,6 +636,17 @@ separate manifold package to install.</p>
 </pre></div>
 </div>
 </section>
+<section id="pamica">
+<h3>pAMICA<a class="headerlink" href="#pamica" title="Link to this heading">#</a></h3>
+<p>pAMICA is a Python implementation of AMICA built on PyTorch.
+It needs no executable.
+Install it with the <code class="docutils literal notranslate"><span class="pre">pamica</span></code> extra, which also installs PyTorch:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[pamica]&quot;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">pop_runica(EEG,</span> <span class="pre">icatype=&quot;pamica&quot;)</span></code> and <code class="docutils literal notranslate"><span class="pre">eeg_pamica</span></code> use it.
+The extra is part of <code class="docutils literal notranslate"><span class="pre">eegprep[all]</span></code> and not of <code class="docutils literal notranslate"><span class="pre">eegprep[full]</span></code>.</p>
+</section>
 <section id="amica">
 <h3>AMICA<a class="headerlink" href="#amica" title="Link to this heading">#</a></h3>
 <p>EEGPrep can run AMICA through <code class="docutils literal notranslate"><span class="pre">eeg_amica</span></code> and <code class="docutils literal notranslate"><span class="pre">ICAAlgorithm='amica'</span></code>, but
@@ -858,6 +869,7 @@ any companion <code class="docutils literal notranslate"><span class="pre">.fdt<
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-dependencies">Optional Dependencies</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-restores-the-previous-base-install"><code class="docutils literal notranslate"><span class="pre">full</span></code> restores the previous base install</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-for-gpu-acceleration">PyTorch (for GPU acceleration)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pamica">pAMICA</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amica">AMICA</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation-building">Documentation Building</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#all-optional-dependencies">All Optional Dependencies</a></li>

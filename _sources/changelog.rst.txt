@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_runica(EEG, icatype="pamica")`` decomposes with pAMICA, the PyTorch implementation of AMICA,
+  through the new ``eeg_pamica``.
+  Install it with the ``pamica`` extra, ``pip install "eegprep[pamica]"``.
+  The decomposition is computed by the ``pamica`` package, through ``pamica.AMICA(backend='torch').fit``, and not by EEGLAB's AMICA binary.
+  Reproducibility is pamica's promise: the same seed, data, settings and versions give bit-identical weights in float64 on the CPU with one thread, on one machine.
+  Settings you do not pass take eegprep's ``runamica15`` defaults.
+  ``EEG["etc"]["pamica"]`` records the pamica version, backend, pipeline and the settings that reproduce the run, and a fit that stops on ``max_iter`` reports ``did_converge`` false.
 - ``clean_asr(EEG, return_state=True)`` returns ``(EEG, state)``, where
   ``state`` is the calibration state before processing plus the sampling
   rate, the channel labels, and the processing arguments.
