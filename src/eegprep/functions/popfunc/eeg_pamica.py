@@ -7,6 +7,7 @@ import numpy as np
 from threadpoolctl import threadpool_limits
 
 from eegprep.extras import install_command
+from ..miscfunc.misc import finite_matmul
 from ..sigprocfunc.runamica import _AMICA_DEFAULTS
 from ._ica_utils import finalize_ica_fields, flatten_ica_data, reshape_ica_activations
 
@@ -146,7 +147,8 @@ def eeg_pamica(
 
     EEG['icaweights'] = model.get_unmixing_matrix()
     EEG['icasphere'] = model.get_sphere()
-    EEG['icaact'] = reshape_ica_activations((EEG['icaweights'] @ EEG['icasphere']) @ data, EEG['pnts'], EEG['trials'])
+    unmixing = finite_matmul(EEG['icaweights'], EEG['icasphere'])
+    EEG['icaact'] = reshape_ica_activations(finite_matmul(unmixing, data), EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 
     best_iter = int(np.argmax(history))
