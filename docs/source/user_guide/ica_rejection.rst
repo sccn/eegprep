@@ -51,18 +51,26 @@ Install it with ``pip install "eegprep[pamica]"``, then call:
 
    EEG = pop_runica(EEG, icatype="pamica", gui=False, max_iter=2000)
 
-The decomposition runs in float64 on the CPU with one thread and ``seed=5489``.
-The same seed, data and settings give identical weights on one machine.
+The decomposition is computed by the ``pamica`` package, through its ``pamica.AMICA(backend='torch').fit`` pipeline, and not by EEGLAB's AMICA binary.
+It runs in float64 on the CPU with one thread and ``seed=5489``.
+Reproducibility is pamica's promise: the same seed, data, settings, and pamica and torch versions give bit-identical weights in float64 on the CPU with one thread, on one machine.
+EEGPrep's tests check this on one host, by repeating a run and by replaying a run from its record.
+Another platform, another torch version, a GPU, or more threads is not covered by that check.
+The settings that reproduce a run are the ones recorded in ``EEG["etc"]["pamica"]``.
 A setting you do not pass takes eegprep's ``runamica15`` default, such as ``lrate=0.05`` and ``do_newton=True``.
 These defaults follow eegprep's own table (``_AMICA_DEFAULTS``), which differs from EEGLAB's ``runamica15.m`` in places.
 The exception is ``block_size``, which is pAMICA's own 131072, because the 128 of ``runamica15`` is the block each thread of the Fortran program processes.
 Pass ``pcakeep`` to keep fewer components than channels.
 ``icaweights @ icasphere`` is the unmixing pAMICA applies.
 ``pop_runica`` sorts components by variance by default, as it does for the other engines; ``reorder="off"`` keeps pAMICA's order, which ``eeg_pamica`` called directly keeps by default.
-``EEG["etc"]["pamica"]`` records the pAMICA and torch versions, the device, the seed, the settings used, the rank that ran, the iteration count, the stop reason, and ``did_converge``.
+``EEG["etc"]["pamica"]`` records the pamica and torch versions, the pamica ``backend`` class and ``pipeline`` that produced the decomposition, the device, the seed, the settings used, the rank that ran, the iteration count, the stop reason, and ``did_converge``.
 ``did_converge`` is false when pAMICA used all ``max_iter`` iterations without meeting a convergence check.
 If pAMICA ends on a non-finite value, ``pop_runica`` raises ``PamicaFitError`` (from ``eegprep.functions.popfunc.eeg_pamica``) and leaves the ICA fields unset.
 The ICA dialog does not list pAMICA yet, so choose it from the command line or the console.
+
+EEGPrep's test suite also compares a pAMICA decomposition of ``sample_data/eeglab_data.set`` with one from EEGLAB's ``runamica15`` binary, and prints the Hungarian-matched correlations of the unmixing rows and their Amari distance.
+That comparison is informational.
+The binary seeds its random start from the clock, so the numbers depend on that start: two runs of the same code gave a minimum matched correlation of 0.9966 and of 0.5339.
 
 Picard accepts EEGLAB's PCA option through ``options``. A positive value is the
 requested component count; a negative value subtracts dimensions from the
