@@ -17,6 +17,17 @@ Unreleased
   Reproducibility is pamica's promise: the same seed, data, settings and versions give bit-identical weights in float64 on the CPU with one thread, on one machine.
   Settings you do not pass take eegprep's ``runamica15`` defaults.
   ``EEG["etc"]["pamica"]`` records the pamica version, backend, pipeline and the settings that reproduce the run, and a fit that stops on ``max_iter`` reports ``did_converge`` false.
+- ``clean_asr(EEG, return_state=True)`` returns ``(EEG, state)``, where
+  ``state`` is the calibration state before processing plus the sampling
+  rate, the channel labels, and the processing arguments.
+  ``clean_asr(EEG, state=state)`` skips calibration and gives identical data
+  for the same EEG, for Euclidean, ``useriemannian="calib"``, and full
+  Riemannian ASR. A state from another sampling rate or channel order is
+  refused, a state is checked as a stored document is, and a recorded
+  ``maxmem`` that is ``None`` or below the processing overhead warns, because
+  the output then depends on the free memory. ``asr_state.state_to_json`` and
+  ``state_from_json`` write and read the state as plain JSON without loss.
+  A call with neither argument is unchanged.
 - ``pop_eegfiltnew`` appends each applied FIR design to
   ``EEG["etc"]["eegfiltnew"]``, including the sampling rate, affected
   channels, phase, cutoffs, order, transition width, ``revfilt``, and the
