@@ -212,6 +212,10 @@ jobs:
           echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
 
       - name: Run Python tests
+        # The shipped AMICA binary launches on the macOS runner and not on the ubuntu-22.04 or Windows
+        # runners. Where it launches, the E1 test in tests/test_pop_runica_pamica.py fails instead of skipping.
+        env:
+          EEGPREP_REQUIRE_AMICA: ${{ runner.os == 'macOS' && '1' || '' }}
         run: |
           uv run --no-sync pytest tests
 

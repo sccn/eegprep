@@ -75,6 +75,10 @@ full = [
 torch = [
   "torch>=2.0"
 ]
+# pAMICA, the PyTorch AMICA engine behind pop_runica(icatype='pamica'). Pulls in torch.
+pamica = [
+  "pamica==0.4.0",
+]
 gui = [
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
@@ -96,6 +100,7 @@ docs = [
 ]
 all = [
   "eegprep[torch]",
+  "eegprep[pamica]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",

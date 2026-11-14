@@ -148,6 +148,20 @@ For CPU-only PyTorch:
 
     uv add torch --index-url https://download.pytorch.org/whl/cpu
 
+pAMICA
+------
+
+pAMICA is a Python implementation of AMICA built on PyTorch.
+It needs no executable.
+Install it with the ``pamica`` extra, which also installs PyTorch:
+
+.. code-block:: bash
+
+    uv add "eegprep[pamica]"
+
+``pop_runica(EEG, icatype="pamica")`` and ``eeg_pamica`` use it.
+The extra is part of ``eegprep[all]`` and not of ``eegprep[full]``.
+
 AMICA
 -----
 
