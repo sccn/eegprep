@@ -56,7 +56,8 @@ The same seed, data and settings give identical weights on one machine.
 A setting you do not pass takes the value EEGLAB's ``runamica15`` uses, such as ``lrate=0.05`` and ``do_newton=True``.
 The exception is ``block_size``, which is pAMICA's own 131072, because EEGLAB's 128 is the block each thread of the Fortran program processes.
 Pass ``pcakeep`` to keep fewer components than channels.
-``icaweights @ icasphere`` is the unmixing pAMICA applies, and components stay in pAMICA's order unless ``reorder="on"`` sorts them by variance.
+``icaweights @ icasphere`` is the unmixing pAMICA applies.
+``pop_runica`` sorts components by variance by default, as it does for the other engines; ``reorder="off"`` keeps pAMICA's order, which ``eeg_pamica`` called directly keeps by default.
 ``EEG["etc"]["pamica"]`` records the pAMICA and torch versions, the device, the seed, the settings used, the iteration count, the stop reason, and ``did_converge``.
 ``did_converge`` is false when pAMICA used all ``max_iter`` iterations without meeting a convergence check.
 If pAMICA ends on a non-finite value, ``pop_runica`` raises ``PamicaFitError`` (from ``eegprep.functions.popfunc.eeg_pamica``) and leaves the ICA fields unset.
