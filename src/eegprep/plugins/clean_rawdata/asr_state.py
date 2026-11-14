@@ -54,10 +54,21 @@ def state_to_json(state: Dict[str, Any]) -> Dict[str, Any]:
         ``None`` stays ``None``, and numpy scalars become Python numbers.
 
     Raises:
-        ValueError: An array is not float64, or a number is not finite.
-        TypeError: A value has a type a state does not hold.
+        ValueError: ``state`` is not a dictionary, an array is not float64, a number is not finite,
+            or a value has a type a state does not hold. The message names the key.
     """
+    if not isinstance(state, dict):
+        raise ValueError(f"state: expected a dictionary, got {type(state).__name__}")
     return {key: _encode(key, value) for key, value in state.items()}
+
+
+def check_state(state: Dict[str, Any]) -> None:
+    """Raise ``ValueError`` unless ``state`` is one that ``state_to_json`` writes and ``state_from_json`` reads.
+
+    ``clean_asr`` applies this to a state it returns and to a state it is given, so a state in memory is held to
+    the same rules as a stored document and every state that is accepted can be saved and read back.
+    """
+    state_from_json(state_to_json(state))
 
 
 def state_from_json(document: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,7 +121,7 @@ def _encode(key: str, value: Any) -> Any:
         if not np.isfinite(value):
             raise ValueError(f"{key}: not a finite number")
         return value
-    raise TypeError(f"{key}: a state cannot hold a value of type {type(value).__name__}")
+    raise ValueError(f"{key}: a state cannot hold a value of type {type(value).__name__}")
 
 
 def _decode(key: str, value: Any) -> Any:

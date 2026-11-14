@@ -6,7 +6,8 @@ on EEG data to remove artifacts.
 
 import inspect
 import logging
-from typing import Dict, Any, Union, Tuple, Optional
+import warnings
+from typing import Dict, Any, Literal, Union, Tuple, Optional, overload
 from copy import deepcopy
 
 import math
@@ -16,11 +17,49 @@ from .asr_calibrate import ASRCalibrationError, asr_calibrate
 from .asr_calibrate_r import asr_calibrate_r
 from .asr_process import asr_process
 from .asr_process_r import asr_process_r
-from .asr_state import STATE_FORMAT
+from .asr_state import STATE_FORMAT, check_state
 from .clean_windows import clean_windows
 from ...functions.miscfunc.misc import round_mat
 
 logger = logging.getLogger(__name__)
+
+
+@overload
+def clean_asr(
+    EEG: Dict[str, Any],
+    cutoff: float = 5.0,
+    window_len: Optional[float] = None,
+    step_size: Optional[int] = None,
+    max_dims: float = 0.66,
+    ref_maxbadchannels: Union[float, str, None, np.ndarray] = 0.075,
+    ref_tolerances: Union[Tuple[float, float], str, None] = (-3.5, 5.5),
+    ref_wndlen: Union[float, str, None] = 1.0,
+    use_gpu: bool = False,
+    useriemannian: Optional[str] = None,
+    maxmem: Optional[int] = 64,
+    *,
+    return_state: Literal[False] = False,
+    state: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]: ...
+
+
+@overload
+def clean_asr(
+    EEG: Dict[str, Any],
+    cutoff: float = 5.0,
+    window_len: Optional[float] = None,
+    step_size: Optional[int] = None,
+    max_dims: float = 0.66,
+    ref_maxbadchannels: Union[float, str, None, np.ndarray] = 0.075,
+    ref_tolerances: Union[Tuple[float, float], str, None] = (-3.5, 5.5),
+    ref_wndlen: Union[float, str, None] = 1.0,
+    use_gpu: bool = False,
+    useriemannian: Optional[str] = None,
+    maxmem: Optional[int] = 64,
+    *,
+    return_state: Literal[True],
+    state: Optional[Dict[str, Any]] = None,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]: ...
 
 
 def clean_asr(
@@ -35,6 +74,7 @@ def clean_asr(
     use_gpu: bool = False,
     useriemannian: Optional[str] = None,
     maxmem: Optional[int] = 64,
+    *,
     return_state: bool = False,
     state: Optional[Dict[str, Any]] = None,
 ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], Dict[str, Any]]]:
@@ -85,17 +125,23 @@ def clean_asr(
         useriemannian (str, optional): Riemannian ASR variant. ``None`` or ``'off'`` uses Euclidean ASR.
             ``'calib'`` uses a Riemannian covariance estimate at calibration time and the Euclidean processor.
             ``True`` or ``'on'`` runs Riemannian calibration and Riemannian processing. Default: None.
-        maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
-            Riemannian processing derives its covariance blocks from the memory budget, so keep it set when
-            the cleaned data must be reproduced exactly on another machine.
-        return_state (bool, optional): Also return the calibration state. Default: False.
+        maxmem (Optional[int], optional): Memory budget in MB. Calibration grows its covariance block size from it
+            and processing splits the data into blocks sized by it, in every variant, and the block count changes
+            the cleaned data. Default: 64. A budget that is ``None`` or smaller than
+            ``channels * channels * lookahead_samples * 24`` bytes is replaced by half of the free memory, so the
+            block count and the output then differ between runs and machines. Keep it at or above that value, which
+            64 MB does not for 128 channels at 1 kHz, when the cleaned data must be reproduced.
+        return_state (bool, optional): Also return the calibration state. The state is checked as
+            ``asr_state.check_state`` does. Keyword only. Default: False.
         state (dict, optional): A state returned earlier by ``return_state=True``, or read back with
-            ``eegprep.plugins.clean_rawdata.asr_state.state_from_json``. Reference selection and calibration
-            are skipped, and the data is processed with that state and the processing arguments it records
-            (``cutoff``, ``window_len``, ``step_size``, ``max_dims``, ``useriemannian``, ``maxmem``). The
-            same EEG and state give identical data. A state whose sampling rate or channel labels differ
-            from the EEG's is refused, and so is a ``cutoff``, ``window_len``, ``step_size``, ``max_dims``,
-            ``ref_*``, ``useriemannian`` or ``maxmem`` that differs from its default, because the state owns them.
+            ``eegprep.plugins.clean_rawdata.asr_state.state_from_json``. It is checked as ``check_state`` does.
+            Reference selection and calibration are skipped, and the data is processed with that state and the
+            processing arguments it records (``cutoff``, ``window_len``, ``step_size``, ``max_dims``,
+            ``useriemannian``, ``maxmem``). The same EEG and state give identical data on one platform and
+            numerical library stack; another library can differ in the last bits. A state whose sampling rate or
+            channel labels differ from the EEG's is refused, and so is a ``cutoff``, ``window_len``,
+            ``step_size``, ``max_dims``, ``ref_*``, ``useriemannian`` or ``maxmem`` beside it that is neither the
+            argument's default nor the value the state records, because the state owns them. Keyword only.
 
     Returns
     -------
@@ -110,6 +156,11 @@ def clean_asr(
     ImportError : If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
     ASRCalibrationError : The spectral shaping filter cannot be designed, or the calibration cannot form two RMS windows.
     ValueError : If input arguments are invalid, or ``state`` does not fit the EEG or is not an ASR state.
+
+    Warns
+    -----
+    UserWarning : With ``return_state=True`` or ``state=``, when the recorded ``maxmem`` is ``None`` or below the
+        processing overhead, because the output then depends on the free memory of the machine.
     """
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
@@ -124,6 +175,7 @@ def clean_asr(
         nbchan = C  # Use the actual dimension from data
     channels = _channel_labels(EEG)
 
+    supplied = state is not None
     if state is None:
         state = _calibrate_state(
             EEG,
@@ -139,8 +191,12 @@ def clean_asr(
             useriemannian=useriemannian,
             maxmem=maxmem,
         )
+        if return_state:
+            check_state(state)
     else:
+        check_state(state)
         _refuse_arguments_owned_by_state(
+            state,
             cutoff=cutoff,
             window_len=window_len,
             step_size=step_size,
@@ -158,6 +214,8 @@ def clean_asr(
     # Based on: sig = [signal.data bsxfun(@minus,2*signal.data(:,end),signal.data(:,(end-1):-1:end-round(windowlen/2*signal.srate)))];
     window_len = state['window_len']
     N_extrap = int(round_mat(window_len / 2 * srate))
+    if supplied or return_state:
+        _warn_if_maxmem_cannot_reproduce(state['maxmem'], C, N_extrap)
     if N_extrap > 0:
         extrap_len = min(N_extrap, S - 1 if S > 1 else 0)
         if extrap_len > 0:
@@ -290,6 +348,8 @@ def _calibrate_state(
     # --- Prepare for Processing ---
     if step_size is None:
         step_size = int(math.floor(srate * window_len / 2))  # Samples
+    elif not isinstance(step_size, int) and float(step_size).is_integer():
+        step_size = int(step_size)  # a whole number of samples is recorded as an integer
 
     return {
         **calibration,
@@ -315,29 +375,61 @@ def _channel_labels(EEG: Dict[str, Any]) -> Optional[list]:
 
 def _check_state_fits(state: Dict[str, Any], srate: float, channels: Optional[list], nchan: int) -> None:
     """Refuse a state calibrated for another sampling rate or channel set."""
-    if state.get('format') != STATE_FORMAT:
-        raise ValueError(f"state: expected an ASR state with format {STATE_FORMAT!r}, got {state.get('format')!r}.")
     if state['srate'] != srate:
         raise ValueError(f"state srate {state['srate']:g} Hz differs from the EEG's {srate:g} Hz.")
     if state['channels'] != channels:
         raise ValueError(
-            "state channels differ from the EEG's channels in label or order; "
+            "state channels differ from the EEG's channels in label or order, or only one of them has labels; "
             "a state from another montage would mix the wrong channels."
         )
     if np.shape(state['M']) != (nchan, nchan):
         raise ValueError(f"state was calibrated for {np.shape(state['M'])[0]} channels, the EEG has {nchan}.")
 
 
-def _refuse_arguments_owned_by_state(**passed: Any) -> None:
-    """A state records its processing arguments, so a changed one passed beside it is an error."""
+def _same_argument(name: str, passed: Any, allowed: Any) -> bool:
+    if name == 'useriemannian':
+        return _normalise_useriemannian(passed) == _normalise_useriemannian(allowed)
+    if name == 'ref_tolerances' and isinstance(passed, (list, tuple)) and isinstance(allowed, (list, tuple)):
+        return tuple(passed) == tuple(allowed)
+    if isinstance(passed, np.ndarray) or isinstance(allowed, np.ndarray):
+        return passed is allowed
+    return bool(passed == allowed)
+
+
+def _refuse_arguments_owned_by_state(state: Dict[str, Any], **passed: Any) -> None:
+    """A state records its processing arguments, so a different one passed beside it is an error.
+
+    An argument left at its default, or given the value the state records, is the same call.
+    """
     parameters = inspect.signature(clean_asr).parameters
     for name, value in passed.items():
-        default = parameters[name].default
-        is_default = value is default or (not isinstance(value, np.ndarray) and value == default)
-        if not is_default:
+        allowed = [parameters[name].default]
+        if name in state:
+            allowed.append(state[name])
+        if not any(_same_argument(name, value, candidate) for candidate in allowed):
             raise ValueError(
                 f"{name}={value!r} cannot be combined with state=: the state records its own processing arguments."
             )
+
+
+def _warn_if_maxmem_cannot_reproduce(maxmem: Optional[float], nchan: int, lookahead_samples: int) -> None:
+    """Warn when asr_process would replace ``maxmem`` by half of the free memory.
+
+    asr_process does that when the budget is None or smaller than the ``nchan * nchan * lookahead * 24`` bytes
+    it reserves before it sizes its blocks; the block count and the output then depend on the machine.
+    """
+    overhead = nchan * nchan * lookahead_samples * 8 * 3
+    if maxmem is not None and maxmem * 1024**2 >= overhead:
+        return
+    smallest = max(1, math.ceil(overhead / 1024**2))
+    warnings.warn(
+        f"maxmem={maxmem!r} is None or below the {smallest} MB that {nchan} channels with {lookahead_samples} "
+        "lookahead samples need (channels * channels * lookahead samples * 24 bytes), so asr_process replaces it "
+        "with half of the free memory and the block count, and with it the cleaned data, differs between runs "
+        f"and machines. Use maxmem={smallest} or more for a state that reproduces its data.",
+        UserWarning,
+        stacklevel=3,
+    )
 
 
 def _normalise_useriemannian(value: Optional[str]) -> Optional[str]:
