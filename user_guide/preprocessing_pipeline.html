@@ -688,6 +688,57 @@ names <code class="docutils literal notranslate"><span class="pre">asr_calibrate
 data or set <code class="docutils literal notranslate"><span class="pre">BurstCriterion</span></code> off. <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warns and leaves
 the burst stage unchanged. EEGLAB does not catch that call.</p>
 </section>
+<section id="save-and-reapply-the-asr-state">
+<h2>Save and Reapply the ASR State<a class="headerlink" href="#save-and-reapply-the-asr-state" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> can hand back the calibration it used, so the same cleaning can
+be repeated later or recorded beside a result:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_asr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep.plugins.clean_rawdata.asr_state</span><span class="w"> </span><span class="kn">import</span> <span class="n">state_from_json</span><span class="p">,</span> <span class="n">state_to_json</span>
+
+<span class="n">cleaned</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">clean_asr</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">return_state</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;asr_state.json&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">handle</span><span class="p">:</span>
+    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">state_to_json</span><span class="p">(</span><span class="n">state</span><span class="p">),</span> <span class="n">handle</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;asr_state.json&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">handle</span><span class="p">:</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">state_from_json</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+<span class="n">again</span> <span class="o">=</span> <span class="n">clean_asr</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">)</span>  <span class="c1"># again[&quot;data&quot;] equals cleaned[&quot;data&quot;]</span>
+</pre></div>
+</div>
+<p>The state is the calibration as <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> (or <code class="docutils literal notranslate"><span class="pre">asr_calibrate_r</span></code> for
+full Riemannian ASR) returned it, plus the sampling rate, the channel labels in
+data order, and the processing arguments (<code class="docutils literal notranslate"><span class="pre">cutoff</span></code>, <code class="docutils literal notranslate"><span class="pre">window_len</span></code>,
+<code class="docutils literal notranslate"><span class="pre">step_size</span></code>, <code class="docutils literal notranslate"><span class="pre">max_dims</span></code>, <code class="docutils literal notranslate"><span class="pre">useriemannian</span></code>, <code class="docutils literal notranslate"><span class="pre">maxmem</span></code>). The JSON text
+holds every array as float64 and every number in its shortest exact form, so
+reading it back loses nothing. A 32-channel state is about 48 kB.</p>
+<p>Reapplying skips reference selection and calibration and processes with the
+recorded arguments. A <code class="docutils literal notranslate"><span class="pre">cutoff</span></code>, <code class="docutils literal notranslate"><span class="pre">window_len</span></code>, <code class="docutils literal notranslate"><span class="pre">step_size</span></code>, <code class="docutils literal notranslate"><span class="pre">max_dims</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ref_*</span></code>, <code class="docutils literal notranslate"><span class="pre">useriemannian</span></code>, or <code class="docutils literal notranslate"><span class="pre">maxmem</span></code> passed beside <code class="docutils literal notranslate"><span class="pre">state</span></code> must be that
+argument’s default or the value the state records (<code class="docutils literal notranslate"><span class="pre">useriemannian=False</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&quot;off&quot;</span></code> both mean Euclidean); any other value raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. A state
+is checked as a stored document is, whether it comes from <code class="docutils literal notranslate"><span class="pre">return_state</span></code> or
+from a dictionary you built, and a malformed one raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> naming
+the key. A whole-number <code class="docutils literal notranslate"><span class="pre">step_size</span></code> such as <code class="docutils literal notranslate"><span class="pre">32.0</span></code> is recorded as an
+integer, and a fractional one raises when a state is requested.</p>
+<p>A state whose sampling rate or channel labels differ from the EEG’s raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, because a state from another montage would mix the wrong
+channels. A state recorded from an EEG without <code class="docutils literal notranslate"><span class="pre">chanlocs</span></code> has no labels. It
+fits only an EEG without labels, and a labeled state is refused for an EEG
+without them.</p>
+<p><code class="docutils literal notranslate"><span class="pre">maxmem</span></code> fixes how many blocks processing uses, in every variant, and the
+block count changes the cleaned data. Processing reserves
+<code class="docutils literal notranslate"><span class="pre">channels</span> <span class="pre">*</span> <span class="pre">channels</span> <span class="pre">*</span> <span class="pre">lookahead_samples</span> <span class="pre">*</span> <span class="pre">24</span></code> bytes before it sizes its
+blocks. When <code class="docutils literal notranslate"><span class="pre">maxmem</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code> or smaller than that, <code class="docutils literal notranslate"><span class="pre">asr_process</span></code>
+replaces it with half of the free memory, and the output then differs between
+runs and machines. The default of 64 MB is too small for 128 channels at 1 kHz
+and for 256 channels at 512 Hz. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> emits a <code class="docutils literal notranslate"><span class="pre">UserWarning</span></code> that names
+the overhead and the smallest sufficient <code class="docutils literal notranslate"><span class="pre">maxmem</span></code> when a state is requested or
+supplied with such a budget; it never raises.</p>
+<p>Identical output after reapplying holds on one platform and numerical library
+stack. Another BLAS or LAPACK build can differ in the last bits of the float
+arithmetic.</p>
+</section>
 <section id="review-rejected-segments">
 <h2>Review Rejected Segments<a class="headerlink" href="#review-rejected-segments" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">vis_artifacts(clean_eeg,</span> <span class="pre">original_eeg)</span></code> opens an EEG browser with rejected
@@ -930,6 +981,7 @@ replayed in scripts.</p></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clean-continuous-data">Clean Continuous Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sampling-rates">Sampling Rates</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#riemannian-asr-notes">Riemannian ASR Notes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#save-and-reapply-the-asr-state">Save and Reapply the ASR State</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#review-rejected-segments">Review Rejected Segments</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#resample">Resample</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#re-reference-and-interpolate">Re-Reference and Interpolate</a></li>

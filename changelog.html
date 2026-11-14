@@ -476,6 +476,17 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">return_state=True)</span></code> returns <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">state)</span></code>, where
+<code class="docutils literal notranslate"><span class="pre">state</span></code> is the calibration state before processing plus the sampling
+rate, the channel labels, and the processing arguments.
+<code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">state=state)</span></code> skips calibration and gives identical data
+for the same EEG, for Euclidean, <code class="docutils literal notranslate"><span class="pre">useriemannian=&quot;calib&quot;</span></code>, and full
+Riemannian ASR. A state from another sampling rate or channel order is
+refused, a state is checked as a stored document is, and a recorded
+<code class="docutils literal notranslate"><span class="pre">maxmem</span></code> that is <code class="docutils literal notranslate"><span class="pre">None</span></code> or below the processing overhead warns, because
+the output then depends on the free memory. <code class="docutils literal notranslate"><span class="pre">asr_state.state_to_json</span></code> and
+<code class="docutils literal notranslate"><span class="pre">state_from_json</span></code> write and read the state as plain JSON without loss.
+A call with neither argument is unchanged.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code> appends each applied FIR design to
 <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;eegfiltnew&quot;]</span></code>, including the sampling rate, affected
 channels, phase, cutoffs, order, transition width, <code class="docutils literal notranslate"><span class="pre">revfilt</span></code>, and the

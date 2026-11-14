@@ -199,6 +199,64 @@ names ``asr_calibrate_r``, the sample counts, and the choice to record more
 data or set ``BurstCriterion`` off. ``pop_clean_rawdata`` warns and leaves
 the burst stage unchanged. EEGLAB does not catch that call.
 
+Save and Reapply the ASR State
+==============================
+
+``clean_asr`` can hand back the calibration it used, so the same cleaning can
+be repeated later or recorded beside a result:
+
+.. code-block:: python
+
+   import json
+
+   from eegprep import clean_asr
+   from eegprep.plugins.clean_rawdata.asr_state import state_from_json, state_to_json
+
+   cleaned, state = clean_asr(EEG, return_state=True)
+   with open("asr_state.json", "w") as handle:
+       json.dump(state_to_json(state), handle)
+
+   with open("asr_state.json") as handle:
+       state = state_from_json(json.load(handle))
+   again = clean_asr(EEG, state=state)  # again["data"] equals cleaned["data"]
+
+The state is the calibration as ``asr_calibrate`` (or ``asr_calibrate_r`` for
+full Riemannian ASR) returned it, plus the sampling rate, the channel labels in
+data order, and the processing arguments (``cutoff``, ``window_len``,
+``step_size``, ``max_dims``, ``useriemannian``, ``maxmem``). The JSON text
+holds every array as float64 and every number in its shortest exact form, so
+reading it back loses nothing. A 32-channel state is about 48 kB.
+
+Reapplying skips reference selection and calibration and processes with the
+recorded arguments. A ``cutoff``, ``window_len``, ``step_size``, ``max_dims``,
+``ref_*``, ``useriemannian``, or ``maxmem`` passed beside ``state`` must be that
+argument's default or the value the state records (``useriemannian=False`` and
+``"off"`` both mean Euclidean); any other value raises ``ValueError``. A state
+is checked as a stored document is, whether it comes from ``return_state`` or
+from a dictionary you built, and a malformed one raises ``ValueError`` naming
+the key. A whole-number ``step_size`` such as ``32.0`` is recorded as an
+integer, and a fractional one raises when a state is requested.
+
+A state whose sampling rate or channel labels differ from the EEG's raises
+``ValueError``, because a state from another montage would mix the wrong
+channels. A state recorded from an EEG without ``chanlocs`` has no labels. It
+fits only an EEG without labels, and a labeled state is refused for an EEG
+without them.
+
+``maxmem`` fixes how many blocks processing uses, in every variant, and the
+block count changes the cleaned data. Processing reserves
+``channels * channels * lookahead_samples * 24`` bytes before it sizes its
+blocks. When ``maxmem`` is ``None`` or smaller than that, ``asr_process``
+replaces it with half of the free memory, and the output then differs between
+runs and machines. The default of 64 MB is too small for 128 channels at 1 kHz
+and for 256 channels at 512 Hz. ``clean_asr`` emits a ``UserWarning`` that names
+the overhead and the smallest sufficient ``maxmem`` when a state is requested or
+supplied with such a budget; it never raises.
+
+Identical output after reapplying holds on one platform and numerical library
+stack. Another BLAS or LAPACK build can differ in the last bits of the float
+arithmetic.
+
 Review Rejected Segments
 ========================
 
