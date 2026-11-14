@@ -336,6 +336,17 @@ def _assert_e1(minimum, median, amari):
     assert amari <= E1_MAX_AMARI, f"E1 Amari distance {amari:.4f} > {E1_MAX_AMARI}"
 
 
+@pytest.mark.parametrize(
+    ("statistics", "message"),
+    [((0.949, 0.995, 0.01), "minimum"), ((0.96, 0.989, 0.01), "median"), ((0.96, 0.995, 0.051), "Amari")],
+)
+def test_e1_thresholds_are_the_pre_registered_numbers(statistics, message):
+    _assert_e1(0.95, 0.99, 0.05)
+
+    with pytest.raises(AssertionError, match=message):
+        _assert_e1(*statistics)
+
+
 def test_e1_statistics_pass_a_signed_permutation_and_fail_a_wrong_pairing():
     generator = np.random.RandomState(0)
     unmixing = generator.randn(12, 12)
