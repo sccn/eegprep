@@ -77,8 +77,12 @@ def eeg_pamica(
     states it, for ``lrate``, ``minlrate``, ``rho0``, ``do_newton``, ``newt_start``, ``use_min_dll``,
     ``use_grad_norm``, ``do_mean``, ``do_sphere``, ``newtrate``, ``rholratefact``, ``invsigmin`` and
     ``invsigmax``. These follow eegprep's own table, which differs from EEGLAB's ``runamica15.m`` in
-    places. eegprep's ``max_decs`` is pAMICA's ``maxdecs``. pAMICA's own value stands for
-    every other setting. ``block_size`` is pAMICA's 131072: the 128 of ``runamica15`` is the Fortran
+    places. eegprep's ``max_decs`` is pAMICA's ``maxdecs``. pAMICA's own value stands for every other
+    setting: ``lratefact``, ``rholrate``, ``minrho``, ``maxrho`` and ``newt_ramp`` are not mapped because
+    pAMICA's values equal eegprep's, ``numrej`` (pAMICA's ``maxrej``, 1 against 3), ``pcadb`` and
+    ``blk_min``, ``blk_step`` and ``blk_max`` are not mapped and differ, and ``decwindow`` and 26 other
+    names of ``_AMICA_DEFAULTS`` (among them the ``write``, ``update_`` and ``load_`` settings) have no
+    pAMICA argument. ``block_size`` is pAMICA's 131072: the 128 of ``runamica15`` is the Fortran
     program's block per thread and does not mean the same thing.
 
     ``icaweights @ icasphere`` is the unmixing pAMICA applies, from the channels to the components.
