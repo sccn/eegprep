@@ -212,13 +212,9 @@ jobs:
           echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
 
       - name: Run Python tests
-        # The shipped AMICA binary launches on the macOS runner and not on the ubuntu-22.04 or Windows
-        # runners. Where it launches, the E1 report in tests/test_pop_runica_pamica.py runs and prints its
-        # line instead of skipping; it asserts nothing about the numbers, and fails only if the binary cannot run.
-        env:
-          EEGPREP_REQUIRE_AMICA: ${{ runner.os == 'macOS' && '1' || '' }}
+        # The E1 report runs in its own job below, so this job keeps its length. One line: Windows runs this in PowerShell.
         run: |
-          uv run --no-sync pytest tests
+          uv run --no-sync pytest tests --deselect tests/test_pop_runica_pamica.py::test_e1_reports_pamica_against_amica_on_the_sample_recording
 
       - name: Stop MATLAB
         if: always() && steps.matlab-batch.outcome == 'success'
@@ -291,6 +287,42 @@ jobs:
         if: always()
         run: |
           uv pip list
+
+  # E1 compares pamica with the shipped AMICA binary on the sample recording and prints one line. It asserts
+  # nothing about the numbers: the binary seeds its random start from the clock, so they vary between runs.
+  # The binary launches on the macOS runner (x86_64 under Rosetta) and not on the ubuntu-22.04 or Windows
+  # runners, so this job runs on macOS and fails only if the binary cannot launch.
+  e1-report:
+    name: E1 report (macOS)
+    runs-on: macos-latest
+    needs: lint
+    timeout-minutes: 90
+    env:
+      EEGPREP_REQUIRE_AMICA: "1"
+      EEGPREP_SKIP_MATLAB: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Same checkout as the test job: the vendored EEGLAB reference, without its nested plugin submodules.
+          submodules: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.12
+        run: |
+          uv python install 3.12
+
+      - name: Install dependencies
+        run: |
+          uv sync --python 3.12 --all-extras --group dev
+
+      - name: Print the E1 line
+        run: |
+          uv run --no-sync pytest tests/test_pop_runica_pamica.py::test_e1_reports_pamica_against_amica_on_the_sample_recording -v
 
   # A plain `pip install eegprep` has no brackets. It must load, clean, and plot
   # the sample recording. Octave, MNE, PyBIDS, and Picard stay out of this job.
