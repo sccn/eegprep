@@ -14,7 +14,7 @@ Unreleased
   through the new ``eeg_pamica``.
   Install it with the ``pamica`` extra, ``pip install "eegprep[pamica]"``.
   The fit runs in float64 on the CPU with one thread and a fixed seed, so the same seed gives identical weights.
-  Settings you do not pass take EEGLAB's ``runamica15`` values.
+  Settings you do not pass take eegprep's ``runamica15`` defaults.
   ``EEG["etc"]["pamica"]`` records the run, and a fit that stops on ``max_iter`` reports ``did_converge`` false.
 - ``pop_eegfiltnew`` appends each applied FIR design to
   ``EEG["etc"]["eegfiltnew"]``, including the sampling rate, affected

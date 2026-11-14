@@ -19,7 +19,7 @@ Inputs:
   without a seed or `w_init`, initialization uses the identity matrix.
   An explicit `w_init` matrix takes precedence over the seed.
   For pAMICA, options are `eeg_pamica` keywords such as `max_iter`, `n_mix`, `seed` (default 5489), `block_size`, `threads` (default 1) and `pcakeep`.
-  A setting not passed takes the value EEGLAB's `runamica15` uses.
+  A setting not passed takes eegprep's `runamica15` default (`_AMICA_DEFAULTS`), which differs from EEGLAB's `runamica15.m` in places.
   The run is recorded in `EEG.etc.pamica`.
 - `'chanind'`: one-based channel indices, channel labels, or channel types used for ICA.
 - `'reorder'`: `'on'` or `'off'`; reorder components by descending activation variance. Default is `'on'`.
