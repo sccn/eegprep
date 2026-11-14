@@ -62,6 +62,17 @@ def eeg_pamica(
     ``pip install "eegprep[pamica]"``. Standard ICA fields are populated from model 0, and the
     run is recorded in ``EEG['etc']['pamica']``.
 
+    The decomposition is computed by the ``pamica`` package, version ``EEG['etc']['pamica']['version']``,
+    through its ``pamica.AMICA(backend='torch').fit`` pipeline (the ``AMICATorchNG`` class), and not by
+    EEGLAB's AMICA binary. Reproducibility is pamica's promise: the same seed, data, settings and
+    pamica and torch versions give bit-identical weights in float64 on the CPU with one thread, on one
+    machine. The tests of this function check that on one host, by repeating a run and by replaying it
+    from its record. Another platform, torch version, device or thread count is not covered. The
+    settings that reproduce a run are the ones recorded in ``EEG['etc']['pamica']``: ``seed``,
+    ``n_models``, ``n_mix``, ``max_iter``, ``block_size``, ``pcakeep`` and the settings below, with
+    ``backend`` and ``pipeline`` naming what produced it. A comparison with EEGLAB's ``runamica15`` is
+    informational, because that binary starts from a random initialization seeded by the clock.
+
     A setting not passed takes eegprep's ``runamica15`` default, as ``runamica._AMICA_DEFAULTS``
     states it, for ``lrate``, ``minlrate``, ``rho0``, ``do_newton``, ``newt_start``, ``use_min_dll``,
     ``use_grad_norm``, ``do_mean``, ``do_sphere``, ``newtrate``, ``rholratefact``, ``invsigmin`` and
@@ -170,6 +181,8 @@ def eeg_pamica(
         'threads': threads_used,
         'pcakeep': pcakeep,
         'rank': EEG['icaweights'].shape[0],
+        'backend': type(model.model_).__name__,
+        'pipeline': f"pamica.AMICA(backend='{model.backend}').fit",
         **settings,
         'iterations': len(history),
         'stop_reason': stop_reason,

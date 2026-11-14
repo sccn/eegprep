@@ -37,6 +37,8 @@ RESULT_KEYS = {
     "dtype",
     "threads",
     "rank",
+    "backend",
+    "pipeline",
     "iterations",
     "stop_reason",
     "did_converge",
@@ -152,6 +154,23 @@ def test_run_record_names_the_run_and_replays_it():
     assert model.final_ll_ == record["final_ll"]
     assert len(model.ll_history_) == record["iterations"]
     assert max(model.ll_history_) == record["best_ll"]
+
+
+def test_the_record_names_the_pamica_pipeline_and_is_enough_to_reproduce_the_run():
+    eeg = _synthetic_eeg()
+
+    result = eeg_pamica(eeg, max_iter=40, newt_start=3)
+
+    record = result["etc"]["pamica"]
+    assert record["pipeline"] == "pamica.AMICA(backend='torch').fit"
+    assert record["backend"] == "AMICATorchNG"
+    first = _replay(eeg, record)
+    second = _replay(eeg, record)
+    assert type(first.model_).__name__ == record["backend"]
+    assert first.backend == "torch"
+    assert np.array_equal(first.get_unmixing_matrix(), second.get_unmixing_matrix())
+    assert np.array_equal(first.get_unmixing_matrix(), result["icaweights"])
+    assert np.array_equal(first.get_sphere(), result["icasphere"])
 
 
 def test_a_caller_value_replaces_the_eeglab_default_and_is_recorded():
