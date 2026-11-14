@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``clean_asr(EEG, return_state=True)`` returns ``(EEG, state)``, where
+  ``state`` is the calibration state before processing plus the sampling
+  rate, the channel labels, and the processing arguments.
+  ``clean_asr(EEG, state=state)`` skips calibration and gives identical data
+  for the same EEG, for Euclidean, ``useriemannian="calib"``, and full
+  Riemannian ASR. A state from another sampling rate or channel order is
+  refused. ``asr_state.state_to_json`` and ``state_from_json`` write and read
+  the state as plain JSON without loss. A call with neither argument is
+  unchanged.
 - ``pop_eegfiltnew`` appends each applied FIR design to
   ``EEG["etc"]["eegfiltnew"]``, including the sampling rate, affected
   channels, phase, cutoffs, order, transition width, ``revfilt``, and the

@@ -199,6 +199,44 @@ names ``asr_calibrate_r``, the sample counts, and the choice to record more
 data or set ``BurstCriterion`` off. ``pop_clean_rawdata`` warns and leaves
 the burst stage unchanged. EEGLAB does not catch that call.
 
+Save and Reapply the ASR State
+==============================
+
+``clean_asr`` can hand back the calibration it used, so the same cleaning can
+be repeated later or recorded beside a result:
+
+.. code-block:: python
+
+   import json
+
+   from eegprep import clean_asr
+   from eegprep.plugins.clean_rawdata.asr_state import state_from_json, state_to_json
+
+   cleaned, state = clean_asr(EEG, return_state=True)
+   with open("asr_state.json", "w") as handle:
+       json.dump(state_to_json(state), handle)
+
+   with open("asr_state.json") as handle:
+       state = state_from_json(json.load(handle))
+   again = clean_asr(EEG, state=state)  # again["data"] equals cleaned["data"]
+
+The state is the calibration as ``asr_calibrate`` (or ``asr_calibrate_r`` for
+full Riemannian ASR) returned it, plus the sampling rate, the channel labels in
+data order, and the processing arguments (``cutoff``, ``window_len``,
+``step_size``, ``max_dims``, ``useriemannian``, ``maxmem``). The JSON text
+holds every array as float64 and every number in its shortest exact form, so
+reading it back loses nothing. A 32-channel state is about 48 kB.
+
+Reapplying skips reference selection and calibration and processes with the
+recorded arguments, so passing a changed ``cutoff``, ``window_len``,
+``step_size``, ``max_dims``, ``ref_*``, ``useriemannian``, or ``maxmem`` beside
+``state`` raises ``ValueError``. A state whose sampling rate or channel labels
+differ from the EEG's raises ``ValueError`` too, because a state from another
+montage would mix the wrong channels. An EEG without ``chanlocs`` records no
+labels, and only the channel count is checked. Keep ``maxmem`` set (the default
+is 64) when full Riemannian output must reproduce on another machine, because
+that processor derives its covariance blocks from the memory budget.
+
 Review Rejected Segments
 ========================
 
