@@ -13,10 +13,14 @@ Inputs:
   - `'runica'`: EEGLAB-style Infomax / Extended Infomax.
   - `'picard'`: Picard ICA through EEGPrep's `eeg_picard` wrapper.
   - `'runamica15'` or `'amica'`: AMICA through EEGPrep's `eeg_amica` wrapper. AMICA requires an available AMICA binary.
+  - `'pamica'`: AMICA through pAMICA's PyTorch engine and EEGPrep's `eeg_pamica` wrapper. It needs no binary; install it with `pip install "eegprep[pamica]"`.
 - `'options'`: key/value options passed to the selected backend.
   For Picard, `{'seed': 42}` selects a reproducible random starting point;
   without a seed or `w_init`, initialization uses the identity matrix.
   An explicit `w_init` matrix takes precedence over the seed.
+  For pAMICA, options are `eeg_pamica` keywords such as `max_iter`, `n_mix`, `seed` (default 5489), `block_size`, `threads` (default 1) and `pcakeep`.
+  A setting not passed takes the value EEGLAB's `runamica15` uses.
+  The run is recorded in `EEG.etc.pamica`.
 - `'chanind'`: one-based channel indices, channel labels, or channel types used for ICA.
 - `'reorder'`: `'on'` or `'off'`; reorder components by descending activation variance. Default is `'on'`.
 - `'dataset'`: one-based dataset indices to process when `EEG` is a list of datasets. Default is all datasets.
@@ -57,6 +61,7 @@ Examples:
     EEG = pop_runica(EEG)
     EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 512)
     EEG = pop_runica(EEG, 'icatype', 'picard', 'options', {'maxiter', 500, 'mode', 'standard'})
+    EEG = pop_runica(EEG, 'icatype', 'pamica', 'max_iter', 2000, 'seed', 5489)
     ALLEEG = pop_runica(ALLEEG, 'concatenate', 'on')
 
 Notes:

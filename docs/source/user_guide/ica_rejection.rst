@@ -44,6 +44,24 @@ matching MATLAB's ``runamica15``. Versions affected by `issue #435
 scrambling the samples read by AMICA. Recompute affected AMICA decompositions
 and downstream component labels and rejection decisions from the original data.
 
+pAMICA runs AMICA in Python with PyTorch, so it needs no executable.
+Install it with ``pip install "eegprep[pamica]"``, then call:
+
+.. code-block:: python
+
+   EEG = pop_runica(EEG, icatype="pamica", gui=False, max_iter=2000)
+
+The decomposition runs in float64 on the CPU with one thread and ``seed=5489``.
+The same seed, data and settings give identical weights on one machine.
+A setting you do not pass takes the value EEGLAB's ``runamica15`` uses, such as ``lrate=0.05`` and ``do_newton=True``.
+The exception is ``block_size``, which is pAMICA's own 131072, because EEGLAB's 128 is the block each thread of the Fortran program processes.
+Pass ``pcakeep`` to keep fewer components than channels.
+``icaweights @ icasphere`` is the unmixing pAMICA applies, and components stay in pAMICA's order unless ``reorder="on"`` sorts them by variance.
+``EEG["etc"]["pamica"]`` records the pAMICA and torch versions, the device, the seed, the settings used, the iteration count, the stop reason, and ``did_converge``.
+``did_converge`` is false when pAMICA used all ``max_iter`` iterations without meeting a convergence check.
+If pAMICA ends on a non-finite value, ``pop_runica`` raises ``PamicaFitError`` (from ``eegprep.functions.popfunc.eeg_pamica``) and leaves the ICA fields unset.
+The ICA dialog does not list pAMICA yet, so choose it from the command line or the console.
+
 Picard accepts EEGLAB's PCA option through ``options``. A positive value is the
 requested component count; a negative value subtracts dimensions from the
 selected channel count. For example, ``options={"pca": -1}`` computes one
