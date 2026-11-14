@@ -36,6 +36,7 @@ RESULT_KEYS = {
     "device",
     "dtype",
     "threads",
+    "rank",
     "iterations",
     "stop_reason",
     "did_converge",
@@ -164,6 +165,26 @@ def test_a_caller_value_replaces_the_eeglab_default_and_is_recorded():
     assert np.array_equal(_replay(eeg, record).get_unmixing_matrix(), result["icaweights"])
 
 
+def test_eegprep_amica_option_names_reach_pamica_under_its_names():
+    eeg = _synthetic_eeg()
+    settings = {"max_iter": 30, "use_grad_norm": True}
+
+    amica_names = pop_runica(eeg, icatype="pamica", max_decs=2, min_grad_norm=1e9, **settings)
+    pamica_names = pop_runica(eeg, icatype="pamica", maxdecs=2, min_nd=1e9, **settings)
+    by_text = pop_runica(
+        eeg, icatype="pamica", options="'max_iter', 30, 'use_grad_norm', 1, 'max_decs', 2, 'min_grad_norm', 1e9"
+    )
+
+    for result in (amica_names, pamica_names, by_text):
+        record = result["etc"]["pamica"]
+        assert (record["maxdecs"], record["min_nd"]) == (2, 1e9)
+        assert "max_decs" not in record
+        assert "min_grad_norm" not in record
+        assert record["stop_reason"] == "grad_norm"
+    assert np.array_equal(amica_names["icaweights"], pamica_names["icaweights"])
+    assert np.array_equal(by_text["icaweights"], pamica_names["icaweights"])
+
+
 def test_eeglab_option_names_reach_pamica_under_its_names():
     eeg = _synthetic_eeg()
 
@@ -212,6 +233,19 @@ def test_without_sphering_icasphere_is_the_identity():
     result = eeg_pamica(eeg, max_iter=10, do_sphere=False)
 
     assert np.array_equal(result["icasphere"], np.eye(6))
+
+
+def test_the_record_gives_the_rank_that_ran_beside_the_requested_pcakeep():
+    eeg = _synthetic_eeg()
+
+    sphered = eeg_pamica(eeg, max_iter=10, pcakeep=4)
+    unsphered = eeg_pamica(eeg, max_iter=10, pcakeep=4, do_sphere=False)
+
+    # pAMICA ignores pcakeep when it does not sphere, so the six components that ran are not the four requested.
+    assert (sphered["etc"]["pamica"]["pcakeep"], sphered["etc"]["pamica"]["rank"]) == (4, 4)
+    assert (unsphered["etc"]["pamica"]["pcakeep"], unsphered["etc"]["pamica"]["rank"]) == (4, 6)
+    assert unsphered["icaweights"].shape[0] == 6
+    assert eeg_pamica(eeg, max_iter=10)["etc"]["pamica"]["rank"] == 6
 
 
 def test_rank_reduced_fit_maps_components_to_all_channels():

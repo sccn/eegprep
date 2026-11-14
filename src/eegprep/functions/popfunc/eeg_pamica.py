@@ -11,7 +11,7 @@ from ..miscfunc.misc import finite_matmul
 from ..sigprocfunc.runamica import _AMICA_DEFAULTS
 from ._ica_utils import finalize_ica_fields, flatten_ica_data, reshape_ica_activations
 
-#: EEGLAB ``runamica15`` parameter, as ``_AMICA_DEFAULTS`` spells it, to pAMICA's name for it.
+#: eegprep ``runamica15`` parameter, as ``_AMICA_DEFAULTS`` spells it, to pAMICA's name for it.
 _PAMICA_NAMES = {
     'lrate': 'lrate',
     'minlrate': 'minlrate',
@@ -62,12 +62,13 @@ def eeg_pamica(
     ``pip install "eegprep[pamica]"``. Standard ICA fields are populated from model 0, and the
     run is recorded in ``EEG['etc']['pamica']``.
 
-    A setting not passed takes the value EEGLAB's ``runamica15`` uses, as ``runamica._AMICA_DEFAULTS``
+    A setting not passed takes eegprep's ``runamica15`` default, as ``runamica._AMICA_DEFAULTS``
     states it, for ``lrate``, ``minlrate``, ``rho0``, ``do_newton``, ``newt_start``, ``use_min_dll``,
     ``use_grad_norm``, ``do_mean``, ``do_sphere``, ``newtrate``, ``rholratefact``, ``invsigmin`` and
-    ``invsigmax``. EEGLAB's ``max_decs`` is pAMICA's ``maxdecs``. pAMICA's own value stands for
-    every other setting. ``block_size`` is pAMICA's 131072: EEGLAB's 128 is the Fortran program's
-    block per thread and does not mean the same thing.
+    ``invsigmax``. These follow eegprep's own table, which differs from EEGLAB's ``runamica15.m`` in
+    places. eegprep's ``max_decs`` is pAMICA's ``maxdecs``. pAMICA's own value stands for
+    every other setting. ``block_size`` is pAMICA's 131072: the 128 of ``runamica15`` is the Fortran
+    program's block per thread and does not mean the same thing.
 
     ``icaweights @ icasphere`` is the unmixing pAMICA applies, from the channels to the components.
     pAMICA subtracts the channel mean before sphering and EEGLAB's activations do not, so
@@ -101,6 +102,8 @@ def eeg_pamica(
         count is reproducible only on the host where it was measured.
     pcakeep : int | None
         Number of principal components to keep. Default: every channel pAMICA finds full rank.
+        pAMICA ignores it when ``do_sphere=False``. The record keeps the value requested in
+        ``pcakeep`` and the number of components that ran in ``rank``.
     amica_options : dict
         Further pAMICA settings, which replace the defaults above, for example ``lrate=0.1``.
 
@@ -166,6 +169,7 @@ def eeg_pamica(
         'block_size': block_size,
         'threads': threads_used,
         'pcakeep': pcakeep,
+        'rank': EEG['icaweights'].shape[0],
         **settings,
         'iterations': len(history),
         'stop_reason': stop_reason,
