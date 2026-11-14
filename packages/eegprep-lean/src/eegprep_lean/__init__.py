@@ -40,6 +40,7 @@ from .index import (
     UnsupportedFormatVersion,
     read_index,
 )
+from .recording import index_sha256
 from .transport import (
     FetchTransport,
     PyfetchTransport,
@@ -62,6 +63,10 @@ _EXTRA_NAMES = {
     "ReadOnlyStoreError": ("eegprep_lean.store", "zarr"),
     "open_array": ("eegprep_lean.store", "zarr"),
     "read_window": ("eegprep_lean.window", "zarr"),
+    "load_recording": ("eegprep_lean.recording", "zarr"),
+    # numpy only, like Window: it works under the plot extra alone.
+    "to_eeg": ("eegprep_lean.eeg", "plot"),
+    "to_mne_raw": ("eegprep_lean.mne", "mne"),
     # numpy, not zarr: window.py imports zarr only inside read_window, so these two work
     # under the plot extra alone.
     "Window": ("eegprep_lean.window", "plot"),
@@ -198,7 +203,9 @@ __all__ = [
     "__version__",
     "default_spacing",
     "default_transport",
+    "index_sha256",
     "is_missing_extra",
+    "load_recording",
     "missing_extra_error",
     "open_array",
     "plot_window",
@@ -207,6 +214,8 @@ __all__ = [
     "read_window",
     "running_in_pyodide",
     "set_default_transport",
+    "to_eeg",
+    "to_mne_raw",
     "to_physical",
     "to_png",
 ]
