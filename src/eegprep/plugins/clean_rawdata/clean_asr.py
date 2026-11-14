@@ -4,6 +4,7 @@ This module provides functions for running the Artifact Subspace Reconstruction 
 on EEG data to remove artifacts.
 """
 
+import inspect
 import logging
 from typing import Dict, Any, Union, Tuple, Optional
 from copy import deepcopy
@@ -15,6 +16,7 @@ from .asr_calibrate import ASRCalibrationError, asr_calibrate
 from .asr_calibrate_r import asr_calibrate_r
 from .asr_process import asr_process
 from .asr_process_r import asr_process_r
+from .asr_state import STATE_FORMAT
 from .clean_windows import clean_windows
 from ...functions.miscfunc.misc import round_mat
 
@@ -33,7 +35,9 @@ def clean_asr(
     use_gpu: bool = False,
     useriemannian: Optional[str] = None,
     maxmem: Optional[int] = 64,
-) -> Dict[str, Any]:
+    return_state: bool = False,
+    state: Optional[Dict[str, Any]] = None,
+) -> Union[Dict[str, Any], Tuple[Dict[str, Any], Dict[str, Any]]]:
     """Run the Artifact Subspace Reconstruction (ASR) method on EEG data.
 
     This is an automated artifact rejection function that ensures that the data
@@ -82,20 +86,33 @@ def clean_asr(
             ``'calib'`` uses a Riemannian covariance estimate at calibration time and the Euclidean processor.
             ``True`` or ``'on'`` runs Riemannian calibration and Riemannian processing. Default: None.
         maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
+            Riemannian processing derives its covariance blocks from the memory budget, so keep it set when
+            the cleaned data must be reproduced exactly on another machine.
+        return_state (bool, optional): Also return the calibration state. Default: False.
+        state (dict, optional): A state returned earlier by ``return_state=True``, or read back with
+            ``eegprep.plugins.clean_rawdata.asr_state.state_from_json``. Reference selection and calibration
+            are skipped, and the data is processed with that state and the processing arguments it records
+            (``cutoff``, ``window_len``, ``step_size``, ``max_dims``, ``useriemannian``, ``maxmem``). The
+            same EEG and state give identical data. A state whose sampling rate or channel labels differ
+            from the EEG's is refused, and so is a ``cutoff``, ``window_len``, ``step_size``, ``max_dims``,
+            ``ref_*``, ``useriemannian`` or ``maxmem`` that differs from its default, because the state owns them.
 
     Returns
     -------
     Dict[str, Any] : The EEG dictionary with the 'data' field containing the cleaned data.
+    With ``return_state=True``, ``(EEG, state)``: ``state`` is the calibration state as ``asr_calibrate`` (or
+    ``asr_calibrate_r`` for full Riemannian ASR) returned it, before processing, plus ``srate``, ``channels`` (the
+    channel labels in data order, ``None`` when the EEG has no ``chanlocs``), the processing arguments, and
+    ``format``. ``asr_state.state_to_json`` writes it as plain JSON.
 
     Raises
     ------
     ImportError : If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
     ASRCalibrationError : The spectral shaping filter cannot be designed, or the calibration cannot form two RMS windows.
-    ValueError : If input arguments are invalid.
+    ValueError : If input arguments are invalid, or ``state`` does not fit the EEG or is not an ASR state.
     """
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
-    useriemannian = _normalise_useriemannian(useriemannian)
 
     data = np.array(EEG['data'], dtype=np.float64, copy=True)
     srate = float(EEG['srate'])
@@ -105,10 +122,103 @@ def clean_asr(
     if C != nbchan:
         logger.warning(f"Mismatch between EEG['nbchan'] ({nbchan}) and EEG['data'].shape[0] ({C}). Using shape[0].")
         nbchan = C  # Use the actual dimension from data
+    channels = _channel_labels(EEG)
+
+    if state is None:
+        state = _calibrate_state(
+            EEG,
+            data,
+            channels,
+            cutoff=cutoff,
+            window_len=window_len,
+            step_size=step_size,
+            max_dims=max_dims,
+            ref_maxbadchannels=ref_maxbadchannels,
+            ref_tolerances=ref_tolerances,
+            ref_wndlen=ref_wndlen,
+            useriemannian=useriemannian,
+            maxmem=maxmem,
+        )
+    else:
+        _refuse_arguments_owned_by_state(
+            cutoff=cutoff,
+            window_len=window_len,
+            step_size=step_size,
+            max_dims=max_dims,
+            ref_maxbadchannels=ref_maxbadchannels,
+            ref_tolerances=ref_tolerances,
+            ref_wndlen=ref_wndlen,
+            useriemannian=useriemannian,
+            maxmem=maxmem,
+        )
+        _check_state_fits(state, srate, channels, C)
+
+    # --- Extrapolate Signal End ---
+    # Required because asr_process needs lookahead data beyond the signal end
+    # Based on: sig = [signal.data bsxfun(@minus,2*signal.data(:,end),signal.data(:,(end-1):-1:end-round(windowlen/2*signal.srate)))];
+    window_len = state['window_len']
+    N_extrap = int(round_mat(window_len / 2 * srate))
+    if N_extrap > 0:
+        extrap_len = min(N_extrap, S - 1 if S > 1 else 0)
+        if extrap_len > 0:
+            # Indices from second-to-last sample back 'extrap_len' steps
+            extrap_indices = np.arange(S - 2, S - extrap_len - 2, -1)
+            # Reflect around the last sample: 2*last_sample - samples_before_last
+            extrap_part = 2 * data[:, [-1]] - data[:, extrap_indices]
+            sig = np.concatenate((data, extrap_part), axis=1)
+        else:  # Not enough data to extrapolate
+            sig = data
+    else:  # No extrapolation needed
+        sig = data
+
+    # --- Process Signal using ASR ---
+    logger.info('Applying ASR processing...')
+    lookahead_sec = window_len / 2.0  # asr_process expects lookahead in seconds
+    process = asr_process_r if state['useriemannian'] == 'all' else asr_process
+    outdata, _ = process(
+        sig,
+        srate,
+        state,
+        window_len=window_len,
+        lookahead=lookahead_sec,
+        step_size=state['step_size'],
+        max_dims=state['max_dims'],
+        max_mem=state['maxmem'],
+        use_gpu=use_gpu,  # Passed but ignored in current Python port
+    )
+
+    # --- Finalize ---
+    # shift signal content back (to compensate for processing delay)
+    outdata = outdata[:, :S]
+    EEG = deepcopy(EEG)
+    EEG['data'] = outdata
+    logger.info('ASR cleaning finished.')
+
+    return (EEG, state) if return_state else EEG
+
+
+def _calibrate_state(
+    EEG: Dict[str, Any],
+    data: np.ndarray,
+    channels: Optional[list],
+    cutoff: float,
+    window_len: Optional[float],
+    step_size: Optional[int],
+    max_dims: float,
+    ref_maxbadchannels: Union[float, str, None, np.ndarray],
+    ref_tolerances: Union[Tuple[float, float], str, None],
+    ref_wndlen: Union[float, str, None],
+    useriemannian: Optional[str],
+    maxmem: Optional[int],
+) -> Dict[str, Any]:
+    """Select the calibration data, calibrate, and return the state ``clean_asr`` records."""
+    useriemannian = _normalise_useriemannian(useriemannian)
+    srate = float(EEG['srate'])
+    C = data.shape[0]
 
     # --- Handle Defaults ---
     if window_len is None:
-        window_len = max(0.5, 1.5 * nbchan / srate)
+        window_len = max(0.5, 1.5 * C / srate)
 
     # --- Ensure Data Type ---
 
@@ -165,9 +275,11 @@ def clean_asr(
         if useriemannian == 'all':
             # clean_asr.m passes empty window arguments, so asr_calibrate_r keeps
             # its own defaults (0.1 s windows, overlap 0.5, clean fraction 0.3).
-            state = asr_calibrate_r(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem)
+            calibration = asr_calibrate_r(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem)
         else:
-            state = asr_calibrate(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem, useriemannian=useriemannian)
+            calibration = asr_calibrate(
+                ref_section_data, srate, cutoff=cutoff, maxmem=maxmem, useriemannian=useriemannian
+            )
     except ASRCalibrationError:
         raise
     except ValueError as e:
@@ -179,47 +291,53 @@ def clean_asr(
     if step_size is None:
         step_size = int(math.floor(srate * window_len / 2))  # Samples
 
-    # --- Extrapolate Signal End ---
-    # Required because asr_process needs lookahead data beyond the signal end
-    # Based on: sig = [signal.data bsxfun(@minus,2*signal.data(:,end),signal.data(:,(end-1):-1:end-round(windowlen/2*signal.srate)))];
-    N_extrap = int(round_mat(window_len / 2 * srate))
-    if N_extrap > 0:
-        extrap_len = min(N_extrap, S - 1 if S > 1 else 0)
-        if extrap_len > 0:
-            # Indices from second-to-last sample back 'extrap_len' steps
-            extrap_indices = np.arange(S - 2, S - extrap_len - 2, -1)
-            # Reflect around the last sample: 2*last_sample - samples_before_last
-            extrap_part = 2 * data[:, [-1]] - data[:, extrap_indices]
-            sig = np.concatenate((data, extrap_part), axis=1)
-        else:  # Not enough data to extrapolate
-            sig = data
-    else:  # No extrapolation needed
-        sig = data
+    return {
+        **calibration,
+        'srate': srate,
+        'channels': channels,
+        'cutoff': cutoff,
+        'window_len': window_len,
+        'step_size': step_size,
+        'max_dims': max_dims,
+        'useriemannian': useriemannian,
+        'maxmem': maxmem,
+        'format': STATE_FORMAT,
+    }
 
-    # --- Process Signal using ASR ---
-    logger.info('Applying ASR processing...')
-    lookahead_sec = window_len / 2.0  # asr_process expects lookahead in seconds
-    process = asr_process_r if useriemannian == 'all' else asr_process
-    outdata, _ = process(
-        sig,
-        srate,
-        state,
-        window_len=window_len,
-        lookahead=lookahead_sec,
-        step_size=step_size,
-        max_dims=max_dims,
-        max_mem=maxmem,
-        use_gpu=use_gpu,  # Passed but ignored in current Python port
-    )
 
-    # --- Finalize ---
-    # shift signal content back (to compensate for processing delay)
-    outdata = outdata[:, :S]
-    EEG = deepcopy(EEG)
-    EEG['data'] = outdata
-    logger.info('ASR cleaning finished.')
+def _channel_labels(EEG: Dict[str, Any]) -> Optional[list]:
+    """Channel labels in data order, or None when the EEG has no ``chanlocs``."""
+    chanlocs = EEG.get('chanlocs')
+    if chanlocs is None or len(chanlocs) == 0:
+        return None
+    return [str(chan.get('labels', '')) for chan in chanlocs]
 
-    return EEG
+
+def _check_state_fits(state: Dict[str, Any], srate: float, channels: Optional[list], nchan: int) -> None:
+    """Refuse a state calibrated for another sampling rate or channel set."""
+    if state.get('format') != STATE_FORMAT:
+        raise ValueError(f"state: expected an ASR state with format {STATE_FORMAT!r}, got {state.get('format')!r}.")
+    if state['srate'] != srate:
+        raise ValueError(f"state srate {state['srate']:g} Hz differs from the EEG's {srate:g} Hz.")
+    if state['channels'] != channels:
+        raise ValueError(
+            "state channels differ from the EEG's channels in label or order; "
+            "a state from another montage would mix the wrong channels."
+        )
+    if np.shape(state['M']) != (nchan, nchan):
+        raise ValueError(f"state was calibrated for {np.shape(state['M'])[0]} channels, the EEG has {nchan}.")
+
+
+def _refuse_arguments_owned_by_state(**passed: Any) -> None:
+    """A state records its processing arguments, so a changed one passed beside it is an error."""
+    parameters = inspect.signature(clean_asr).parameters
+    for name, value in passed.items():
+        default = parameters[name].default
+        is_default = value is default or (not isinstance(value, np.ndarray) and value == default)
+        if not is_default:
+            raise ValueError(
+                f"{name}={value!r} cannot be combined with state=: the state records its own processing arguments."
+            )
 
 
 def _normalise_useriemannian(value: Optional[str]) -> Optional[str]:
