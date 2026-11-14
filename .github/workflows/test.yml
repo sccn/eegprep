@@ -213,7 +213,8 @@ jobs:
 
       - name: Run Python tests
         # The shipped AMICA binary launches on the macOS runner and not on the ubuntu-22.04 or Windows
-        # runners. Where it launches, the E1 test in tests/test_pop_runica_pamica.py fails instead of skipping.
+        # runners. Where it launches, the E1 report in tests/test_pop_runica_pamica.py runs and prints its
+        # line instead of skipping; it asserts nothing about the numbers, and fails only if the binary cannot run.
         env:
           EEGPREP_REQUIRE_AMICA: ${{ runner.os == 'macOS' && '1' || '' }}
         run: |
