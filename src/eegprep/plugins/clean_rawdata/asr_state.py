@@ -160,10 +160,8 @@ def _decode_array(key: str, value: Any) -> np.ndarray:
     if value["dtype"] != "float64":
         raise ValueError(f"{key}: dtype must be 'float64', got {value['dtype']!r}")
     shape = value["shape"]
-    if not isinstance(shape, list) or not all(
-        isinstance(size, int) and not isinstance(size, bool) and size >= 0 for size in shape
-    ):
-        raise ValueError(f"{key}: shape must be a list of non-negative integers")
+    if not isinstance(shape, list) or not all(isinstance(size, int) and not isinstance(size, bool) for size in shape):
+        raise ValueError(f"{key}: shape must be a list of integers")
     try:
         array = np.array(value["data"], dtype=np.float64)
     except (TypeError, ValueError) as error:

@@ -374,7 +374,7 @@ def _negative_shape(document):
 
 
 def _boolean_shape(document):
-    document["M"]["shape"] = [True, True]
+    document["M"] = {"dtype": "float64", "shape": [True, True], "data": [[1.0]]}
 
 
 def _array_without_data(document):
