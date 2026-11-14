@@ -8,9 +8,11 @@ have minimum at least 0.95 and median at least 0.99, and their Amari distance is
 
 from __future__ import annotations
 
+import copy
 import os
 import sys
 import time
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -240,6 +242,9 @@ def test_reorder_sorts_components_by_variance_and_off_keeps_pamica_order():
     variance = np.sum(sorted_result["icawinv"] ** 2, axis=0) * np.sum(sorted_result["icaact"] ** 2, axis=1)
     assert np.all(np.diff(variance) <= 0)
     assert np.array_equal(kept["icaweights"], _replay(eeg, kept["etc"]["pamica"]).get_unmixing_matrix())
+    # pop_runica sorts by default; eeg_pamica called directly keeps pAMICA's order by default.
+    assert np.array_equal(pop_runica(eeg, icatype="pamica", max_iter=40)["icaweights"], sorted_result["icaweights"])
+    assert np.array_equal(eeg_pamica(eeg, max_iter=40)["icaweights"], kept["icaweights"])
     assert sorted(map(tuple, np.round(kept["icaweights"], 12))) == sorted(
         map(tuple, np.round(sorted_result["icaweights"], 12))
     )
@@ -256,13 +261,22 @@ def test_a_fit_that_stops_on_max_iter_has_not_converged():
     assert record["iterations"] == 5
 
 
-def test_a_fit_that_stops_on_a_convergence_check_has_converged():
+@pytest.mark.parametrize(
+    ("stop_reason", "options"),
+    [
+        ("grad_norm", {"use_grad_norm": True, "min_nd": 1e9}),
+        ("min_dll", {"use_min_dll": True, "min_dll": 1e3}),
+        ("lrate_floor", {"lrate": 3.0, "minlrate": 1.0}),
+        ("grad_norm_floor", {"lrate": 3.0, "min_nd": 1e9}),
+    ],
+)
+def test_a_fit_that_stops_on_a_convergence_check_has_converged(stop_reason, options):
     eeg = _synthetic_eeg()
 
-    result = eeg_pamica(eeg, max_iter=500, use_grad_norm=True, min_nd=1e9)
+    result = eeg_pamica(eeg, max_iter=500, **options)
 
     record = result["etc"]["pamica"]
-    assert record["stop_reason"] == "grad_norm"
+    assert record["stop_reason"] == stop_reason
     assert record["did_converge"] is True
     assert record["iterations"] < 500
 
@@ -278,6 +292,102 @@ def test_a_degenerate_fit_raises_and_sets_no_ica_field():
     assert eeg["icaweights"] is None
     assert eeg["icasphere"] is None
     assert eeg["etc"] == {}
+
+
+def test_newton_changes_the_fit_once_it_starts():
+    eeg = _synthetic_eeg()
+
+    newton = eeg_pamica(eeg, max_iter=20, newt_start=3, do_newton=True)
+    plain = eeg_pamica(eeg, max_iter=20, newt_start=3, do_newton=False)
+
+    assert (newton["etc"]["pamica"]["do_newton"], plain["etc"]["pamica"]["do_newton"]) == (True, False)
+    assert np.abs(newton["icaweights"] - plain["icaweights"]).max() > 0.1
+
+
+def test_newtrate_changes_the_newton_fit():
+    eeg = _synthetic_eeg()
+
+    fast = eeg_pamica(eeg, max_iter=20, newt_start=3, newtrate=1.0)
+    slow = eeg_pamica(eeg, max_iter=20, newt_start=3, newtrate=0.3)
+
+    assert (fast["etc"]["pamica"]["newtrate"], slow["etc"]["pamica"]["newtrate"]) == (1.0, 0.3)
+    assert np.abs(fast["icaweights"] - slow["icaweights"]).max() > 0.1
+
+
+def test_a_newton_fit_repeats_and_replays_bit_for_bit():
+    eeg = _synthetic_eeg()
+
+    first = eeg_pamica(eeg, max_iter=20, newt_start=3, newtrate=0.3)
+    second = eeg_pamica(eeg, max_iter=20, newt_start=3, newtrate=0.3)
+
+    assert np.array_equal(first["icaweights"], second["icaweights"])
+    assert np.array_equal(_replay(eeg, first["etc"]["pamica"]).get_unmixing_matrix(), first["icaweights"])
+
+
+def test_two_models_fit_differently_from_one():
+    eeg = _synthetic_eeg()
+
+    one = eeg_pamica(eeg, max_iter=20)
+    two = eeg_pamica(eeg, max_iter=20, n_models=2)
+
+    assert (one["etc"]["pamica"]["n_models"], two["etc"]["pamica"]["n_models"]) == (1, 2)
+    assert np.abs(one["icaweights"] - two["icaweights"]).max() > 1e-3
+    assert np.array_equal(_replay(eeg, two["etc"]["pamica"]).get_unmixing_matrix(), two["icaweights"])
+
+
+def test_the_input_dataset_is_left_unchanged():
+    eeg = _synthetic_eeg()
+    before = copy.deepcopy(eeg)
+
+    result = eeg_pamica(eeg, max_iter=5)
+
+    assert result is not eeg
+    assert np.array_equal(eeg["data"], before["data"])
+    assert eeg["icaweights"] is None
+    assert eeg["icasphere"] is None
+    assert eeg["icaact"] is None
+    assert eeg["etc"] == {}
+
+
+def test_a_failure_outside_the_import_guard_propagates_unchanged():
+    eeg = _synthetic_eeg()
+    eeg["data"][2, 5] = np.nan
+
+    with pytest.raises(torch.linalg.LinAlgError) as caught:
+        eeg_pamica(eeg, max_iter=5)
+
+    assert caught.value.__cause__ is None
+    assert eeg["icaweights"] is None
+
+
+def test_the_activations_are_computed_without_numpy_matmul_warnings():
+    eeg = _synthetic_eeg()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        result = eeg_pamica(eeg, max_iter=5)
+
+    assert np.isfinite(result["icaact"]).all()
+
+
+def test_an_epoched_dataset_gives_epoched_activations():
+    generator = np.random.RandomState(5)
+    channels, points, trials = 4, 500, 6
+    sources = np.vstack(
+        [
+            generator.laplace(size=points * trials) if index % 2 else generator.uniform(-1, 1, points * trials)
+            for index in range(channels)
+        ]
+    )
+    eeg = create_test_eeg(n_channels=channels, n_samples=points, n_trials=trials)
+    eeg["data"] = (generator.randn(channels, channels) @ sources).reshape(channels, points, trials, order="F")
+
+    result = pop_runica(eeg, icatype="pamica", max_iter=30)
+
+    assert result["icaact"].shape == (channels, points, trials)
+    flat = eeg["data"].reshape(channels, -1, order="F")
+    reconstructed = result["icawinv"] @ result["icaact"].reshape(channels, -1, order="F")
+    assert np.max(np.abs(reconstructed - flat)) <= 1e-8 * np.max(np.abs(flat))
 
 
 def test_threads_are_limited_for_the_run_and_restored_after():
@@ -345,6 +455,21 @@ def test_e1_thresholds_are_the_pre_registered_numbers(statistics, message):
 
     with pytest.raises(AssertionError, match=message):
         _assert_e1(*statistics)
+
+
+def test_e1_statistics_report_the_known_matched_correlations():
+    generator = np.random.RandomState(2)
+    basis = generator.randn(10, 6)
+    basis -= basis.mean(axis=0, keepdims=True)
+    orthonormal, _ = np.linalg.qr(basis)
+    left, other = orthonormal[:, :3].T, orthonormal[:, 3:].T
+    cosines = np.array([1.0, 0.98, 0.9])
+    right = cosines[:, None] * left + np.sqrt(1 - cosines**2)[:, None] * other
+
+    minimum, median, _amari = _e1_statistics(left, right[[2, 0, 1]])
+
+    assert minimum == pytest.approx(0.9)
+    assert median == pytest.approx(0.98)
 
 
 def test_e1_statistics_pass_a_signed_permutation_and_fail_a_wrong_pairing():
