@@ -132,6 +132,12 @@ and `reason` says `units_unknown` or `coordinate_system_unknown`.
 That is where it differs from the BIDS import,
 which guesses a unit when none is declared, assumes a frame when there is no coordsystem file,
 and turns `CTF`, `4DBti` and `KitYokogawa`, which the appendix gives as ALS, as if they were RAS.
+The import also reads a coordsystem whose `EEGCoordinateSystemDescription` is `EEGLAB` as ALS,
+whatever `EEGCoordinateSystem` says.
+A store carries no description, so a dataset that states a RAS system with that description
+is ALS through the import and is turned by 90 degrees here.
+The converter writes no such description today,
+and reading it here is a follow-up if it ever does.
 A store that declares no positions leaves `chanlocs` as labels alone, and has no `locations` record.
 `read_window` makes no request for the store root;
 a caller that reads windows itself reads the attributes once per store with

@@ -16,6 +16,12 @@ positions and a recorded reason, because a wrong guess moves ``theta`` and ``rad
 raises nothing. ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS in the appendix and are kept
 as they are, where the import turns them by 90 degrees.
 
+The import also reads a coordsystem whose ``EEGCoordinateSystemDescription`` is ``EEGLAB`` as
+ALS, whatever ``EEGCoordinateSystem`` says. A store carries no description, so a dataset that
+states a RAS system with that description is ALS through the import and is turned by 90
+degrees here. The converter writes no such description today; reading it here is a follow-up
+if it ever does.
+
 The origin is not moved. A template space has its origin at the anterior commissure, not at
 the center of the head, and the import does not recenter either; ``radius`` is measured from
 wherever the dataset put the origin.
