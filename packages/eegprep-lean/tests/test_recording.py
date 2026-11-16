@@ -28,7 +28,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from eegprep_lean import IndexError_, Store, UrllibTransport, read_index
+from eegprep_lean import ElectrodeAttributes, IndexError_, Store, UrllibTransport, read_electrode_attributes, read_index
 from eegprep_lean.index import INDEX_URL_TEMPLATE
 from eegprep_lean.recording import index_sha256, load_recording
 from eegprep_lean.transport import Response
@@ -53,6 +53,19 @@ RAGGED_SAMPLES = 700
 PEAK = 24
 # The fixture's group names, for the stores that have several.
 SLOW, FAST = "eeg_125hz", "eeg_250hz"
+# Two stores whose root group carries electrode attributes, written the way the converter
+# writes them: one valid, one whose position map is not an object.
+LOCATED_PATH = "sub-05/eeg/sub-05_task-test_eeg.set"
+MALFORMED_PATH = "sub-06/eeg/sub-06_task-test_eeg.set"
+# The map holds every row of the electrodes file, including one the recording lacks
+# ("Extra"), and the converter's own JSON writer lets a NaN through as a bare token ("E4").
+ELECTRODE_POSITIONS = {
+    "E1": [0.0, 0.0987, 0.0521],
+    "E2": [0.0, 0.0, 0.1105],
+    "E3": [-0.0832, 0.0, 0.0],
+    "E4": [float("nan"), 0.0, 0.0],
+    "Extra": [0.05, 0.05, 0.05],
+}
 
 
 def _ragged(channel: int, sample: int) -> int:
@@ -147,6 +160,15 @@ def _write_group(root, name: str, *, modality: str, rate: float, unit: str, data
     )
 
 
+def _embed_root_attributes(store_dir: pathlib.Path, attributes: dict) -> None:
+    """Add keys to the store root's ``zarr.json``, as the converter does after the store is
+    written: ``json.dump`` with its defaults, so a NaN goes out as a bare token."""
+    path = store_dir / "zarr.json"
+    document = json.loads(path.read_text())
+    document.setdefault("attributes", {}).update(attributes)
+    path.write_text(json.dumps(document))
+
+
 @pytest.fixture(scope="module")
 def served(tmp_path_factory):
     """(index document bytes, base URL, requests) for a local copy of three recordings."""
@@ -218,6 +240,31 @@ def served(tmp_path_factory):
         sharded=True,
     )
 
+    for name, attributes in (
+        (
+            "rec5.zarr",
+            {
+                "electrode_positions": ELECTRODE_POSITIONS,
+                "electrode_coordinate_system": "CapTrak",
+                "electrode_coordinate_units": "m",
+                "electrode_positions_source": "subject",
+                "electrode_positions_file": "sub-05/eeg/sub-05_electrodes.tsv",
+            },
+        ),
+        ("rec6.zarr", {"electrode_positions": ["E1", "E2"], "electrode_coordinate_system": "CapTrak"}),
+    ):
+        _write_group(
+            zarr.create_group(store=LocalStore(root / name), overwrite=True),
+            FAST,
+            modality="EEG",
+            rate=RATE,
+            unit="uV",
+            data=np.arange(300).reshape(N_CHANNELS, 100),
+            scale=[1.0, 1.0, 1.0],
+            offset=[0.0, 0.0, 0.0],
+        )
+        _embed_root_attributes(root / name, attributes)
+
     requested: list[tuple[str, str | None, str | None]] = []
     documents: dict[str, bytes] = {}
     handler = type("Handler", (_Handler,), {"root": root, "documents": documents, "requested": requested})
@@ -240,7 +287,7 @@ def served(tmp_path_factory):
         "format_version": 3,
         "dataset_id": DATASET,
         "contract_base": base_url,
-        "store_count": 4,
+        "store_count": 6,
         "stores": [
             {
                 "path": FIRST_PATH,
@@ -261,6 +308,16 @@ def served(tmp_path_factory):
                 "path": RAGGED_PATH,
                 "zarr": "rec4.zarr",
                 "groups": [group_entry(FAST, "EEG", RATE, N_CHANNELS, RAGGED_SAMPLES)],
+            },
+            {
+                "path": LOCATED_PATH,
+                "zarr": "rec5.zarr",
+                "groups": [group_entry(FAST, "EEG", RATE, N_CHANNELS, 100)],
+            },
+            {
+                "path": MALFORMED_PATH,
+                "zarr": "rec6.zarr",
+                "groups": [group_entry(FAST, "EEG", RATE, N_CHANNELS, 100)],
             },
         ],
     }
@@ -492,6 +549,54 @@ class TestLoadRecording:
         load_recording(DATASET, FIRST_PATH, index=local_index)
 
         assert list(tmp_path.iterdir()) == []
+
+
+EXPECTED_ELECTRODES = ElectrodeAttributes(
+    # Finite entries only, as the store states them: the NaN entry is gone, nothing is
+    # converted, and the entry for a channel the recording lacks is kept for the join.
+    positions={
+        "E1": (0.0, 0.0987, 0.0521),
+        "E2": (0.0, 0.0, 0.1105),
+        "E3": (-0.0832, 0.0, 0.0),
+        "Extra": (0.05, 0.05, 0.05),
+    },
+    coordinate_system="CapTrak",
+    coordinate_units="m",
+    source="subject",
+    file="sub-05/eeg/sub-05_electrodes.tsv",
+)
+
+
+class TestElectrodeAttributes:
+    def test_load_recording_carries_the_store_root_attributes(self, served, local_index) -> None:
+        window = load_recording(DATASET, LOCATED_PATH, index=local_index)
+
+        assert window.electrodes == EXPECTED_ELECTRODES
+
+    def test_a_store_without_the_attributes_carries_none(self, served, local_index) -> None:
+        window = load_recording(DATASET, FIRST_PATH, index=local_index)
+
+        assert window.electrodes is None
+
+    def test_they_are_one_more_request_to_the_store_root(self, served, routed) -> None:
+        _, base_url, _ = served
+
+        load_recording(DATASET, LOCATED_PATH, transport=routed)
+
+        assert routed.urls.count(f"{base_url}rec5.zarr/zarr.json") == 1
+
+    def test_read_electrode_attributes_is_the_same_read_for_the_asynchronous_path(self, served, local_index) -> None:
+        located = asyncio.run(read_electrode_attributes(local_index, local_index.store(LOCATED_PATH)))
+        absent = asyncio.run(read_electrode_attributes(local_index, local_index.store(FIRST_PATH)))
+
+        assert located == EXPECTED_ELECTRODES
+        assert absent is None
+
+    def test_a_position_map_that_is_not_an_object_is_refused_rather_than_ignored(self, served, local_index) -> None:
+        """Ignoring it would hand back a recording with no locations and no sign that the
+        store declared some."""
+        with pytest.raises(IndexError_, match="electrode_positions"):
+            load_recording(DATASET, MALFORMED_PATH, index=local_index)
 
 
 # The smallest recording of a live public dataset with a verified Zarr copy.
