@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
+import math
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -21,6 +24,7 @@ np = pytest.importorskip("numpy", reason="needs numpy, which the zarr and plot e
 
 import eegprep_lean  # noqa: E402
 from eegprep_lean.eeg import to_eeg  # noqa: E402
+from eegprep_lean.electrodes import ElectrodeAttributes  # noqa: E402
 from eegprep_lean.window import Window  # noqa: E402
 
 RATE = 250.0
@@ -136,8 +140,10 @@ class TestTheDictionary:
                 "store": "sub-01/eeg/sub-01_task-test_eeg.set",
                 "index_sha256": "ab" * 32,
                 # The marker is the API's own, because the version field is not bumped when
-                # this API is added and 0.5.0 predates it.
-                "reader": f"eegprep-lean@{eegprep_lean.__version__} recording-v1",
+                # this API is added and 0.5.0 predates it. v2 is the first reader that fills
+                # chanlocs from a store's electrode attributes, so a record that names it
+                # can be told from one made by a reader that never looked for them.
+                "reader": f"eegprep-lean@{eegprep_lean.__version__} recording-v2",
             }
         }
 
@@ -240,6 +246,451 @@ class TestEegprepAcceptsIt:
 
         assert (checked["nbchan"], checked["srate"], checked["pnts"]) == (3, RATE, 4)
         assert checked["data"].shape == (3, 4)
+
+    def test_eeg_checkset_keeps_the_filled_locations(self) -> None:
+        eeg_checkset = pytest.importorskip("eegprep").eeg_checkset
+        attributes = stated({"E1": ALS_MM["E1"], "E3": ALS_MM["E3"]}, "EEGLAB", "mm")
+        eeg = to_eeg(located(attributes), **IDS)
+
+        checked = eeg_checkset(eeg)
+
+        for before, after in zip(eeg["chanlocs"], checked["chanlocs"], strict=True):
+            assert after["labels"] == before["labels"]
+            if np.size(before["X"]):
+                assert [after[field] for field in FIELDS] == [before[field] for field in FIELDS]
+        assert np.size(checked["chanlocs"][1]["X"]) == 0
+
+
+# Three electrodes in EEGLAB's ALS frame (+X toward the nose, +Y to the left, +Z up), in
+# millimeters: on the midline toward the nose, on the vertex, and on the left. Every test of
+# the conversion states them in another frame or unit and expects these back.
+ALS_MM = {"E1": (98.7, 0.0, 52.1), "E2": (0.0, 0.0, 110.5), "E3": (0.0, 83.2, 0.0)}
+FIELDS = ("X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "theta", "radius")
+# What eegprep's own coords_ALS_to_angular gives for E1, kept as numbers so a test can
+# disagree with the code under test.
+E1_SPH_PHI = 27.827879865538932
+E1_RADIUS = 0.3454006674136726
+
+# The BIDS coordinate-systems appendix: ALS is EEGLAB's own frame, RAS is turned into it.
+ALS_SYSTEMS = ["EEGLAB", "EEGLAB-HJ", "CTF", "4DBti", "KitYokogawa"]
+RAS_SYSTEMS = [
+    "CapTrak",
+    "NeuromagElektaMEGIN",
+    "ElektaNeuromag",
+    "ChietiItab",
+    # The standard template identifiers, and the deprecated spellings the appendix keeps.
+    "ICBM452AirSpace",
+    "ICBM452Warp5Space",
+    "IXI549Space",
+    "fsaverage",
+    "fsaverageSym",
+    "fsLR",
+    "MNIColin27",
+    "MNI152Lin",
+    *(f"MNI152NLin2009{version}{symmetry}" for version in "abc" for symmetry in ("Sym", "Asym")),
+    "MNI152NLin6Sym",
+    "MNI152NLin6ASym",
+    "MNI305",
+    "NIHPD",
+    "OASIS30AntsOASISAnts",
+    "OASIS30Atropos",
+    "Talairach",
+    "UNCInfant",
+    "fsaverage3",
+    "fsaverage4",
+    "fsaverage5",
+    "fsaverage6",
+    "fsaveragesym",
+    *(f"UNCInfant{age}V{volume}" for age in "012" for volume in ("21", "22", "23")),
+]
+UNIT_SCALES = {"mm": 1.0, "cm": 0.1, "m": 0.001}
+
+
+def declared(system: str, unit: str) -> dict[str, tuple[float, float, float]]:
+    """``ALS_MM`` as a dataset in ``system`` and ``unit`` would state it: a RAS frame names the
+    left of the head by a negative x and the nose by +y."""
+    scale = UNIT_SCALES[unit]
+    ras = system in RAS_SYSTEMS
+    return {
+        label: tuple(value * scale for value in ((-y, x, z) if ras else (x, y, z)))
+        for label, (x, y, z) in ALS_MM.items()
+    }
+
+
+def stated(positions, system: str = "EEGLAB", units: str = "mm", **optional: str) -> ElectrodeAttributes:
+    return ElectrodeAttributes(positions=positions, coordinate_system=system, coordinate_units=units, **optional)
+
+
+def located(attributes: ElectrodeAttributes | None) -> Window:
+    return dataclasses.replace(window(DATA), electrodes=attributes)
+
+
+def locations_of(eeg: dict) -> dict:
+    return eeg["etc"]["nemar"]["locations"]
+
+
+class TestElectrodeAttributes:
+    def test_entries_that_are_not_three_finite_numbers_are_dropped(self) -> None:
+        stored = {
+            "E1": [1.0, 2.0, 3.0],
+            "E2": [float("nan"), 0.0, 0.0],
+            "E3": [0.0, float("inf"), 0.0],
+            "E4": [1.0, 2.0],
+            "E5": ["1", 2, 3],
+            "E6": [True, 0, 0],
+            "E7": None,
+            "E8": [1, 2, 3, 4],
+            "E9": [4, 5, 6],
+        }
+
+        attributes = ElectrodeAttributes.from_attributes({"electrode_positions": stored})
+
+        assert attributes.positions == {"E1": (1.0, 2.0, 3.0), "E9": (4.0, 5.0, 6.0)}
+
+    def test_no_position_map_is_no_attributes_whatever_else_is_there(self) -> None:
+        assert ElectrodeAttributes.from_attributes({"electrode_coordinate_system": "CapTrak"}) is None
+        assert ElectrodeAttributes.from_attributes({}) is None
+
+    def test_a_missing_system_or_unit_is_the_empty_string_the_converter_writes(self) -> None:
+        attributes = ElectrodeAttributes.from_attributes({"electrode_positions": {"E1": [1, 2, 3]}})
+
+        assert (attributes.coordinate_system, attributes.coordinate_units) == ("", "")
+        assert (attributes.source, attributes.file) == (None, None)
+
+    def test_the_source_word_and_file_are_kept_only_when_they_are_text(self) -> None:
+        stored = {"electrode_positions": {"E1": [1, 2, 3]}}
+
+        text = ElectrodeAttributes.from_attributes(
+            {**stored, "electrode_positions_source": "dataset", "electrode_positions_file": "electrodes.tsv"}
+        )
+        junk = ElectrodeAttributes.from_attributes(
+            {**stored, "electrode_positions_source": 3, "electrode_positions_file": ""}
+        )
+
+        assert (text.source, text.file) == ("dataset", "electrodes.tsv")
+        assert (junk.source, junk.file) == (None, None)
+
+
+class TestLocations:
+    def test_a_window_without_attributes_is_labels_only_as_before(self) -> None:
+        eeg = to_eeg(window(DATA), **IDS)
+
+        assert eeg["chanlocs"] == [{"labels": "E1"}, {"labels": "E2"}, {"labels": "E3"}]
+        assert eeg["chaninfo"] == {}
+        assert "locations" not in eeg["etc"]["nemar"]
+
+    @pytest.mark.parametrize("unit", UNIT_SCALES)
+    @pytest.mark.parametrize("system", ALS_SYSTEMS + RAS_SYSTEMS)
+    def test_every_accepted_system_and_unit_gives_the_same_locations(self, system: str, unit: str) -> None:
+        eeg = to_eeg(located(stated(declared(system, unit), system, unit)), **IDS)
+
+        by_label = {loc["labels"]: loc for loc in eeg["chanlocs"]}
+        for label, expected in ALS_MM.items():
+            assert [by_label[label][axis] for axis in "XYZ"] == pytest.approx(expected, abs=1e-9)
+        # The nose, the vertex and the left ear, whose angles are known without arithmetic.
+        e1, e2, e3 = (by_label[label] for label in ("E1", "E2", "E3"))
+        assert (e1["sph_theta"], e1["theta"]) == pytest.approx((0.0, 0.0), abs=1e-9)
+        assert (e1["sph_phi"], e1["radius"]) == pytest.approx((E1_SPH_PHI, E1_RADIUS), abs=1e-9)
+        assert e1["sph_radius"] == pytest.approx(math.hypot(98.7, 52.1), abs=1e-9)
+        assert (e2["sph_phi"], e2["radius"]) == pytest.approx((90.0, 0.0), abs=1e-9)
+        assert (e3["sph_theta"], e3["theta"], e3["radius"]) == pytest.approx((90.0, -90.0, 0.5), abs=1e-9)
+        assert locations_of(eeg)["located"] == 3
+
+    @pytest.mark.parametrize(
+        ("spelling", "factor"),
+        [("MM", 1.0), ("Cm", 10.0), ("M", 1000.0), ("millimeters", 1.0), ("centimeters", 10.0), ("meters", 1000.0)],
+    )
+    def test_unit_names_are_read_as_the_bids_import_reads_them(self, spelling: str, factor: float) -> None:
+        eeg = to_eeg(located(stated({"E1": (1.0, 2.0, 3.0)}, "EEGLAB", spelling)), **IDS)
+
+        assert [eeg["chanlocs"][0][axis] for axis in "XYZ"] == pytest.approx([factor, 2 * factor, 3 * factor])
+
+    def test_a_channel_without_an_entry_gets_no_position_while_the_others_do(self) -> None:
+        attributes = stated({"E1": ALS_MM["E1"], "E3": ALS_MM["E3"]})
+
+        eeg = to_eeg(located(attributes), **IDS)
+
+        e1, e2, e3 = eeg["chanlocs"]
+        assert (e1["X"], e3["Y"]) == (98.7, 83.2)
+        # What the BIDS import leaves for it: its label and an empty array for each field.
+        assert set(e2) == {"labels", *FIELDS}
+        assert all(np.size(e2[field]) == 0 for field in FIELDS)
+        assert locations_of(eeg)["located"] == 2
+        assert "reason" not in locations_of(eeg)
+
+    def test_an_entry_belongs_to_exactly_its_label(self) -> None:
+        attributes = stated({"e1": ALS_MM["E1"], "E1 ": ALS_MM["E1"], "E2": ALS_MM["E2"]})
+
+        eeg = to_eeg(located(attributes), **IDS)
+
+        assert [np.size(loc.get("X", [])) for loc in eeg["chanlocs"]] == [0, 1, 0]
+        assert locations_of(eeg)["located"] == 1
+
+    def test_electrodes_the_recording_lacks_are_ignored(self) -> None:
+        attributes = stated({**ALS_MM, "Cz": (0.0, 0.0, 99.0)})
+
+        eeg = to_eeg(located(attributes), **IDS)
+
+        assert [loc["labels"] for loc in eeg["chanlocs"]] == ["E1", "E2", "E3"]
+        assert locations_of(eeg)["located"] == 3
+
+    def test_no_entry_matching_any_channel_is_no_positions_and_says_why(self) -> None:
+        eeg = to_eeg(located(stated({"Cz": (0.0, 0.0, 99.0)})), **IDS)
+
+        assert eeg["chanlocs"] == [{"labels": "E1"}, {"labels": "E2"}, {"labels": "E3"}]
+        assert eeg["chaninfo"] == {}
+        assert locations_of(eeg) == {
+            "coordinate_system": "EEGLAB",
+            "coordinate_units": "mm",
+            "located": 0,
+            "reason": "no_matching_labels",
+        }
+
+    @pytest.mark.parametrize("units", ["", "n/a", "ft", "inches", "µm"])
+    def test_an_unknown_unit_gives_no_positions_and_says_why(self, units: str) -> None:
+        eeg = to_eeg(located(stated(declared("CapTrak", "m"), "CapTrak", units)), **IDS)
+
+        assert eeg["chanlocs"] == [{"labels": "E1"}, {"labels": "E2"}, {"labels": "E3"}]
+        assert eeg["chaninfo"] == {}
+        assert locations_of(eeg) == {
+            "coordinate_system": "CapTrak",
+            "coordinate_units": units,
+            "located": 0,
+            "reason": "units_unknown",
+        }
+
+    @pytest.mark.parametrize(
+        "system",
+        [
+            "",
+            "Other",
+            "individual",
+            "study",
+            "scanner",
+            "Pixels",
+            "ACPC",
+            "ScanRAS",
+            "captrak",
+            "eeglab",
+            "EEGLAB ",
+            "MNI",
+        ],
+    )
+    def test_an_unknown_system_gives_no_positions_and_says_why(self, system: str) -> None:
+        eeg = to_eeg(located(stated(declared("CapTrak", "m"), system, "m")), **IDS)
+
+        assert eeg["chanlocs"] == [{"labels": "E1"}, {"labels": "E2"}, {"labels": "E3"}]
+        assert eeg["chaninfo"] == {}
+        assert locations_of(eeg) == {
+            "coordinate_system": system,
+            "coordinate_units": "m",
+            "located": 0,
+            "reason": "coordinate_system_unknown",
+        }
+
+    def test_a_store_with_neither_declared_says_the_unit_first(self) -> None:
+        """A dataset with no coordsystem file has both empty. One reason is recorded, and
+        the order is the order the conversion needs them: millimeters, then the frame."""
+        eeg = to_eeg(located(stated(ALS_MM, "", "")), **IDS)
+
+        assert locations_of(eeg)["reason"] == "units_unknown"
+
+    def test_the_record_carries_what_the_store_said(self) -> None:
+        attributes = stated(declared("CapTrak", "m"), "CapTrak", "m", source="dataset", file="electrodes.tsv")
+
+        eeg = to_eeg(located(attributes), **IDS)
+
+        assert locations_of(eeg) == {
+            "source": "dataset",
+            "file": "electrodes.tsv",
+            "coordinate_system": "CapTrak",
+            "coordinate_units": "m",
+            "located": 3,
+        }
+
+    def test_nosedir_is_plus_x_once_locations_are_filled(self) -> None:
+        assert to_eeg(located(stated(ALS_MM)), **IDS)["chaninfo"] == {"nosedir": "+X"}
+
+    def test_the_stores_positions_are_not_changed(self) -> None:
+        positions = declared("CapTrak", "m")
+        attributes = stated(positions, "CapTrak", "m")
+        before = dict(attributes.positions)
+
+        to_eeg(located(attributes), **IDS)
+
+        assert attributes.positions == before
+
+
+def _scalp_electrodes(names: list[str], unit: str) -> dict[str, tuple[float, float, float]]:
+    """Points on the upper half of a 90 mm sphere, written as a short decimal in ``unit``,
+    as an electrodes file would hold them."""
+    rng = np.random.default_rng(7)
+    azimuth = rng.uniform(-np.pi, np.pi, len(names))
+    elevation = rng.uniform(0.1, np.pi / 2, len(names))
+    points = 90.0 * np.stack(
+        [np.cos(elevation) * np.cos(azimuth), np.cos(elevation) * np.sin(azimuth), np.sin(elevation)], axis=1
+    )
+    digits = {"mm": 2, "cm": 3, "m": 5}[unit]
+    return {
+        name: tuple(round(float(value) * UNIT_SCALES[unit], digits) for value in point)
+        for name, point in zip(names, points, strict=True)
+    }
+
+
+def _write_bids_edf(root: Path, names: list[str], rows: dict, system: str, unit: str) -> Path:
+    """A one-recording BIDS dataset whose electrodes file holds ``rows``."""
+    pyedflib = pytest.importorskip("pyedflib", reason="needs pyedflib, which eegprep installs")
+    eeg_dir = root / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (root / "dataset_description.json").write_text(
+        json.dumps({"Name": "t", "BIDSVersion": "1.9.0", "DatasetType": "raw"})
+    )
+    edf = eeg_dir / "sub-01_task-x_eeg.edf"
+    writer = pyedflib.EdfWriter(str(edf), len(names), file_type=pyedflib.FILETYPE_EDFPLUS)
+    writer.setSignalHeaders(
+        [
+            {
+                "label": name,
+                "dimension": "uV",
+                "sample_frequency": 100,
+                "physical_min": -100,
+                "physical_max": 100,
+                "digital_min": -32768,
+                "digital_max": 32767,
+                "transducer": "",
+                "prefilter": "",
+            }
+            for name in names
+        ]
+    )
+    writer.writeSamples(list(np.random.default_rng(0).standard_normal((len(names), 500)) * 20))
+    writer.close()
+    (eeg_dir / "sub-01_task-x_channels.tsv").write_text(
+        "name\ttype\tunits\n" + "".join(f"{name}\tEEG\tuV\n" for name in names)
+    )
+    (eeg_dir / "sub-01_task-x_electrodes.tsv").write_text(
+        "name\tx\ty\tz\n" + "".join(f"{name}\t{x}\t{y}\t{z}\n" for name, (x, y, z) in rows.items())
+    )
+    (eeg_dir / "sub-01_task-x_coordsystem.json").write_text(
+        json.dumps({"EEGCoordinateSystem": system, "EEGCoordinateUnits": unit})
+    )
+    return edf
+
+
+# Systems and units the BIDS import reads correctly: it turns every system whose name has
+# EEGLAB in it into ALS and every other into RAS. CTF, 4DBti and KitYokogawa are ALS in the
+# appendix, so the Zarr route differs from the import there by design; see the pull request.
+SAME_AS_THE_BIDS_IMPORT = [
+    ("CapTrak", "m"),
+    ("CapTrak", "cm"),
+    ("CapTrak", "mm"),
+    ("EEGLAB", "mm"),
+    ("EEGLAB", "cm"),
+    ("EEGLAB-HJ", "m"),
+    ("NeuromagElektaMEGIN", "m"),
+    ("ElektaNeuromag", "mm"),
+    ("ChietiItab", "cm"),
+    ("MNI305", "mm"),
+    ("MNI152NLin2009cAsym", "mm"),
+    ("Talairach", "mm"),
+    ("fsaverage", "m"),
+]
+
+
+class TestTheZarrRouteGivesTheBidsRoutesAnswer:
+    """One set of coordinates, written once as an ``electrodes.tsv`` that ``pop_load_frombids``
+    reads and once as the root attributes a store carries, which ``to_eeg`` reads."""
+
+    @pytest.mark.parametrize(("system", "unit"), SAME_AS_THE_BIDS_IMPORT)
+    def test_same_chanlocs_as_pop_load_frombids(self, tmp_path: Path, system: str, unit: str) -> None:
+        pytest.importorskip("bids", reason="needs pybids, the eegprep[pybids] extra")
+        pop_load_frombids = pytest.importorskip("eegprep").pop_load_frombids
+        names = [f"E{number}" for number in range(1, 13)]
+        # E12 has no row, and "Extra" has a row and no channel.
+        rows = _scalp_electrodes([*names[:-1], "Extra"], unit)
+        edf = _write_bids_edf(tmp_path, names, rows, system, unit)
+
+        from_bids = pop_load_frombids(str(edf), bidsevent=False, infer_locations=False, dtype=np.float64, verbose=False)
+
+        stored = json.loads(
+            json.dumps(
+                {
+                    "electrode_positions": {name: list(xyz) for name, xyz in rows.items()},
+                    "electrode_coordinate_system": system,
+                    "electrode_coordinate_units": unit,
+                }
+            )
+        )
+        source = dataclasses.replace(
+            window(np.zeros((len(names), 4)), labels=tuple(names)),
+            electrodes=ElectrodeAttributes.from_attributes(stored),
+        )
+        from_zarr = to_eeg(source, **IDS)
+
+        assert [loc["labels"] for loc in from_zarr["chanlocs"]] == [loc["labels"] for loc in from_bids["chanlocs"]]
+        for zarr_loc, bids_loc in zip(from_zarr["chanlocs"], from_bids["chanlocs"], strict=True):
+            for field in FIELDS:
+                if bids_loc["labels"] == "E12":
+                    assert np.size(zarr_loc[field]) == 0
+                    assert np.size(bids_loc[field]) == 0
+                    continue
+                assert zarr_loc[field] == bids_loc[field], (bids_loc["labels"], field)
+        assert from_zarr["chaninfo"]["nosedir"] == from_bids["chaninfo"]["nosedir"]
+        assert locations_of(from_zarr)["located"] == 11
+
+
+class TestICLabelRunsOnALocatedRecording:
+    """The reason the locations are wanted: ICLabel draws a scalp map per component, and
+    ``topoplot`` has nothing to draw from a channel with no ``theta`` and ``radius``."""
+
+    SAMPLE = Path(__file__).resolve().parents[3] / "sample_data" / "eeglab_data_with_ica_tmp.set"
+
+    @staticmethod
+    def _recording(eeg: dict, *, with_locations: bool) -> dict:
+        """EEGLAB's own sample recording, as a store would give it: data and labels, and the
+        electrode positions in the attributes when asked for. The decomposition is carried
+        over unchanged, because a store has none."""
+        labels = tuple(loc["labels"] for loc in eeg["chanlocs"])
+        # The two EOG channels have no position in the sample, as an electrodes file lacks a row.
+        positions = {loc["labels"]: (loc["X"], loc["Y"], loc["Z"]) for loc in eeg["chanlocs"] if np.size(loc["X"])}
+        source = Window(
+            data=eeg["data"],
+            channels=tuple(range(len(labels))),
+            start_sample=0,
+            rate=eeg["srate"],
+            group_name="eeg_128hz",
+            physical=True,
+            labels=labels,
+            unit="uV",
+            electrodes=stated(positions, "EEGLAB", "mm") if with_locations else None,
+        )
+        recording = to_eeg(source, **IDS)
+        for key in ("icawinv", "icasphere", "icaweights", "icachansind", "icaact"):
+            recording[key] = eeg[key]
+        return recording
+
+    @pytest.fixture(scope="class")
+    def sample(self) -> dict:
+        pop_loadset = pytest.importorskip("eegprep").pop_loadset
+        return pop_loadset(str(self.SAMPLE))
+
+    def test_without_locations_topoplot_raises(self, sample: dict) -> None:
+        ICL_feature_extractor = pytest.importorskip("eegprep").ICL_feature_extractor
+
+        with pytest.raises(ValueError, match="theta"):
+            ICL_feature_extractor(self._recording(sample, with_locations=False))
+
+    def test_with_locations_the_scalp_maps_are_those_of_eeglabs_own_channel_locations(self, sample: dict) -> None:
+        ICL_feature_extractor = pytest.importorskip("eegprep").ICL_feature_extractor
+
+        features = ICL_feature_extractor(self._recording(sample, with_locations=True))
+        reference = ICL_feature_extractor(sample)
+
+        topo = features[0]
+        assert topo.shape == (32, 32, 1, 32)
+        assert np.isfinite(topo).all()
+        assert np.abs(topo).max() > 0
+        np.testing.assert_array_equal(topo, reference[0])
 
 
 LIVE_DATASET = "nm000132"

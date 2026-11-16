@@ -598,6 +598,28 @@ class TestElectrodeAttributes:
         with pytest.raises(IndexError_, match="electrode_positions"):
             load_recording(DATASET, MALFORMED_PATH, index=local_index)
 
+    def test_the_locations_reach_chanlocs_through_a_real_read(self, served, local_index) -> None:
+        from eegprep_lean.eeg import to_eeg
+
+        window = load_recording(DATASET, LOCATED_PATH, index=local_index)
+
+        eeg = to_eeg(window, dataset_id=DATASET, store=LOCATED_PATH, index_digest="ab" * 32)
+
+        by_label = {loc["labels"]: loc for loc in eeg["chanlocs"]}
+        # CapTrak is RAS and the file is in meters. E3 sits 83.2 mm to the left of the origin
+        # (x = -0.0832 m), which is +Y in EEGLAB's ALS frame: theta -90 degrees, radius 0.5.
+        assert (by_label["E3"]["X"], by_label["E3"]["Y"], by_label["E3"]["Z"]) == pytest.approx((0.0, 83.2, 0.0))
+        assert (by_label["E3"]["theta"], by_label["E3"]["radius"]) == pytest.approx((-90.0, 0.5))
+        # E2 is on the vertex: the origin of the scalp map.
+        assert by_label["E2"]["radius"] == pytest.approx(0.0)
+        assert eeg["etc"]["nemar"]["locations"] == {
+            "coordinate_system": "CapTrak",
+            "coordinate_units": "m",
+            "located": 3,
+            "source": "subject",
+            "file": "sub-05/eeg/sub-05_electrodes.tsv",
+        }
+
 
 # The smallest recording of a live public dataset with a verified Zarr copy.
 LIVE_DATASET = "nm000132"

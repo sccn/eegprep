@@ -5,9 +5,10 @@ this distribution must not import eegprep: it is the one that stays small, and e
 will depend on it. ``test_eeg.py`` checks the list against eegprep's own so that a key
 added there is a failing test here.
 
-Only the fields a reader can know are filled. Events, channel locations and the rest keep
-their empty-set defaults, which is what ``eeg_checkset`` expects of a freshly read
-recording.
+Only the fields a reader can know are filled. Events and the rest keep their empty-set
+defaults, which is what ``eeg_checkset`` expects of a freshly read recording. Channel
+locations are filled from the electrode positions a store declares, when the window carries
+them (see :mod:`eegprep_lean.locations`), and are labels alone otherwise.
 """
 
 from __future__ import annotations
@@ -15,12 +16,15 @@ from __future__ import annotations
 import numpy as np
 
 from . import __version__
+from .locations import NOSE_DIRECTION, chanlocs_from_electrodes
 from .window import Window
 
 #: Marks the API that wrote ``etc["nemar"]``, next to the package version. The version field
 #: is not bumped when this API is added, so the 0.5.0 that predates it and the one that has
-#: it would otherwise record the same reader.
-API_MARKER = "recording-v1"
+#: it would otherwise record the same reader. ``recording-v2`` is the first that fills
+#: ``chanlocs`` from a store's electrode positions and records what it did in
+#: ``etc["nemar"]["locations"]``.
+API_MARKER = "recording-v2"
 
 #: Microvolts per one of each voltage unit a channel group can declare. Anything else is
 #: not a voltage, or not one this table knows, and converting it would be a guess.
@@ -113,6 +117,15 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
     recording. ``etc["nemar"]`` records where the data came from: dataset, store, the
     SHA-256 of the index it was read against (``index_digest``, from
     :func:`~eegprep_lean.index_sha256`) and this reader's version.
+
+    When ``window.electrodes`` holds the store's electrode positions, each channel with an
+    entry for exactly its label gets ``X``, ``Y``, ``Z`` in millimeters in EEGLAB's ALS
+    frame, and the angles ``sph_theta``, ``sph_phi``, ``sph_radius``, ``theta`` and
+    ``radius``, as eegprep's BIDS import would give it from the same ``electrodes.tsv``. A
+    unit or coordinate system outside the BIDS appendix fills nothing, and is never guessed.
+    ``etc["nemar"]["locations"]`` says what the store stated, how many channels were
+    located and, when none was, why. Without ``window.electrodes`` the channels keep their
+    labels alone and there is no such record.
     """
     labels = require_physical(window)
     factor = microvolts_per(window.unit)
@@ -121,6 +134,19 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
     data = np.multiply(window.data, factor, dtype=np.float64)
     nbchan, pnts = data.shape
     srate = float(window.rate)
+
+    nemar = {
+        "dataset_id": dataset_id,
+        "store": store,
+        "index_sha256": index_digest,
+        "reader": f"eegprep-lean@{__version__} {API_MARKER}",
+    }
+    chanlocs = [{"labels": label} for label in labels]
+    chaninfo = {}
+    if window.electrodes is not None:
+        chanlocs, nemar["locations"] = chanlocs_from_electrodes(labels, window.electrodes)
+        if nemar["locations"]["located"]:
+            chaninfo["nosedir"] = NOSE_DIRECTION
 
     eeg = _emptyset()
     eeg.update(
@@ -133,14 +159,8 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
         xmax=(pnts - 1) / srate,
         times=np.arange(pnts) / srate * 1000.0,
         data=data,
-        chanlocs=[{"labels": label} for label in labels],
-        etc={
-            "nemar": {
-                "dataset_id": dataset_id,
-                "store": store,
-                "index_sha256": index_digest,
-                "reader": f"eegprep-lean@{__version__} {API_MARKER}",
-            }
-        },
+        chanlocs=chanlocs,
+        chaninfo=chaninfo,
+        etc={"nemar": nemar},
     )
     return eeg
