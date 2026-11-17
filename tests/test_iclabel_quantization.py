@@ -221,10 +221,21 @@ def test_parity_report_records_the_packaged_model_and_frozen_inputs():
 
     assert report["packaged_model"]["sha256"] == hashlib.sha256(model_bytes).hexdigest()
     assert report["packaged_model"]["size_bytes"] == len(model_bytes)
+    float32_bytes = PACKAGED_FLOAT32_MODEL.read_bytes()
+    assert report["float32_model"]["path"] == "src/eegprep/plugins/ICLabel/iclabel.onnx"
+    assert report["float32_model"]["sha256"] == hashlib.sha256(float32_bytes).hexdigest()
+    assert report["float32_model"]["size_bytes"] == len(float32_bytes)
     assert report["evaluation_features"]["sha256"] == manifest["evaluation"]["feature_archive"]["sha256"]
     assert report["teacher_probabilities"]["sha256"] == manifest["evaluation"]["teacher_probabilities"]["sha256"]
     assert report["gate_pass"] is True
     assert gate_failures(report["metrics"]) == []
+
+
+def test_frozen_teacher_came_from_the_recorded_full_precision_network():
+    report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+
+    assert report["float32_model"]["sha256"] in manifest["evaluation"]["teacher_probabilities"]["source"]
 
 
 def test_production_runtime_passes_the_frozen_gate():

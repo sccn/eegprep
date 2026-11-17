@@ -100,8 +100,9 @@ What the workflow does
 2. **build** — ``uv build``, then checks that the tag matches ``__version__``, that
    the vendored EEGLAB checkout is absent from both artifacts, that the wheel and
    sdist contain both packaged ICLabel networks (and no source ``netICL.mat``), and
-   that the packaged 8-bit network's SHA-256 equals ``packaged_model.sha256`` in
-   ``tools/iclabel/parity_report.json`` and that the report's ``gate_pass`` is
+   that the SHA-256 of the packaged 8-bit network equals ``packaged_model.sha256``
+   and that of the full-precision network equals ``float32_model.sha256`` in
+   ``tools/iclabel/parity_report.json``, and that the report's ``gate_pass`` is
    true. It also runs ``twine check --strict`` and installs both artifacts with
    the ICLabel extra for runtime classification and the ASR filter smoke test.
    The smoke tests also pin ``onnxruntime==1.32.0``, the version ``uv.lock``
@@ -138,7 +139,8 @@ quantization change; a normal release reuses the committed files. The sequence i
    passing 8-bit network to ``src/eegprep/plugins/ICLabel/iclabel_int8.onnx``.
 5. Commit both networks together with the updated
    ``tools/iclabel/parity_report.json``, so the report's ``packaged_model.sha256``
-   matches the packaged 8-bit file.
+   matches the packaged 8-bit file and its ``float32_model.sha256`` matches the
+   full-precision file.
 
 The exact commands are in the docstring of ``tools/iclabel/quantize_iclabel_onnx.py``.
 If ``netICL.mat`` itself changes, first refreeze the reference probabilities as
@@ -149,8 +151,8 @@ regenerated float32 network to match the committed ``iclabel.onnx`` to 1e-5 on t
 evaluation components and the regenerated 8-bit network to produce network outputs
 identical to the committed ``iclabel_int8.onnx``; it does not compare bytes, because a
 fresh PyTorch export need not be byte-identical across PyTorch versions. The build job
-above fails the release when a packaged network differs from its source file, or the
-packaged 8-bit network and the report disagree, or the report records a failed
+above fails the release when a packaged network differs from its source file, or
+either packaged network and the report disagree, or the report records a failed
 criterion. After a rebuild, update the measured agreement shown to users
 (:ref:`iclabel_measured_agreement`) from the new report.
 

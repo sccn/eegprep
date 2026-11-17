@@ -31,9 +31,10 @@ Regenerate the packaged models after changing ``netICL.mat``,
     cp build/iclabel/iclabel_int8.onnx src/eegprep/plugins/ICLabel/iclabel_int8.onnx
 
 Then commit both models and ``parity_report.json`` together: the tests and
-the release workflow require the int8 model's SHA-256 to equal the one in the
-report. The quantize step exits nonzero, without writing the report, when
-the gate fails. If ``netICL.mat`` itself changes, first refreeze the teacher
+the release workflow require the int8 model's SHA-256 to equal
+``packaged_model.sha256`` in the report and the full-precision model's to equal
+``float32_model.sha256``. The quantize step exits nonzero, without writing the
+report, when the gate fails. If ``netICL.mat`` itself changes, first refreeze the teacher
 with :func:`write_teacher_probabilities` (the command is recorded in
 ``evaluation_manifest.json``) and update the SHA-256 recorded there.
 
@@ -388,7 +389,11 @@ def evaluate_model(
     teacher_probabilities: Path = DEFAULT_TEACHER_PROBABILITIES,
     manifest: Path = DEFAULT_FROZEN_MANIFEST,
 ) -> dict[str, Any]:
-    """Evaluate an int8 ICLabel model against the frozen teacher on the evaluation set."""
+    """Evaluate an int8 ICLabel model against the frozen teacher on the evaluation set.
+
+    The report also records the packaged full-precision ``iclabel.onnx`` (path, size and
+    SHA-256) under ``float32_model``, whatever ``model`` is.
+    """
     frozen_manifest = load_frozen_manifest(manifest)
     evaluation = frozen_manifest["evaluation"]
     features = load_verified_feature_archive(evaluation_features, frozen_manifest)
@@ -422,6 +427,13 @@ def evaluate_model(
             "path": PACKAGED_MODEL.relative_to(_REPO_ROOT).as_posix(),
             "size_bytes": Path(model).stat().st_size,
             "sha256": _sha256(model),
+        },
+        # The full-precision network every native run loads, and the frozen teacher's source;
+        # recorded so a change to it is visible in the report and caught by release.yml.
+        "float32_model": {
+            "path": PACKAGED_FLOAT32_MODEL.relative_to(_REPO_ROOT).as_posix(),
+            "size_bytes": PACKAGED_FLOAT32_MODEL.stat().st_size,
+            "sha256": _sha256(PACKAGED_FLOAT32_MODEL),
         },
         "gate_pass": not gate_failures(metrics),
         "metrics": metrics,

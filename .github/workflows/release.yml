@@ -161,7 +161,8 @@ jobs:
             fi
           done
           # tools/iclabel/quantize_iclabel_onnx.py writes the report only when the
-          # parity gate passes; the shipped 8-bit model must be the one it describes.
+          # parity gate passes; the shipped 8-bit model and the full-precision model
+          # (the frozen teacher's source) must be the ones it describes.
           report_gate_pass=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["gate_pass"])')
           if [ "$report_gate_pass" != "True" ]; then
             echo "::error::tools/iclabel/parity_report.json records a failed ICLabel parity gate"; exit 1
@@ -170,6 +171,11 @@ jobs:
           int8_model_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel_int8.onnx | cut -d' ' -f1)
           if [ "$int8_model_sha256" != "$report_model_sha256" ]; then
             echo "::error::Source iclabel_int8.onnx does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
+          fi
+          report_float32_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["float32_model"]["sha256"])')
+          float32_model_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel.onnx | cut -d' ' -f1)
+          if [ "$float32_model_sha256" != "$report_float32_sha256" ]; then
+            echo "::error::Source iclabel.onnx does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
           fi
           if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
             echo "::error::Packaged help resources missing from the wheel"; exit 1

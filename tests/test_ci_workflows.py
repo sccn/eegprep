@@ -40,3 +40,16 @@ def test_release_smoke_tests_pin_the_locked_onnxruntime() -> None:
     assert len(pins) == 2, f"expected a pin in each of the wheel and sdist smoke tests, got {pins}"
     locked = _locked_linux_onnxruntime()
     assert pins == [locked, locked], f"release.yml pins {pins} but uv.lock resolves onnxruntime {locked}"
+
+
+def test_release_checks_the_full_precision_network_against_the_report() -> None:
+    """``release.yml`` compares ``iclabel.onnx`` with ``float32_model.sha256`` in the report."""
+    text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+    assert '["float32_model"]["sha256"]' in text, "release.yml does not read float32_model.sha256 from the report"
+    hashed = re.search(r"sha256sum src/eegprep/plugins/ICLabel/iclabel\.onnx\b", text)
+    assert hashed, "release.yml does not hash src/eegprep/plugins/ICLabel/iclabel.onnx"
+    # The comparison must fail the build, mirroring the int8 check beside it.
+    check = text[hashed.start() :]
+    assert re.search(
+        r'if \[ "\$float32_model_sha256" != "\$report_float32_sha256" \]; then\s+echo "::error::.*exit 1', check
+    ), "release.yml does not fail when iclabel.onnx differs from the report"
