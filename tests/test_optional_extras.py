@@ -478,16 +478,20 @@ def _json_result(completed: subprocess.CompletedProcess) -> dict:
     return json.loads(completed.stdout.strip().splitlines()[-1])
 
 
-def test_every_third_party_import_is_declared() -> None:
-    """Each non-stdlib import in the package maps to a base dependency or an extra of pyproject.toml."""
-    base, extras = _declared_distributions()
-    declared = base | extras
+def test_transitively_declared_imports_are_hard_requirements_of_their_owner() -> None:
+    """nibabel and pandas are imported by BIDS paths but declared only through pybids, so it must require them."""
+    pytest.importorskip("bids", reason="the base-install job does not have the pybids extra")
     for name, owner in TRANSITIVE_OF_DECLARED.items():
         requirements = importlib.metadata.requires(owner) or []
         assert any(_requirement_name(r) == name and "extra ==" not in r for r in requirements), (
             f"{owner} no longer hard-requires {name}; declare {name} in pyproject.toml"
         )
 
+
+def test_every_third_party_import_is_declared() -> None:
+    """Each non-stdlib import in the package maps to a base dependency or an extra of pyproject.toml."""
+    base, extras = _declared_distributions()
+    declared = base | extras
     undeclared: dict[str, set[str]] = {}
     for path in _package_modules():
         for module, _ in _scan_imports(path):
