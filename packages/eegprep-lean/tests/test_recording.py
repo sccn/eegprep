@@ -20,6 +20,7 @@ import asyncio
 import dataclasses
 import gc
 import hashlib
+import itertools
 import json
 import pathlib
 import threading
@@ -28,7 +29,15 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from eegprep_lean import ElectrodeAttributes, IndexError_, Store, UrllibTransport, read_electrode_attributes, read_index
+from eegprep_lean import (
+    DatasetIndex,
+    ElectrodeAttributes,
+    IndexError_,
+    Store,
+    UrllibTransport,
+    read_electrode_attributes,
+    read_index,
+)
 from eegprep_lean.index import INDEX_URL_TEMPLATE
 from eegprep_lean.recording import index_sha256, load_recording
 from eegprep_lean.transport import Response
@@ -359,6 +368,40 @@ def local_index(served):
     return asyncio.run(read_index(DATASET, index_url=f"{base_url}index.json"))
 
 
+@pytest.fixture(scope="module")
+def read_root(tmp_path_factory):
+    """``read(text)``: serve ``text`` as a store root's ``zarr.json`` over real HTTP and read
+    it with ``read_electrode_attributes``.
+
+    For the reads that are about the text itself, which a store written by zarr and
+    ``json.dump`` cannot give: an integer spelled with four hundred digits, or ``-0``."""
+    root = tmp_path_factory.mktemp("roots")
+    handler = type("Handler", (_Handler,), {"root": root, "documents": {}, "requested": []})
+    server = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    index = DatasetIndex(
+        dataset_id=DATASET,
+        format_version=3,
+        contract_base=f"http://127.0.0.1:{server.server_port}/",
+        store_count=0,
+        stores=(),
+    )
+    names = itertools.count()
+
+    def read(text: str) -> ElectrodeAttributes | None:
+        zarr_name = f"root{next(names)}.zarr"
+        (root / zarr_name).mkdir()
+        (root / zarr_name / "zarr.json").write_text(text)
+        store = Store(path=f"{zarr_name}.set", zarr=zarr_name, groups=())
+        return asyncio.run(read_electrode_attributes(index, store))
+
+    try:
+        yield read
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 class TestIndexSha256:
     def test_is_the_digest_of_the_exact_bytes_read(self, served) -> None:
         body, base_url, _ = served
@@ -619,6 +662,18 @@ class TestElectrodeAttributes:
             "source": "subject",
             "file": "sub-05/eeg/sub-05_electrodes.tsv",
         }
+
+
+class TestTheStoreRootAsText:
+    @pytest.mark.parametrize("attributes", ["[]", "null"])
+    def test_attributes_that_are_empty_or_null_are_no_attributes(self, read_root, attributes: str) -> None:
+        """The reader reduces an empty list or a null to an empty mapping, and NEMAR's locations
+        digest of such a store is the digest of a store that states no position."""
+        assert read_root(f'{{"zarr_format": 3, "attributes": {attributes}}}') is None
+
+    def test_a_root_with_no_attributes_at_all_is_no_attributes(self, read_root) -> None:
+        assert read_root('{"zarr_format": 3, "node_type": "group"}') is None
+        assert read_root('{"zarr_format": 3, "attributes": {}}') is None
 
 
 # The smallest recording of a live public dataset with a verified Zarr copy.
