@@ -39,8 +39,10 @@ dependencies = [
   "numpy>=2.1.0",
   "packaging>=23.0",
   # psutil and pyedflib have no Pyodide build and no pure-Python wheel, so micropip cannot install
-  # them in a browser. The markers keep them in every other install and out of Pyodide;
-  # tests/test_browser_dependency_floors.py and tools/check_pyodide_base_resolution.py enforce this.
+  # them in a browser. The markers keep them in every other install and out of Pyodide.
+  # tests/test_browser_dependency_floors.py enforces the markers, and the pyodide CI job's live
+  # micropip.install of the wheel enforces resolution. tools/check_pyodide_base_resolution.py is
+  # run by hand, as a diagnostic that needs network access.
   "psutil>=7.0.0; sys_platform != 'emscripten'",
   "pyedflib>=0.1.42; sys_platform != 'emscripten'",
   "pyyaml>=6.0",

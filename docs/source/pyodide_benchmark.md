@@ -11,7 +11,8 @@ The harness pins [Pyodide 0.29.5](https://pyodide.org/en/stable/usage/faq.html)
 and uses Pyodide's `emfs:` local-wheel transport.
 The base install resolves under Pyodide with no extra wheel:
 `psutil` and `pyedflib`, which Pyodide cannot build, carry the marker `sys_platform != 'emscripten'` in `pyproject.toml`,
-and `tools/check_pyodide_base_resolution.py` checks that every other base package ships with Pyodide or has a pure-Python wheel.
+and CI enforces the rule: `tests/test_browser_dependency_floors.py` checks the markers, and the `pyodide` job's live `micropip.install` of the wheel fails on any base package without a Pyodide build or a pure-Python wheel,
+while `tools/check_pyodide_base_resolution.py` is run by hand, needs network access, and checks the same rule from lockfile metadata.
 MNE, PyBIDS, and the other extras are not part of the base install, so they are not installed.
 The live harness pins `threadpoolctl==3.6.0`, the version in `uv.lock` (Pyodide bundles 3.5.0),
 and installs `python-picard` by name, because the benchmark runs Picard and micropip cannot apply the `picard` extra to a local wheel,
@@ -71,7 +72,7 @@ Picard remains unchanged.
 ## Measured results
 
 These numbers come from one run on 2026-10-12, on a shared Apple M4 Pro laptop (14 cores, 64 GB memory, macOS 27.0.1),
-using the harness in `tools/pyodide` at the merge of PR #386 (an EEGPrep 0.4.0 wheel built from that tree).
+using the harness in `tools/pyodide` on the browser epic branch that day (an EEGPrep 0.4.0 wheel built from that tree).
 The Pyodide column ran under Node.js v26.10.0 with Pyodide 0.29.5 (21 minutes 49 seconds in total);
 the native column ran under Python 3.12.15 with NumPy 2.2.6 and SciPy 1.16.3, restricted to one BLAS thread
 (`OMP_NUM_THREADS=1` and the related variables CI sets).
