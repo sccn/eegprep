@@ -27,9 +27,9 @@ _UNSET = object()
 _FRESHNESS_IGNORED_FIELDS = frozenset({"history", "saved"})
 _DIGEST_CHUNK_ELEMENTS = 1 << 20
 _AWAITED_POP_COMMAND = re.compile(
-    r"(?P<assignment>[^=;]+?)\s*=\s*await\s+(?P<function>pop_\w+?)_async\s*\((?P<arguments>.*)\)\s*;", re.DOTALL
+    r"(?P<assignment>\w+|\[[\w\s,]+\])\s*=\s*await\s+(?P<function>pop_\w+?)_async\s*\((?P<arguments>.*)\)\s*;"
 )
-_QUOTED_TEXT = re.compile(r"'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"")
+_AWAIT_WORD = re.compile(r"\bawait\b")
 
 
 class DatasetStateToken(NamedTuple):
@@ -46,14 +46,57 @@ def eeglab_history_command(command: str) -> str:
     ``EEG = pop_iclabel(EEG, 'default');``. The awaitable form exists only so that
     ``eegprep-console`` can replay a command from ``ALLCOM``; a dataset's ``history``
     travels with a saved ``.set`` file into MATLAB EEGLAB, which has no ``await`` and
-    no ``pop_*_async`` functions. Only a command that is exactly one such statement is
-    rewritten; anything else, including text that merely mentions ``await``, comes back
-    unchanged.
+    no ``pop_*_async`` functions. Only a command that is exactly one such statement on one
+    line, assigning to a name or a list of names, is rewritten; anything else, including text
+    that merely mentions ``await`` and a second statement or ``await`` after the first
+    call, comes back unchanged.
     """
-    match = _AWAITED_POP_COMMAND.fullmatch(command.strip())
-    if match is None or ";" in _QUOTED_TEXT.sub("''", match["arguments"]):
+    stripped = command.strip()
+    match = _AWAITED_POP_COMMAND.fullmatch(stripped)
+    if match is None or "\n" in stripped:
+        return command
+    arguments = _without_string_literals(match["arguments"])
+    if arguments is None or ";" in arguments or _AWAIT_WORD.search(arguments) or not _balanced(arguments):
         return command
     return f"{match['assignment']} = {match['function']}({match['arguments']});"
+
+
+def _without_string_literals(text: str) -> str | None:
+    """Return MATLAB ``text`` with its string literals replaced by ``S``, or ``None`` if one is unterminated.
+
+    A ``'`` that follows an operand (a name, a closing bracket or another transpose) is a
+    transpose, not the start of a string.
+    """
+    kept: list[str] = []
+    previous = ""
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char in "'\"" and not (char == "'" and previous and (previous.isalnum() or previous in "_)]}'.")):
+            end = index + 1
+            while end < len(text) and not (text[end] == char and text[end + 1 : end + 2] != char):
+                end += 2 if text[end] == char else 1
+            if end >= len(text):
+                return None
+            kept.append("S")
+            previous = "S"
+            index = end + 1
+            continue
+        kept.append(char)
+        if not char.isspace():
+            previous = char
+        index += 1
+    return "".join(kept)
+
+
+def _balanced(text: str) -> bool:
+    """Return whether every ``)`` in ``text`` closes an earlier ``(`` and every ``(`` is closed."""
+    depth = 0
+    for char in text:
+        depth += (char == "(") - (char == ")")
+        if depth < 0:
+            return False
+    return depth == 0
 
 
 def has_eeg_data(eeg: Any) -> bool:
