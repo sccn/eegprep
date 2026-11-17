@@ -32,6 +32,7 @@ import pytest
 from eegprep_lean import (
     DatasetIndex,
     ElectrodeAttributes,
+    ElectrodePositionsNotAnObject,
     IndexError_,
     Store,
     UrllibTransport,
@@ -638,7 +639,7 @@ class TestElectrodeAttributes:
     def test_a_position_map_that_is_not_an_object_is_refused_rather_than_ignored(self, served, local_index) -> None:
         """Ignoring it would hand back a recording with no locations and no sign that the
         store declared some."""
-        with pytest.raises(IndexError_, match="electrode_positions"):
+        with pytest.raises(ElectrodePositionsNotAnObject, match="electrode_positions"):
             load_recording(DATASET, MALFORMED_PATH, index=local_index)
 
     def test_the_locations_reach_chanlocs_through_a_real_read(self, served, local_index) -> None:

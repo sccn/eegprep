@@ -27,6 +27,16 @@ from .index import DatasetIndex, IndexError_, Store
 from .transport import Transport, default_transport
 
 
+class ElectrodePositionsNotAnObject(IndexError_):
+    """A store root states ``electrode_positions`` as something other than an object.
+
+    Its own type, as :class:`~eegprep_lean.UnsupportedFormatVersion` is, so a caller records
+    why a read failed without parsing a message. It is a refusal and not a store with no
+    positions because NEMAR's locations digest refuses such a store too: ignoring the
+    attribute here would treat as positionless a store that the digest cannot name.
+    """
+
+
 @dataclass(frozen=True)
 class ElectrodeAttributes:
     """A store's electrode attributes, as the store root states them."""
@@ -59,15 +69,15 @@ class ElectrodeAttributes:
         """The electrode attributes of a store root's ``attributes``, or None when it has no
         position map, which is a dataset with no electrodes file.
 
-        A position map that is not an object is refused rather than ignored: ignoring it
-        would hand back a recording with no locations and no sign that the store declared
-        some.
+        A position map that is not an object raises :class:`ElectrodePositionsNotAnObject`
+        rather than being ignored: ignoring it would hand back a recording with no locations
+        and no sign that the store declared some.
         """
         stored = attributes.get("electrode_positions")
         if stored is None:
             return None
         if not isinstance(stored, dict):
-            raise IndexError_(
+            raise ElectrodePositionsNotAnObject(
                 f"electrode_positions in the store root is a {type(stored).__name__}, "
                 "not an object of channel label to [x, y, z]"
             )

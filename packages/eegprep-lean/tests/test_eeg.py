@@ -24,7 +24,8 @@ np = pytest.importorskip("numpy", reason="needs numpy, which the zarr and plot e
 
 import eegprep_lean  # noqa: E402
 from eegprep_lean.eeg import to_eeg  # noqa: E402
-from eegprep_lean.electrodes import ElectrodeAttributes  # noqa: E402
+from eegprep_lean.electrodes import ElectrodeAttributes, ElectrodePositionsNotAnObject  # noqa: E402
+from eegprep_lean.index import IndexError_  # noqa: E402
 from eegprep_lean.window import Window  # noqa: E402
 
 RATE = 250.0
@@ -346,6 +347,19 @@ class TestElectrodeAttributes:
         attributes = ElectrodeAttributes.from_attributes({"electrode_positions": stored})
 
         assert attributes.positions == {"E1": (1.0, 2.0, 3.0), "E9": (4.0, 5.0, 6.0)}
+
+    @pytest.mark.parametrize("stored", [[], ["E1", "E2"], [[1, 2, 3]], "E1 1 2 3", 3, 1.5, True, False])
+    def test_a_position_map_that_is_not_an_object_is_refused_by_name(self, stored) -> None:
+        """A store that states positions in a shape no entry can be read from is not a store
+        without positions: NEMAR's locations digest refuses it too. The refusal has a type of
+        its own, so a caller records why the read failed without parsing a message."""
+        with pytest.raises(ElectrodePositionsNotAnObject, match=f"is a {type(stored).__name__}") as caught:
+            ElectrodeAttributes.from_attributes({"electrode_positions": stored})
+
+        assert isinstance(caught.value, IndexError_)
+
+    def test_a_null_position_map_states_no_positions(self) -> None:
+        assert ElectrodeAttributes.from_attributes({"electrode_positions": None}) is None
 
     def test_no_position_map_is_no_attributes_whatever_else_is_there(self) -> None:
         assert ElectrodeAttributes.from_attributes({"electrode_coordinate_system": "CapTrak"}) is None
