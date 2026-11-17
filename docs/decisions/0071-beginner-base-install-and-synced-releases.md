@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-03
+- Amended: 2026-11-17, see "Amendment of 2026-11-17" below
 - Deciders: Suraj, after Arno's reply the same day
 - Supersedes: the "default install stays whole" clause of [ADR 0069](https://github.com/nemarOrg/nemar-cli/blob/main/.context/decisions/0069-the-browser-runtime-is-its-own-package-and-eegprep-stays-whole.md) (accepted 2026-09-20, owner Seyed Yahya Shirazi, in nemar-cli), only for the libraries the default pipeline does not import. The rest of ADR 0069 stays in force: `eegprep-lean` remains its own distribution. ADR 0070, the browser recipe, is unchanged.
 - Number: 0071, so this file does not collide with ADR 0070. It lives in this repository because `.context/` is gitignored here.
@@ -54,3 +55,17 @@ Zero-dependency base, with `eegprep[core]` for numpy and scipy. A plain install 
 An alias that makes `eegprep-lean` install `eegprep` once the base is empty. NEMAR and OSA need the separate small wheel. The accepted base is a scientific install, not that 28 KB wheel. Publishing the alias would replace the pin. Rejected. The separate package stays.
 
 Calling the dependency drop invisible, so an upgrade would keep mne, pybids, oct2py, and picard without a new install command. Rejected. The release is 0.5.0 because a plain install drops those four libraries, and users who need them install `eegprep[full]`.
+
+## Amendment of 2026-11-17
+
+Decided by the maintainers while preparing PR 386 for merge. The decision above stands; this section records what the browser and ICLabel work changed in the extras, and it replaces the sentence above that says the `torch` extra stays as it is.
+
+The `torch` extra is now `torch>=2.4` and `onnx>=1.14`, and only for rebuilding the packaged ICLabel networks from `netICL.mat`. A new `iclabel` extra (`onnxruntime>=1.20`) is ICLabel's runtime. It is in `eegprep[all]` and not in `eegprep[full]`, and `eegprep[all]` still includes `torch`. A plain install does not run ICLabel, and its `ImportError` names the extra.
+
+The package ships two networks, `iclabel.onnx` (full precision, loaded by every native run) and `iclabel_int8.onnx` (8-bit weights, loaded in the browser). `netICL.mat` stays in the source tree, which is where the packaged networks are rebuilt from, but it is not packaged.
+
+`psutil` and `pyedflib` stay in the base, with the marker `sys_platform != 'emscripten'`, so the base resolves under Pyodide and every other install is unchanged. Their imports are lazy, and under Pyodide they raise an `ImportError` that names the cause. ASR keeps the memory contract of PR 621, with a lazy `psutil` import.
+
+Why: ICLabel runs without PyTorch, and about nine times faster natively than the PyTorch path on one thread; the browser needs the 8-bit file (2.9 MB against 11.6 MB); the markers keep the beginner base this ADR decided, because a plain install on every platform other than a browser still includes both libraries.
+
+Rejected: making the 8-bit network the native default, because its probabilities move by up to 0.0135 from the full-precision network's; new `sys` and `edf` extras for `psutil` and `pyedflib`, because they would contradict this ADR's base, which promises RAM reservations and EDF export from a plain install; installing the browser wheel without its dependencies, because that hides a base package that has no Pyodide build instead of keeping the base installable there.
