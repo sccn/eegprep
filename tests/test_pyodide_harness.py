@@ -12,6 +12,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 
 from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async
 from tools import check_pyodide_base_resolution
@@ -418,11 +420,15 @@ def test_pinned_pyodide_version_agrees_across_the_harness():
     assert set(re.findall(r"Pyodide (\d+\.\d+\.\d+)", runtime_text)) == {version}
 
 
-def test_harness_installs_the_picard_extra_requirement_from_pyproject():
+def test_harness_pins_picard_at_the_uv_lock_version_within_the_extra():
+    packages = tomllib.loads((REPO_ROOT / "uv.lock").read_text())["package"]
+    (locked,) = [package["version"] for package in packages if package["name"] == "python-picard"]
     (picard,) = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]["picard"]
     runner = (REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs").read_text()
 
-    assert f'PICARD_REQUIREMENT = "{picard}"' in runner
+    # The harness installs Picard from PyPI without a hash, so only an exact version pins it.
+    assert f'PICARD_REQUIREMENT = "python-picard=={locked}"' in runner
+    assert locked in SpecifierSet(Requirement(picard).specifier)
 
 
 def test_harness_pins_threadpoolctl_at_the_uv_lock_version():
