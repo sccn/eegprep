@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eegprep_lean.to_eeg`` fills ``chanlocs`` from the electrode positions a NEMAR store declares, which ``load_recording`` now reads into ``Window.electrodes``.
+  A channel is matched to the entry for exactly its label, and gets ``X``, ``Y`` and ``Z`` in millimeters in EEGLAB's ALS frame, ``sph_theta``, ``sph_phi``, ``sph_radius``, ``theta`` and ``radius``.
+  ``pop_load_frombids`` gives the same values from the same ``electrodes.tsv`` and coordsystem file, except where the import guesses a unit, assumes a system, or reads ``CTF``, ``4DBti`` or ``KitYokogawa``, which the BIDS appendix gives as ALS, as RAS.
+  The import also reads a coordsystem whose ``EEGCoordinateSystemDescription`` is ``EEGLAB`` as ALS whatever ``EEGCoordinateSystem`` says.
+  A store carries no description, so a RAS system with that description is turned by 90 degrees here.
+  The converter writes no such description today, and reading it here is a follow-up if it ever does.
+  A unit or coordinate system outside the BIDS appendix fills no positions and is never guessed.
+  ``EEG["etc"]["nemar"]["locations"]`` records what the store stated, how many channels were located and, when none was, why.
+  A store that declares no positions gives ``chanlocs`` of labels alone, as before.
+  With these locations ICLabel's feature extraction runs on a recording read from a store (#625).
 - ``pop_runica(EEG, icatype="pamica")`` decomposes with pAMICA, the PyTorch implementation of AMICA,
   through the new ``eeg_pamica``.
   Install it with the ``pamica`` extra, ``pip install "eegprep[pamica]"``.
