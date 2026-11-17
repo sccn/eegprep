@@ -24,47 +24,60 @@ def test_runica_matmul_backends_agree():
     )
 
 
-def test_runica_runs_its_training_products_through_dgemm_on_emscripten(monkeypatch):
-    original_platform = sys.platform
-    monkeypatch.setattr(sys, "platform", "emscripten")
+def test_runica_runs_its_training_products_through_dgemm_on_emscripten():
+    # The context undoes the platform and the counters before the final reload; a fixture's
+    # teardown would run after it and restore the dgemm callable onto the native module.
     try:
-        selected = importlib.reload(runica_matmul)
-        consumer = importlib.reload(runica_module)
-        backend, dgemm = selected.runica_matmul, selected._dgemm
-        calls = {"backend": 0, "dgemm": 0}
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(sys, "platform", "emscripten")
+            selected = importlib.reload(runica_matmul)
+            consumer = importlib.reload(runica_module)
+            backend, dgemm = selected.runica_matmul, selected._dgemm
+            calls = {"backend": 0, "dgemm": 0}
 
-        def count_backend(left, right):
-            calls["backend"] += 1
-            return backend(left, right)
+            def count_backend(left, right):
+                calls["backend"] += 1
+                return backend(left, right)
 
-        def count_dgemm(**kwargs):
-            calls["dgemm"] += 1
-            return dgemm(**kwargs)
+            def count_dgemm(**kwargs):
+                calls["dgemm"] += 1
+                return dgemm(**kwargs)
 
-        # Patching after the reload also shows that runica looks the backend up at call time.
-        monkeypatch.setattr(selected, "runica_matmul", count_backend)
-        monkeypatch.setattr(selected, "_dgemm", count_dgemm)
-        data = np.random.default_rng(385).standard_normal((3, 100))
-        consumer.runica(data, maxsteps=1, verbose=False, rndreset="off")
-        assert calls["backend"] > 0
-        assert calls["dgemm"] == calls["backend"]
+            # Patching after the reload also shows that runica looks the backend up at call time.
+            patch.setattr(selected, "runica_matmul", count_backend)
+            patch.setattr(selected, "_dgemm", count_dgemm)
+            data = np.random.default_rng(385).standard_normal((3, 100))
+            consumer.runica(data, maxsteps=1, verbose=False, rndreset="off")
+            assert calls["backend"] > 0
+            assert calls["dgemm"] == calls["backend"]
     finally:
-        monkeypatch.setattr(sys, "platform", original_platform)
         importlib.reload(runica_matmul)
         importlib.reload(runica_module)
 
 
+def test_runica_backend_callable_matches_its_label():
+    """A leaked dgemm callable on a native platform would run every later runica on dgemm."""
+    expected = {
+        "numpy.matmul": runica_matmul._numpy_matmul,
+        "scipy.linalg.blas.dgemm": runica_matmul._blas_matmul,
+    }
+    assert runica_matmul.runica_matmul is expected[runica_matmul.BACKEND]
+    assert (runica_matmul.BACKEND == "scipy.linalg.blas.dgemm") == (sys.platform == "emscripten")
+
+
 @pytest.mark.parametrize("extended", [0, 1], ids=["logistic", "extended"])
-def test_runica_blas_backend_matches_numpy_backend(monkeypatch, extended):
+@pytest.mark.parametrize("bias", ["on", "off"], ids=["bias-on", "bias-off"])
+def test_runica_blas_backend_matches_numpy_backend(monkeypatch, bias, extended):
     """The dgemm backend used under Emscripten must reproduce the NumPy backend's decomposition.
 
-    Both backends run the real runica training loop on the same Laplace-distributed sources;
+    Both backends run the real runica training loop on the same Laplace-distributed sources,
+    once for each of runica's four training loops (bias on or off, logistic or extended);
     maxsteps stays small so the check is quick while still exercising weight updates. The
-    extended loop also runs the backend in its kurtosis-based sign estimation.
+    extended loops also run the backend in their kurtosis-based sign estimation.
     """
     rng = np.random.default_rng(386)
     data = rng.laplace(size=(4, 4000))
-    kwargs = {"maxsteps": 30, "rndreset": "off", "verbose": False, "extended": extended}
+    kwargs = {"maxsteps": 30, "rndreset": "off", "verbose": False, "bias": bias, "extended": extended}
 
     monkeypatch.setattr(runica_matmul, "runica_matmul", runica_matmul._numpy_matmul)
     weights_numpy, sphere_numpy, *_ = runica_module.runica(data.copy(), **kwargs)

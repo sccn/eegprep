@@ -1506,7 +1506,7 @@ class MenuActionDispatcher:
         if not command:
             return
         self.session.require_dataset_state_unchanged(target_state, "ICLabel")
-        self._store_current_from_gui(eeg_out, command=command)
+        self._store_current_from_gui(self.session.carry_current_history(eeg_out), command=command)
         self._refresh()
 
     def _run_pop_runica_long_task(
@@ -1888,6 +1888,7 @@ class MenuActionDispatcher:
         if leading_command:
             self.session.echo_command(leading_command)
             self.session.add_history(leading_command, notify=False)
+        # An asynchronous command stored through here must pass through eeglab_history_command first.
         for dataset in current if isinstance(current, list) else [current]:
             if isinstance(dataset, dict):
                 eegh(command, dataset)

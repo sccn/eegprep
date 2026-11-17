@@ -79,6 +79,13 @@ commands that only display a value.
 When one command is applied to a multi-dataset selection, each selected EEG
 history records it with the ``% multiple datasets command:`` marker used by
 EEGLAB, while the session records the command once in ``ALLCOM``.
+A command that is one ``LHS = await pop_NAME_async(ARGS);`` statement,
+such as ``EEG = await pop_iclabel_async(EEG, 'default');``, stays in that awaitable form in
+``ALLCOM`` and ``LASTCOM`` so that ``await eegh(n)`` can replay it,
+but each dataset's own ``history`` receives the EEGLAB form, ``EEG = pop_iclabel(EEG, 'default');``,
+through ``eeglab_history_command`` in ``eegprep.functions.guifunc.session``.
+A saved ``.set`` file carries the dataset history into MATLAB EEGLAB, which has no ``await``.
+Any other command, including one that only mentions ``await`` inside a string, is recorded unchanged.
 
 EEGPrep does not emulate EEGLAB's one-dataset-in-memory ``option_storedisk``
 behavior. Saved non-current datasets are represented by explicit offloaded disk
@@ -116,6 +123,13 @@ Setting the ``saved`` flag alone therefore keeps an in-flight result,
 but a Save that assigns a new ``filename`` or ``filepath``, such as the first Save of a dataset,
 changes hashed fields and discards it.
 An edit that is reverted before the check is not reported, because the content is the same again.
+
+The result of an awaited call still holds the dataset history from before the call.
+Code that stores it in place of the current datasets calls ``session.carry_current_history(result)`` after the check and before storing,
+which copies the current datasets' ``history`` into the result,
+so a command recorded in the dataset history while the call ran is not overwritten.
+The GUI ICLabel action does this, and so does the console wrapper when the call's first ``EEG`` argument is the session's current ``EEG``.
+A console result computed from another dataset is stored as a new dataset and keeps its own history.
 
 Under Emscripten, ``MenuActionDispatcher.dispatch_gui`` returns the ``dispatch_gui_async`` coroutine for ICLabel instead of running it.
 The main window schedules it on the running asyncio event loop, and shows a warning when no loop is running.

@@ -23,11 +23,15 @@ Unreleased
   On the frozen evaluation set of 217 components its class probabilities differ from the full-precision network by at most 0.01346, and all top-1 labels and all keep-or-reject decisions agree.
   That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
   see :ref:`iclabel_measured_agreement` for the criteria, the numbers, and the caveats.
+  Because the two networks differ, ``EEG["etc"]["ic_classification"]["ICLabel"]`` now also holds ``network``, the name of the packaged file that ran, next to ``version``, which keeps EEGLAB's meaning.
+  MATLAB EEGLAB ignores ``network`` and neither writes nor clears it; EEGPrep removes a stale one when ``engine='matlab'`` or ``'octave'`` classifies.
 - Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
   It classifies through ONNX Runtime Web (the JavaScript build of the ONNX runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
   ``iclabel_async`` and ``pop_iclabel_async`` keep the native post-processing, the console history, and the GUI and console session synchronization.
+  ``ALLCOM`` keeps the ``await`` form of the command so that ``await eegh(n)`` replays it, but the dataset's own history records ``EEG = pop_iclabel(EEG, 'default');``, so a ``.set`` file saved from the browser replays in MATLAB EEGLAB.
   The synchronous ``iclabel`` and ``pop_iclabel`` raise ``RuntimeError`` there.
   Browser execution is checked against native classification for parity.
+  The bridge also exposes the ``modelBytes`` it was created from, and every call compares their SHA-256 digest with the packaged ``iclabel_int8.onnx``, so a stale or wrong model raises ``RuntimeError`` instead of classifying silently; a bridge result with a NaN or infinite probability raises it too.
 - ``eegh(n)`` in ``eegprep-console`` returns an awaitable only when history entry ``n`` has a top-level ``await``, such as ``EEG = await pop_iclabel_async(EEG, 'default');``.
   Run it with ``await eegh(n)``; other entries, including ones that only mention ``await`` inside a string, still run immediately.
 - ``EEGPrepSession`` gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran: ``dataset_state_token()`` returns a ``DatasetStateToken`` and ``require_dataset_state_unchanged(token, function_name)`` raises a ``RuntimeError`` when the selection or the dataset content changed.

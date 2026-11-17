@@ -18,11 +18,12 @@ def fallback_max_mem_mb():
 
     Raises:
         ImportError: If psutil is not installed (Pyodide). The message says to pass a ``max_mem``
-            (``maxmem`` in ``clean_asr``) large enough for the lookahead buffers.
+            (``maxmem`` in ``clean_asr``, ``MaxMem`` in ``clean_artifacts``) large enough for the
+            lookahead buffers.
     """
     free_bytes = virtual_memory(
         'size the ASR memory budget when max_mem is not given or is too small; '
-        'pass a max_mem (maxmem in clean_asr) large enough for the lookahead buffers'
+        'pass a max_mem (maxmem in clean_asr, MaxMem in clean_artifacts) large enough for the lookahead buffers'
     ).free
     return free_bytes / 1024**2 / 2
 

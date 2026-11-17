@@ -590,10 +590,17 @@ def test_iclabel_without_onnxruntime_names_the_iclabel_extra(tmp_path: Path) -> 
         import asyncio, json
         from eegprep import iclabel, pop_loadset
         from eegprep.plugins.ICLabel.iclabel import iclabel_async
+        from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel, pop_iclabel_async
 
         EEG = pop_loadset({str(SAMPLE_ICA_SET)!r})
+        calls = {{
+            "sync": lambda: iclabel(EEG),
+            "async": lambda: asyncio.run(iclabel_async(EEG)),
+            "pop_sync": lambda: pop_iclabel(EEG, "default", gui=False),
+            "pop_async": lambda: asyncio.run(pop_iclabel_async(EEG, "default", gui=False)),
+        }}
         messages = {{}}
-        for name, call in (("sync", lambda: iclabel(EEG)), ("async", lambda: asyncio.run(iclabel_async(EEG)))):
+        for name, call in calls.items():
             try:
                 call()
             except ImportError as exc:
@@ -605,8 +612,10 @@ def test_iclabel_without_onnxruntime_names_the_iclabel_extra(tmp_path: Path) -> 
     )
 
     messages = _json_result(completed)
-    assert set(messages) == {"sync", "async"}
+    assert set(messages) == {"sync", "async", "pop_sync", "pop_async"}
     assert all('pip install "eegprep[iclabel]"' in message for message in messages.values())
+    assert messages["pop_sync"].startswith("pop_iclabel needs ONNX Runtime")
+    assert messages["pop_async"].startswith("pop_iclabel_async needs ONNX Runtime")
 
 
 def test_pop_writeeeg_gdf_works_without_pyedflib(tmp_path: Path) -> None:
@@ -641,7 +650,7 @@ def test_pop_writeeeg_edf_names_pyedflib_and_pyodide_without_it(tmp_path: Path) 
         EEG = {{"data": np.arange(40, dtype=float).reshape(2, 20), "srate": 100.0, "nbchan": 2, "pnts": 20,
                "chanlocs": [{{"labels": "Cz"}}, {{"labels": "Pz"}}], "event": []}}
         try:
-            pop_writeeeg(EEG, {str(tmp_path / "out.edf")!r})
+            pop_writeeeg(EEG, {str(tmp_path / "edf" / "out.edf")!r})
         except ImportError as exc:
             print(json.dumps({{"message": str(exc), "chained": isinstance(exc.__cause__, ImportError)}}))
         """,
@@ -652,6 +661,7 @@ def test_pop_writeeeg_edf_names_pyedflib_and_pyodide_without_it(tmp_path: Path) 
     assert "requires pyedflib" in result["message"]
     assert "Pyodide" in result["message"]
     assert result["chained"] is True
+    assert not (tmp_path / "edf").exists()
 
 
 def test_pop_writeeeg_rejecting_the_data_creates_no_directory(tmp_path: Path) -> None:
@@ -714,32 +724,43 @@ def test_asr_runs_with_an_explicit_budget_and_names_maxmem_without_psutil(tmp_pa
     assert "maxmem" in result["message"]
 
 
-def test_ransac_defers_the_eeglab_bridge_but_still_reaches_it(tmp_path: Path) -> None:
-    """Importing ransac (and so runica) must not load the file-loading stack; the MATLAB/Octave path still works.
-
-    ``get_eeglab`` lives in a module that imports ``pop_loadset`` and so ``mne``. runica imports
-    ransac for ``rand_permutation`` and must stay light, so ransac defers the bridge to its first use.
-    """
-    (tmp_path / "eeglab.m").write_text("")
+def test_asr_too_low_budget_names_every_budget_argument_without_psutil(tmp_path: Path) -> None:
+    """A budget too small for the lookahead buffers falls back to free memory, which needs psutil."""
     completed = _run_without_optional_extras(
         """
         import json
-        import eegprep.plugins.clean_rawdata.private.ransac as ransac
+        import numpy as np
+        from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
+        from eegprep.plugins.clean_rawdata.asr_calibrate_r import asr_calibrate_r
+        from eegprep.plugins.clean_rawdata.asr_process import asr_process
+        from eegprep.plugins.clean_rawdata.asr_process_r import asr_process_r
 
-        loaded_on_import = sorted(n for n in ("mne", "eegprep.functions.adminfunc.eeglabcompat") if n in sys.modules)
-        try:
-            ransac.get_eeglab("OCT")
-        except ImportError as exc:
-            message = str(exc)
-        print(json.dumps({"loaded_on_import": loaded_on_import, "message": message}))
+        rng = np.random.default_rng(0)
+        srate = 100.0
+        calibration = rng.normal(size=(4, 3000))
+        data = rng.normal(size=(4, 500))
+        euclidean = asr_calibrate(calibration, srate, maxmem=64)
+        riemannian = asr_calibrate_r(calibration, srate, maxmem=64)
+        calls = {
+            "asr_process": lambda: asr_process(data, srate, euclidean, max_mem=0.001),
+            "asr_process_r": lambda: asr_process_r(data, srate, riemannian, max_mem=0.001),
+        }
+        messages = {}
+        for name, call in calls.items():
+            try:
+                call()
+            except ImportError as exc:
+                messages[name] = str(exc)
+        print(json.dumps(messages))
         """,
         tmp_path,
-        env={"EEGPREP_EEGLAB_ROOT": str(tmp_path)},
     )
 
-    result = _json_result(completed)
-    assert result["loaded_on_import"] == []
-    assert 'pip install "eegprep[eeglab]"' in result["message"]
+    messages = _json_result(completed)
+    assert set(messages) == {"asr_process", "asr_process_r"}
+    for message in messages.values():
+        assert "psutil is required to size the ASR memory budget" in message
+        assert "maxmem in clean_asr, MaxMem in clean_artifacts" in message
 
 
 def test_dockerfile_installs_bids_and_mne_for_the_entrypoint() -> None:

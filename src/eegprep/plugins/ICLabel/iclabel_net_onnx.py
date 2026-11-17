@@ -17,6 +17,7 @@ import sys
 import numpy as np
 
 from eegprep.extras import missing_onnxruntime_message
+from eegprep.plugins.ICLabel.iclabel_net_onnx_web import MODEL_FILE as BROWSER_MODEL_FILE
 
 INPUT_NAMES = ('image', 'psdmed', 'autocorr')
 OUTPUT_NAME = 'output'
@@ -24,6 +25,8 @@ OUTPUT_NAME = 'output'
 MODEL_FILE = 'iclabel.onnx'
 # True in Pyodide, where only the asynchronous ONNX Runtime Web backend exists.
 IS_EMSCRIPTEN = sys.platform == 'emscripten'
+# The packaged network this platform runs, recorded in the classification as ``network``.
+NETWORK_FILE = BROWSER_MODEL_FILE if IS_EMSCRIPTEN else MODEL_FILE
 
 
 def require_onnxruntime(feature='iclabel'):

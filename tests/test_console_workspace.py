@@ -217,6 +217,7 @@ def test_storedisk_session_retrieve_and_console_pop_call_stay_synchronized(tmp_p
 
 
 ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
+ICLABEL_EEGLAB_COMMAND = "EEG = pop_iclabel(EEG, 'default');"
 
 
 def _iclabel_console(sample_ica_eeg, *setnames):
@@ -353,6 +354,48 @@ def test_console_pop_iclabel_async_commits_the_real_classification_once(sample_i
     assert session.CURRENTSET == [1]
     assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
     assert workspace.namespace["LASTCOM"] == ICLABEL_ASYNC_COMMAND
+    workspace.close()
+
+
+def test_console_async_iclabel_records_the_eeglab_form_in_the_dataset_history(sample_ica_eeg):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+
+    asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default"))
+
+    # eegh(n) replays ALLCOM, so that keeps the awaitable form; the dataset's own history
+    # travels with a saved .set into MATLAB EEGLAB, which has no await.
+    for dataset in (session.EEG, session.ALLEEG[0]):
+        assert dataset["history"].splitlines()[-1] == ICLABEL_EEGLAB_COMMAND
+        assert "await" not in dataset["history"]
+    assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
+    workspace.close()
+
+
+def test_console_history_added_during_async_iclabel_is_kept_with_the_result(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+    plot = "pop_eegplot(EEG, 1, 1, 1);"
+
+    _run_during_console_iclabel(workspace, backend, lambda: _run_console(workspace, f"eegh({plot!r}, EEG)"))
+
+    # Adding to the dataset's own history keeps the result, so the result must not overwrite it.
+    for dataset in (session.EEG, session.ALLEEG[0]):
+        assert dataset["history"].splitlines()[-2:] == [plot, ICLABEL_EEGLAB_COMMAND]
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    workspace.close()
+
+
+def test_console_async_iclabel_stored_as_a_new_dataset_keeps_its_own_history(sample_ica_eeg):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    _run_console(workspace, "eegh('pop_eegplot(EEG, 1, 1, 1);', EEG)")
+    other = dict(session.EEG, setname="other", history="% history of the other dataset")
+
+    asyncio.run(workspace.namespace["pop_iclabel_async"](other, "default"))
+
+    assert session.CURRENTSET == [2]
+    assert session.EEG["setname"] == "other"
+    assert session.EEG["history"].splitlines() == ["% history of the other dataset", ICLABEL_EEGLAB_COMMAND]
+    assert "pop_eegplot" in session.ALLEEG[0]["history"]
     workspace.close()
 
 

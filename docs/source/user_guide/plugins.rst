@@ -171,6 +171,18 @@ network matches the PyTorch one is in :ref:`iclabel_measured_agreement`.
    stats = eeg_icalabelstat(EEG, threshold=0.9, verbose=False)
    EEG, com = pop_icflag(EEG, return_com=True)
 
+The result holds ``classes``, ``classifications`` and ``version`` under
+``EEG["etc"]["ic_classification"]["ICLabel"]``, as in EEGLAB, and also
+``network``: the name of the packaged file that ran, ``iclabel.onnx`` natively
+and ``iclabel_int8.onnx`` in the browser. The two networks differ by up to
+0.01346 per probability on the frozen evaluation set (the quantization gate
+allows 0.015), so a component near a ``pop_icflag`` threshold can be
+kept by one and rejected by the other, and ``network`` is the only record of
+which one classified. A saved ``.set`` file carries it. MATLAB EEGLAB ignores
+the field and neither writes nor clears it; with ``engine="matlab"`` or
+``engine="octave"`` EEGPrep removes a stale ``network`` because EEGLAB's own
+network ran.
+
 In a Pyodide/Emscripten browser runtime, use the asynchronous entry point and
 await the ONNX Runtime Web-backed operation:
 
@@ -183,21 +195,31 @@ The synchronous ``iclabel`` and ``pop_iclabel`` entry points raise
 
 The browser host supplies the ONNX Runtime Web bridge by setting
 ``globalThis.eegprep_iclabel_web`` before the first call. It is an object with
-one method:
+one method and one property:
 
 .. code-block:: javascript
 
    run(imageData, imageShape, psdmedData, psdmedShape, autocorrData, autocorrShape)
+   modelBytes  // the Uint8Array of the model that run(...) uses
 
 Each ``*Data`` argument is a flat ``Float32Array`` and each ``*Shape`` argument
 is an integer array: ``[N, 1, 32, 32]`` for ``image`` and ``[N, 1, 1, 100]`` for
 ``psdmed`` and ``autocorr``, where ``N`` is four times the number of components
 (ICLabel classifies four augmented copies of each). ``run`` returns a ``Promise``
 that resolves to the flat ``Float32Array`` of the network output, seven class
-scores for each of the ``N`` rows. The reference implementation is
+scores for each of the ``N`` rows. Before every call EEGPrep compares the
+SHA-256 digest of ``modelBytes`` with the packaged ``iclabel_int8.onnx`` and
+raises a ``RuntimeError`` naming both digests when they differ, so a stale or
+wrong model cannot classify silently. It also raises a ``RuntimeError`` when
+``run`` returns a NaN or infinite value. The reference implementation is
 ``createIcLabelWebBridge`` in ``tools/pyodide/iclabel_web_bridge.mjs`` in the
 source repository; it creates one ``onnxruntime-web`` session from the bytes of
 the packaged ``iclabel_int8.onnx``, the 8-bit network meant for the browser.
+It runs on one thread unless the host passes ``numThreads`` in its options
+argument or has already set ``ort.env.wasm.numThreads`` itself, which the
+bridge then leaves alone. ONNX Runtime Web reads that count once, when its
+WebAssembly backend starts, so a host that already created another session
+decides it.
 
 Review components visually with ``pop_viewprops`` before removing them.
 

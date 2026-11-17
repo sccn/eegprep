@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import warnings
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import numpy as np
@@ -73,8 +74,10 @@ def pop_writeeeg(
             "Use the same format in TYPE and in the file name."
         )
     data = _continuous_data(EEG)
+    # Probed before the directory is created, so a missing pyedflib leaves nothing behind.
+    pyedflib = None if output_type == "gdf" else _require_pyedflib(output_type)
     path.parent.mkdir(parents=True, exist_ok=True)
-    if output_type == "gdf":
+    if pyedflib is None:
         writegdf(
             path,
             data,
@@ -85,7 +88,7 @@ def pop_writeeeg(
             recording=str(EEG.get("setname", "")),
         )
     else:
-        _write_edf_family(EEG, data, path, output_type)
+        _write_edf_family(EEG, data, path, output_type, pyedflib)
     return _history_command(path, output_type, include_type)
 
 
@@ -175,7 +178,7 @@ def _continuous_data(EEG: dict[str, Any]) -> np.ndarray:
     return data
 
 
-def _write_edf_family(EEG: dict[str, Any], data: np.ndarray, path: Path, output_type: str) -> None:
+def _require_pyedflib(output_type: str) -> ModuleType:
     # pyedflib is in the base install except under Pyodide, so import it here and keep GDF output
     # and the module import free of it.
     try:
@@ -186,6 +189,12 @@ def _write_edf_family(EEG: dict[str, Any], data: np.ndarray, path: Path, output_
             "It is part of the base eegprep install except under Pyodide, which has no pyedflib build; "
             "GDF output does not need it."
         ) from exc
+    return pyedflib
+
+
+def _write_edf_family(
+    EEG: dict[str, Any], data: np.ndarray, path: Path, output_type: str, pyedflib: ModuleType
+) -> None:
     srate = float(EEG["srate"])
     events = events_to_records(EEG.get("event"))
     duration, annotation_signals = _edf_record_plan(data.shape[1], srate, len(events))

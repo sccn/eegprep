@@ -1,8 +1,10 @@
 import asyncio
+import sys
 
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, _apply_save_metadata
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.plugins.ICLabel.iclabel import iclabel
@@ -10,6 +12,7 @@ from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel, pop_iclabel_async
 from tests.fixtures import gate_iclabel_backend
 
 ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
+ICLABEL_EEGLAB_COMMAND = "EEG = pop_iclabel(EEG, 'default');"
 
 
 class _Renderer:
@@ -20,6 +23,18 @@ class _Renderer:
 
     def run(self, spec, initial_values=None):
         return self.values
+
+
+class _RecordingRenderer(_Renderer):
+    """Records whether the dialog was ever shown."""
+
+    def __init__(self):
+        super().__init__({"icversion": 1})
+        self.shown = 0
+
+    def run(self, spec, initial_values=None):
+        self.shown += 1
+        return super().run(spec, initial_values)
 
 
 def _classifications(eeg):
@@ -56,6 +71,29 @@ def test_gui_sync_iclabel_cancelled_dialog_returns_the_dataset_unchanged(sample_
     assert output is sample_ica_eeg
     assert command == ""
     assert "ic_classification" not in sample_ica_eeg["etc"]
+
+
+@pytest.mark.parametrize("function_name", ["pop_iclabel", "pop_iclabel_async"])
+def test_missing_onnxruntime_is_reported_before_the_version_dialog(monkeypatch, function_name):
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+    renderer = _RecordingRenderer()
+    EEG = {"icaweights": np.eye(2)}
+
+    with pytest.raises(ImportError) as caught:
+        if function_name == "pop_iclabel":
+            pop_iclabel(EEG, gui=True, renderer=renderer)
+        else:
+            asyncio.run(pop_iclabel_async(EEG, gui=True, renderer=renderer))
+
+    assert str(caught.value).startswith(f"{function_name} needs ONNX Runtime")
+    assert renderer.shown == 0
+
+
+def test_pop_iclabel_without_a_dataset_still_returns_none_without_onnxruntime(monkeypatch):
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+
+    assert pop_iclabel(None) is None
+    assert asyncio.run(pop_iclabel_async(None)) is None
 
 
 def _session(sample_ica_eeg, *setnames):
@@ -97,6 +135,31 @@ def test_gui_async_iclabel_action_stores_the_real_classification(sample_ica_eeg)
     assert session.EEG is session.ALLEEG[0]
     assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
     assert session.CURRENTSET == [1]
+
+
+def test_gui_async_iclabel_records_the_eeglab_form_in_the_dataset_history(sample_ica_eeg):
+    session = _session(sample_ica_eeg, "sample")
+
+    asyncio.run(
+        MenuActionDispatcher(session).dispatch_gui_async("pop_iclabel", None, renderer=_Renderer({"icversion": 1}))
+    )
+
+    # The dataset's history travels with a saved .set into MATLAB EEGLAB, which has no await.
+    for dataset in (session.EEG, session.ALLEEG[0]):
+        assert dataset["history"].splitlines()[-1] == ICLABEL_EEGLAB_COMMAND
+        assert "await" not in dataset["history"]
+    assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
+
+
+def test_gui_async_dispatch_runs_other_actions_like_the_synchronous_dispatch(sample_ica_eeg):
+    session = _session(sample_ica_eeg, "first", "second")
+    assert session.CURRENTSET == [2]
+
+    result = asyncio.run(MenuActionDispatcher(session).dispatch_gui_async("retrieve_dataset:1", None))
+
+    assert result is None
+    assert session.CURRENTSET == [1]
+    assert session.ALLCOM[-1].startswith("[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 2, 'retrieve', 1,")
 
 
 def test_gui_async_iclabel_action_cancelled_dialog_changes_nothing(sample_ica_eeg):
@@ -193,6 +256,19 @@ def test_gui_benign_actions_during_async_iclabel_keep_the_result(sample_ica_eeg,
     assert session.CURRENTSET == [2]
     assert _classifications(session.EEG).shape == (32, 7)
     assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
+
+
+def test_gui_history_added_during_async_iclabel_is_kept_with_the_result(sample_ica_eeg, monkeypatch):
+    session = _session(sample_ica_eeg, "first", "second")
+    backend = gate_iclabel_backend(monkeypatch)
+    plot = "pop_eegplot(EEG, 1, 1, 1);"
+
+    _run_during_gui_iclabel(session, backend, lambda session: eegh(plot, session.EEG))
+
+    # Adding to the dataset's own history keeps the result, so the result must not overwrite it.
+    for dataset in (session.EEG, session.ALLEEG[1]):
+        assert dataset["history"].splitlines()[-2:] == [plot, ICLABEL_EEGLAB_COMMAND]
+    assert _classifications(session.EEG).shape == (32, 7)
 
 
 @pytest.mark.parametrize("version", ["lite", "beta"])

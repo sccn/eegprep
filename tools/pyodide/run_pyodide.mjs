@@ -38,8 +38,10 @@ const PYODIDE_PACKAGES = [
 const MICROPIP_CONSTRAINTS = ["threadpoolctl==3.6.0"];
 // The benchmark runs Picard, which is the picard extra of the wheel and not part of the
 // base install. micropip cannot apply an extra to a local wheel, so the requirement is
-// installed by name; tests/test_pyodide_harness.py checks it matches pyproject.toml.
-const PICARD_REQUIREMENT = "python-picard>=0.8,<0.9";
+// installed by name. It is the uv.lock version, pinned exactly because the harness installs it
+// from PyPI with no hash, so the version is the only pin it has;
+// tests/test_pyodide_harness.py checks it against uv.lock and the extra's range in pyproject.toml.
+const PICARD_REQUIREMENT = "python-picard==0.8.2";
 
 function fail(message) {
   console.error(`${message}\n${USAGE}`);

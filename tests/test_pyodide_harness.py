@@ -12,6 +12,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 
 from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async
 from tools import check_pyodide_base_resolution
@@ -21,6 +23,7 @@ from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_rep
 from tools.pyodide.iclabel_parity import run_parity
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+PACKAGED_MODEL = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
 MODEL_SHA256 = "a" * 64
 SUBPROCESS_TIMEOUT_SECONDS = 60
 
@@ -225,9 +228,8 @@ def test_load_iclabel_report_rejects_invalid_reports(tmp_path, overrides, messag
 def test_native_parity_report_feeds_the_comparison(tmp_path, capsys):
     pytest.importorskip("onnxruntime")
     native = run_parity("native", REPO_ROOT / "sample_data")
-    packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
 
-    assert native["model_sha256"] == hashlib.sha256(packaged_model.read_bytes()).hexdigest()
+    assert native["model_sha256"] == hashlib.sha256(PACKAGED_MODEL.read_bytes()).hexdigest()
     assert native["shape"] == [32, 7]
 
     values = np.asarray(native["classifications"], dtype=np.float64)
@@ -272,12 +274,28 @@ class _StandInResult:
         return list(self._values)
 
 
-class _StandInBridge:
-    """Stands in for ``globalThis.eegprep_iclabel_web`` created by createIcLabelWebBridge."""
+class _StandInBuffer:
+    """Stands in for the Uint8Array the host passed to the bridge; Pyodide exposes it as a JsBuffer."""
 
-    def __init__(self, output):
+    def __init__(self, data):
+        self._data = data
+
+    def to_bytes(self):
+        return self._data
+
+
+class _StandInBridge:
+    """Stands in for ``globalThis.eegprep_iclabel_web`` created by createIcLabelWebBridge.
+
+    ``model`` is the host's ``modelBytes``: the packaged network unless a test says otherwise,
+    and no property at all when it is ``None``.
+    """
+
+    def __init__(self, output, model=None, *, has_model=True):
         self.output = output
         self.calls = []
+        if has_model:
+            self.modelBytes = _StandInBuffer(PACKAGED_MODEL.read_bytes() if model is None else model)
 
     async def run(self, *arguments):
         self.calls.append(arguments)
@@ -333,6 +351,57 @@ def test_browser_backend_rejects_a_wrong_sized_bridge_result(monkeypatch):
         asyncio.run(run_iclabel_net_async(*inputs))
 
 
+def test_browser_backend_rejects_a_bridge_holding_another_model(monkeypatch):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    other = PACKAGED_MODEL.read_bytes() + b"x"
+    bridge = _StandInBridge(np.zeros(7, dtype=np.float32), other)
+    _install_pyodide_boundary(monkeypatch, bridge)
+
+    with pytest.raises(RuntimeError, match="iclabel_int8.onnx") as caught:
+        asyncio.run(run_iclabel_net_async(*inputs))
+
+    assert hashlib.sha256(other).hexdigest() in str(caught.value)
+    assert hashlib.sha256(PACKAGED_MODEL.read_bytes()).hexdigest() in str(caught.value)
+    assert bridge.calls == []
+
+
+def test_browser_backend_checks_the_model_on_every_call(monkeypatch):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    bridge = _StandInBridge(np.zeros(7, dtype=np.float32))
+    _install_pyodide_boundary(monkeypatch, bridge)
+    asyncio.run(run_iclabel_net_async(*inputs))
+
+    bridge.modelBytes = _StandInBuffer(b"swapped after the first call")
+
+    with pytest.raises(RuntimeError, match="SHA-256"):
+        asyncio.run(run_iclabel_net_async(*inputs))
+    assert len(bridge.calls) == 1
+
+
+def test_browser_backend_requires_the_bridge_to_expose_its_model(monkeypatch):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    _install_pyodide_boundary(monkeypatch, _StandInBridge(np.zeros(7, dtype=np.float32), has_model=False))
+
+    with pytest.raises(ImportError, match="modelBytes"):
+        asyncio.run(run_iclabel_net_async(*inputs))
+
+
+@pytest.mark.parametrize(
+    "wrong_type",
+    ["a string", 1000, 3.5, object()],
+    ids=["string", "large-number", "float", "object"],
+)
+def test_browser_backend_fails_closed_on_a_model_that_is_not_a_byte_buffer(monkeypatch, wrong_type):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    bridge = _StandInBridge(np.zeros(7, dtype=np.float32))
+    bridge.modelBytes = wrong_type
+    _install_pyodide_boundary(monkeypatch, bridge)
+
+    with pytest.raises(ImportError, match="createIcLabelWebBridge.*not a Uint8Array"):
+        asyncio.run(run_iclabel_net_async(*inputs))
+    assert bridge.calls == []
+
+
 @pytest.mark.parametrize(
     ("name", "status", "in_lock", "wheel"),
     [
@@ -367,11 +436,15 @@ def test_pinned_pyodide_version_agrees_across_the_harness():
     assert set(re.findall(r"Pyodide (\d+\.\d+\.\d+)", runtime_text)) == {version}
 
 
-def test_harness_installs_the_picard_extra_requirement_from_pyproject():
+def test_harness_pins_picard_at_the_uv_lock_version_within_the_extra():
+    packages = tomllib.loads((REPO_ROOT / "uv.lock").read_text())["package"]
+    (locked,) = [package["version"] for package in packages if package["name"] == "python-picard"]
     (picard,) = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]["picard"]
     runner = (REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs").read_text()
 
-    assert f'PICARD_REQUIREMENT = "{picard}"' in runner
+    # The harness installs Picard from PyPI without a hash, so only an exact version pins it.
+    assert f'PICARD_REQUIREMENT = "python-picard=={locked}"' in runner
+    assert locked in SpecifierSet(Requirement(picard).specifier)
 
 
 def test_harness_pins_threadpoolctl_at_the_uv_lock_version():
@@ -436,33 +509,68 @@ def test_runner_script_reports_a_missing_javascript_tool_before_downloading(tmp_
     assert not installer_log.exists()
 
 
-@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required for the browser bridge test")
+NODE_STAND_IN_ORT = textwrap.dedent(
+    """
+    import { createIcLabelWebBridge } from './tools/pyodide/iclabel_web_bridge.mjs';
+
+    class Tensor {
+      constructor(type, data, shape) {
+        this.type = type;
+        this.data = data;
+        this.shape = shape;
+      }
+    }
+
+    // A stand-in for onnxruntime-web: ``onCreate(modelBytes, options)`` is the session factory.
+    const makeOrt = (onCreate) => {
+      const runtime = {
+        env: { wasm: {} },
+        InferenceSession: { create: async (modelBytes, options) => onCreate(modelBytes, options, runtime) },
+        Tensor,
+      };
+      return runtime;
+    };
+    const ort = makeOrt((modelBytes, options) => ({ run: async () => ({ output: { data: [1] } }) }));
+    const input = new Float32Array([0]);
+    const shape = [1];
+    """
+)
+
+
+def _run_node_bridge_script(script):
+    """Run a script that imports the bridge, after the stand-in ``ort`` prelude, under Node."""
+    try:
+        result = subprocess.run(
+            ["node", "--input-type=module"],
+            input=NODE_STAND_IN_ORT + textwrap.dedent(script),
+            text=True,
+            capture_output=True,
+            cwd=REPO_ROOT,
+            check=False,
+            timeout=SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"The Node.js bridge script did not finish within {SUBPROCESS_TIMEOUT_SECONDS} s")
+    assert result.returncode == 0, result.stderr
+
+
+requires_node = pytest.mark.skipif(
+    shutil.which("node") is None, reason="Node.js is required for the browser bridge test"
+)
+
+
+@requires_node
 def test_iclabel_web_bridge_retries_failed_session_initialization():
-    script = textwrap.dedent(
+    _run_node_bridge_script(
         """
-        import { createIcLabelWebBridge } from './tools/pyodide/iclabel_web_bridge.mjs';
-
         let attempts = 0;
-        const ort = {
-          InferenceSession: {
-            create: async () => {
-              attempts += 1;
-              if (attempts === 1) throw new Error('transient model load failure');
-              return { run: async () => ({ output: { data: [1] } }) };
-            },
-          },
-          Tensor: class Tensor {
-            constructor(type, data, shape) {
-              this.type = type;
-              this.data = data;
-              this.shape = shape;
-            }
-          },
-        };
+        const flaky = makeOrt(() => {
+          attempts += 1;
+          if (attempts === 1) throw new Error('transient model load failure');
+          return { run: async () => ({ output: { data: [1] } }) };
+        });
 
-        const bridge = createIcLabelWebBridge(ort, new Uint8Array());
-        const input = new Float32Array([0]);
-        const shape = [1];
+        const bridge = createIcLabelWebBridge(flaky, new Uint8Array());
         try {
           await bridge.run(input, shape, input, shape, input, shape);
           throw new Error('first run unexpectedly succeeded');
@@ -473,16 +581,92 @@ def test_iclabel_web_bridge_retries_failed_session_initialization():
         if (attempts !== 2) throw new Error(`expected two session attempts, got ${attempts}`);
         """
     )
-    try:
-        result = subprocess.run(
-            ["node", "--input-type=module"],
-            input=script,
-            text=True,
-            capture_output=True,
-            cwd=Path(__file__).parents[1],
-            check=False,
-            timeout=SUBPROCESS_TIMEOUT_SECONDS,
-        )
-    except subprocess.TimeoutExpired:
-        pytest.fail(f"The Node.js bridge script did not finish within {SUBPROCESS_TIMEOUT_SECONDS} s")
-    assert result.returncode == 0, result.stderr
+
+
+@requires_node
+def test_iclabel_web_bridge_exposes_the_bytes_it_was_given():
+    _run_node_bridge_script(
+        """
+        const bytes = new Uint8Array([1, 2, 3]);
+        const bridge = createIcLabelWebBridge(ort, bytes);
+        if (bridge.modelBytes !== bytes) throw new Error('modelBytes is not the Uint8Array passed in');
+        """
+    )
+
+
+@requires_node
+def test_iclabel_web_bridge_keeps_its_model_bytes_when_the_session_detaches_its_input():
+    # onnxruntime-web in proxy mode transfers the model buffer to a worker, which detaches it. The
+    # digest check hashes modelBytes before every run, so the bridge must hand over a copy.
+    _run_node_bridge_script(
+        """
+        import { createHash } from 'node:crypto';
+
+        const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+        const bytes = new Uint8Array([1, 2, 3, 4]);
+        const before = digest(bytes);
+        const detaching = makeOrt((modelBytes) => {
+          structuredClone(modelBytes, { transfer: [modelBytes.buffer] });
+          return { run: async () => ({ output: { data: [1] } }) };
+        });
+
+        const bridge = createIcLabelWebBridge(detaching, bytes);
+        await bridge.run(input, shape, input, shape, input, shape);
+        await bridge.run(input, shape, input, shape, input, shape);
+        if (bridge.modelBytes.byteLength !== 4) throw new Error(`modelBytes holds ${bridge.modelBytes.byteLength} bytes`);
+        if (digest(bridge.modelBytes) !== before) throw new Error('modelBytes digest changed');
+        """
+    )
+
+
+@requires_node
+@pytest.mark.parametrize(
+    ("options", "expected_threads"),
+    [("{}", 4), ("{ numThreads: 2 }", 2)],
+    ids=["host-count-kept", "option-overrides-host-count"],
+)
+def test_iclabel_web_bridge_leaves_a_thread_count_the_host_already_set(options, expected_threads):
+    # ort.env.wasm.numThreads is process-wide, so a host that set 4 for its own models must not
+    # find them dropped to 1 thread by this bridge, unless the host asks for a count here.
+    _run_node_bridge_script(
+        f"""
+        const seen = [];
+        const recording = makeOrt((modelBytes, options, runtime) => {{
+          seen.push(runtime.env.wasm.numThreads);
+          return {{ run: async () => ({{ output: {{ data: [1] }} }}) }};
+        }});
+        recording.env.wasm.numThreads = 4;
+
+        const bridge = createIcLabelWebBridge(recording, new Uint8Array(), {options});
+        await bridge.run(input, shape, input, shape, input, shape);
+        if (seen[0] !== {expected_threads}) throw new Error(`threads at create: ${{seen[0]}}`);
+        if (recording.env.wasm.numThreads !== {expected_threads}) throw new Error('count changed after create');
+        """
+    )
+
+
+@requires_node
+@pytest.mark.parametrize(
+    ("options", "expected_threads"),
+    [("{}", 1), ("{ numThreads: 2 }", 2)],
+    ids=["default", "host-chooses"],
+)
+def test_iclabel_web_bridge_sets_the_thread_count_before_creating_its_session(options, expected_threads):
+    # ONNX Runtime Web ignores a numThreads session option; only ort.env.wasm.numThreads counts,
+    # and it is read when the first session starts the backend.
+    _run_node_bridge_script(
+        f"""
+        const seen = [];
+        const recording = makeOrt((modelBytes, options, runtime) => {{
+          seen.push({{ threads: runtime.env.wasm.numThreads, keys: Object.keys(options).sort() }});
+          return {{ run: async () => ({{ output: {{ data: [1] }} }}) }};
+        }});
+
+        const bridge = createIcLabelWebBridge(recording, new Uint8Array(), {options});
+        await bridge.run(input, shape, input, shape, input, shape);
+        await bridge.run(input, shape, input, shape, input, shape);
+        if (seen.length !== 1) throw new Error(`expected one session, got ${{seen.length}}`);
+        if (seen[0].threads !== {expected_threads}) throw new Error(`threads at create: ${{seen[0].threads}}`);
+        if (seen[0].keys.join() !== 'executionProviders') throw new Error(`session options: ${{seen[0].keys}}`);
+        """
+    )

@@ -283,7 +283,14 @@ class ConsolePopFunction(LazyWorkspaceExport):
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
         result = await function(*args, **call_kwargs)
-        self.bridge.session.require_dataset_state_unchanged(target_state, self.name)
+        session = self.bridge.session
+        session.require_dataset_state_unchanged(target_state, self.name)
+        eeg, _command = _extract_pop_eeg_and_command(result)
+        # accept_pop_result stores a result computed from the session's own EEG in its place, so a
+        # command recorded in the dataset history while the call ran must not be overwritten. A
+        # result computed from another dataset is stored as a new one and keeps its own history.
+        if eeg is not None and _first_call_eeg_argument(args, kwargs) is session.EEG:
+            session.carry_current_history(eeg)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
     def __repr__(self) -> str:
