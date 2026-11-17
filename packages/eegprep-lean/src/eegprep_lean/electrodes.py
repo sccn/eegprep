@@ -27,6 +27,16 @@ from .index import DatasetIndex, IndexError_, Store
 from .transport import Transport, default_transport
 
 
+class ElectrodePositionsNotAnObject(IndexError_):
+    """A store root states ``electrode_positions`` as something other than an object.
+
+    Its own type, as :class:`~eegprep_lean.UnsupportedFormatVersion` is, so a caller records
+    why a read failed without parsing a message. It is a refusal and not a store with no
+    positions because NEMAR's locations digest refuses such a store too: ignoring the
+    attribute here would treat as positionless a store that the digest cannot name.
+    """
+
+
 @dataclass(frozen=True)
 class ElectrodeAttributes:
     """A store's electrode attributes, as the store root states them."""
@@ -36,7 +46,9 @@ class ElectrodeAttributes:
 
     Only entries of exactly three finite numbers: the converter's JSON writer lets a
     ``NaN`` cell through as a bare token, which Python reads and from which no position can
-    be made. Every electrode of the file is here, including ones the recording does not
+    be made. An integer too large for a float is likewise no position, because JSON integers
+    are read as binary64, and every zero is ``+0.0``, the zero NEMAR's locations digest
+    hashes. Every electrode of the file is here, including ones the recording does not
     have, because the join to a recording's channels is by label and happens later.
     """
 
@@ -59,15 +71,15 @@ class ElectrodeAttributes:
         """The electrode attributes of a store root's ``attributes``, or None when it has no
         position map, which is a dataset with no electrodes file.
 
-        A position map that is not an object is refused rather than ignored: ignoring it
-        would hand back a recording with no locations and no sign that the store declared
-        some.
+        A position map that is not an object raises :class:`ElectrodePositionsNotAnObject`
+        rather than being ignored: ignoring it would hand back a recording with no locations
+        and no sign that the store declared some.
         """
         stored = attributes.get("electrode_positions")
         if stored is None:
             return None
         if not isinstance(stored, dict):
-            raise IndexError_(
+            raise ElectrodePositionsNotAnObject(
                 f"electrode_positions in the store root is a {type(stored).__name__}, "
                 "not an object of channel label to [x, y, z]"
             )
@@ -89,9 +101,18 @@ def _position(value: Any) -> tuple[float, float, float] | None:
     if not isinstance(value, list) or len(value) != 3:
         return None
     # bool is an int in Python, and True is not a coordinate.
-    if not all(isinstance(axis, (int, float)) and not isinstance(axis, bool) and math.isfinite(axis) for axis in value):
+    if not all(isinstance(axis, (int, float)) and not isinstance(axis, bool) for axis in value):
         return None
-    return float(value[0]), float(value[1]), float(value[2])
+    try:
+        # Adding 0.0 turns -0.0 into 0.0. NEMAR's locations digest hashes every zero as +0, and left
+        # alone the sign of a zero would set the sign of Y and theta further on.
+        x, y, z = (float(axis) + 0.0 for axis in value)
+    except OverflowError:
+        # An integer too large for a float is an infinity to a reader of binary64, so no position.
+        return None
+    if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(z)):
+        return None
+    return x, y, z
 
 
 def _text(value: Any) -> str:
@@ -116,7 +137,10 @@ async def read_electrode_attributes(
     url = f"{index.store_url(store)}/zarr.json"
     response = await client.get(url)
     try:
-        document = json.loads(response.body)
+        # Integers are read as binary64, as JSON.parse reads them and as NEMAR's locations digest
+        # is defined: an integer of any length is a float, where json's default raises ValueError
+        # from 4300 digits, before any entry could be judged.
+        document = json.loads(response.body, parse_int=float)
     except json.JSONDecodeError as err:
         raise IndexError_(f"store root at {url} is not JSON: {err}") from err
     return ElectrodeAttributes.from_attributes(document.get("attributes") or {})
