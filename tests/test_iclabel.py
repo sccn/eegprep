@@ -130,6 +130,16 @@ def test_web_bridge_output_must_hold_seven_probabilities_per_input():
         iclabel_net_onnx_web._network_output(flat, batch_size=8)
 
 
+@pytest.mark.parametrize('bad_value', [np.nan, np.inf, -np.inf], ids=['nan', 'inf', '-inf'])
+def test_web_bridge_output_must_be_finite(bad_value):
+    flat = np.full(4 * 7, 0.5, dtype=np.float32)
+    flat[3] = bad_value
+
+    # eeg_icflag compares with ">", so a NaN probability would silently keep that component.
+    with pytest.raises(RuntimeError, match='returned 1 non-finite values out of 28'):
+        iclabel_net_onnx_web._network_output(flat, batch_size=4)
+
+
 @pytest.mark.parametrize('algorithm', ['lite', 'beta'])
 def test_python_engine_only_ships_the_default_network(sample_ica_eeg, algorithm):
     with pytest.raises(NotImplementedError, match=r'iclabel\.onnx'):

@@ -5,6 +5,8 @@
  * Returning the output typed array from the Promise keeps the Pyodide boundary
  * asynchronous without exposing ONNX Runtime objects to Python.
  *
+ * The returned object also exposes modelBytes, the Uint8Array it was given.
+ *
  * options.numThreads (default 1) sets ort.env.wasm.numThreads; every other option is passed
  * to InferenceSession.create.
  */
@@ -28,6 +30,9 @@ export function createIcLabelWebBridge(ort, modelBytes, options = {}) {
   };
 
   return {
+    // The bytes this bridge builds its session from. The Python adapter compares their digest with
+    // the packaged iclabel_int8.onnx before every run, so a stale or wrong model is refused.
+    modelBytes,
     run: (imageData, imageShape, psdmedData, psdmedShape, autocorrData, autocorrShape) =>
       getSession().then((session) =>
         session.run({

@@ -26,16 +26,21 @@ Behavior:
 Browser host contract:
 
 Before the first call, the host page must set `globalThis.eegprep_iclabel_web` to an object
-with one method, and EEGPrep runs the network through it:
+with one method and one property, and EEGPrep runs the network through it:
 
     run(imageData, imageShape, psdmedData, psdmedShape, autocorrData, autocorrShape)
+    modelBytes
 
 - Each `*Data` argument is a flat `Float32Array` and each `*Shape` argument is an array of integers.
 - The shapes are `[N, 1, 32, 32]` for `image` and `[N, 1, 1, 100]` for `psdmed` and `autocorr`.
   `N` is four times the number of components, because ICLabel classifies four augmented copies of each.
 - `run` returns a `Promise` that resolves to the flat `Float32Array` of the network output named
-  `output`: seven class scores for each of the `N` rows, row after row.
+  `output`: seven class scores for each of the `N` rows, row after row. A NaN or infinite value
+  raises a `RuntimeError`.
 - The network inputs are named `image`, `psdmed`, and `autocorr`.
+- `modelBytes` is the `Uint8Array` of the model that `run` uses. Before every call EEGPrep compares
+  its SHA-256 digest with the packaged `iclabel_int8.onnx` and raises a `RuntimeError` naming both
+  digests when they differ.
 
 In the EEGPrep source repository, `tools/pyodide/iclabel_web_bridge.mjs` (`createIcLabelWebBridge`)
 is the reference implementation: it creates one `onnxruntime-web` session from the bytes of the

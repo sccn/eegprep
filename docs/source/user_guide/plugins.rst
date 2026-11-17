@@ -183,18 +183,23 @@ The synchronous ``iclabel`` and ``pop_iclabel`` entry points raise
 
 The browser host supplies the ONNX Runtime Web bridge by setting
 ``globalThis.eegprep_iclabel_web`` before the first call. It is an object with
-one method:
+one method and one property:
 
 .. code-block:: javascript
 
    run(imageData, imageShape, psdmedData, psdmedShape, autocorrData, autocorrShape)
+   modelBytes  // the Uint8Array of the model that run(...) uses
 
 Each ``*Data`` argument is a flat ``Float32Array`` and each ``*Shape`` argument
 is an integer array: ``[N, 1, 32, 32]`` for ``image`` and ``[N, 1, 1, 100]`` for
 ``psdmed`` and ``autocorr``, where ``N`` is four times the number of components
 (ICLabel classifies four augmented copies of each). ``run`` returns a ``Promise``
 that resolves to the flat ``Float32Array`` of the network output, seven class
-scores for each of the ``N`` rows. The reference implementation is
+scores for each of the ``N`` rows. Before every call EEGPrep compares the
+SHA-256 digest of ``modelBytes`` with the packaged ``iclabel_int8.onnx`` and
+raises a ``RuntimeError`` naming both digests when they differ, so a stale or
+wrong model cannot classify silently. It also raises a ``RuntimeError`` when
+``run`` returns a NaN or infinite value. The reference implementation is
 ``createIcLabelWebBridge`` in ``tools/pyodide/iclabel_web_bridge.mjs`` in the
 source repository; it creates one ``onnxruntime-web`` session from the bytes of
 the packaged ``iclabel_int8.onnx``, the 8-bit network meant for the browser.

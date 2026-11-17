@@ -21,6 +21,7 @@ from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_rep
 from tools.pyodide.iclabel_parity import run_parity
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+PACKAGED_MODEL = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
 MODEL_SHA256 = "a" * 64
 SUBPROCESS_TIMEOUT_SECONDS = 60
 
@@ -225,9 +226,8 @@ def test_load_iclabel_report_rejects_invalid_reports(tmp_path, overrides, messag
 def test_native_parity_report_feeds_the_comparison(tmp_path, capsys):
     pytest.importorskip("onnxruntime")
     native = run_parity("native", REPO_ROOT / "sample_data")
-    packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
 
-    assert native["model_sha256"] == hashlib.sha256(packaged_model.read_bytes()).hexdigest()
+    assert native["model_sha256"] == hashlib.sha256(PACKAGED_MODEL.read_bytes()).hexdigest()
     assert native["shape"] == [32, 7]
 
     values = np.asarray(native["classifications"], dtype=np.float64)
@@ -272,12 +272,28 @@ class _StandInResult:
         return list(self._values)
 
 
-class _StandInBridge:
-    """Stands in for ``globalThis.eegprep_iclabel_web`` created by createIcLabelWebBridge."""
+class _StandInBuffer:
+    """Stands in for the Uint8Array the host passed to the bridge; Pyodide exposes it as a JsBuffer."""
 
-    def __init__(self, output):
+    def __init__(self, data):
+        self._data = data
+
+    def to_bytes(self):
+        return self._data
+
+
+class _StandInBridge:
+    """Stands in for ``globalThis.eegprep_iclabel_web`` created by createIcLabelWebBridge.
+
+    ``model`` is the host's ``modelBytes``: the packaged network unless a test says otherwise,
+    and no property at all when it is ``None``.
+    """
+
+    def __init__(self, output, model=None, *, has_model=True):
         self.output = output
         self.calls = []
+        if has_model:
+            self.modelBytes = _StandInBuffer(PACKAGED_MODEL.read_bytes() if model is None else model)
 
     async def run(self, *arguments):
         self.calls.append(arguments)
@@ -330,6 +346,41 @@ def test_browser_backend_rejects_a_wrong_sized_bridge_result(monkeypatch):
     _install_pyodide_boundary(monkeypatch, _StandInBridge(np.zeros(13, dtype=np.float32)))
 
     with pytest.raises(RuntimeError, match="returned 13 values for a batch of 2; expected 14"):
+        asyncio.run(run_iclabel_net_async(*inputs))
+
+
+def test_browser_backend_rejects_a_bridge_holding_another_model(monkeypatch):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    other = PACKAGED_MODEL.read_bytes() + b"x"
+    bridge = _StandInBridge(np.zeros(7, dtype=np.float32), other)
+    _install_pyodide_boundary(monkeypatch, bridge)
+
+    with pytest.raises(RuntimeError, match="iclabel_int8.onnx") as caught:
+        asyncio.run(run_iclabel_net_async(*inputs))
+
+    assert hashlib.sha256(other).hexdigest() in str(caught.value)
+    assert hashlib.sha256(PACKAGED_MODEL.read_bytes()).hexdigest() in str(caught.value)
+    assert bridge.calls == []
+
+
+def test_browser_backend_checks_the_model_on_every_call(monkeypatch):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    bridge = _StandInBridge(np.zeros(7, dtype=np.float32))
+    _install_pyodide_boundary(monkeypatch, bridge)
+    asyncio.run(run_iclabel_net_async(*inputs))
+
+    bridge.modelBytes = _StandInBuffer(b"swapped after the first call")
+
+    with pytest.raises(RuntimeError, match="SHA-256"):
+        asyncio.run(run_iclabel_net_async(*inputs))
+    assert len(bridge.calls) == 1
+
+
+def test_browser_backend_requires_the_bridge_to_expose_its_model(monkeypatch):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    _install_pyodide_boundary(monkeypatch, _StandInBridge(np.zeros(7, dtype=np.float32), has_model=False))
+
+    with pytest.raises(ImportError, match="modelBytes"):
         asyncio.run(run_iclabel_net_async(*inputs))
 
 
@@ -506,6 +557,17 @@ def test_iclabel_web_bridge_retries_failed_session_initialization():
         }
         await bridge.run(input, shape, input, shape, input, shape);
         if (attempts !== 2) throw new Error(`expected two session attempts, got ${attempts}`);
+        """
+    )
+
+
+@requires_node
+def test_iclabel_web_bridge_exposes_the_bytes_it_was_given():
+    _run_node_bridge_script(
+        """
+        const bytes = new Uint8Array([1, 2, 3]);
+        const bridge = createIcLabelWebBridge(ort, bytes);
+        if (bridge.modelBytes !== bytes) throw new Error('modelBytes is not the Uint8Array passed in');
         """
     )
 
