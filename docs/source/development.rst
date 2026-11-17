@@ -92,6 +92,9 @@ EEGPrep currently pins ``eeglab_tests`` commit
 ``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``.
 That suite commit is the squash merge of ``sccn/eeglab_tests`` pull request
 16 on ``master``.
+The vendored ``src/eegprep/eeglab`` submodule is pinned to the same EEGLAB commit.
+The reference workflow runs MATLAB on that submodule, and ``tests/conftest.py`` refuses any other commit.
+A repin therefore moves the submodule together with the pins in ``tests/eeglab_tests/__init__.py`` and ``tools/eeglab_test_port_audit.py``.
 
 The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
