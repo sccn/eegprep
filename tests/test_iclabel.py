@@ -4,11 +4,21 @@ import os
 import subprocess
 import sys
 import textwrap
+import types
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pytest
-from eegprep import ICL_feature_extractor, eeg_autocorr_fftw, eeg_autocorr_welch, eeg_rpsd, iclabel, pop_loadset
+from eegprep import (
+    ICL_feature_extractor,
+    eeg_autocorr_fftw,
+    eeg_autocorr_welch,
+    eeg_rpsd,
+    iclabel,
+    pop_loadset,
+    pop_saveset,
+)
 from eegprep.utils.testing import has_optional_dependency
 
 from eegprep.plugins.ICLabel import iclabel_net_onnx_web
@@ -23,6 +33,9 @@ local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 _NET_ICL_MAT = os.path.join(os.path.dirname(__file__), '..', 'src', 'eegprep', 'plugins', 'ICLabel', 'netICL.mat')
 _SAMPLE_ICA_SET = os.path.join(os.path.dirname(__file__), '..', 'sample_data', 'eeglab_data_with_ica_tmp.set')
 _PLATFORM_SELECTED_MODULES = (iclabel_onnx_module, iclabel_module, pop_iclabel_module)
+_ICLABEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'src', 'eegprep', 'plugins', 'ICLabel')
+_FLOAT32_NETWORK = 'iclabel.onnx'
+_INT8_NETWORK = 'iclabel_int8.onnx'
 
 
 @pytest.fixture
@@ -138,6 +151,118 @@ def test_web_bridge_output_must_be_finite(bad_value):
     # eeg_icflag compares with ">", so a NaN probability would silently keep that component.
     with pytest.raises(RuntimeError, match='returned 1 non-finite values out of 28'):
         iclabel_net_onnx_web._network_output(flat, batch_size=4)
+
+
+def _icl(eeg):
+    return eeg['etc']['ic_classification']['ICLabel']
+
+
+@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='install eegprep[iclabel] to run ICLabel')
+def test_native_iclabel_records_the_float32_network_that_ran(sample_ica_eeg):
+    synchronous = iclabel(sample_ica_eeg)
+    asynchronous = asyncio.run(iclabel_module.iclabel_async(sample_ica_eeg))
+
+    for labeled in (synchronous, asynchronous):
+        assert _icl(labeled)['version'] == 'default'
+        assert _icl(labeled)['network'] == _FLOAT32_NETWORK
+
+
+class _Buffer:
+    """Stands in for the JsBuffer Pyodide makes of the bridge's ``modelBytes``."""
+
+    def __init__(self, data):
+        self._data = data
+
+    def to_bytes(self):
+        return self._data
+
+
+class _Output:
+    """Stands in for the typed array the bridge's ``run`` resolves to."""
+
+    def __init__(self, values):
+        self._values = values
+
+    def to_py(self):
+        return list(self._values)
+
+
+class _Int8WebBridge:
+    """Stands in for the host's bridge: the packaged 8-bit network, run by native onnxruntime."""
+
+    def __init__(self):
+        import onnxruntime
+
+        model = Path(_ICLABEL_DIR, _INT8_NETWORK).read_bytes()
+        self.modelBytes = _Buffer(model)
+        self._session = onnxruntime.InferenceSession(model, providers=['CPUExecutionProvider'])
+
+    async def run(self, image, image_shape, psdmed, psdmed_shape, autocorr, autocorr_shape):
+        inputs = {
+            'image': image.reshape(image_shape),
+            'psdmed': psdmed.reshape(psdmed_shape),
+            'autocorr': autocorr.reshape(autocorr_shape),
+        }
+        (output,) = self._session.run(['output'], inputs)
+        return _Output(output.reshape(-1))
+
+
+@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='install eegprep[iclabel] to run ICLabel')
+def test_browser_iclabel_records_the_int8_network_that_ran(sample_ica_eeg, emscripten_iclabel, monkeypatch):
+    _, emscripten_iclabel_module, _ = emscripten_iclabel
+    ffi = types.ModuleType('pyodide.ffi')
+    ffi.to_js = lambda value: value
+    host = types.ModuleType('js')
+    host.eegprep_iclabel_web = _Int8WebBridge()
+    monkeypatch.setitem(sys.modules, 'js', host)
+    monkeypatch.setitem(sys.modules, 'pyodide', types.ModuleType('pyodide'))
+    monkeypatch.setitem(sys.modules, 'pyodide.ffi', ffi)
+
+    labeled = asyncio.run(emscripten_iclabel_module.iclabel_async(sample_ica_eeg))
+
+    assert _icl(labeled)['version'] == 'default'
+    assert _icl(labeled)['network'] == _INT8_NETWORK
+    assert _icl(labeled)['classifications'].shape == (32, 7)
+
+
+class _EeglabStandIn:
+    """Stands in for an EEGLAB engine, an external program: it labels the dataset without ``network``."""
+
+    def iclabel(self, EEG, algorithm='default'):
+        labeled = dict(EEG)
+        labeled['etc'] = {
+            'ic_classification': {'ICLabel': {**EEG['etc']['ic_classification']['ICLabel'], 'version': algorithm}}
+        }
+        return labeled
+
+
+@pytest.mark.parametrize('algorithm', ['default', 'lite'])
+def test_eeglab_engine_result_drops_a_network_recorded_by_an_earlier_eegprep_run(algorithm):
+    classified = {
+        'etc': {
+            'ic_classification': {
+                'ICLabel': {'classifications': np.eye(2, 7), 'version': 'default', 'network': _INT8_NETWORK}
+            }
+        }
+    }
+
+    labeled = iclabel_module._run_eeglab_engine(_EeglabStandIn(), classified, algorithm)
+
+    assert 'network' not in _icl(labeled)
+    assert _icl(labeled)['version'] == algorithm
+    np.testing.assert_array_equal(_icl(labeled)['classifications'], np.eye(2, 7))
+
+
+@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='install eegprep[iclabel] to run ICLabel')
+def test_saved_dataset_keeps_the_recorded_network(sample_ica_eeg, tmp_path):
+    labeled = iclabel(sample_ica_eeg)
+    path = str(tmp_path / 'labeled.set')
+
+    pop_saveset(labeled, path)
+    reloaded = pop_loadset(path)
+
+    assert str(_icl(reloaded)['network']) == _FLOAT32_NETWORK
+    assert str(_icl(reloaded)['version']) == 'default'
 
 
 @pytest.mark.parametrize('algorithm', ['lite', 'beta'])

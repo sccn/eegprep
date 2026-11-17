@@ -23,6 +23,8 @@ Unreleased
   On the frozen evaluation set of 217 components its class probabilities differ from the full-precision network by at most 0.01346, and all top-1 labels and all keep-or-reject decisions agree.
   That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
   see :ref:`iclabel_measured_agreement` for the criteria, the numbers, and the caveats.
+  Because the two networks differ, ``EEG["etc"]["ic_classification"]["ICLabel"]`` now also holds ``network``, the name of the packaged file that ran, next to ``version``, which keeps EEGLAB's meaning.
+  MATLAB EEGLAB ignores ``network`` and neither writes nor clears it; EEGPrep removes a stale one when ``engine='matlab'`` or ``'octave'`` classifies.
 - Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
   It classifies through ONNX Runtime Web (the JavaScript build of the ONNX runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
   ``iclabel_async`` and ``pop_iclabel_async`` keep the native post-processing, the console history, and the GUI and console session synchronization.
