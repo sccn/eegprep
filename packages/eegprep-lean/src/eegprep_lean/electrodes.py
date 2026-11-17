@@ -99,9 +99,16 @@ def _position(value: Any) -> tuple[float, float, float] | None:
     if not isinstance(value, list) or len(value) != 3:
         return None
     # bool is an int in Python, and True is not a coordinate.
-    if not all(isinstance(axis, (int, float)) and not isinstance(axis, bool) and math.isfinite(axis) for axis in value):
+    if not all(isinstance(axis, (int, float)) and not isinstance(axis, bool) for axis in value):
         return None
-    return float(value[0]), float(value[1]), float(value[2])
+    try:
+        x, y, z = (float(axis) for axis in value)
+    except OverflowError:
+        # An integer too large for a float is an infinity to a reader of binary64, so no position.
+        return None
+    if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(z)):
+        return None
+    return x, y, z
 
 
 def _text(value: Any) -> str:
@@ -126,7 +133,10 @@ async def read_electrode_attributes(
     url = f"{index.store_url(store)}/zarr.json"
     response = await client.get(url)
     try:
-        document = json.loads(response.body)
+        # Integers are read as binary64, as JSON.parse reads them and as NEMAR's locations digest
+        # is defined: an integer of any length is a float, where json's default raises ValueError
+        # from 4300 digits, before any entry could be judged.
+        document = json.loads(response.body, parse_int=float)
     except json.JSONDecodeError as err:
         raise IndexError_(f"store root at {url} is not JSON: {err}") from err
     return ElectrodeAttributes.from_attributes(document.get("attributes") or {})

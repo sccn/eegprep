@@ -348,6 +348,22 @@ class TestElectrodeAttributes:
 
         assert attributes.positions == {"E1": (1.0, 2.0, 3.0), "E9": (4.0, 5.0, 6.0)}
 
+    def test_an_integer_too_large_for_a_float_is_a_channel_with_no_position(self) -> None:
+        """``float`` raises ``OverflowError`` from 2**1024 - 2**970 up, which a reader of JSON
+        integers as binary64 sees as an infinity: a channel without a position, and no refusal
+        of the store. Below that it is the largest float."""
+        stored = {
+            "E1": [1, 2, 10**399],
+            "E2": [-(10**399), 2, 3],
+            "E3": [0, 0, 2**1024 - 2**970],
+            "E4": [0, 0, 2**1024 - 2**970 - 1],
+            "E5": [4, 5, 6],
+        }
+
+        attributes = ElectrodeAttributes.from_attributes({"electrode_positions": stored})
+
+        assert attributes.positions == {"E4": (0.0, 0.0, sys.float_info.max), "E5": (4.0, 5.0, 6.0)}
+
     @pytest.mark.parametrize("stored", [[], ["E1", "E2"], [[1, 2, 3]], "E1 1 2 3", 3, 1.5, True, False])
     def test_a_position_map_that_is_not_an_object_is_refused_by_name(self, stored) -> None:
         """A store that states positions in a shape no entry can be read from is not a store

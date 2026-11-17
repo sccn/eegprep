@@ -665,6 +665,19 @@ class TestElectrodeAttributes:
         }
 
 
+def _root(positions: str, **more: str) -> str:
+    """A store root whose attributes hold ``positions``, the text of a JSON value, as written,
+    and any ``more`` attributes given as the text of their values."""
+    attributes = {
+        "electrode_positions": positions,
+        "electrode_coordinate_system": '"CapTrak"',
+        "electrode_coordinate_units": '"m"',
+        **more,
+    }
+    body = ", ".join(f'"{key}": {value}' for key, value in attributes.items())
+    return f'{{"zarr_format": 3, "node_type": "group", "attributes": {{{body}}}}}'
+
+
 class TestTheStoreRootAsText:
     @pytest.mark.parametrize("attributes", ["[]", "null"])
     def test_attributes_that_are_empty_or_null_are_no_attributes(self, read_root, attributes: str) -> None:
@@ -675,6 +688,30 @@ class TestTheStoreRootAsText:
     def test_a_root_with_no_attributes_at_all_is_no_attributes(self, read_root) -> None:
         assert read_root('{"zarr_format": 3, "node_type": "group"}') is None
         assert read_root('{"zarr_format": 3, "attributes": {}}') is None
+
+    @pytest.mark.parametrize("digits", [400, 4300, 4301, 20000])
+    @pytest.mark.parametrize("sign", [pytest.param("", id="positive"), pytest.param("-", id="negative")])
+    def test_an_integer_too_large_for_a_float_is_a_channel_with_no_position(
+        self, read_root, digits: int, sign: str
+    ) -> None:
+        """JSON.parse reads an integer of this many digits as an infinity, and NEMAR's locations
+        digest, which is defined on that reading, gives its channel no position. Python's
+        ``json`` refuses to make an int of more than 4300 digits at all, and ``float`` of one of
+        400 raises. Neither is a refusal of the store: the other channels and the attributes
+        read as they do without it."""
+        huge = sign + "1" + "0" * (digits - 1)
+
+        attributes = read_root(_root('{"E1": [1, 2, %s], "E2": [4, 5, 6]}' % huge))
+
+        assert attributes == ElectrodeAttributes(
+            positions={"E2": (4.0, 5.0, 6.0)}, coordinate_system="CapTrak", coordinate_units="m"
+        )
+
+    def test_a_huge_integer_in_an_attribute_that_is_not_read_does_not_fail_the_store(self, read_root) -> None:
+        attributes = read_root(_root('{"E1": [1, 2, 3]}', conversion_counter="9" * 5000))
+
+        assert attributes is not None
+        assert attributes.positions == {"E1": (1.0, 2.0, 3.0)}
 
 
 # The smallest recording of a live public dataset with a verified Zarr copy.
