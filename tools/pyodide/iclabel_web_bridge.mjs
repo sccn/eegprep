@@ -21,7 +21,9 @@ export function createIcLabelWebBridge(ort, modelBytes, options = {}) {
       // when its WebAssembly backend starts; a session option cannot set it. A host that already
       // created another session therefore decides the count.
       ort.env.wasm.numThreads = numThreads;
-      sessionPromise = ort.InferenceSession.create(modelBytes, createOptions).catch((error) => {
+      // A copy, because onnxruntime-web may transfer the buffer it is given to a worker, which
+      // detaches it; modelBytes must stay intact for the digest check and for a retried create.
+      sessionPromise = ort.InferenceSession.create(modelBytes.slice(), createOptions).catch((error) => {
         sessionPromise = undefined;
         throw error;
       });

@@ -579,6 +579,31 @@ def test_iclabel_web_bridge_exposes_the_bytes_it_was_given():
 
 
 @requires_node
+def test_iclabel_web_bridge_keeps_its_model_bytes_when_the_session_detaches_its_input():
+    # onnxruntime-web in proxy mode transfers the model buffer to a worker, which detaches it. The
+    # digest check hashes modelBytes before every run, so the bridge must hand over a copy.
+    _run_node_bridge_script(
+        """
+        import { createHash } from 'node:crypto';
+
+        const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+        const bytes = new Uint8Array([1, 2, 3, 4]);
+        const before = digest(bytes);
+        const detaching = makeOrt((modelBytes) => {
+          structuredClone(modelBytes, { transfer: [modelBytes.buffer] });
+          return { run: async () => ({ output: { data: [1] } }) };
+        });
+
+        const bridge = createIcLabelWebBridge(detaching, bytes);
+        await bridge.run(input, shape, input, shape, input, shape);
+        await bridge.run(input, shape, input, shape, input, shape);
+        if (bridge.modelBytes.byteLength !== 4) throw new Error(`modelBytes holds ${bridge.modelBytes.byteLength} bytes`);
+        if (digest(bridge.modelBytes) !== before) throw new Error('modelBytes digest changed');
+        """
+    )
+
+
+@requires_node
 @pytest.mark.parametrize(
     ("options", "expected_threads"),
     [("{}", 1), ("{ numThreads: 2 }", 2)],
