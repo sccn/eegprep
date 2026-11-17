@@ -1,4 +1,5 @@
 import asyncio
+import sys
 
 import numpy as np
 import pytest
@@ -20,6 +21,18 @@ class _Renderer:
 
     def run(self, spec, initial_values=None):
         return self.values
+
+
+class _RecordingRenderer(_Renderer):
+    """Records whether the dialog was ever shown."""
+
+    def __init__(self):
+        super().__init__({"icversion": 1})
+        self.shown = 0
+
+    def run(self, spec, initial_values=None):
+        self.shown += 1
+        return super().run(spec, initial_values)
 
 
 def _classifications(eeg):
@@ -56,6 +69,29 @@ def test_gui_sync_iclabel_cancelled_dialog_returns_the_dataset_unchanged(sample_
     assert output is sample_ica_eeg
     assert command == ""
     assert "ic_classification" not in sample_ica_eeg["etc"]
+
+
+@pytest.mark.parametrize("function_name", ["pop_iclabel", "pop_iclabel_async"])
+def test_missing_onnxruntime_is_reported_before_the_version_dialog(monkeypatch, function_name):
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+    renderer = _RecordingRenderer()
+    EEG = {"icaweights": np.eye(2)}
+
+    with pytest.raises(ImportError) as caught:
+        if function_name == "pop_iclabel":
+            pop_iclabel(EEG, gui=True, renderer=renderer)
+        else:
+            asyncio.run(pop_iclabel_async(EEG, gui=True, renderer=renderer))
+
+    assert str(caught.value).startswith(f"{function_name} needs ONNX Runtime")
+    assert renderer.shown == 0
+
+
+def test_pop_iclabel_without_a_dataset_still_returns_none_without_onnxruntime(monkeypatch):
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+
+    assert pop_iclabel(None) is None
+    assert asyncio.run(pop_iclabel_async(None)) is None
 
 
 def _session(sample_ica_eeg, *setnames):

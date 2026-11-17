@@ -590,10 +590,17 @@ def test_iclabel_without_onnxruntime_names_the_iclabel_extra(tmp_path: Path) -> 
         import asyncio, json
         from eegprep import iclabel, pop_loadset
         from eegprep.plugins.ICLabel.iclabel import iclabel_async
+        from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel, pop_iclabel_async
 
         EEG = pop_loadset({str(SAMPLE_ICA_SET)!r})
+        calls = {{
+            "sync": lambda: iclabel(EEG),
+            "async": lambda: asyncio.run(iclabel_async(EEG)),
+            "pop_sync": lambda: pop_iclabel(EEG, "default", gui=False),
+            "pop_async": lambda: asyncio.run(pop_iclabel_async(EEG, "default", gui=False)),
+        }}
         messages = {{}}
-        for name, call in (("sync", lambda: iclabel(EEG)), ("async", lambda: asyncio.run(iclabel_async(EEG)))):
+        for name, call in calls.items():
             try:
                 call()
             except ImportError as exc:
@@ -605,8 +612,10 @@ def test_iclabel_without_onnxruntime_names_the_iclabel_extra(tmp_path: Path) -> 
     )
 
     messages = _json_result(completed)
-    assert set(messages) == {"sync", "async"}
+    assert set(messages) == {"sync", "async", "pop_sync", "pop_async"}
     assert all('pip install "eegprep[iclabel]"' in message for message in messages.values())
+    assert messages["pop_sync"].startswith("pop_iclabel needs ONNX Runtime")
+    assert messages["pop_async"].startswith("pop_iclabel_async needs ONNX Runtime")
 
 
 def test_pop_writeeeg_gdf_works_without_pyedflib(tmp_path: Path) -> None:

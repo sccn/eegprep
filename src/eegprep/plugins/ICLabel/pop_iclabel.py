@@ -7,6 +7,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.plugins.ICLabel.iclabel import iclabel, iclabel_async, require_sync_backend
+from eegprep.plugins.ICLabel.iclabel_net_onnx import IS_EMSCRIPTEN, require_onnxruntime
 
 
 _VERSIONS = ("default", "lite", "beta")
@@ -54,6 +55,9 @@ def pop_iclabel(
             message names the ``eegprep[iclabel]`` extra.
     """
     require_sync_backend(engine)
+    # Before the dialog, so a missing onnxruntime is reported before the user picks a version.
+    if EEG is not None and engine is None:
+        require_onnxruntime("pop_iclabel")
     icversion = _requested_icversion(EEG, icversion, gui, renderer)
     if icversion is None:
         return (EEG, "") if return_com else EEG
@@ -113,6 +117,8 @@ async def pop_iclabel_async(
         ImportError: On native platforms, if ``engine=None`` and onnxruntime is
             not installed; the message names the ``eegprep[iclabel]`` extra.
     """
+    if EEG is not None and engine is None and not IS_EMSCRIPTEN:
+        require_onnxruntime("pop_iclabel_async")
     icversion = _requested_icversion(EEG, icversion, gui, renderer)
     if icversion is None:
         return (EEG, "") if return_com else EEG
