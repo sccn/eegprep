@@ -15,6 +15,7 @@ import asyncio
 import dataclasses
 import json
 import math
+import struct
 import sys
 from pathlib import Path
 
@@ -364,6 +365,19 @@ class TestElectrodeAttributes:
 
         assert attributes.positions == {"E4": (0.0, 0.0, sys.float_info.max), "E5": (4.0, 5.0, 6.0)}
 
+    def test_every_zero_is_positive_zero(self) -> None:
+        """NEMAR's locations digest hashes every zero as +0, so two stores that differ only in
+        the sign of a zero are one store, and the reader hands the same numbers for both."""
+        stored = {"E1": [-0.0, 0.0, -0.0], "E2": [0, -0.0, 5], "E3": [-1.5, 0.0, -0.0]}
+
+        attributes = ElectrodeAttributes.from_attributes({"electrode_positions": stored})
+
+        assert {label: [repr(axis) for axis in xyz] for label, xyz in attributes.positions.items()} == {
+            "E1": ["0.0", "0.0", "0.0"],
+            "E2": ["0.0", "0.0", "5.0"],
+            "E3": ["-1.5", "0.0", "0.0"],
+        }
+
     @pytest.mark.parametrize("stored", [[], ["E1", "E2"], [[1, 2, 3]], "E1 1 2 3", 3, 1.5, True, False])
     def test_a_position_map_that_is_not_an_object_is_refused_by_name(self, stored) -> None:
         """A store that states positions in a shape no entry can be read from is not a store
@@ -434,6 +448,34 @@ class TestLocations:
         eeg = to_eeg(located(stated({"E1": (1.0, 2.0, 3.0)}, "EEGLAB", spelling)), **IDS)
 
         assert [eeg["chanlocs"][0][axis] for axis in "XYZ"] == pytest.approx([factor, 2 * factor, 3 * factor])
+
+    @pytest.mark.parametrize(
+        ("system", "negative", "positive"),
+        [
+            # On the negative X axis the sign of a zero Y is the sign of theta: -180 or 180.
+            ("EEGLAB", [-1.0, -0.0, 5.0], [-1.0, 0.0, 5.0]),
+            ("EEGLAB", [1.0, -0.0, 5.0], [1.0, 0.0, 5.0]),
+            ("EEGLAB", [-0.0, 1.0, 5.0], [0.0, 1.0, 5.0]),
+            ("EEGLAB", [3.0, 4.0, -0.0], [3.0, 4.0, 0.0]),
+            # A midline electrode of a RAS frame: the turn into ALS negates a zero.
+            ("CapTrak", [-0.0, -80.0, 40.0], [0.0, -80.0, 40.0]),
+            ("CapTrak", [-0.0, 80.0, 40.0], [0.0, 80.0, 40.0]),
+        ],
+    )
+    def test_two_stores_that_differ_only_in_a_signed_zero_give_the_same_chanlocs(
+        self, system: str, negative: list[float], positive: list[float]
+    ) -> None:
+        def chanloc(xyz: list[float]) -> list[bytes]:
+            attributes = ElectrodeAttributes.from_attributes(
+                {
+                    "electrode_positions": {"E1": xyz},
+                    "electrode_coordinate_system": system,
+                    "electrode_coordinate_units": "mm",
+                }
+            )
+            return [struct.pack(">d", to_eeg(located(attributes), **IDS)["chanlocs"][0][field]) for field in FIELDS]
+
+        assert chanloc(negative) == chanloc(positive)
 
     def test_a_channel_without_an_entry_gets_no_position_while_the_others_do(self) -> None:
         attributes = stated({"E1": ALS_MM["E1"], "E3": ALS_MM["E3"]})
@@ -667,6 +709,51 @@ class TestTheZarrRouteGivesTheBidsRoutesAnswer:
                 assert zarr_loc[field] == bids_loc[field], (bids_loc["labels"], field)
         assert from_zarr["chaninfo"]["nosedir"] == from_bids["chaninfo"]["nosedir"]
         assert locations_of(from_zarr)["located"] == 11
+
+    @pytest.mark.parametrize("system", ["EEGLAB", "CapTrak"])
+    def test_a_negative_zero_in_the_store_is_the_imports_answer_for_a_positive_zero(
+        self, tmp_path: Path, system: str
+    ) -> None:
+        """The store route reads every zero as positive, the zero NEMAR's locations digest
+        hashes, so a store that spells one ``-0.0`` gets what the import gives for the file
+        that spells it ``0.0``. Zeros on each axis, and on the negative X axis, where the sign
+        of a zero Y is the sign of theta."""
+        pytest.importorskip("bids", reason="needs pybids, the eegprep[pybids] extra")
+        pop_load_frombids = pytest.importorskip("eegprep").pop_load_frombids
+        names = ["E1", "E2", "E3", "E4"]
+        rows = {
+            "E1": (-80.0, 0.0, 40.0),
+            "E2": (80.0, 0.0, 40.0),
+            "E3": (0.0, 80.0, 40.0),
+            "E4": (50.0, 50.0, 0.0),
+        }
+        edf = _write_bids_edf(tmp_path, names, rows, system, "mm")
+
+        from_bids = pop_load_frombids(str(edf), bidsevent=False, infer_locations=False, dtype=np.float64, verbose=False)
+
+        stored = json.loads(
+            json.dumps(
+                {
+                    "electrode_positions": {
+                        name: [-0.0 if axis == 0 else axis for axis in xyz] for name, xyz in rows.items()
+                    },
+                    "electrode_coordinate_system": system,
+                    "electrode_coordinate_units": "mm",
+                }
+            )
+        )
+        source = dataclasses.replace(
+            window(np.zeros((len(names), 4)), labels=tuple(names)),
+            electrodes=ElectrodeAttributes.from_attributes(stored),
+        )
+        from_zarr = to_eeg(source, **IDS)
+
+        for zarr_loc, bids_loc in zip(from_zarr["chanlocs"], from_bids["chanlocs"], strict=True):
+            for field in FIELDS:
+                assert struct.pack(">d", zarr_loc[field]) == struct.pack(">d", bids_loc[field]), (
+                    bids_loc["labels"],
+                    field,
+                )
 
 
 class TestICLabelRunsOnALocatedRecording:

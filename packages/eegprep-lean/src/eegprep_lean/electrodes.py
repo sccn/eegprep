@@ -102,7 +102,9 @@ def _position(value: Any) -> tuple[float, float, float] | None:
     if not all(isinstance(axis, (int, float)) and not isinstance(axis, bool) for axis in value):
         return None
     try:
-        x, y, z = (float(axis) for axis in value)
+        # Adding 0.0 turns -0.0 into 0.0. NEMAR's locations digest hashes every zero as +0, and left
+        # alone the sign of a zero would set the sign of Y and theta further on.
+        x, y, z = (float(axis) + 0.0 for axis in value)
     except OverflowError:
         # An integer too large for a float is an infinity to a reader of binary64, so no position.
         return None

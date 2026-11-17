@@ -707,6 +707,16 @@ class TestTheStoreRootAsText:
             positions={"E2": (4.0, 5.0, 6.0)}, coordinate_system="CapTrak", coordinate_units="m"
         )
 
+    @pytest.mark.parametrize("spelling", ["0", "0.0", "-0", "-0.0", "-0e0"])
+    def test_every_spelling_of_zero_is_positive_zero(self, read_root, spelling: str) -> None:
+        """Python's ``json`` reads ``-0`` as the integer 0 and ``-0.0`` as negative zero, and
+        ``JSON.parse`` reads both as negative zero. NEMAR's locations digest hashes every zero
+        as +0, and so does the reader, whatever the text says."""
+        attributes = read_root(_root('{"E1": [-1, %s, 5]}' % spelling))
+
+        assert attributes is not None
+        assert [repr(axis) for axis in attributes.positions["E1"]] == ["-1.0", "0.0", "5.0"]
+
     def test_a_huge_integer_in_an_attribute_that_is_not_read_does_not_fail_the_store(self, read_root) -> None:
         attributes = read_root(_root('{"E1": [1, 2, 3]}', conversion_counter="9" * 5000))
 
