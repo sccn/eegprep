@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, _apply_save_metadata
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.plugins.ICLabel.iclabel import iclabel
@@ -244,6 +245,19 @@ def test_gui_benign_actions_during_async_iclabel_keep_the_result(sample_ica_eeg,
     assert session.CURRENTSET == [2]
     assert _classifications(session.EEG).shape == (32, 7)
     assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
+
+
+def test_gui_history_added_during_async_iclabel_is_kept_with_the_result(sample_ica_eeg, monkeypatch):
+    session = _session(sample_ica_eeg, "first", "second")
+    backend = gate_iclabel_backend(monkeypatch)
+    plot = "pop_eegplot(EEG, 1, 1, 1);"
+
+    _run_during_gui_iclabel(session, backend, lambda session: eegh(plot, session.EEG))
+
+    # Adding to the dataset's own history keeps the result, so the result must not overwrite it.
+    for dataset in (session.EEG, session.ALLEEG[1]):
+        assert dataset["history"].splitlines()[-2:] == [plot, ICLABEL_EEGLAB_COMMAND]
+    assert _classifications(session.EEG).shape == (32, 7)
 
 
 @pytest.mark.parametrize("version", ["lite", "beta"])

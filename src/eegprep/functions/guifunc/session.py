@@ -357,6 +357,30 @@ class EEGPrepSession:
             f"Run {function_name} again if the current dataset still needs it."
         )
 
+    def carry_current_history(self, result: Any) -> Any:
+        """Copy the current datasets' ``history`` into the result of an asynchronous call.
+
+        ``history`` is not part of the freshness token, so a command recorded while the call
+        ran leaves its result valid, but the result holds the history from before the call
+        and would overwrite that command when stored. Call this after
+        :meth:`require_dataset_state_unchanged` and before storing ``result`` in place of the
+        current datasets.
+
+        Args:
+            result: A dataset, or a list of datasets as long as the current selection, computed
+                from the current selection.
+
+        Returns:
+            ``result``, updated in place; a list of another length is returned unchanged.
+        """
+        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+        results = result if isinstance(result, list) else [result]
+        if len(results) == len(current):
+            for computed, existing in zip(results, current):
+                if "history" in existing:
+                    computed["history"] = existing["history"]
+        return result
+
     def current_eeg(self) -> dict[str, Any] | list[dict[str, Any]]:
         """Return the current EEG selection."""
         return self.EEG

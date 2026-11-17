@@ -1506,7 +1506,7 @@ class MenuActionDispatcher:
         if not command:
             return
         self.session.require_dataset_state_unchanged(target_state, "ICLabel")
-        self._store_current_from_gui(eeg_out, command=command)
+        self._store_current_from_gui(self.session.carry_current_history(eeg_out), command=command)
         self._refresh()
 
     def _run_pop_runica_long_task(

@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.guifunc.session import EEGPrepSession, eeglab_history_command
 from eegprep.plugins.ICLabel.iclabel import iclabel
@@ -330,3 +331,31 @@ def test_dataset_history_records_the_eeglab_form_while_the_session_keeps_the_awa
     assert "await" not in session.EEG["history"]
     assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
     assert session.LASTCOM == ICLABEL_ASYNC_COMMAND
+
+
+def test_carry_current_history_gives_a_result_the_history_of_the_dataset_it_replaces():
+    session = _session_with("first", "second")
+    session.retrieve([2, 1])
+    eegh("second_only(EEG);", session.EEG[0])
+    eegh("first_only(EEG);", session.EEG[1])
+    stale = [dict(dataset, history="stale") for dataset in session.EEG]
+
+    assert session.carry_current_history(stale) is stale
+
+    assert [dataset["history"] for dataset in stale] == [dataset["history"] for dataset in session.EEG]
+    assert stale[0]["history"].splitlines()[-1] == "second_only(EEG);"
+    assert stale[1]["history"].splitlines()[-1] == "first_only(EEG);"
+
+
+def test_carry_current_history_handles_one_dataset_and_leaves_other_lengths_alone():
+    session = _session_with("selected")
+    eegh("added_meanwhile(EEG);", session.EEG)
+    single = dict(session.EEG, history="stale")
+
+    assert session.carry_current_history(single) is single
+    assert single["history"] == session.EEG["history"]
+
+    # A list that does not match the selection was not computed from it, so nothing is carried.
+    other = [dict(session.EEG, history="stale"), dict(session.EEG, history="stale")]
+    session.carry_current_history(other)
+    assert [dataset["history"] for dataset in other] == ["stale", "stale"]
