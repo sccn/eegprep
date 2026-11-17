@@ -46,7 +46,9 @@ class ElectrodeAttributes:
 
     Only entries of exactly three finite numbers: the converter's JSON writer lets a
     ``NaN`` cell through as a bare token, which Python reads and from which no position can
-    be made. Every electrode of the file is here, including ones the recording does not
+    be made. An integer too large for a float is likewise no position, because JSON integers
+    are read as binary64, and every zero is ``+0.0``, the zero NEMAR's locations digest
+    hashes. Every electrode of the file is here, including ones the recording does not
     have, because the join to a recording's channels is by label and happens later.
     """
 
