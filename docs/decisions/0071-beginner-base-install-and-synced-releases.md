@@ -66,6 +66,6 @@ The package ships two networks, `iclabel.onnx` (full precision, loaded by every 
 
 `psutil` and `pyedflib` stay in the base, with the marker `sys_platform != 'emscripten'`, so the base resolves under Pyodide and every other install is unchanged. Their imports are lazy, and under Pyodide they raise an `ImportError` that names the cause. ASR keeps the memory contract of PR 621, with a lazy `psutil` import.
 
-Why: ICLabel runs without PyTorch, and about nine times faster natively than the PyTorch path on one thread; the browser needs the 8-bit file (2.9 MB against 11.6 MB); the markers keep the beginner base this ADR decided, because a plain install on every platform other than a browser still includes both libraries.
+Why: ICLabel runs without PyTorch, and faster natively than the PyTorch path; the browser needs the 8-bit file (2.9 MB against 11.6 MB); the markers keep the beginner base this ADR decided, because a plain install on every platform other than a browser still includes both libraries.
 
 Rejected: making the 8-bit network the native default, because its probabilities move by up to 0.0135 from the full-precision network's; new `sys` and `edf` extras for `psutil` and `pyedflib`, because they would contradict this ADR's base, which promises RAM reservations and EDF export from a plain install; installing the browser wheel without its dependencies, because that hides a base package that has no Pyodide build instead of keeping the base installable there.
