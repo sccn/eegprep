@@ -135,16 +135,18 @@ tools/pyodide/run_pyodide.sh \
 ```
 
 The Node host loads the pinned `onnxruntime-web` package,
-creates one inference session from the `iclabel.onnx` bytes extracted from the built wheel,
+creates one inference session from the `iclabel_int8.onnx` bytes extracted from the built wheel,
 and exposes it as `globalThis.eegprep_iclabel_web`.
 Pyodide sends only input tensors across that bridge.
 The Python `iclabel_async`/`pop_iclabel_async` APIs never import native `onnxruntime` on Emscripten.
 If a host does not register the bridge, they raise an `ImportError` that names this contract.
 
 CI compares the browser result with a native `onnxruntime` reference using `rtol=1e-4` and `atol=1e-5`.
+The reference runs `iclabel_int8.onnx` too, not the full-precision `iclabel.onnx` that native `iclabel` loads.
 The tolerance is tight on purpose: both runtimes execute the same packaged int8 weights in float32 arithmetic,
 so only small numerical differences between the runtimes are expected.
-Both reports also record the SHA-256 digest of the `iclabel.onnx` in their installed EEGPrep package
+The distance between the two files is the quantization gate's (0.01346 largest probability difference, against a limit of 0.015).
+Both reports also record the SHA-256 digest of the `iclabel_int8.onnx` in their installed EEGPrep package
 (the working tree natively, the built wheel in Pyodide),
 and the comparison fails if the digests differ, so parity is always measured on the model the tree ships.
 The bridge defaults to the ONNX Runtime Web WebAssembly (WASM) execution provider with one thread;

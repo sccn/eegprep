@@ -157,11 +157,13 @@ Use the lower-level FIRFilt helpers for custom order/window work:
 ICLabel
 =======
 
-The standalone Python engine ships the default ICLabel network as an Open Neural Network Exchange (ONNX)
-artifact and classifies through ``onnxruntime`` (``eegprep[iclabel]``). ``lite``
+The standalone Python engine ships the default ICLabel network as Open Neural Network Exchange (ONNX)
+artifacts and classifies through ``onnxruntime`` (``eegprep[iclabel]``): the
+full-precision ``iclabel.onnx`` on native platforms and the 8-bit
+``iclabel_int8.onnx`` in the browser. ``lite``
 and ``beta`` network requests require MATLAB or Octave with an EEGLAB
-ICLabel checkout that provides those artifacts. How closely the packaged
-network matches the full-precision one is in :ref:`iclabel_measured_agreement`.
+ICLabel checkout that provides those artifacts. How closely each packaged
+network matches the PyTorch one is in :ref:`iclabel_measured_agreement`.
 
 .. code-block:: python
 
@@ -195,7 +197,7 @@ that resolves to the flat ``Float32Array`` of the network output, seven class
 scores for each of the ``N`` rows. The reference implementation is
 ``createIcLabelWebBridge`` in ``tools/pyodide/iclabel_web_bridge.mjs`` in the
 source repository; it creates one ``onnxruntime-web`` session from the bytes of
-the packaged ``iclabel.onnx``.
+the packaged ``iclabel_int8.onnx``, the 8-bit network meant for the browser.
 
 Review components visually with ``pop_viewprops`` before removing them.
 
