@@ -156,27 +156,6 @@ and BDF export, memory-based ``ReservePerJob`` reservations such as ``"4GB"``,
 and the free-memory fallback of ASR then raise an ``ImportError`` that says so;
 give ASR an explicit ``maxmem`` that fits its lookahead buffers instead.
 
-PyTorch (for GPU acceleration)
-------------------------------
-
-To use GPU-accelerated processing with PyTorch:
-
-.. code-block:: bash
-
-    uv add torch
-
-For CUDA support (NVIDIA GPUs):
-
-.. code-block:: bash
-
-    uv add torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
-For CPU-only PyTorch:
-
-.. code-block:: bash
-
-    uv add torch --index-url https://download.pytorch.org/whl/cpu
-
 pAMICA
 ------
 
@@ -190,6 +169,24 @@ Install it with the ``pamica`` extra, which also installs PyTorch:
 
 ``pop_runica(EEG, icatype="pamica")`` and ``eeg_pamica`` use it.
 The extra is part of ``eegprep[all]`` and not of ``eegprep[full]``.
+
+PyTorch is used only by pAMICA and by the developer export of the ICLabel networks
+(see :ref:`releasing`); no other function needs it, and EEGPrep computes on the CPU
+unless pAMICA's ``device`` argument selects a GPU.
+For a GPU, install the PyTorch build that matches your CUDA version first, then the
+``pamica`` extra; the troubleshooting section below shows how to find your CUDA version
+and links PyTorch's install page.
+For example, for NVIDIA GPUs with CUDA 11.8:
+
+.. code-block:: bash
+
+    uv add torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+and for CPU-only PyTorch:
+
+.. code-block:: bash
+
+    uv add torch --index-url https://download.pytorch.org/whl/cpu
 
 AMICA
 -----
@@ -318,10 +315,10 @@ Version Conflicts
     source eegprep_env/bin/activate  # On Windows: eegprep_env\Scripts\activate
     uv pip install eegprep
 
-PyTorch Installation Issues
-----------------------------
+pAMICA and PyTorch Installation Issues
+---------------------------------------
 
-**Problem**: PyTorch installation fails or GPU not detected
+**Problem**: PyTorch installation fails or pAMICA does not detect the GPU
 
 **Solution**:
 
@@ -373,7 +370,6 @@ Memory Issues
 1. Process data in chunks or epochs
 2. Reduce the number of channels if possible
 3. Increase available RAM or use a machine with more memory
-4. Use GPU acceleration if available
 
 Getting Help
 ============

@@ -286,7 +286,7 @@ These are measured agreement results on one frozen set, not an accuracy claim.
 The set is dominated by one class: the full-precision network labels 193 of the
 217 components Other (and 18 Brain, 5 Eye, 1 Muscle), and Heart, Line Noise, and
 Channel Noise do not occur, so the agreement figures say nothing about those
-classes. Native results follow releases up to 0.4.0, which classified with
+classes. Native results follow releases up to 0.5.0, which classified with
 PyTorch, to about 1e-6; results from the browser's 8-bit file can differ from
 them by up to about 0.0135 (the largest difference measured on this set).
 

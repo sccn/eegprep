@@ -20,7 +20,7 @@ and no class probability moves by more than 0.015.
 Regenerate the packaged models after changing ``netICL.mat``,
 ``iclabel_net.py``, or this script, from the repository root::
 
-    uv sync --group dev --extra torch --extra iclabel
+    uv sync --group dev --extra torch
     uv run --no-sync python tools/iclabel/export_iclabel_onnx.py \\
         --onnx-path build/iclabel/iclabel_float32.onnx
     uv run --no-sync python tools/iclabel/quantize_iclabel_onnx.py \\
@@ -31,11 +31,18 @@ Regenerate the packaged models after changing ``netICL.mat``,
     cp build/iclabel/iclabel_int8.onnx src/eegprep/plugins/ICLabel/iclabel_int8.onnx
 
 Then commit both models and ``parity_report.json`` together: the tests and
-the release workflow require the int8 model's SHA-256 to equal the one in the
-report. The quantize step exits nonzero, without writing the report, when
-the gate fails. If ``netICL.mat`` itself changes, first refreeze the teacher
-with :func:`write_teacher_probabilities` (the command is recorded in
-``evaluation_manifest.json``) and update the SHA-256 recorded there.
+the release workflow require the int8 model's SHA-256 to equal
+``packaged_model.sha256`` in the report and the full-precision model's to equal
+``float32_model.sha256``. The report records the float32 artifact given to this
+step, so copy that same file to ``iclabel.onnx``. The quantize step exits nonzero,
+without writing the report, when the gate fails.
+
+Replacing ``iclabel.onnx`` also means refreezing the teacher with
+:func:`write_teacher_probabilities` (the command is recorded in
+``evaluation_manifest.json``) and updating the SHA-256 in the manifest's
+``source`` field, because the teacher probabilities are that file's outputs. When only
+the quantization changed, keep the committed ``iclabel.onnx``: skip the export and
+the first ``cp`` above, and pass the committed file as ``--float32-artifact``.
 
 CI runs the export and quantize steps into a temporary directory with
 ``--require-float32-close-to src/eegprep/plugins/ICLabel/iclabel.onnx``,
@@ -387,8 +394,15 @@ def evaluate_model(
     evaluation_features: Path = DEFAULT_EVALUATION_FEATURES,
     teacher_probabilities: Path = DEFAULT_TEACHER_PROBABILITIES,
     manifest: Path = DEFAULT_FROZEN_MANIFEST,
+    float32_model: Path = PACKAGED_FLOAT32_MODEL,
 ) -> dict[str, Any]:
-    """Evaluate an int8 ICLabel model against the frozen teacher on the evaluation set."""
+    """Evaluate an int8 ICLabel model against the frozen teacher on the evaluation set.
+
+    The report also records the full-precision network ``float32_model`` (size and SHA-256,
+    under the packaged ``iclabel.onnx`` path label) as ``float32_model``. It defaults to the
+    packaged file; ``main`` passes the float32 artifact being quantized, so a regeneration
+    records the network it is about to ship and not the one it replaces.
+    """
     frozen_manifest = load_frozen_manifest(manifest)
     evaluation = frozen_manifest["evaluation"]
     features = load_verified_feature_archive(evaluation_features, frozen_manifest)
@@ -422,6 +436,13 @@ def evaluate_model(
             "path": PACKAGED_MODEL.relative_to(_REPO_ROOT).as_posix(),
             "size_bytes": Path(model).stat().st_size,
             "sha256": _sha256(model),
+        },
+        # The full-precision network every native run loads, and the frozen teacher's source;
+        # recorded so a change to it is visible in the report and caught by release.yml.
+        "float32_model": {
+            "path": PACKAGED_FLOAT32_MODEL.relative_to(_REPO_ROOT).as_posix(),
+            "size_bytes": Path(float32_model).stat().st_size,
+            "sha256": _sha256(float32_model),
         },
         "gate_pass": not gate_failures(metrics),
         "metrics": metrics,
@@ -474,7 +495,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             )
 
     model = quantize_weight_only(args.float32_artifact, args.output)
-    report = evaluate_model(model)
+    report = evaluate_model(model, float32_model=args.float32_artifact)
     print(json.dumps(report, indent=2, sort_keys=True))
     failures = gate_failures(report["metrics"])
     if failures:

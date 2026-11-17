@@ -71,7 +71,7 @@ Create the uv-managed development environment:
 .. code-block:: bash
 
     uv python install 3.12
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 Install Dependencies
 --------------------
@@ -80,14 +80,14 @@ If you only need documentation dependencies, sync the docs extra:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs --extra iclabel
+    uv sync --group dev --extra docs
 
 ``uv sync`` installs:
 
 - The eegprep package in editable mode
 - Repo tooling dependencies
 - GUI and ``eegprep-console`` runtime dependencies
-- Open Neural Network Exchange (ONNX) Runtime (``iclabel`` extra), because gallery examples run ICLabel
+- Open Neural Network Exchange (ONNX) Runtime (the ``dev`` group includes it), because gallery examples and tests run ICLabel
 - Documentation dependencies when ``--extra docs`` is used
 
 Code Style Guidelines

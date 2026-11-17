@@ -221,10 +221,21 @@ def test_parity_report_records_the_packaged_model_and_frozen_inputs():
 
     assert report["packaged_model"]["sha256"] == hashlib.sha256(model_bytes).hexdigest()
     assert report["packaged_model"]["size_bytes"] == len(model_bytes)
+    float32_bytes = PACKAGED_FLOAT32_MODEL.read_bytes()
+    assert report["float32_model"]["path"] == "src/eegprep/plugins/ICLabel/iclabel.onnx"
+    assert report["float32_model"]["sha256"] == hashlib.sha256(float32_bytes).hexdigest()
+    assert report["float32_model"]["size_bytes"] == len(float32_bytes)
     assert report["evaluation_features"]["sha256"] == manifest["evaluation"]["feature_archive"]["sha256"]
     assert report["teacher_probabilities"]["sha256"] == manifest["evaluation"]["teacher_probabilities"]["sha256"]
     assert report["gate_pass"] is True
     assert gate_failures(report["metrics"]) == []
+
+
+def test_frozen_teacher_came_from_the_recorded_full_precision_network():
+    report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+
+    assert report["float32_model"]["sha256"] in manifest["evaluation"]["teacher_probabilities"]["source"]
 
 
 def test_production_runtime_passes_the_frozen_gate():
@@ -334,6 +345,54 @@ def test_evaluate_model_reproduces_the_committed_report_for_the_packaged_model()
     assert {key: value for key, value in report.items() if key != "metrics"} == {
         key: value for key, value in committed.items() if key != "metrics"
     }
+
+
+def test_report_records_the_float32_network_it_is_given(tmp_path):
+    pytest.importorskip("onnxruntime")
+    changed = bytearray(PACKAGED_FLOAT32_MODEL.read_bytes())
+    changed[-1] ^= 0xFF
+    candidate = tmp_path / "iclabel_float32.onnx"
+    candidate.write_bytes(bytes(changed))
+
+    default = evaluate_model(PACKAGED_MODEL)["float32_model"]
+    report = evaluate_model(PACKAGED_MODEL, float32_model=candidate)["float32_model"]
+
+    assert default["sha256"] == hashlib.sha256(PACKAGED_FLOAT32_MODEL.read_bytes()).hexdigest()
+    assert report["sha256"] == hashlib.sha256(candidate.read_bytes()).hexdigest() != default["sha256"]
+    assert report["size_bytes"] == candidate.stat().st_size
+    # The path label stays the packaged file's, which is where the artifact is copied to.
+    assert report["path"] == default["path"] == "src/eegprep/plugins/ICLabel/iclabel.onnx"
+
+
+def test_quantize_reports_the_float32_artifact_it_quantized(tmp_path):
+    onnx = pytest.importorskip("onnx")
+    pytest.importorskip("onnxruntime")
+    # Same network, different bytes: a metadata entry changes the file and no output.
+    model = onnx.load(str(PACKAGED_FLOAT32_MODEL))
+    model.metadata_props.add(key="note", value="regenerated")
+    artifact = tmp_path / "iclabel_float32.onnx"
+    onnx.save(model, str(artifact))
+    report_path = tmp_path / "parity_report.json"
+
+    main(
+        [
+            "--float32-artifact",
+            str(artifact),
+            "--output",
+            str(tmp_path / "iclabel_int8.onnx"),
+            "--report",
+            str(report_path),
+            "--require-float32-close-to",
+            str(PACKAGED_FLOAT32_MODEL),
+            "--require-matching-report",
+            str(DEFAULT_REPORT),
+        ]
+    )
+
+    recorded = json.loads(report_path.read_text(encoding="utf-8"))["float32_model"]
+    assert recorded["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
+    assert recorded["sha256"] != hashlib.sha256(PACKAGED_FLOAT32_MODEL.read_bytes()).hexdigest()
+    assert recorded["size_bytes"] == artifact.stat().st_size
 
 
 def test_report_mismatches_allow_only_cross_cpu_drift_noise():
