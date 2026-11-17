@@ -1888,6 +1888,7 @@ class MenuActionDispatcher:
         if leading_command:
             self.session.echo_command(leading_command)
             self.session.add_history(leading_command, notify=False)
+        # An asynchronous command stored through here must pass through eeglab_history_command first.
         for dataset in current if isinstance(current, list) else [current]:
             if isinstance(dataset, dict):
                 eegh(command, dataset)
