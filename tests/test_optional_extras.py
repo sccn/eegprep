@@ -650,7 +650,7 @@ def test_pop_writeeeg_edf_names_pyedflib_and_pyodide_without_it(tmp_path: Path) 
         EEG = {{"data": np.arange(40, dtype=float).reshape(2, 20), "srate": 100.0, "nbchan": 2, "pnts": 20,
                "chanlocs": [{{"labels": "Cz"}}, {{"labels": "Pz"}}], "event": []}}
         try:
-            pop_writeeeg(EEG, {str(tmp_path / "out.edf")!r})
+            pop_writeeeg(EEG, {str(tmp_path / "edf" / "out.edf")!r})
         except ImportError as exc:
             print(json.dumps({{"message": str(exc), "chained": isinstance(exc.__cause__, ImportError)}}))
         """,
@@ -661,6 +661,7 @@ def test_pop_writeeeg_edf_names_pyedflib_and_pyodide_without_it(tmp_path: Path) 
     assert "requires pyedflib" in result["message"]
     assert "Pyodide" in result["message"]
     assert result["chained"] is True
+    assert not (tmp_path / "edf").exists()
 
 
 def test_pop_writeeeg_rejecting_the_data_creates_no_directory(tmp_path: Path) -> None:
@@ -721,6 +722,45 @@ def test_asr_runs_with_an_explicit_budget_and_names_maxmem_without_psutil(tmp_pa
     assert result["shape"] == [4, 500]
     assert "psutil is required to size the ASR memory budget" in result["message"]
     assert "maxmem" in result["message"]
+
+
+def test_asr_too_low_budget_names_every_budget_argument_without_psutil(tmp_path: Path) -> None:
+    """A budget too small for the lookahead buffers falls back to free memory, which needs psutil."""
+    completed = _run_without_optional_extras(
+        """
+        import json
+        import numpy as np
+        from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
+        from eegprep.plugins.clean_rawdata.asr_calibrate_r import asr_calibrate_r
+        from eegprep.plugins.clean_rawdata.asr_process import asr_process
+        from eegprep.plugins.clean_rawdata.asr_process_r import asr_process_r
+
+        rng = np.random.default_rng(0)
+        srate = 100.0
+        calibration = rng.normal(size=(4, 3000))
+        data = rng.normal(size=(4, 500))
+        euclidean = asr_calibrate(calibration, srate, maxmem=64)
+        riemannian = asr_calibrate_r(calibration, srate, maxmem=64)
+        calls = {
+            "asr_process": lambda: asr_process(data, srate, euclidean, max_mem=0.001),
+            "asr_process_r": lambda: asr_process_r(data, srate, riemannian, max_mem=0.001),
+        }
+        messages = {}
+        for name, call in calls.items():
+            try:
+                call()
+            except ImportError as exc:
+                messages[name] = str(exc)
+        print(json.dumps(messages))
+        """,
+        tmp_path,
+    )
+
+    messages = _json_result(completed)
+    assert set(messages) == {"asr_process", "asr_process_r"}
+    for message in messages.values():
+        assert "psutil is required to size the ASR memory budget" in message
+        assert "maxmem in clean_asr, MaxMem in clean_artifacts" in message
 
 
 def test_ransac_defers_the_eeglab_bridge_but_still_reaches_it(tmp_path: Path) -> None:
