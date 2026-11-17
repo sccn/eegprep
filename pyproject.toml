@@ -148,7 +148,8 @@ dev = [
   "mne>=1.10.0",
   "defusedxml>=0.7.1",
   "oct2py>=5.5.0",
-  # onnxruntime 1.24 and newer publish no macOS x86_64 wheel; 1.23.2 is the last that does.
+  # onnxruntime 1.24 and newer publish no macOS x86_64 wheel; 1.23.2 is the last that does, and it
+  # has them for Python 3.12 and 3.13 only, so an Intel Mac needs one of those two.
   "onnxruntime>=1.20; sys_platform != 'darwin' or platform_machine != 'x86_64'",
   "onnxruntime>=1.20,<1.24; sys_platform == 'darwin' and platform_machine == 'x86_64'",
   "pybids>=0.4",
