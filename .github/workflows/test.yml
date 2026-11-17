@@ -446,7 +446,7 @@ jobs:
 
       - name: Install benchmark and ICLabel regeneration dependencies
         run: |
-          uv sync --python 3.12 --group dev --extra iclabel --extra torch
+          uv sync --python 3.12 --group dev --extra torch
 
       - name: Build EEGPrep wheel from the working tree
         run: |

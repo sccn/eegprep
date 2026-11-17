@@ -55,13 +55,13 @@ Install the default development environment:
 .. code-block:: bash
 
     uv python install 3.12
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 ``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the
 locked dependency set. The development environment includes the GUI and
 ``eegprep-console`` runtime dependencies so ``uv run eegprep-console --full``
-works from a fresh checkout, and Open Neural Network Exchange (ONNX) Runtime (the ``iclabel`` extra) because the
-gallery examples and tests run ICLabel. Use ``uv run`` for commands so they
+works from a fresh checkout, and Open Neural Network Exchange (ONNX) Runtime (the ``dev`` group
+includes it) because the gallery examples and tests run ICLabel. Use ``uv run`` for commands so they
 execute inside this environment. On an Intel Mac the lock installs ONNX Runtime
 1.23.2, the last release with a macOS x86_64 wheel.
 
@@ -70,14 +70,14 @@ Install Documentation Dependencies
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs --extra iclabel
+    uv sync --group dev --extra docs
 
 This installs:
 
 - The eegprep package in editable mode
 - Development dependencies used by repo tooling
 - Documentation dependencies
-- ONNX Runtime (``iclabel`` extra), because the gallery examples run ICLabel
+- ONNX Runtime (the ``dev`` group includes it), because the gallery examples run ICLabel
 
 Running Tests
 =============
@@ -1259,7 +1259,7 @@ acceptance criteria:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs --extra iclabel
+    uv sync --group dev --extra docs
     uv run --no-sync sphinx-build -b html docs/source docs/_build/html
 
 The ``docs/Makefile`` target remains available for local iteration:
@@ -1437,7 +1437,7 @@ Import Errors
 
 .. code-block:: bash
 
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 Test Failures
 -------------
@@ -1448,7 +1448,7 @@ Test Failures
 
 .. code-block:: bash
 
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
     uv run pytest tests
 
 Documentation Build Errors
@@ -1460,7 +1460,7 @@ Documentation Build Errors
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs --extra iclabel
+    uv sync --group dev --extra docs
 
 Git Conflicts
 -------------
@@ -1487,7 +1487,7 @@ Virtual Environment Issues
 .. code-block:: bash
 
     rm -rf .venv
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 Dependency Conflicts
 --------------------
@@ -1499,7 +1499,7 @@ Dependency Conflicts
 .. code-block:: bash
 
     uv lock
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 Getting Help
 ============

@@ -43,7 +43,10 @@ For development installation from source:
 
     git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
+
+The ``dev`` group includes ONNX Runtime, so ICLabel runs from a source checkout
+without an extra.
 
 What are the system requirements?
 ---------------------------------
@@ -66,14 +69,14 @@ Refresh the uv environment:
 .. code-block:: bash
 
     uv lock
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 Or create a fresh uv environment:
 
 .. code-block:: bash
 
     rm -rf .venv
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 Does EEGPrep support GPU acceleration?
 --------------------------------------
@@ -282,7 +285,7 @@ Or if developing from source:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 I get "ValueError: Data shape mismatch"
 ---------------------------------------

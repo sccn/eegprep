@@ -20,7 +20,7 @@ and no class probability moves by more than 0.015.
 Regenerate the packaged models after changing ``netICL.mat``,
 ``iclabel_net.py``, or this script, from the repository root::
 
-    uv sync --group dev --extra torch --extra iclabel
+    uv sync --group dev --extra torch
     uv run --no-sync python tools/iclabel/export_iclabel_onnx.py \\
         --onnx-path build/iclabel/iclabel_float32.onnx
     uv run --no-sync python tools/iclabel/quantize_iclabel_onnx.py \\

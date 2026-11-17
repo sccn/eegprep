@@ -129,7 +129,7 @@ network that every native run loads, and ``iclabel_int8.onnx`` next to it, the
 quantization change; a normal release reuses the committed files. The sequence is:
 
 1. Install the developer tools with the ``torch`` extra (very large, and not part
-   of ``eegprep[all]``) and the ``iclabel`` extra.
+   of ``eegprep[all]``); the ``dev`` group already includes ONNX Runtime.
 2. Export the full-precision (float32) network from ``netICL.mat``; it is written
    under ``build/iclabel/`` first.
 3. Quantize its weights to 8-bit integers. The script compares the result with the
