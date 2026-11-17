@@ -60,21 +60,25 @@ Install the default development environment:
 ``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the
 locked dependency set. The development environment includes the GUI and
 ``eegprep-console`` runtime dependencies so ``uv run eegprep-console --full``
-works from a fresh checkout. Use ``uv run`` for commands so they execute inside
-this environment.
+works from a fresh checkout, and Open Neural Network Exchange (ONNX) Runtime (the ``dev`` group
+includes it) because the gallery examples and tests run ICLabel. Use ``uv run`` for commands so they
+execute inside this environment. On an Intel Mac with Python 3.12 or 3.13 the lock
+installs ONNX Runtime 1.23.2, the last release with a macOS x86_64 wheel; that
+release has none for Python 3.14.
 
 Install Documentation Dependencies
 ----------------------------------
 
 .. code-block:: bash
 
-    uv sync --extra docs --group dev
+    uv sync --group dev --extra docs
 
 This installs:
 
 - The eegprep package in editable mode
 - Development dependencies used by repo tooling
 - Documentation dependencies
+- ONNX Runtime (the ``dev`` group includes it), because the gallery examples run ICLabel
 
 Running Tests
 =============
@@ -90,6 +94,9 @@ EEGPrep currently pins ``eeglab_tests`` commit
 ``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``.
 That suite commit is the squash merge of ``sccn/eeglab_tests`` pull request
 16 on ``master``.
+The vendored ``src/eegprep/eeglab`` submodule is pinned to the same EEGLAB commit.
+The reference workflow runs MATLAB on that submodule, and ``tests/conftest.py`` refuses a MATLAB-backed run on any other commit.
+A repin therefore moves the submodule together with the pins in ``tests/eeglab_tests/__init__.py`` and ``tools/eeglab_test_port_audit.py``.
 
 The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
@@ -1457,7 +1464,7 @@ Documentation Build Errors
 
 .. code-block:: bash
 
-    uv sync --extra docs --group dev
+    uv sync --group dev --extra docs
 
 Git Conflicts
 -------------
