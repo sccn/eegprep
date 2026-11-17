@@ -10,6 +10,40 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- **BREAKING: ICLabel needs the** ``iclabel`` **extra, and** ``eegprep[torch]`` **no longer enables it.**
+  ``iclabel`` and ``pop_iclabel`` now classify with ``onnxruntime``, the Open Neural Network Exchange (ONNX) runtime, instead of PyTorch.
+  The package ships ``iclabel.onnx``, the full-precision network, and ``iclabel_int8.onnx``, an 8-bit copy for browsers, in place of ``netICL.mat``.
+  Migration: install ``pip install "eegprep[iclabel]"`` (``onnxruntime`` 1.20 or newer) where you installed ``eegprep[torch]`` for ICLabel.
+  Code that reads ``netICL.mat`` from the installed package must read ``iclabel.onnx`` instead.
+  The ``torch`` extra now installs ``torch`` and ``onnx`` only for rebuilding the packaged networks from ``netICL.mat`` (see :ref:`releasing`),
+  and ``eegprep[all]`` includes ``iclabel`` as well as ``torch``.
+- ICLabel probabilities from ``iclabel`` and ``pop_iclabel`` equal the PyTorch network's to about 1e-6, so existing results do not move.
+  The native network is the full-precision ONNX export of ``netICL.mat``.
+  The 8-bit ``iclabel_int8.onnx`` is for the browser only.
+  On the frozen evaluation set of 217 components its class probabilities differ from the full-precision network by at most 0.01346, and all top-1 labels and all keep-or-reject decisions agree.
+  That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
+  see :ref:`iclabel_measured_agreement` for the criteria, the numbers, and the caveats.
+  Because the two networks differ, ``EEG["etc"]["ic_classification"]["ICLabel"]`` now also holds ``network``, the name of the packaged file that ran, next to ``version``, which keeps EEGLAB's meaning.
+  MATLAB EEGLAB ignores ``network`` and neither writes nor clears it; EEGPrep removes a stale one when ``engine='matlab'`` or ``'octave'`` classifies.
+- Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
+  It classifies through ONNX Runtime Web (the JavaScript build of the ONNX runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
+  ``iclabel_async`` and ``pop_iclabel_async`` keep the native post-processing, the console history, and the GUI and console session synchronization.
+  ``ALLCOM`` keeps the ``await`` form of the command so that ``await eegh(n)`` replays it, but the dataset's own history records ``EEG = pop_iclabel(EEG, 'default');``, so a ``.set`` file saved from the browser replays in MATLAB EEGLAB.
+  The synchronous ``iclabel`` and ``pop_iclabel`` raise ``RuntimeError`` there.
+  Browser execution is checked against native classification for parity.
+  The bridge also exposes the ``modelBytes`` it was created from, and every call compares their SHA-256 digest with the packaged ``iclabel_int8.onnx``, so a stale or wrong model raises ``RuntimeError`` instead of classifying silently; a bridge result with a NaN or infinite probability raises it too.
+- ``eegh(n)`` in ``eegprep-console`` returns an awaitable only when history entry ``n`` has a top-level ``await``, such as ``EEG = await pop_iclabel_async(EEG, 'default');``.
+  Run it with ``await eegh(n)``; other entries, including ones that only mention ``await`` inside a string, still run immediately.
+- ``EEGPrepSession`` gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran: ``dataset_state_token()`` returns a ``DatasetStateToken`` and ``require_dataset_state_unchanged(token, function_name)`` raises a ``RuntimeError`` when the selection or the dataset content changed.
+  A result computed against a dataset that changed in the meantime is discarded with that error instead of being committed to the wrong dataset.
+  The developer notes in :doc:`user_guide/contracts` describe the contract.
+- ``psutil`` and ``pyedflib`` stay in the base install and now carry the environment marker ``sys_platform != 'emscripten'``, because Pyodide has no build of either.
+  The base requirement set resolves under Pyodide, so ``micropip.install("eegprep")`` works in the browser.
+  Their import sites are lazy: EDF and BDF output of ``pop_writeeeg``, memory-based reservations in ``num_jobs_from_reservation``, and the free-memory fallback of ASR raise an ``ImportError`` that names the cause there, and GDF output and an explicit ASR ``max_mem`` work.
+- Added a pinned Pyodide 0.29.5 harness and a continuous integration (CI) gate that installs the working-tree wheel, runs a sample-data smoke pipeline, checks the browser ICLabel result against native, and records one-thread ``runica`` and Picard benchmarks plus benchmarks of the matrix products (basic linear algebra subprograms, BLAS) that ``runica`` performs.
+  The harness needs ``uv``, Node.js 22 or newer, and Bun (``bun install --frozen-lockfile`` from ``tools/pyodide/bun.lock``); see :doc:`pyodide_benchmark`.
+  Pyodide Web Workers are documented as the browser responsiveness and independent-job concurrency boundary, not as threading inside one independent component analysis (ICA) run.
+- ``runica`` can use ``scipy.linalg.blas.dgemm`` for its matrix products under Emscripten; native platforms keep ``numpy.matmul``.
 - ``eegprep_lean.to_eeg`` fills ``chanlocs`` from the electrode positions a NEMAR store declares, which ``load_recording`` now reads into ``Window.electrodes``.
   A channel is matched to the entry for exactly its label, and gets ``X``, ``Y`` and ``Z`` in millimeters in EEGLAB's ALS frame, ``sph_theta``, ``sph_phi``, ``sph_radius``, ``theta`` and ``radius``.
   ``pop_load_frombids`` gives the same values from the same ``electrodes.tsv`` and coordsystem file, except where the import guesses a unit, assumes a system, or reads ``CTF``, ``4DBti`` or ``KitYokogawa``, which the BIDS appendix gives as ALS, as RAS.

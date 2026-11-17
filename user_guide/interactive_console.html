@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -578,6 +592,42 @@ wraps <code class="docutils literal notranslate"><span class="pre">pop_*</span><
 <p>This console behavior is specific to <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.</p>
 </section>
+<section id="browser-iclabel">
+<h2>Browser ICLabel<a class="headerlink" href="#browser-iclabel" title="Link to this heading">#</a></h2>
+<p>When the console is hosted inside a Pyodide/Emscripten browser runtime, ICLabel
+uses the asynchronous Open Neural Network Exchange (ONNX) Runtime Web path. Run it with <code class="docutils literal notranslate"><span class="pre">await</span></code> so the
+result is committed to the same GUI/console session:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pop_iclabel_async</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The browser-specific synchronous calls <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> fail
+fast with an instruction to use their async counterparts. A browser host must
+set <code class="docutils literal notranslate"><span class="pre">globalThis.eegprep_iclabel_web</span></code> to the ONNX Runtime Web bridge (see
+<a class="reference internal" href="plugins.html"><span class="doc">Bundled Plugins and Extensions</span></a> for its <code class="docutils literal notranslate"><span class="pre">run(...)</span></code> contract); placing Pyodide in a Web Worker is
+recommended for UI responsiveness. The async history command is recorded in
+<code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> with <code class="docutils literal notranslate"><span class="pre">await</span></code> and can be replayed with:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">await</span> <span class="n">eegh</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For an entry that has a top-level <code class="docutils literal notranslate"><span class="pre">await</span></code>, <code class="docutils literal notranslate"><span class="pre">eegh(n)</span></code> returns an awaitable instead of running it,
+so always replay such entries with <code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">eegh(n)</span></code>.
+Like EEGLAB’s <code class="docutils literal notranslate"><span class="pre">eegh</span></code>, EEGPrep records a command only once when it is identical to the most recent history entry,
+so running <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">await</span> <span class="pre">pop_iclabel_async(EEG,</span> <span class="pre">'default');</span></code> twice in a row, or replaying it with <code class="docutils literal notranslate"><span class="pre">eegh(1)</span></code>, adds a single entry.
+<code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> keeps the awaitable form for <code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">eegh(n)</span></code>,
+but the dataset’s own history records <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">pop_iclabel(EEG,</span> <span class="pre">'default');</span></code>,
+so a <code class="docutils literal notranslate"><span class="pre">.set</span></code> file saved from the browser replays in MATLAB EEGLAB, which has no <code class="docutils literal notranslate"><span class="pre">await</span></code>.</p>
+<p>The result is stored only if the selected datasets are unchanged when classification finishes.
+If you select another dataset while it runs,
+or edit the data, events, channel locations, or any other field of a selected dataset from the console or the GUI,
+<code class="docutils literal notranslate"><span class="pre">pop_iclabel_async</span></code> raises <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code>, keeps your edit, and discards the result;
+run it again on the current dataset.
+Recording history, a change of the <code class="docutils literal notranslate"><span class="pre">saved</span></code> flag, refreshing the GUI, and edits to unselected datasets do not discard it.
+When two <code class="docutils literal notranslate"><span class="pre">pop_iclabel_async</span></code> calls overlap, the first to finish stores its result and the other is discarded.</p>
+<p>The check covers the console’s <code class="docutils literal notranslate"><span class="pre">pop_iclabel_async</span></code> and <code class="docutils literal notranslate"><span class="pre">eegprep.pop_iclabel_async</span></code>, which store their result.
+<code class="docutils literal notranslate"><span class="pre">iclabel_async</span></code> only returns a classified copy and stores nothing, so it is not checked.
+A function imported from its defining module, as in <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">eegprep.plugins.ICLabel.pop_iclabel</span> <span class="pre">import</span> <span class="pre">pop_iclabel_async</span></code>, is the plain function:
+assigning its result to <code class="docutils literal notranslate"><span class="pre">EEG</span></code> stores it like any other assignment, without the check.</p>
+</section>
 <section id="channel-locations-and-reference">
 <h2>Channel Locations and Reference<a class="headerlink" href="#channel-locations-and-reference" title="Link to this heading">#</a></h2>
 <p>Open <code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">locations</span></code> to read a location file, look up labels in a
@@ -718,6 +768,7 @@ package installation for you.</p>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sample-data-walkthrough">Sample Data Walkthrough</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#browser-iclabel">Browser ICLabel</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#channel-locations-and-reference">Channel Locations and Reference</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#in-place-workspace-edits">In-place Workspace Edits</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-replay">History Replay</a></li>

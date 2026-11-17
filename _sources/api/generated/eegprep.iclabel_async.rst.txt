@@ -1,0 +1,6 @@
+﻿iclabel\_async
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: iclabel_async

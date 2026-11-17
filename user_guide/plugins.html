@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -663,14 +677,61 @@ options.</p>
 </section>
 <section id="iclabel">
 <h2>ICLabel<a class="headerlink" href="#iclabel" title="Link to this heading">#</a></h2>
-<p>The standalone Python engine ships the default ICLabel network. <code class="docutils literal notranslate"><span class="pre">lite</span></code> and
-<code class="docutils literal notranslate"><span class="pre">beta</span></code> network requests require MATLAB or Octave with an EEGLAB ICLabel
-checkout that provides those artifacts.</p>
+<p>The standalone Python engine ships the default ICLabel network as Open Neural Network Exchange (ONNX)
+artifacts and classifies through <code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code> (<code class="docutils literal notranslate"><span class="pre">eegprep[iclabel]</span></code>): the
+full-precision <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> on native platforms and the 8-bit
+<code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> in the browser. <code class="docutils literal notranslate"><span class="pre">lite</span></code>
+and <code class="docutils literal notranslate"><span class="pre">beta</span></code> network requests require MATLAB or Octave with an EEGLAB
+ICLabel checkout that provides those artifacts. How closely each packaged
+network matches the PyTorch one is in <a class="reference internal" href="ica_rejection.html#iclabel-measured-agreement"><span class="std std-ref">Measured Agreement of the Two Files</span></a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_iclabel</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">stats</span> <span class="o">=</span> <span class="n">eeg_icalabelstat</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_icflag</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>The result holds <code class="docutils literal notranslate"><span class="pre">classes</span></code>, <code class="docutils literal notranslate"><span class="pre">classifications</span></code> and <code class="docutils literal notranslate"><span class="pre">version</span></code> under
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;ic_classification&quot;][&quot;ICLabel&quot;]</span></code>, as in EEGLAB, and also
+<code class="docutils literal notranslate"><span class="pre">network</span></code>: the name of the packaged file that ran, <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> natively
+and <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> in the browser. The two networks differ by up to
+0.01346 per probability on the frozen evaluation set (the quantization gate
+allows 0.015), so a component near a <code class="docutils literal notranslate"><span class="pre">pop_icflag</span></code> threshold can be
+kept by one and rejected by the other, and <code class="docutils literal notranslate"><span class="pre">network</span></code> is the only record of
+which one classified. A saved <code class="docutils literal notranslate"><span class="pre">.set</span></code> file carries it. MATLAB EEGLAB ignores
+the field and neither writes nor clears it; with <code class="docutils literal notranslate"><span class="pre">engine=&quot;matlab&quot;</span></code> or
+<code class="docutils literal notranslate"><span class="pre">engine=&quot;octave&quot;</span></code> EEGPrep removes a stale <code class="docutils literal notranslate"><span class="pre">network</span></code> because EEGLAB’s own
+network ran.</p>
+<p>In a Pyodide/Emscripten browser runtime, use the asynchronous entry point and
+await the ONNX Runtime Web-backed operation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pop_iclabel_async</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The synchronous <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> entry points raise
+<code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> in that runtime; native Python behavior is unchanged.</p>
+<p>The browser host supplies the ONNX Runtime Web bridge by setting
+<code class="docutils literal notranslate"><span class="pre">globalThis.eegprep_iclabel_web</span></code> before the first call. It is an object with
+one method and one property:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">run</span><span class="p">(</span><span class="nx">imageData</span><span class="p">,</span><span class="w"> </span><span class="nx">imageShape</span><span class="p">,</span><span class="w"> </span><span class="nx">psdmedData</span><span class="p">,</span><span class="w"> </span><span class="nx">psdmedShape</span><span class="p">,</span><span class="w"> </span><span class="nx">autocorrData</span><span class="p">,</span><span class="w"> </span><span class="nx">autocorrShape</span><span class="p">)</span>
+<span class="nx">modelBytes</span><span class="w">  </span><span class="c1">// the Uint8Array of the model that run(...) uses</span>
+</pre></div>
+</div>
+<p>Each <code class="docutils literal notranslate"><span class="pre">*Data</span></code> argument is a flat <code class="docutils literal notranslate"><span class="pre">Float32Array</span></code> and each <code class="docutils literal notranslate"><span class="pre">*Shape</span></code> argument
+is an integer array: <code class="docutils literal notranslate"><span class="pre">[N,</span> <span class="pre">1,</span> <span class="pre">32,</span> <span class="pre">32]</span></code> for <code class="docutils literal notranslate"><span class="pre">image</span></code> and <code class="docutils literal notranslate"><span class="pre">[N,</span> <span class="pre">1,</span> <span class="pre">1,</span> <span class="pre">100]</span></code> for
+<code class="docutils literal notranslate"><span class="pre">psdmed</span></code> and <code class="docutils literal notranslate"><span class="pre">autocorr</span></code>, where <code class="docutils literal notranslate"><span class="pre">N</span></code> is four times the number of components
+(ICLabel classifies four augmented copies of each). <code class="docutils literal notranslate"><span class="pre">run</span></code> returns a <code class="docutils literal notranslate"><span class="pre">Promise</span></code>
+that resolves to the flat <code class="docutils literal notranslate"><span class="pre">Float32Array</span></code> of the network output, seven class
+scores for each of the <code class="docutils literal notranslate"><span class="pre">N</span></code> rows. Before every call EEGPrep compares the
+SHA-256 digest of <code class="docutils literal notranslate"><span class="pre">modelBytes</span></code> with the packaged <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> and
+raises a <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> naming both digests when they differ, so a stale or
+wrong model cannot classify silently. It also raises a <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> when
+<code class="docutils literal notranslate"><span class="pre">run</span></code> returns a NaN or infinite value. The reference implementation is
+<code class="docutils literal notranslate"><span class="pre">createIcLabelWebBridge</span></code> in <code class="docutils literal notranslate"><span class="pre">tools/pyodide/iclabel_web_bridge.mjs</span></code> in the
+source repository; it creates one <code class="docutils literal notranslate"><span class="pre">onnxruntime-web</span></code> session from the bytes of
+the packaged <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code>, the 8-bit network meant for the browser.
+It runs on one thread unless the host passes <code class="docutils literal notranslate"><span class="pre">numThreads</span></code> in its options
+argument or has already set <code class="docutils literal notranslate"><span class="pre">ort.env.wasm.numThreads</span></code> itself, which the
+bridge then leaves alone. ONNX Runtime Web reads that count once, when its
+WebAssembly backend starts, so a host that already created another session
+decides it.</p>
 <p>Review components visually with <code class="docutils literal notranslate"><span class="pre">pop_viewprops</span></code> before removing them.</p>
 </section>
 <section id="dipfit">

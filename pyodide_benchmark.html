@@ -1,0 +1,805 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" data-theme="light">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Pyodide browser execution, benchmarks, and ICLabel parity &#8212; EEGPrep manual</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=92c3505e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="_static/documentation_options.js?v=1dd76d02"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=b8b12719"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'pyodide_benchmark';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="_static/logo.jpg"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Changelog" href="changelog.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.5.0" />
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="light">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
+    
+    <img src="_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="auto_examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    Functions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    FAQ
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="references.html">
+    References
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="releasing.html">
+    Releasing
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" current active">
+  <a class="nav-link dropdown-item nav-internal" href="#">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="auto_examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    Functions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    FAQ
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="references.html">
+    References
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="releasing.html">
+    Releasing
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar"><svg class="pst-icon svg-inline--fa" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"></div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Pyodide browser execution, benchmarks, and ICLabel parity</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="pyodide-browser-execution-benchmarks-and-iclabel-parity">
+<h1>Pyodide browser execution, benchmarks, and ICLabel parity<a class="headerlink" href="#pyodide-browser-execution-benchmarks-and-iclabel-parity" title="Link to this heading">#</a></h1>
+<p>This page documents the Pyodide harness for the <a class="reference external" href="https://github.com/sccn/eegprep/issues/324">browser epic</a>.
+The harness installs a wheel built from the working tree under Pyodide, runs a real continuous-data smoke pipeline,
+measures the independent component analysis (ICA) and matrix products that determine whether browser ICA is worthwhile,
+and checks that ICLabel gives the same classifications in the browser as natively.</p>
+<section id="runtime-boundary">
+<h2>Runtime boundary<a class="headerlink" href="#runtime-boundary" title="Link to this heading">#</a></h2>
+<p>The harness pins <a class="reference external" href="https://pyodide.org/en/stable/usage/faq.html">Pyodide 0.29.5</a>
+and uses Pyodide’s <code class="docutils literal notranslate"><span class="pre">emfs:</span></code> local-wheel transport.
+The base install resolves under Pyodide with no extra wheel:
+<code class="docutils literal notranslate"><span class="pre">psutil</span></code> and <code class="docutils literal notranslate"><span class="pre">pyedflib</span></code>, which Pyodide cannot build, carry the marker <code class="docutils literal notranslate"><span class="pre">sys_platform</span> <span class="pre">!=</span> <span class="pre">'emscripten'</span></code> in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>,
+and CI enforces the rule: <code class="docutils literal notranslate"><span class="pre">tests/test_browser_dependency_floors.py</span></code> checks the markers, and the <code class="docutils literal notranslate"><span class="pre">pyodide</span></code> job’s live <code class="docutils literal notranslate"><span class="pre">micropip.install</span></code> of the wheel fails on any base package without a Pyodide build or a pure-Python wheel,
+while <code class="docutils literal notranslate"><span class="pre">tools/check_pyodide_base_resolution.py</span></code> is run by hand, needs network access, and checks the same rule from <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code>, the Pyodide lock and package-index metadata.
+MNE, PyBIDS, and the other extras are not part of the base install, so they are not installed.
+The live harness pins <code class="docutils literal notranslate"><span class="pre">threadpoolctl==3.6.0</span></code>, the version in <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code> (Pyodide bundles 3.5.0),
+and installs <code class="docutils literal notranslate"><span class="pre">python-picard</span></code> by name, because the benchmark runs Picard and micropip cannot apply the <code class="docutils literal notranslate"><span class="pre">picard</span></code> extra to a local wheel,
+while leaving EEGPrep’s published dependency ranges unchanged.</p>
+<p>EEGPrep’s ICA implementations do not use MNE.
+In particular, importing and running <code class="docutils literal notranslate"><span class="pre">runica</span></code> does not eagerly import MNE.</p>
+<p>Pyodide does not provide pthread support,
+so one Pyodide instance cannot run four or eight Python threads for a single ICA call.
+The benchmark therefore limits native Basic Linear Algebra Subprograms (BLAS) to one thread as well.
+A browser <a class="reference external" href="https://pyodide.org/en/stable/usage/index.html">Web Worker</a>
+is still the correct execution boundary:
+it keeps the user interface responsive, but it does not make one ICA solve faster.</p>
+<p>The scalable design is a bounded worker pool for independent jobs.
+EEGPrep should own the worker-safe operation contract and serialized progress/result messages.
+The host application, such as NEMAR (the NeuroElectroMagnetic Data Archive and Tools Resource),
+should own worker lifecycle, queueing, resource limits, cancellation policy,
+and whether a request uses one worker or a pool.
+Splitting one existing <code class="docutils literal notranslate"><span class="pre">runica</span></code> or Picard solve across workers is out of scope:
+its iterative weights are global state and would require a new synchronized distributed algorithm and a separate parity gate.</p>
+</section>
+<section id="reproducing-the-gate">
+<h2>Reproducing the gate<a class="headerlink" href="#reproducing-the-gate" title="Link to this heading">#</a></h2>
+<p>The harness requires <code class="docutils literal notranslate"><span class="pre">uv</span></code>, Node.js 22 or newer, and <a class="reference external" href="https://bun.sh">Bun</a>.
+Bun installs the pinned <code class="docutils literal notranslate"><span class="pre">pyodide</span></code> and <code class="docutils literal notranslate"><span class="pre">onnxruntime-web</span></code> packages from
+<code class="docutils literal notranslate"><span class="pre">tools/pyodide/bun.lock</span></code> (<code class="docutils literal notranslate"><span class="pre">bun</span> <span class="pre">install</span> <span class="pre">--frozen-lockfile</span></code>); Node.js runs the harness.
+From the repository root, build the EEGPrep wheel and run the sample-data smoke test with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>build<span class="w"> </span>--wheel<span class="w"> </span>--out-dir<span class="w"> </span>pyodide-artifacts
+tools/pyodide/run_pyodide.sh<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--wheel<span class="w"> </span>pyodide-artifacts/eegprep-*.whl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--script<span class="w"> </span>tools/pyodide/smoke.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--sample-data-dir<span class="w"> </span>sample_data
+</pre></div>
+</div>
+<p>The continuous integration (CI) job runs the same smoke test,
+then benchmarks a fixed <code class="docutils literal notranslate"><span class="pre">(64,</span> <span class="pre">15000)</span></code> continuous array (64 channels, 60 seconds at 250 Hz).
+Each algorithm has one warm-up and three measured runs,
+with a maximum of 512 ICA iterations and a fixed seed.
+The matrix benchmark uses the two runica products:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(64,</span> <span class="pre">64)</span> <span class="pre">&#64;</span> <span class="pre">(64,</span> <span class="pre">49)</span></code> for block activations;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(64,</span> <span class="pre">64)</span> <span class="pre">&#64;</span> <span class="pre">(64,</span> <span class="pre">64)</span></code> for the square weight update.</p></li>
+</ul>
+<p>Picard is measured through its underlying <code class="docutils literal notranslate"><span class="pre">picard(...,</span> <span class="pre">return_n_iter=True)</span></code> API
+with the same algorithmic options as EEGPrep’s <code class="docutils literal notranslate"><span class="pre">eeg_picard</span></code> wrapper;
+benchmark output is quiet and includes the underlying iteration telemetry.
+The benchmark does not change either production ICA implementation.
+<code class="docutils literal notranslate"><span class="pre">runica</span></code> casts its input to float64,
+so it selects one matrix-product helper at import time:
+native platforms retain NumPy <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>, while Emscripten uses SciPy <code class="docutils literal notranslate"><span class="pre">dgemm</span></code>.
+Picard remains unchanged.</p>
+</section>
+<section id="measured-results">
+<h2>Measured results<a class="headerlink" href="#measured-results" title="Link to this heading">#</a></h2>
+<p>These numbers come from one run on 2026-10-12, on a shared Apple M4 Pro laptop (14 cores, 64 GB memory, macOS 27.0.1),
+using the harness in <code class="docutils literal notranslate"><span class="pre">tools/pyodide</span></code> on the browser epic branch that day (an EEGPrep 0.4.0 wheel built from that tree).
+The Pyodide column ran under Node.js v26.10.0 with Pyodide 0.29.5 (21 minutes 49 seconds in total);
+the native column ran under Python 3.12.15 with NumPy 2.2.6 and SciPy 1.16.3, restricted to one BLAS thread
+(<code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS=1</span></code> and the related variables CI sets).
+Treat absolute times as indicative, because they vary with hardware and load;
+CI measures again on its own runners and uploads the reports for every run.</p>
+<p>The tables are generated from the native and Pyodide JSON reports with <code class="docutils literal notranslate"><span class="pre">tools/pyodide/compare_benchmarks.py</span></code>.
+CI uploads the wheel, the raw reports, the loader logs, and the ICLabel quantization log (<code class="docutils literal notranslate"><span class="pre">iclabel-quantization.log</span></code>)
+as the <code class="docutils literal notranslate"><span class="pre">pyodide-harness-output</span></code> artifact.</p>
+<section id="ica">
+<h3>ICA<a class="headerlink" href="#ica" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Algorithm</p></th>
+<th class="head text-right"><p>Native median (s)</p></th>
+<th class="head text-right"><p>Native median iterations</p></th>
+<th class="head text-center"><p>Native converged</p></th>
+<th class="head text-right"><p>Pyodide median (s)</p></th>
+<th class="head text-right"><p>Pyodide median iterations</p></th>
+<th class="head text-center"><p>Pyodide converged</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>runica</p></td>
+<td class="text-right"><p>89.102553</p></td>
+<td class="text-right"><p>512.0</p></td>
+<td class="text-center"><p>false</p></td>
+<td class="text-right"><p>241.325692</p></td>
+<td class="text-right"><p>512.0</p></td>
+<td class="text-center"><p>false</p></td>
+</tr>
+<tr class="row-odd"><td><p>picard</p></td>
+<td class="text-right"><p>7.413262</p></td>
+<td class="text-right"><p>511.0</p></td>
+<td class="text-center"><p>false</p></td>
+<td class="text-right"><p>81.136565</p></td>
+<td class="text-right"><p>511.0</p></td>
+<td class="text-center"><p>false</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="matrix-multiplication">
+<h3>Matrix multiplication<a class="headerlink" href="#matrix-multiplication" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>runica product</p></th>
+<th class="head"><p>dtype</p></th>
+<th class="head text-right"><p>Native NumPy <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> (s)</p></th>
+<th class="head text-right"><p>Native BLAS (s)</p></th>
+<th class="head text-right"><p>Native speedup</p></th>
+<th class="head text-right"><p>Pyodide NumPy <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> (s)</p></th>
+<th class="head text-right"><p>Pyodide BLAS (s)</p></th>
+<th class="head text-right"><p>Pyodide speedup</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>activation</p></td>
+<td><p>float64</p></td>
+<td class="text-right"><p>0.000009</p></td>
+<td class="text-right"><p>0.000018</p></td>
+<td class="text-right"><p>0.52x</p></td>
+<td class="text-right"><p>0.000263</p></td>
+<td class="text-right"><p>0.000131</p></td>
+<td class="text-right"><p>2.01x</p></td>
+</tr>
+<tr class="row-odd"><td><p>activation</p></td>
+<td><p>float32</p></td>
+<td class="text-right"><p>0.000005</p></td>
+<td class="text-right"><p>0.000014</p></td>
+<td class="text-right"><p>0.37x</p></td>
+<td class="text-right"><p>0.000270</p></td>
+<td class="text-right"><p>0.000278</p></td>
+<td class="text-right"><p>0.97x</p></td>
+</tr>
+<tr class="row-even"><td><p>weight_update</p></td>
+<td><p>float64</p></td>
+<td class="text-right"><p>0.000008</p></td>
+<td class="text-right"><p>0.000018</p></td>
+<td class="text-right"><p>0.46x</p></td>
+<td class="text-right"><p>0.000410</p></td>
+<td class="text-right"><p>0.000161</p></td>
+<td class="text-right"><p>2.55x</p></td>
+</tr>
+<tr class="row-odd"><td><p>weight_update</p></td>
+<td><p>float32</p></td>
+<td class="text-right"><p>0.000005</p></td>
+<td class="text-right"><p>0.000015</p></td>
+<td class="text-right"><p>0.33x</p></td>
+<td class="text-right"><p>0.000404</p></td>
+<td class="text-right"><p>0.000200</p></td>
+<td class="text-right"><p>2.01x</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="decisions">
+<h3>Decisions<a class="headerlink" href="#decisions" title="Link to this heading">#</a></h3>
+<p>The comparison script records whether Picard remains a safe browser default
+and whether SciPy BLAS is at least 1.2x faster than NumPy <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> for every tested runica product and dtype.
+Those decisions are intentionally based on measured convergence and timings, not on the code path alone.</p>
+<p>For this run, Picard was much faster in wall-clock time than <code class="docutils literal notranslate"><span class="pre">runica</span></code> in Pyodide (81 s against 241 s)
+but emitted its non-convergence warning at 511 iterations;
+<code class="docutils literal notranslate"><span class="pre">runica</span></code> also reached the 512-step cap.
+The conservative browser-default gate therefore returns <strong>false</strong> for Picard.
+The all-dtypes BLAS gate also returns <strong>false</strong>:
+the float32 activation product was 0.97x with <code class="docutils literal notranslate"><span class="pre">sgemm</span></code>, below the 1.2x threshold.</p>
+<p>EEGPrep adopts the narrower production-relevant decision.
+Because <code class="docutils literal notranslate"><span class="pre">runica</span></code> already operates on float64 data,
+its Emscripten hot-loop products use <code class="docutils literal notranslate"><span class="pre">scipy.linalg.blas.dgemm</span></code>;
+the measured float64 speedups were 2.01x for activation and 2.55x for the weight update.
+Native execution retains NumPy <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>, and Picard is not monkeypatched or distributed across workers.
+The comparison script intentionally retains the universal all-dtypes gate,
+so its <code class="docutils literal notranslate"><span class="pre">blas_recommended</span></code> field remains <strong>false</strong> even though the float64-only implementation is now covered and benchmarked.</p>
+</section>
+</section>
+<section id="browser-iclabel-parity">
+<h2>Browser ICLabel parity<a class="headerlink" href="#browser-iclabel-parity" title="Link to this heading">#</a></h2>
+<p>The same harness can run the packaged default ICLabel model through Open Neural Network Exchange (ONNX) Runtime Web,
+the browser build of the ONNX inference engine:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tools/pyodide/run_pyodide.sh<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--iclabel-web<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--wheel<span class="w"> </span>pyodide-artifacts/eegprep-*.whl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--script<span class="w"> </span>tools/pyodide/iclabel_parity.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--sample-data-dir<span class="w"> </span>sample_data<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>pyodide-artifacts/iclabel-pyodide.json<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--<span class="w"> </span>--platform<span class="w"> </span>pyodide
+</pre></div>
+</div>
+<p>The Node host loads the pinned <code class="docutils literal notranslate"><span class="pre">onnxruntime-web</span></code> package,
+creates one inference session from the <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> bytes extracted from the built wheel,
+and exposes it as <code class="docutils literal notranslate"><span class="pre">globalThis.eegprep_iclabel_web</span></code>.
+Pyodide sends only input tensors across that bridge.
+The Python <code class="docutils literal notranslate"><span class="pre">iclabel_async</span></code>/<code class="docutils literal notranslate"><span class="pre">pop_iclabel_async</span></code> APIs never import native <code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code> on Emscripten.
+If a host does not register the bridge, they raise an <code class="docutils literal notranslate"><span class="pre">ImportError</span></code> that names this contract.</p>
+<p>CI compares the browser result with a native <code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code> reference using <code class="docutils literal notranslate"><span class="pre">rtol=1e-4</span></code> and <code class="docutils literal notranslate"><span class="pre">atol=1e-5</span></code>.
+The reference runs <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> too, not the full-precision <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> that native <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> loads.
+The tolerance is tight on purpose: both runtimes execute the same packaged int8 weights in float32 arithmetic,
+so only small numerical differences between the runtimes are expected.
+The distance between the two files is the quantization gate’s (0.01346 largest probability difference, against a limit of 0.015).
+Both reports also record the SHA-256 digest of the <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> in their installed EEGPrep package
+(the working tree natively, the built wheel in Pyodide),
+and the comparison fails if the digests differ, so parity is always measured on the model the tree ships.
+The bridge defaults to the ONNX Runtime Web WebAssembly (WASM) execution provider with one thread;
+concurrency across independent jobs remains a host/Web Worker concern.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="changelog.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Changelog</p>
+      </div>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-boundary">Runtime boundary</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reproducing-the-gate">Reproducing the gate</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#measured-results">Measured results</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ica">ICA</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#matrix-multiplication">Matrix multiplication</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#decisions">Decisions</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#browser-iclabel-parity">Browser ICLabel parity</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024-2026, EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

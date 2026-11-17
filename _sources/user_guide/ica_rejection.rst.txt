@@ -96,7 +96,8 @@ and topographies, so label probabilities change if the scale is skipped.
 ICLabel Workflow
 ================
 
-Run ICLabel after ICA:
+Run ICLabel after ICA. ICLabel runs on Open Neural Network Exchange (ONNX) Runtime, which the ``iclabel`` extra
+installs (``uv add "eegprep[iclabel]"``):
 
 .. code-block:: python
 
@@ -195,9 +196,99 @@ preserves event display state through the ``scroll_event`` option.
 Network Availability
 ====================
 
-The standalone Python engine ships the default ICLabel network
-(``netICL.mat``). EEGLAB ``lite`` and ``beta`` network artifacts are not
-bundled in the Python package; requesting them with ``engine=None`` raises a
-clear limitation. They can still be requested through ``engine="matlab"`` or
-``engine="octave"`` when that runtime has an EEGLAB ICLabel checkout with those
-artifacts.
+The standalone Python engine ships one ICLabel network, the EEGLAB ``default``
+network, in two files, and classifies components with ``onnxruntime``. Install
+the ``iclabel`` extra (``eegprep[iclabel]``) to run it. Feature extraction, the
+cast to float32, four-way augmentation, and the output softmax are the same for
+both files.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 16 60
+
+   * - File
+     - Size
+     - What loads it
+   * - ``iclabel.onnx``
+     - 11.6 MB
+     - ``iclabel``, ``pop_iclabel``, and ``pop_iclabel_async`` on every native
+       platform. The weights are full-precision float32, so probabilities match
+       the PyTorch network of earlier releases to about 1e-6.
+   * - ``iclabel_int8.onnx``
+     - 2.9 MB
+     - The browser. The host page gives these bytes to ONNX Runtime Web, which
+       ``iclabel_async`` awaits under Pyodide. Only the convolution weights are
+       stored as 8-bit integers (weight-only quantization) to keep the download
+       small.
+
+EEGLAB ``lite`` and ``beta`` network artifacts are not bundled in the Python
+package; requesting them with ``engine=None`` raises a clear limitation. They
+can still be requested through ``engine="matlab"`` or ``engine="octave"``
+when that runtime has an EEGLAB ICLabel checkout with those artifacts.
+
+.. _iclabel_measured_agreement:
+
+Measured Agreement of the Two Files
+-----------------------------------
+
+The full-precision file matches the PyTorch network built from the same EEGLAB
+weights to float32 kernel noise. On the 217 evaluation components described
+below, the raw network outputs differ from PyTorch by at most 2.1e-06 and the
+averaged class probabilities by at most 1.2e-06, with the same top-1 class and
+keep-or-reject decision for every component
+(``tests/test_iclabel_quantization.py`` checks this against PyTorch whenever
+PyTorch is installed).
+
+Quantization changes the class probabilities of the 8-bit file slightly. To
+measure how much, the full-precision (float32) network classified a frozen set
+of 217 independent components, one recording from each of seven subjects of the
+public OpenNeuro dataset ds002680, and its probabilities were stored once as
+reference values (``tools/iclabel/evaluation_teacher_probabilities.npy``). The
+committed manifest ``tools/iclabel/evaluation_manifest.json`` records the
+recordings and the ICA settings. The 8-bit file passed all three acceptance
+criteria:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 18 18 18
+
+   * - Criterion
+     - Required
+     - Measured
+     - Passed
+   * - Components whose top-1 class matches
+     - at least 0.95
+     - 1.0 (217 of 217)
+     - yes
+   * - Components with the same keep-or-reject decision under the default
+       ``pop_icflag`` thresholds
+     - at least 0.99
+     - 1.0 (217 of 217)
+     - yes
+   * - Largest absolute difference in any class probability
+     - at most 0.015
+     - 0.01346
+     - yes
+
+The mean absolute probability difference was 0.00080. "Keep-or-reject" asks
+whether ``pop_icflag`` would flag the component for removal. A variant that
+also quantized the activations (calibrated int8) was evaluated during development
+and exceeded the 0.015 probability criterion, so it was not shipped.
+
+The complete report is ``tools/iclabel/parity_report.json``. It records the
+SHA-256 of ``iclabel_int8.onnx``, which the release workflow checks against the
+packaged file. Continuous integration also rebuilds both networks from
+``netICL.mat``, requires the full-precision export to match the shipped
+``iclabel.onnx`` to 1e-5 and the 8-bit file to produce network outputs
+identical to the shipped ``iclabel_int8.onnx`` on the evaluation components.
+
+These are measured agreement results on one frozen set, not an accuracy claim.
+The set is dominated by one class: the full-precision network labels 193 of the
+217 components Other (and 18 Brain, 5 Eye, 1 Muscle), and Heart, Line Noise, and
+Channel Noise do not occur, so the agreement figures say nothing about those
+classes. Native results follow releases up to 0.5.0, which classified with
+PyTorch, to about 1e-6; results from the browser's 8-bit file can differ from
+them by up to about 0.0135 (the largest difference measured on this set).
+
+Developers who change ``netICL.mat`` or the quantization rebuild the packaged
+networks with the ``torch`` extra; the procedure is in :ref:`releasing`.

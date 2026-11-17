@@ -63,7 +63,7 @@
     <link rel="icon" href="../../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="optimal_kmeans" href="eegprep.optimal_kmeans.html" />
+    <link rel="next" title="iclabel_async" href="eegprep.iclabel_async.html" />
     <link rel="prev" title="icavar" href="eegprep.icavar.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -365,6 +372,13 @@
   </a>
 </li>
 
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
   </ul>
 </nav></div>
           
@@ -449,6 +463,7 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.icaproj.html">icaproj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.icavar.html">icavar</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">iclabel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.iclabel_async.html">iclabel_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.optimal_kmeans.html">optimal_kmeans</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.picard.html">picard</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.posact.html">posact</a></li>
@@ -543,29 +558,49 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.iclabel">
 <span class="sig-name descname"><span class="pre">iclabel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">engine</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'iclabel'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.iclabel" title="Link to this definition">#</a></dt>
-<dd><p>Apply ICLabel to classify independent components.</p>
-<section id="parameters">
-<h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
-<dl class="simple">
-<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEGLAB EEG structure</p>
+<dd><p>Classify independent components with ICLabel.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">engine=None</span></code> this runs the packaged full-precision ICLabel network
+(<code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code>) through ONNX Runtime, which needs the <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> extra
+(<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[iclabel]&quot;</span></code>). <code class="docutils literal notranslate"><span class="pre">engine='matlab'</span></code> or <code class="docutils literal notranslate"><span class="pre">'octave'</span></code>
+instead calls ICLabel in an EEGLAB installation through that engine.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>EEG</strong> – EEG dataset with an ICA decomposition. It is not modified.</p></li>
+<li><p><strong>algorithm</strong> – ICLabel network: <code class="docutils literal notranslate"><span class="pre">'default'</span></code>, <code class="docutils literal notranslate"><span class="pre">'lite'</span></code>, or <code class="docutils literal notranslate"><span class="pre">'beta'</span></code>
+(case-insensitive; <code class="docutils literal notranslate"><span class="pre">None</span></code> means <code class="docutils literal notranslate"><span class="pre">'default'</span></code>). Only
+<code class="docutils literal notranslate"><span class="pre">'default'</span></code> ships with EEGPrep; <code class="docutils literal notranslate"><span class="pre">'lite'</span></code> and <code class="docutils literal notranslate"><span class="pre">'beta'</span></code> need a
+MATLAB or Octave engine.</p></li>
+<li><p><strong>engine</strong> – <code class="docutils literal notranslate"><span class="pre">None</span></code> for the packaged network, or <code class="docutils literal notranslate"><span class="pre">'matlab'</span></code> or
+<code class="docutils literal notranslate"><span class="pre">'octave'</span></code>.</p></li>
+<li><p><strong>feature</strong> – Name of the calling function, used in the message of a
+missing-extra <code class="docutils literal notranslate"><span class="pre">ImportError</span></code>.</p></li>
+</ul>
 </dd>
-<dt>algorithm<span class="classifier">str</span></dt><dd><p>Algorithm to use for classification, passed to the MATLAB/Octave implementation.
-Default is ‘default’.</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A copy of <code class="docutils literal notranslate"><span class="pre">EEG</span></code> whose <code class="docutils literal notranslate"><span class="pre">etc.ic_classification.ICLabel</span></code> holds
+<code class="docutils literal notranslate"><span class="pre">classes</span></code>, <code class="docutils literal notranslate"><span class="pre">classifications</span></code> (components x 7 probabilities), and
+<code class="docutils literal notranslate"><span class="pre">version</span></code>. With <code class="docutils literal notranslate"><span class="pre">engine=None</span></code> it also holds <code class="docutils literal notranslate"><span class="pre">network</span></code>, the name
+of the packaged file that ran (<code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code>), because the
+full-precision and 8-bit networks differ by up to 0.01346 per
+probability on the frozen evaluation set. MATLAB EEGLAB ignores <code class="docutils literal notranslate"><span class="pre">network</span></code>; EEGPrep removes a stale
+one when EEGLAB’s own network runs through <code class="docutils literal notranslate"><span class="pre">engine='matlab'</span></code> or
+<code class="docutils literal notranslate"><span class="pre">'octave'</span></code>, and EEGLAB itself neither writes nor clears it.</p>
 </dd>
-<dt>engine<span class="classifier">str or None</span></dt><dd><p>Engine to use for implementation. Options are:
-- None: Use the default Python implementation
-- ‘matlab’: Use MATLAB engine
-- ‘octave’: Use Octave engine</p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)">dict</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – Under Emscripten (Pyodide), where ICLabel runs only
+    through <a class="reference internal" href="eegprep.iclabel_async.html#eegprep.iclabel_async" title="eegprep.iclabel_async"><code class="xref py py-func docutils literal notranslate"><span class="pre">iclabel_async()</span></code></a>.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">engine</span></code> or <code class="docutils literal notranslate"><span class="pre">algorithm</span></code> is not supported.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#NotImplementedError" title="(in Python v3.15)"><strong>NotImplementedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">algorithm</span></code> is <code class="docutils literal notranslate"><span class="pre">'lite'</span></code> or <code class="docutils literal notranslate"><span class="pre">'beta'</span></code> with
+    <code class="docutils literal notranslate"><span class="pre">engine=None</span></code>.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.15)"><strong>ImportError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">engine=None</span></code> and onnxruntime is not installed.</p></li>
+</ul>
 </dd>
 </dl>
-</section>
-<section id="returns">
-<h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
-<dl class="simple">
-<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEGLAB EEG structure with ICLabel classifications added</p>
-</dd>
-</dl>
-</section>
 </dd></dl>
 
 </section>
@@ -590,11 +625,11 @@ Default is ‘default’.</p>
       </div>
     </a>
     <a class="right-next"
-       href="eegprep.optimal_kmeans.html"
+       href="eegprep.iclabel_async.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">optimal_kmeans</p>
+        <p class="prev-next-title">iclabel_async</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

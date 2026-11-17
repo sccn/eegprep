@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -365,6 +372,13 @@
   </a>
 </li>
 
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
   </ul>
 </nav></div>
           
@@ -484,6 +498,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_expica.html">pop_expica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_icathresh.html">pop_icathresh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_iclabel.html">pop_iclabel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_iclabel_async.html">pop_iclabel_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_prop.html">pop_prop</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_prop_extended.html">pop_prop_extended</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_runica.html">pop_runica</a></li>
@@ -849,21 +864,24 @@ array indices.</p>
 <td><p>Set ICA rejection thresholds and update <code class="docutils literal notranslate"><span class="pre">reject.gcompreject</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_iclabel.html#eegprep.pop_iclabel" title="eegprep.pop_iclabel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_iclabel</span></code></a>(EEG[, icversion, gui, ...])</p></td>
-<td><p>Classify independent components using ICLabel.</p></td>
+<td><p>Classify independent components with ICLabel, EEGLAB style.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_prop.html#eegprep.pop_prop" title="eegprep.pop_prop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_prop</span></code></a>([EEG, typecomp, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_iclabel_async.html#eegprep.pop_iclabel_async" title="eegprep.pop_iclabel_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_iclabel_async</span></code></a>(EEG[, icversion, ...])</p></td>
+<td><p>Classify independent components with ICLabel from asynchronous code.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_prop.html#eegprep.pop_prop" title="eegprep.pop_prop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_prop</span></code></a>([EEG, typecomp, ...])</p></td>
 <td><p>Plot properties of one channel or independent component.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_prop_extended.html#eegprep.pop_prop_extended" title="eegprep.pop_prop_extended"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_prop_extended</span></code></a>([EEG, typecomp, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_prop_extended.html#eegprep.pop_prop_extended" title="eegprep.pop_prop_extended"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_prop_extended</span></code></a>([EEG, typecomp, ...])</p></td>
 <td><p>Render the EEGLAB viewprops-style extended property dashboard.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_runica.html#eegprep.pop_runica" title="eegprep.pop_runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_runica</span></code></a>(EEG, *args[, icatype, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_runica.html#eegprep.pop_runica" title="eegprep.pop_runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_runica</span></code></a>(EEG, *args[, icatype, ...])</p></td>
 <td><p>Run ICA decomposition with EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> calling semantics.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_subcomp.html#eegprep.pop_subcomp" title="eegprep.pop_subcomp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_subcomp</span></code></a>(EEG[, components, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_subcomp.html#eegprep.pop_subcomp" title="eegprep.pop_subcomp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_subcomp</span></code></a>(EEG[, components, ...])</p></td>
 <td><p>Remove ICA components from data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_viewprops.html#eegprep.pop_viewprops" title="eegprep.pop_viewprops"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_viewprops</span></code></a>(EEG[, typecomp, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_viewprops.html#eegprep.pop_viewprops" title="eegprep.pop_viewprops"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_viewprops</span></code></a>(EEG[, typecomp, ...])</p></td>
 <td><p>Render channel/component property overview figures and activity views.</p></td>
 </tr>
 </tbody>

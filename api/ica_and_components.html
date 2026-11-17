@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -361,6 +368,13 @@
   </a>
 </li>
 
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
   </ul>
 </nav></div>
           
@@ -445,6 +459,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icaproj.html">icaproj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icavar.html">icavar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.iclabel.html">iclabel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.iclabel_async.html">iclabel_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.optimal_kmeans.html">optimal_kmeans</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.picard.html">picard</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.posact.html">posact</a></li>
@@ -607,54 +622,57 @@ zero-based component and sample indices.</p>
 <td><p>Return per-frame scalp variance contributed by selected components.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.iclabel.html#eegprep.iclabel" title="eegprep.iclabel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.iclabel</span></code></a>(EEG[, algorithm, engine, ...])</p></td>
-<td><p>Apply ICLabel to classify independent components.</p></td>
+<td><p>Classify independent components with ICLabel.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.optimal_kmeans.html#eegprep.optimal_kmeans" title="eegprep.optimal_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.optimal_kmeans</span></code></a>(clustdata, clusnum, *)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.iclabel_async.html#eegprep.iclabel_async" title="eegprep.iclabel_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.iclabel_async</span></code></a>(EEG[, algorithm, ...])</p></td>
+<td><p>Classify independent components with ICLabel from asynchronous code.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.optimal_kmeans.html#eegprep.optimal_kmeans" title="eegprep.optimal_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.optimal_kmeans</span></code></a>(clustdata, clusnum, *)</p></td>
 <td><p>Run k-means for a range and choose the best silhouette score.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.picard.html#eegprep.picard" title="eegprep.picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.picard</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.picard.html#eegprep.picard" title="eegprep.picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.picard</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_picard.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.posact.html#eegprep.posact" title="eegprep.posact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.posact</span></code></a>(data, weights[, sphere])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.posact.html#eegprep.posact" title="eegprep.posact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.posact</span></code></a>(data, weights[, sphere])</p></td>
 <td><p>Flip ICA components whose negative samples have the larger RMS.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.promax.html#eegprep.promax" title="eegprep.promax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.promax</span></code></a>(data[, n_components, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.promax.html#eegprep.promax" title="eegprep.promax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.promax</span></code></a>(data[, n_components, ...])</p></td>
 <td><p>Return oblique Promax and orthogonal Varimax row rotations.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.robust_kmeans.html#eegprep.robust_kmeans" title="eegprep.robust_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.robust_kmeans</span></code></a>(data, clus_num[, STD, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.robust_kmeans.html#eegprep.robust_kmeans" title="eegprep.robust_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.robust_kmeans</span></code></a>(data, clus_num[, STD, ...])</p></td>
 <td><p>Cluster rows and iteratively mark distant rows as outliers.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.spher.html#eegprep.spher" title="eegprep.spher"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.spher</span></code></a>(data)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.spher.html#eegprep.spher" title="eegprep.spher"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.spher</span></code></a>(data)</p></td>
 <td><p>Return the sphering (whitening) matrix for the given data.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runamica.html#eegprep.runamica" title="eegprep.runamica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runamica</span></code></a>(data[, num_models, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runamica.html#eegprep.runamica" title="eegprep.runamica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runamica</span></code></a>(data[, num_models, ...])</p></td>
 <td><p>Run AMICA binary on a data matrix.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica.html#eegprep.runica" title="eegprep.runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica</span></code></a>(data, *args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica.html#eegprep.runica" title="eegprep.runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Perform Independent Component Analysis (ICA) decomposition using infomax.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica_ml2.html#eegprep.runica_ml2" title="eegprep.runica_ml2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_ml2</span></code></a>(data, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica_ml2.html#eegprep.runica_ml2" title="eegprep.runica_ml2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_ml2</span></code></a>(data, **kwargs)</p></td>
 <td><p>Run the ML2 infomax defaults through the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> engine.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica_mlb.html#eegprep.runica_mlb" title="eegprep.runica_mlb"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_mlb</span></code></a>(data, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica_mlb.html#eegprep.runica_mlb" title="eegprep.runica_mlb"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_mlb</span></code></a>(data, **kwargs)</p></td>
 <td><p>Run the MLB infomax defaults through the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> engine.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runicalowmem.html#eegprep.runicalowmem" title="eegprep.runicalowmem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runicalowmem</span></code></a>(data, *args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runicalowmem.html#eegprep.runicalowmem" title="eegprep.runicalowmem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runicalowmem</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Run infomax ICA through EEGPrep's single maintained ICA engine.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runpca.html#eegprep.runpca" title="eegprep.runpca"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca</span></code></a>(data[, n_components, normalize])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runpca.html#eegprep.runpca" title="eegprep.runpca"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca</span></code></a>(data[, n_components, normalize])</p></td>
 <td><p>Decompose channel-major data into principal components.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runpca2.html#eegprep.runpca2" title="eegprep.runpca2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca2</span></code></a>(data[, n_components, symmetric])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runpca2.html#eegprep.runpca2" title="eegprep.runpca2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca2</span></code></a>(data[, n_components, symmetric])</p></td>
 <td><p>Whiten channel-major data from its channel covariance matrix.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.varimax.html#eegprep.varimax" title="eegprep.varimax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varimax</span></code></a>(data[, tolerance, reorder, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.varimax.html#eegprep.varimax" title="eegprep.varimax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varimax</span></code></a>(data[, tolerance, reorder, ...])</p></td>
 <td><p>Rotate matrix rows toward a sparse, orthogonal simple structure.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.varsort.html#eegprep.varsort" title="eegprep.varsort"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varsort</span></code></a>(activations, weights, sphere)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.varsort.html#eegprep.varsort" title="eegprep.varsort"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varsort</span></code></a>(activations, weights, sphere)</p></td>
 <td><p>Return zero-based component order and descending projected power.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.zica.html#eegprep.zica" title="eegprep.zica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.zica</span></code></a>(activations[, frames, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.zica.html#eegprep.zica" title="eegprep.zica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.zica</span></code></a>(activations[, frames, ...])</p></td>
 <td><p>Z-score ICA activations from repeated within-epoch baseline frames.</p></td>
 </tr>
 </tbody>

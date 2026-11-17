@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -523,12 +537,15 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 <p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span></code> creates <code class="docutils literal notranslate"><span class="pre">.venv/</span></code> and installs EEGPrep in editable mode from the
 locked dependency set. The development environment includes the GUI and
 <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> runtime dependencies so <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">eegprep-console</span> <span class="pre">--full</span></code>
-works from a fresh checkout. Use <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span></code> for commands so they execute inside
-this environment.</p>
+works from a fresh checkout, and Open Neural Network Exchange (ONNX) Runtime (the <code class="docutils literal notranslate"><span class="pre">dev</span></code> group
+includes it) because the gallery examples and tests run ICLabel. Use <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span></code> for commands so they
+execute inside this environment. On an Intel Mac with Python 3.12 or 3.13 the lock
+installs ONNX Runtime 1.23.2, the last release with a macOS x86_64 wheel; that
+release has none for Python 3.14.</p>
 </section>
 <section id="install-documentation-dependencies">
 <h3>Install Documentation Dependencies<a class="headerlink" href="#install-documentation-dependencies" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>--group<span class="w"> </span>dev
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>docs
 </pre></div>
 </div>
 <p>This installs:</p>
@@ -536,6 +553,7 @@ this environment.</p>
 <li><p>The eegprep package in editable mode</p></li>
 <li><p>Development dependencies used by repo tooling</p></li>
 <li><p>Documentation dependencies</p></li>
+<li><p>ONNX Runtime (the <code class="docutils literal notranslate"><span class="pre">dev</span></code> group includes it), because the gallery examples run ICLabel</p></li>
 </ul>
 </section>
 </section>
@@ -550,7 +568,10 @@ EEGPrep currently pins <code class="docutils literal notranslate"><span class="p
 <code class="docutils literal notranslate"><span class="pre">fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9</span></code> and the EEGLAB submodule commit
 <code class="docutils literal notranslate"><span class="pre">d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4</span></code>.
 That suite commit is the squash merge of <code class="docutils literal notranslate"><span class="pre">sccn/eeglab_tests</span></code> pull request
-16 on <code class="docutils literal notranslate"><span class="pre">master</span></code>.</p>
+16 on <code class="docutils literal notranslate"><span class="pre">master</span></code>.
+The vendored <code class="docutils literal notranslate"><span class="pre">src/eegprep/eeglab</span></code> submodule is pinned to the same EEGLAB commit.
+The reference workflow runs MATLAB on that submodule, and <code class="docutils literal notranslate"><span class="pre">tests/conftest.py</span></code> refuses a MATLAB-backed run on any other commit.
+A repin therefore moves the submodule together with the pins in <code class="docutils literal notranslate"><span class="pre">tests/eeglab_tests/__init__.py</span></code> and <code class="docutils literal notranslate"><span class="pre">tools/eeglab_test_port_audit.py</span></code>.</p>
 <p>The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
 implementation-coverage targets, or EEGPrep capability fixes. Reuse unchanged
@@ -1762,7 +1783,7 @@ uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </sp
 <h3>Documentation Build Errors<a class="headerlink" href="#documentation-build-errors" title="Link to this heading">#</a></h3>
 <p><strong>Problem</strong>: Sphinx build fails with missing modules</p>
 <p><strong>Solution</strong>: Install documentation dependencies:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>--group<span class="w"> </span>dev
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>docs
 </pre></div>
 </div>
 </section>

@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -549,8 +563,8 @@ plotting, and EDF, BDF, and GDF export work with no brackets.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[full]&quot;</span>
 </pre></div>
 </div>
-<p>To include every optional extra, including the GUI, console, docs, and
-classifier dependencies:</p>
+<p>To include every optional extra, including the GUI, console, docs, ICLabel,
+and PyTorch dependencies:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[all]&quot;</span>
 </pre></div>
 </div>
@@ -575,8 +589,9 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 and uses <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code> for reproducible dependency resolution. The development
 environment includes the GUI and console runtime dependencies, so a fresh
 checkout can immediately launch <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">eegprep-console</span> <span class="pre">--full</span></code>. It also
-installs the <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>, <code class="docutils literal notranslate"><span class="pre">mne</span></code>, <code class="docutils literal notranslate"><span class="pre">pybids</span></code>, and <code class="docutils literal notranslate"><span class="pre">picard</span></code> packages so the
-test suite can exercise Octave, MNE conversion, BIDS import, and Picard ICA.</p>
+installs the <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>, <code class="docutils literal notranslate"><span class="pre">mne</span></code>, <code class="docutils literal notranslate"><span class="pre">pybids</span></code>, <code class="docutils literal notranslate"><span class="pre">picard</span></code>, and <code class="docutils literal notranslate"><span class="pre">iclabel</span></code>
+packages so the test suite can exercise Octave, MNE conversion, BIDS import,
+Picard ICA, and ICLabel.</p>
 <p>To develop or build documentation from source, include the docs extra:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>docs
 </pre></div>
@@ -615,26 +630,35 @@ BrainVision Analyzer <code class="docutils literal notranslate"><span class="pre
 <li><p><code class="docutils literal notranslate"><span class="pre">picard</span></code> (<code class="docutils literal notranslate"><span class="pre">python-picard</span></code>), Picard ICA. The default <code class="docutils literal notranslate"><span class="pre">runica</span></code> path
 does not need it. This extra also installs scikit-learn.</p></li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">eegprep[all]</span></code> includes these four extras plus the GUI, console, docs, and
-PyTorch extras.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eegprep[all]</span></code> includes these four extras plus the GUI, console, docs,
+ICLabel, and PyTorch extras.</p>
 <p>Riemannian ASR (<code class="docutils literal notranslate"><span class="pre">clean_asr(...,</span> <span class="pre">useriemannian=True)</span></code> and
 <code class="docutils literal notranslate"><span class="pre">Distance=&quot;Riemannian&quot;</span></code>) is included. It uses NumPy and SciPy; there is no
 separate manifold package to install.</p>
 </section>
-<section id="pytorch-for-gpu-acceleration">
-<h3>PyTorch (for GPU acceleration)<a class="headerlink" href="#pytorch-for-gpu-acceleration" title="Link to this heading">#</a></h3>
-<p>To use GPU-accelerated processing with PyTorch:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch
+<section id="iclabel-component-classification">
+<h3>ICLabel (component classification)<a class="headerlink" href="#iclabel-component-classification" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> classify independent components with a packaged
+Open Neural Network Exchange (ONNX) network run by <code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code>. Install the
+<code class="docutils literal notranslate"><span class="pre">iclabel</span></code> extra to enable them. It is not part of <code class="docutils literal notranslate"><span class="pre">full</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[iclabel]&quot;</span>
 </pre></div>
 </div>
-<p>For CUDA support (NVIDIA GPUs):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
-</pre></div>
-</div>
-<p>For CPU-only PyTorch:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cpu
-</pre></div>
-</div>
+<p>PyTorch is not required to run ICLabel classification. Two network files ship
+in the package. <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> holds the full-precision weights (about 11.6 MB)
+and is what <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> load on every native platform; it
+matches the previous PyTorch network to about 1e-6.
+<code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> stores the weights as 8-bit integers (about 2.9 MB) for the
+browser, where the host page supplies the model bytes to ONNX Runtime Web and
+<code class="docutils literal notranslate"><span class="pre">iclabel_async</span></code> awaits the result. <a class="reference internal" href="ica_rejection.html#iclabel-measured-agreement"><span class="std std-ref">Measured Agreement of the Two Files</span></a> reports how
+closely each file matches the others. Developers who change the network rebuild
+both files with the <code class="docutils literal notranslate"><span class="pre">torch</span></code> extra, following <a class="reference internal" href="../releasing.html#releasing"><span class="std std-ref">Releasing</span></a>; ICLabel itself
+does not need that extra.</p>
+<p>In a browser (Pyodide), <code class="docutils literal notranslate"><span class="pre">psutil</span></code> and <code class="docutils literal notranslate"><span class="pre">pyedflib</span></code> are not installed because
+they have no WebAssembly build, although every other install includes them. EDF
+and BDF export, memory-based <code class="docutils literal notranslate"><span class="pre">ReservePerJob</span></code> reservations such as <code class="docutils literal notranslate"><span class="pre">&quot;4GB&quot;</span></code>,
+and the free-memory fallback of ASR then raise an <code class="docutils literal notranslate"><span class="pre">ImportError</span></code> that says so;
+give ASR an explicit <code class="docutils literal notranslate"><span class="pre">maxmem</span></code> that fits its lookahead buffers instead.</p>
 </section>
 <section id="pamica">
 <h3>pAMICA<a class="headerlink" href="#pamica" title="Link to this heading">#</a></h3>
@@ -646,6 +670,20 @@ Install it with the <code class="docutils literal notranslate"><span class="pre"
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">pop_runica(EEG,</span> <span class="pre">icatype=&quot;pamica&quot;)</span></code> and <code class="docutils literal notranslate"><span class="pre">eeg_pamica</span></code> use it.
 The extra is part of <code class="docutils literal notranslate"><span class="pre">eegprep[all]</span></code> and not of <code class="docutils literal notranslate"><span class="pre">eegprep[full]</span></code>.</p>
+<p>PyTorch is used only by pAMICA and by the developer export of the ICLabel networks
+(see <a class="reference internal" href="../releasing.html#releasing"><span class="std std-ref">Releasing</span></a>); no other function needs it, and EEGPrep computes on the CPU
+unless pAMICA’s <code class="docutils literal notranslate"><span class="pre">device</span></code> argument selects a GPU.
+For a GPU, install the PyTorch build that matches your CUDA version first, then the
+<code class="docutils literal notranslate"><span class="pre">pamica</span></code> extra; the troubleshooting section below shows how to find your CUDA version
+and links PyTorch’s install page.
+For example, for NVIDIA GPUs with CUDA 11.8:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+</pre></div>
+</div>
+<p>and for CPU-only PyTorch:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cpu
+</pre></div>
+</div>
 </section>
 <section id="amica">
 <h3>AMICA<a class="headerlink" href="#amica" title="Link to this heading">#</a></h3>
@@ -683,7 +721,7 @@ uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> <
 </pre></div>
 </div>
 <p>Or with specific extras:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[torch,gui,docs]&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[iclabel,gui,docs]&quot;</span>
 </pre></div>
 </div>
 </section>
@@ -746,9 +784,9 @@ uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </s
 </pre></div>
 </div>
 </section>
-<section id="pytorch-installation-issues">
-<h3>PyTorch Installation Issues<a class="headerlink" href="#pytorch-installation-issues" title="Link to this heading">#</a></h3>
-<p><strong>Problem</strong>: PyTorch installation fails or GPU not detected</p>
+<section id="pamica-and-pytorch-installation-issues">
+<h3>pAMICA and PyTorch Installation Issues<a class="headerlink" href="#pamica-and-pytorch-installation-issues" title="Link to this heading">#</a></h3>
+<p><strong>Problem</strong>: PyTorch installation fails or pAMICA does not detect the GPU</p>
 <p><strong>Solution</strong>:</p>
 <ol class="arabic simple">
 <li><p>Check your CUDA version:</p></li>
@@ -792,7 +830,6 @@ any companion <code class="docutils literal notranslate"><span class="pre">.fdt<
 <li><p>Process data in chunks or epochs</p></li>
 <li><p>Reduce the number of channels if possible</p></li>
 <li><p>Increase available RAM or use a machine with more memory</p></li>
-<li><p>Use GPU acceleration if available</p></li>
 </ol>
 </section>
 </section>
@@ -868,7 +905,7 @@ any companion <code class="docutils literal notranslate"><span class="pre">.fdt<
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-dependencies">Optional Dependencies</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-restores-the-previous-base-install"><code class="docutils literal notranslate"><span class="pre">full</span></code> restores the previous base install</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-for-gpu-acceleration">PyTorch (for GPU acceleration)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#iclabel-component-classification">ICLabel (component classification)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pamica">pAMICA</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amica">AMICA</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation-building">Documentation Building</a></li>
@@ -880,7 +917,7 @@ any companion <code class="docutils literal notranslate"><span class="pre">.fdt<
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">Troubleshooting</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#import-errors">Import Errors</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version-conflicts">Version Conflicts</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-installation-issues">PyTorch Installation Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pamica-and-pytorch-installation-issues">pAMICA and PyTorch Installation Issues</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eeglab-file-format-issues">EEGLAB File Format Issues</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-issues">Memory Issues</a></li>
 </ul>

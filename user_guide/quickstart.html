@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -619,7 +633,10 @@ Console <code class="docutils literal notranslate"><span class="pre">pop_*</span
 <section id="load-epoched-ica-data">
 <h2>Load Epoched ICA Data<a class="headerlink" href="#load-epoched-ica-data" title="Link to this heading">#</a></h2>
 <p>Use the ICA sample when you want to review ICLabel/component workflows without
-waiting for a decomposition:</p>
+waiting for a decomposition. ICLabel runs on Open Neural Network Exchange (ONNX) Runtime, which the
+<code class="docutils literal notranslate"><span class="pre">iclabel</span></code> extra installs and the <code class="docutils literal notranslate"><span class="pre">dev</span></code> group includes. For a source checkout, run
+<code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span> <span class="pre">--group</span> <span class="pre">dev</span></code>; for an installed package, run
+<code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">add</span> <span class="pre">&quot;eegprep[iclabel]&quot;</span></code> (or <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[iclabel]&quot;</span></code> outside uv):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_icalabelstat</span><span class="p">,</span> <span class="n">pop_iclabel</span><span class="p">,</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_viewprops</span>
 

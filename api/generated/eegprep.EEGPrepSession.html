@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../../changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -761,6 +775,70 @@
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGPrepSession.dataset_state_token">
+<span class="sig-name descname"><span class="pre">dataset_state_token</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession.dataset_state_token" title="Link to this definition">#</a></dt>
+<dd><p>Capture the selected datasets to check an asynchronous result before committing it.</p>
+<p>The token holds <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code> and a BLAKE2b digest of the current <code class="docutils literal notranslate"><span class="pre">EEG</span></code> and
+the selected <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> entries, each object hashed once. Capturing it reads
+every selected array once, in chunks and without copying the dataset; an
+awaited call costs two such passes, because
+<a class="reference internal" href="#eegprep.EEGPrepSession.require_dataset_state_unchanged" title="eegprep.EEGPrepSession.require_dataset_state_unchanged"><code class="xref py py-meth docutils literal notranslate"><span class="pre">require_dataset_state_unchanged()</span></code></a> captures a second token to compare.
+Top-level <code class="docutils literal notranslate"><span class="pre">history</span></code> and <code class="docutils literal notranslate"><span class="pre">saved</span></code> fields are not hashed, and unselected
+datasets are ignored. Because only content is compared, an edit that is
+reverted before the check leaves the token unchanged.</p>
+<p>Dictionaries, lists, tuples, NumPy arrays and memory-mapped data are hashed by
+content. Any other value, such as a SciPy sparse matrix, is hashed by its
+<code class="docutils literal notranslate"><span class="pre">repr</span></code>, so an in-place edit that does not change the <code class="docutils literal notranslate"><span class="pre">repr</span></code> is not detected;
+keep such objects out of the fields a result depends on, or replace them
+instead of editing them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>DatasetStateToken</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGPrepSession.require_dataset_state_unchanged">
+<span class="sig-name descname"><span class="pre">require_dataset_state_unchanged</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">function_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession.require_dataset_state_unchanged" title="Link to this definition">#</a></dt>
+<dd><p>Raise <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> if the selected datasets changed since <code class="docutils literal notranslate"><span class="pre">token</span></code> was captured.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>token</strong> (<em>DatasetStateToken</em>) – Value returned by <a class="reference internal" href="#eegprep.EEGPrepSession.dataset_state_token" title="eegprep.EEGPrepSession.dataset_state_token"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dataset_state_token()</span></code></a> before the computation.</p></li>
+<li><p><strong>function_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Name shown in the error, for example <code class="docutils literal notranslate"><span class="pre">&quot;pop_iclabel_async&quot;</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGPrepSession.carry_current_history">
+<span class="sig-name descname"><span class="pre">carry_current_history</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession.carry_current_history" title="Link to this definition">#</a></dt>
+<dd><p>Copy the current datasets’ <code class="docutils literal notranslate"><span class="pre">history</span></code> into the result of an asynchronous call.</p>
+<p><code class="docutils literal notranslate"><span class="pre">history</span></code> is not part of the freshness token, so a command recorded while the call
+ran leaves its result valid, but the result holds the history from before the call
+and would overwrite that command when stored. Call this after
+<a class="reference internal" href="#eegprep.EEGPrepSession.require_dataset_state_unchanged" title="eegprep.EEGPrepSession.require_dataset_state_unchanged"><code class="xref py py-meth docutils literal notranslate"><span class="pre">require_dataset_state_unchanged()</span></code></a> and before storing <code class="docutils literal notranslate"><span class="pre">result</span></code> in place of the
+current datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>result</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – A dataset, or a list of datasets as long as the current selection, computed
+from the current selection.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">result</span></code>, updated in place; a list of another length is returned unchanged.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="eegprep.EEGPrepSession.current_eeg">
 <span class="sig-name descname"><span class="pre">current_eeg</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession.current_eeg" title="Link to this definition">#</a></dt>
 <dd><p>Return the current EEG selection.</p>
@@ -1113,6 +1191,9 @@ EEGLAB; the selection moves to the nearest remaining dataset.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.gui_action"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.gui_action()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.echo_command"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.echo_command()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.notify_changed"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.notify_changed()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.dataset_state_token"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.dataset_state_token()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.require_dataset_state_unchanged"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.require_dataset_state_unchanged()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.carry_current_history"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.carry_current_history()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.current_eeg"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.current_eeg()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.current_set_value"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.current_set_value()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.selected_dataset_indices"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.selected_dataset_indices()</span></code></a></li>

@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -535,7 +549,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 <section id="install-dependencies">
 <h3>Install Dependencies<a class="headerlink" href="#install-dependencies" title="Link to this heading">#</a></h3>
 <p>If you only need documentation dependencies, sync the docs extra:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>--group<span class="w"> </span>dev
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>docs
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span></code> installs:</p>
@@ -543,6 +557,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 <li><p>The eegprep package in editable mode</p></li>
 <li><p>Repo tooling dependencies</p></li>
 <li><p>GUI and <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> runtime dependencies</p></li>
+<li><p>Open Neural Network Exchange (ONNX) Runtime (the <code class="docutils literal notranslate"><span class="pre">dev</span></code> group includes it), because gallery examples and tests run ICLabel</p></li>
 <li><p>Documentation dependencies when <code class="docutils literal notranslate"><span class="pre">--extra</span> <span class="pre">docs</span></code> is used</p></li>
 </ul>
 </section>

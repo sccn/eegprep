@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -550,9 +564,17 @@ git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </
 <li><p><strong>verify</strong> — <code class="docutils literal notranslate"><span class="pre">ruff</span> <span class="pre">check</span></code>, <code class="docutils literal notranslate"><span class="pre">ruff</span> <span class="pre">format</span> <span class="pre">--check</span></code>, <code class="docutils literal notranslate"><span class="pre">ty</span> <span class="pre">check</span></code>, and the full
 test suite with <code class="docutils literal notranslate"><span class="pre">EEGPREP_SKIP_MATLAB=1</span></code>.</p></li>
 <li><p><strong>build</strong> — <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">build</span></code>, then checks that the tag matches <code class="docutils literal notranslate"><span class="pre">__version__</span></code>, that
-the vendored EEGLAB checkout is absent from both artifacts, that packaged data
-(ICLabel weights, help resources) is present, that <code class="docutils literal notranslate"><span class="pre">twine</span> <span class="pre">check</span> <span class="pre">--strict</span></code>
-passes, and that the built wheel installs and imports.</p></li>
+the vendored EEGLAB checkout is absent from both artifacts, that the wheel and
+sdist contain both packaged ICLabel networks (and no source <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code>), and
+that the SHA-256 of the packaged 8-bit network equals <code class="docutils literal notranslate"><span class="pre">packaged_model.sha256</span></code>
+and that of the full-precision network equals <code class="docutils literal notranslate"><span class="pre">float32_model.sha256</span></code> in
+<code class="docutils literal notranslate"><span class="pre">tools/iclabel/parity_report.json</span></code>, and that the report’s <code class="docutils literal notranslate"><span class="pre">gate_pass</span></code> is
+true. It also runs <code class="docutils literal notranslate"><span class="pre">twine</span> <span class="pre">check</span> <span class="pre">--strict</span></code> and installs both artifacts with
+the ICLabel extra for runtime classification and the ASR filter smoke test.
+The smoke tests also pin <code class="docutils literal notranslate"><span class="pre">onnxruntime==1.32.0</span></code>, the version <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code>
+resolves on Linux and the one the test suite runs on, which is stricter than the
+<code class="docutils literal notranslate"><span class="pre">iclabel</span></code> extra’s <code class="docutils literal notranslate"><span class="pre">&gt;=1.20</span></code> floor. Bump the pin in <code class="docutils literal notranslate"><span class="pre">release.yml</span></code> together
+with <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code>; <code class="docutils literal notranslate"><span class="pre">tests/test_ci_workflows.py</span></code> fails when they differ.</p></li>
 <li><p><strong>publish</strong> — uploads to PyPI using Trusted Publishing, so no API token is
 stored in the repository.</p></li>
 <li><p><strong>github-release</strong> — creates the GitHub release with the artifacts attached.</p></li>
@@ -563,6 +585,45 @@ stored in the repository.</p></li>
 <em>Manage project → Publishing → Add a new publisher</em>: owner <code class="docutils literal notranslate"><span class="pre">sccn</span></code>, repository
 <code class="docutils literal notranslate"><span class="pre">eegprep</span></code>, workflow <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>, environment <code class="docutils literal notranslate"><span class="pre">pypi</span></code>.</p>
 </div>
+</section>
+<section id="regenerating-the-iclabel-network">
+<h2>Regenerating the ICLabel network<a class="headerlink" href="#regenerating-the-iclabel-network" title="Link to this heading">#</a></h2>
+<p>Two network files are built from the EEGLAB weights in <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code>:
+<code class="docutils literal notranslate"><span class="pre">src/eegprep/plugins/ICLabel/iclabel.onnx</span></code>, the full-precision (float32)
+network that every native run loads, and <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> next to it, the
+8-bit network the browser loads. Rebuild them only when the weights or the
+quantization change; a normal release reuses the committed files. The sequence is:</p>
+<ol class="arabic simple">
+<li><p>Install the developer tools with the <code class="docutils literal notranslate"><span class="pre">torch</span></code> extra (very large); the <code class="docutils literal notranslate"><span class="pre">dev</span></code>
+group already includes ONNX Runtime.</p></li>
+<li><p>Export the full-precision (float32) network from <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code>; it is written
+under <code class="docutils literal notranslate"><span class="pre">build/iclabel/</span></code> first.</p></li>
+<li><p>Quantize its weights to 8-bit integers. The script compares the result with the
+frozen reference probabilities in <code class="docutils literal notranslate"><span class="pre">tools/iclabel/</span></code> and exits with an error,
+without writing a report, when it fails an acceptance criterion.</p></li>
+<li><p>Copy the float32 export to <code class="docutils literal notranslate"><span class="pre">src/eegprep/plugins/ICLabel/iclabel.onnx</span></code> and the
+passing 8-bit network to <code class="docutils literal notranslate"><span class="pre">src/eegprep/plugins/ICLabel/iclabel_int8.onnx</span></code>.</p></li>
+<li><p>Commit both networks together with the updated
+<code class="docutils literal notranslate"><span class="pre">tools/iclabel/parity_report.json</span></code>, so the report’s <code class="docutils literal notranslate"><span class="pre">packaged_model.sha256</span></code>
+matches the packaged 8-bit file and its <code class="docutils literal notranslate"><span class="pre">float32_model.sha256</span></code> matches the
+full-precision file.</p></li>
+</ol>
+<p>The exact commands are in the docstring of <code class="docutils literal notranslate"><span class="pre">tools/iclabel/quantize_iclabel_onnx.py</span></code>.
+The report records the float32 file given to the quantize step, so step 4 copies
+that same file. Replacing <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> also means refreezing the reference
+probabilities, which are that file’s outputs, and updating the SHA-256 in the
+<code class="docutils literal notranslate"><span class="pre">source</span></code> field of <code class="docutils literal notranslate"><span class="pre">tools/iclabel/evaluation_manifest.json</span></code>, as that docstring
+describes. If only the quantization changed, keep the committed <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code>:
+skip the export (step 2) and the float32 copy (step 4), and quantize the committed file.</p>
+<p>Continuous integration repeats steps 2 and 3 on every change. It requires the
+regenerated float32 network to match the committed <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> to 1e-5 on the
+evaluation components and the regenerated 8-bit network to produce network outputs
+identical to the committed <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code>; it does not compare bytes, because a
+fresh PyTorch export need not be byte-identical across PyTorch versions. The build job
+above fails the release when a packaged network differs from its source file, or
+either packaged network and the report disagree, or the report records a failed
+criterion. After a rebuild, update the measured agreement shown to users
+(<a class="reference internal" href="user_guide/ica_rejection.html#iclabel-measured-agreement"><span class="std std-ref">Measured Agreement of the Two Files</span></a>) from the new report.</p>
 </section>
 <section id="if-a-tag-was-pushed-at-a-bad-commit">
 <h2>If a tag was pushed at a bad commit<a class="headerlink" href="#if-a-tag-was-pushed-at-a-bad-commit" title="Link to this heading">#</a></h2>
@@ -648,6 +709,7 @@ executed” no matter what is installed.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#both-packages">Both packages</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#release-from-your-machine">Release from your machine</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-workflow-does">What the workflow does</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#regenerating-the-iclabel-network">Regenerating the ICLabel network</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#if-a-tag-was-pushed-at-a-bad-commit">If a tag was pushed at a bad commit</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#docker-image">Docker image</a></li>
 </ul>

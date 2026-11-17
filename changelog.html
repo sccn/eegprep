@@ -63,6 +63,7 @@
     <link rel="icon" href="_static/logo.jpg"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Pyodide browser execution, benchmarks, and ICLabel parity" href="pyodide_benchmark.html" />
     <link rel="prev" title="Releasing" href="releasing.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -223,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -364,6 +372,13 @@
   </a>
 </li>
 
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
   </ul>
 </nav></div>
           
@@ -476,6 +491,40 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><strong>BREAKING: ICLabel needs the</strong> <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> <strong>extra, and</strong> <code class="docutils literal notranslate"><span class="pre">eegprep[torch]</span></code> <strong>no longer enables it.</strong>
+<code class="docutils literal notranslate"><span class="pre">iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> now classify with <code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code>, the Open Neural Network Exchange (ONNX) runtime, instead of PyTorch.
+The package ships <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code>, the full-precision network, and <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code>, an 8-bit copy for browsers, in place of <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code>.
+Migration: install <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[iclabel]&quot;</span></code> (<code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code> 1.20 or newer) where you installed <code class="docutils literal notranslate"><span class="pre">eegprep[torch]</span></code> for ICLabel.
+Code that reads <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code> from the installed package must read <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> instead.
+The <code class="docutils literal notranslate"><span class="pre">torch</span></code> extra now installs <code class="docutils literal notranslate"><span class="pre">torch</span></code> and <code class="docutils literal notranslate"><span class="pre">onnx</span></code> only for rebuilding the packaged networks from <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code> (see <a class="reference internal" href="releasing.html#releasing"><span class="std std-ref">Releasing</span></a>),
+and <code class="docutils literal notranslate"><span class="pre">eegprep[all]</span></code> includes <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> as well as <code class="docutils literal notranslate"><span class="pre">torch</span></code>.</p></li>
+<li><p>ICLabel probabilities from <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> equal the PyTorch network’s to about 1e-6, so existing results do not move.
+The native network is the full-precision ONNX export of <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code>.
+The 8-bit <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> is for the browser only.
+On the frozen evaluation set of 217 components its class probabilities differ from the full-precision network by at most 0.01346, and all top-1 labels and all keep-or-reject decisions agree.
+That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
+see <a class="reference internal" href="user_guide/ica_rejection.html#iclabel-measured-agreement"><span class="std std-ref">Measured Agreement of the Two Files</span></a> for the criteria, the numbers, and the caveats.
+Because the two networks differ, <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;ic_classification&quot;][&quot;ICLabel&quot;]</span></code> now also holds <code class="docutils literal notranslate"><span class="pre">network</span></code>, the name of the packaged file that ran, next to <code class="docutils literal notranslate"><span class="pre">version</span></code>, which keeps EEGLAB’s meaning.
+MATLAB EEGLAB ignores <code class="docutils literal notranslate"><span class="pre">network</span></code> and neither writes nor clears it; EEGPrep removes a stale one when <code class="docutils literal notranslate"><span class="pre">engine='matlab'</span></code> or <code class="docutils literal notranslate"><span class="pre">'octave'</span></code> classifies.</p></li>
+<li><p>Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
+It classifies through ONNX Runtime Web (the JavaScript build of the ONNX runtime) and the host-provided <code class="docutils literal notranslate"><span class="pre">globalThis.eegprep_iclabel_web</span></code> bridge described in <a class="reference internal" href="user_guide/plugins.html"><span class="doc">Bundled Plugins and Extensions</span></a>.
+<code class="docutils literal notranslate"><span class="pre">iclabel_async</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_iclabel_async</span></code> keep the native post-processing, the console history, and the GUI and console session synchronization.
+<code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> keeps the <code class="docutils literal notranslate"><span class="pre">await</span></code> form of the command so that <code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">eegh(n)</span></code> replays it, but the dataset’s own history records <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">pop_iclabel(EEG,</span> <span class="pre">'default');</span></code>, so a <code class="docutils literal notranslate"><span class="pre">.set</span></code> file saved from the browser replays in MATLAB EEGLAB.
+The synchronous <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> raise <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> there.
+Browser execution is checked against native classification for parity.
+The bridge also exposes the <code class="docutils literal notranslate"><span class="pre">modelBytes</span></code> it was created from, and every call compares their SHA-256 digest with the packaged <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code>, so a stale or wrong model raises <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> instead of classifying silently; a bridge result with a NaN or infinite probability raises it too.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eegh(n)</span></code> in <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> returns an awaitable only when history entry <code class="docutils literal notranslate"><span class="pre">n</span></code> has a top-level <code class="docutils literal notranslate"><span class="pre">await</span></code>, such as <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">await</span> <span class="pre">pop_iclabel_async(EEG,</span> <span class="pre">'default');</span></code>.
+Run it with <code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">eegh(n)</span></code>; other entries, including ones that only mention <code class="docutils literal notranslate"><span class="pre">await</span></code> inside a string, still run immediately.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran: <code class="docutils literal notranslate"><span class="pre">dataset_state_token()</span></code> returns a <code class="docutils literal notranslate"><span class="pre">DatasetStateToken</span></code> and <code class="docutils literal notranslate"><span class="pre">require_dataset_state_unchanged(token,</span> <span class="pre">function_name)</span></code> raises a <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> when the selection or the dataset content changed.
+A result computed against a dataset that changed in the meantime is discarded with that error instead of being committed to the wrong dataset.
+The developer notes in <a class="reference internal" href="user_guide/contracts.html"><span class="doc">EEG and Session Contracts</span></a> describe the contract.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">psutil</span></code> and <code class="docutils literal notranslate"><span class="pre">pyedflib</span></code> stay in the base install and now carry the environment marker <code class="docutils literal notranslate"><span class="pre">sys_platform</span> <span class="pre">!=</span> <span class="pre">'emscripten'</span></code>, because Pyodide has no build of either.
+The base requirement set resolves under Pyodide, so <code class="docutils literal notranslate"><span class="pre">micropip.install(&quot;eegprep&quot;)</span></code> works in the browser.
+Their import sites are lazy: EDF and BDF output of <code class="docutils literal notranslate"><span class="pre">pop_writeeeg</span></code>, memory-based reservations in <code class="docutils literal notranslate"><span class="pre">num_jobs_from_reservation</span></code>, and the free-memory fallback of ASR raise an <code class="docutils literal notranslate"><span class="pre">ImportError</span></code> that names the cause there, and GDF output and an explicit ASR <code class="docutils literal notranslate"><span class="pre">max_mem</span></code> work.</p></li>
+<li><p>Added a pinned Pyodide 0.29.5 harness and a continuous integration (CI) gate that installs the working-tree wheel, runs a sample-data smoke pipeline, checks the browser ICLabel result against native, and records one-thread <code class="docutils literal notranslate"><span class="pre">runica</span></code> and Picard benchmarks plus benchmarks of the matrix products (basic linear algebra subprograms, BLAS) that <code class="docutils literal notranslate"><span class="pre">runica</span></code> performs.
+The harness needs <code class="docutils literal notranslate"><span class="pre">uv</span></code>, Node.js 22 or newer, and Bun (<code class="docutils literal notranslate"><span class="pre">bun</span> <span class="pre">install</span> <span class="pre">--frozen-lockfile</span></code> from <code class="docutils literal notranslate"><span class="pre">tools/pyodide/bun.lock</span></code>); see <a class="reference internal" href="pyodide_benchmark.html"><span class="doc">Pyodide browser execution, benchmarks, and ICLabel parity</span></a>.
+Pyodide Web Workers are documented as the browser responsiveness and independent-job concurrency boundary, not as threading inside one independent component analysis (ICA) run.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">runica</span></code> can use <code class="docutils literal notranslate"><span class="pre">scipy.linalg.blas.dgemm</span></code> for its matrix products under Emscripten; native platforms keep <code class="docutils literal notranslate"><span class="pre">numpy.matmul</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eegprep_lean.to_eeg</span></code> fills <code class="docutils literal notranslate"><span class="pre">chanlocs</span></code> from the electrode positions a NEMAR store declares, which <code class="docutils literal notranslate"><span class="pre">load_recording</span></code> now reads into <code class="docutils literal notranslate"><span class="pre">Window.electrodes</span></code>.
 A channel is matched to the entry for exactly its label, and gets <code class="docutils literal notranslate"><span class="pre">X</span></code>, <code class="docutils literal notranslate"><span class="pre">Y</span></code> and <code class="docutils literal notranslate"><span class="pre">Z</span></code> in millimeters in EEGLAB’s ALS frame, <code class="docutils literal notranslate"><span class="pre">sph_theta</span></code>, <code class="docutils literal notranslate"><span class="pre">sph_phi</span></code>, <code class="docutils literal notranslate"><span class="pre">sph_radius</span></code>, <code class="docutils literal notranslate"><span class="pre">theta</span></code> and <code class="docutils literal notranslate"><span class="pre">radius</span></code>.
 <code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> gives the same values from the same <code class="docutils literal notranslate"><span class="pre">electrodes.tsv</span></code> and coordsystem file, except where the import guesses a unit, assumes a system, or reads <code class="docutils literal notranslate"><span class="pre">CTF</span></code>, <code class="docutils literal notranslate"><span class="pre">4DBti</span></code> or <code class="docutils literal notranslate"><span class="pre">KitYokogawa</span></code>, which the BIDS appendix gives as ALS, as RAS.
@@ -1703,6 +1752,15 @@ EEGLAB’s <code class="docutils literal notranslate"><span class="pre">asr_cali
         <p class="prev-next-subtitle">previous</p>
         <p class="prev-next-title">Releasing</p>
       </div>
+    </a>
+    <a class="right-next"
+       href="pyodide_benchmark.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Pyodide browser execution, benchmarks, and ICLabel parity</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
     </a>
 </div>
                 </footer>

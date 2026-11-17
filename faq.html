@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -365,6 +372,13 @@
   </a>
 </li>
 
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
   </ul>
 </nav></div>
           
@@ -503,6 +517,8 @@ path does not need that library.</p>
 uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev
 </pre></div>
 </div>
+<p>The <code class="docutils literal notranslate"><span class="pre">dev</span></code> group includes ONNX Runtime, so ICLabel runs from a source checkout
+without an extra.</p>
 </section>
 <section id="what-are-the-system-requirements">
 <h3>What are the system requirements?<a class="headerlink" href="#what-are-the-system-requirements" title="Link to this heading">#</a></h3>
@@ -532,11 +548,10 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 </section>
 <section id="does-eegprep-support-gpu-acceleration">
 <h3>Does EEGPrep support GPU acceleration?<a class="headerlink" href="#does-eegprep-support-gpu-acceleration" title="Link to this heading">#</a></h3>
-<p>EEGPrep can leverage GPU acceleration through MNE-Python and PyTorch for ICA and other computations. Install GPU support:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch<span class="w">  </span><span class="c1"># For GPU support</span>
-uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[cuda]&quot;</span><span class="w">  </span><span class="c1"># For MNE GPU support</span>
-</pre></div>
-</div>
+<p>EEGPrep computes on the CPU by default. pAMICA (<code class="docutils literal notranslate"><span class="pre">pop_runica(EEG,</span> <span class="pre">icatype=&quot;pamica&quot;)</span></code>, from the
+<code class="docutils literal notranslate"><span class="pre">pamica</span></code> extra) is the one decomposition built on PyTorch, and its <code class="docutils literal notranslate"><span class="pre">device</span></code> argument selects a GPU that PyTorch supports.
+The <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument of <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> exists for EEGLAB compatibility and is ignored, and ICLabel runs on
+Open Neural Network Exchange (ONNX) Runtime’s CPU provider. PyTorch is not needed for ICLabel.</p>
 </section>
 </section>
 <section id="usage-faq">
@@ -657,7 +672,6 @@ uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[
 <p>To speed up processing:</p>
 <ol class="arabic simple">
 <li><p>Downsample data if appropriate</p></li>
-<li><p>Use GPU acceleration</p></li>
 <li><p>Process in parallel (for multiple subjects)</p></li>
 <li><p>Use faster algorithms (e.g., ASR instead of ICA)</p></li>
 </ol>
@@ -702,7 +716,6 @@ uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[
 <li><p><strong>Skip unnecessary steps</strong>: Only apply needed preprocessing</p></li>
 <li><p><strong>Use faster algorithms</strong>: ASR is faster than ICA</p></li>
 <li><p><strong>Downsample if appropriate</strong>: Reduces computation</p></li>
-<li><p><strong>Use GPU acceleration</strong>: For ICA and other algorithms</p></li>
 <li><p><strong>Process in batches</strong>: More efficient than one-by-one</p></li>
 </ol>
 </section>
@@ -729,22 +742,6 @@ uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[
 <span class="nb">print</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">pnts</span><span class="p">)</span>  <span class="c1"># Number of samples</span>
 </pre></div>
 </div>
-</section>
-<section id="i-get-runtimeerror-cuda-out-of-memory">
-<h3>I get “RuntimeError: CUDA out of memory”<a class="headerlink" href="#i-get-runtimeerror-cuda-out-of-memory" title="Link to this heading">#</a></h3>
-<p><strong>Cause</strong>: GPU memory exhausted</p>
-<p><strong>Solutions</strong>:</p>
-<ol class="arabic simple">
-<li><p>Use CPU instead:</p></li>
-</ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</pre></div>
-</div>
-<ol class="arabic simple" start="2">
-<li><p>Process smaller segments</p></li>
-<li><p>Reduce batch size</p></li>
-<li><p>Upgrade GPU memory</p></li>
-</ol>
 </section>
 <section id="my-data-has-nan-values">
 <h3>My data has NaN values<a class="headerlink" href="#my-data-has-nan-values" title="Link to this heading">#</a></h3>
@@ -980,7 +977,6 @@ uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-faq">Troubleshooting FAQ</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#i-get-modulenotfounderror-no-module-named-eegprep">I get “ModuleNotFoundError: No module named ‘eegprep’”</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#i-get-valueerror-data-shape-mismatch">I get “ValueError: Data shape mismatch”</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#i-get-runtimeerror-cuda-out-of-memory">I get “RuntimeError: CUDA out of memory”</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#my-data-has-nan-values">My data has NaN values</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-debug-preprocessing-issues">How do I debug preprocessing issues?</a></li>
 </ul>

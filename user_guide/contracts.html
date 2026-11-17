@@ -224,6 +224,13 @@
   </a>
 </li>
 
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
+  </a>
+</li>
+
                 </ul>
             </li>
             
@@ -362,6 +369,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../pyodide_benchmark.html">
+    Pyodide browser execution, benchmarks, and ICLabel parity
   </a>
 </li>
 
@@ -582,12 +596,55 @@ records the same command once. <code class="docutils literal notranslate"><span 
 commands that only display a value.
 When one command is applied to a multi-dataset selection, each selected EEG
 history records it with the <code class="docutils literal notranslate"><span class="pre">%</span> <span class="pre">multiple</span> <span class="pre">datasets</span> <span class="pre">command:</span></code> marker used by
-EEGLAB, while the session records the command once in <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>.</p>
+EEGLAB, while the session records the command once in <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>.
+A command that is one <code class="docutils literal notranslate"><span class="pre">LHS</span> <span class="pre">=</span> <span class="pre">await</span> <span class="pre">pop_NAME_async(ARGS);</span></code> statement,
+such as <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">await</span> <span class="pre">pop_iclabel_async(EEG,</span> <span class="pre">'default');</span></code>, stays in that awaitable form in
+<code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> and <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> so that <code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">eegh(n)</span></code> can replay it,
+but each dataset’s own <code class="docutils literal notranslate"><span class="pre">history</span></code> receives the EEGLAB form, <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">pop_iclabel(EEG,</span> <span class="pre">'default');</span></code>,
+through <code class="docutils literal notranslate"><span class="pre">eeglab_history_command</span></code> in <code class="docutils literal notranslate"><span class="pre">eegprep.functions.guifunc.session</span></code>.
+A saved <code class="docutils literal notranslate"><span class="pre">.set</span></code> file carries the dataset history into MATLAB EEGLAB, which has no <code class="docutils literal notranslate"><span class="pre">await</span></code>.
+Any other command, including one that only mentions <code class="docutils literal notranslate"><span class="pre">await</span></code> inside a string, is recorded unchanged.</p>
 <p>EEGPrep does not emulate EEGLAB’s one-dataset-in-memory <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code>
 behavior. Saved non-current datasets are represented by explicit offloaded disk
 handles and rehydrated through the shared storage path via <code class="docutils literal notranslate"><span class="pre">eeg_store</span></code> and
 <code class="docutils literal notranslate"><span class="pre">eeg_retrieve</span></code>. Unsaved resident datasets stay resident, or fail clearly,
 until you save them.</p>
+</section>
+<section id="asynchronous-results">
+<h2>Asynchronous Results<a class="headerlink" href="#asynchronous-results" title="Link to this heading">#</a></h2>
+<p>An awaited computation, such as ICLabel in a browser runtime,
+can finish after the GUI or the console has changed the session.
+Code that stores such a result captures <code class="docutils literal notranslate"><span class="pre">token</span> <span class="pre">=</span> <span class="pre">session.dataset_state_token()</span></code> before awaiting
+and calls <code class="docutils literal notranslate"><span class="pre">session.require_dataset_state_unchanged(token,</span> <span class="pre">function_name)</span></code> before storing.
+The second call raises <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> naming <code class="docutils literal notranslate"><span class="pre">function_name</span></code> when the result would overwrite data it was not computed from,
+and says whether the dataset selection changed or a selected dataset was modified.
+The GUI ICLabel action and the console wrapper for any coroutine <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> function follow this contract;
+functions that return a result without storing it, such as <code class="docutils literal notranslate"><span class="pre">iclabel_async</span></code>, need no check.</p>
+<p>The token is a <code class="docutils literal notranslate"><span class="pre">DatasetStateToken</span></code> holding <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>
+and a BLAKE2b digest of the current <code class="docutils literal notranslate"><span class="pre">EEG</span></code> and the selected <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> entries, each object hashed once.
+It compares content, not identity or change notifications,
+so it detects edits made through any alias, including in-place NumPy writes.
+Capturing a token reads the selected data once, in fixed-size chunks and without copying the arrays;
+an awaited call costs two such passes, because <code class="docutils literal notranslate"><span class="pre">require_dataset_state_unchanged</span></code> captures a second token to compare.
+Dictionaries, lists, tuples, NumPy arrays, and memory-mapped data are hashed by content.
+Any other value, such as a SciPy sparse matrix stored in a dataset field, is hashed by its <code class="docutils literal notranslate"><span class="pre">repr</span></code>,
+so an in-place edit that does not change the <code class="docutils literal notranslate"><span class="pre">repr</span></code> is not detected:
+replace such objects instead of editing them in place.</p>
+<p>The digest skips the top-level <code class="docutils literal notranslate"><span class="pre">history</span></code> and <code class="docutils literal notranslate"><span class="pre">saved</span></code> fields,
+because recording a command or marking the dataset saved does not change the data a result was computed from.
+Nested fields with those names are hashed, and unselected datasets are ignored.
+Setting the <code class="docutils literal notranslate"><span class="pre">saved</span></code> flag alone therefore keeps an in-flight result,
+but a Save that assigns a new <code class="docutils literal notranslate"><span class="pre">filename</span></code> or <code class="docutils literal notranslate"><span class="pre">filepath</span></code>, such as the first Save of a dataset,
+changes hashed fields and discards it.
+An edit that is reverted before the check is not reported, because the content is the same again.</p>
+<p>The result of an awaited call still holds the dataset history from before the call.
+Code that stores it in place of the current datasets calls <code class="docutils literal notranslate"><span class="pre">session.carry_current_history(result)</span></code> after the check and before storing,
+which copies the current datasets’ <code class="docutils literal notranslate"><span class="pre">history</span></code> into the result,
+so a command recorded in the dataset history while the call ran is not overwritten.
+The GUI ICLabel action does this, and so does the console wrapper when the call’s first <code class="docutils literal notranslate"><span class="pre">EEG</span></code> argument is the session’s current <code class="docutils literal notranslate"><span class="pre">EEG</span></code>.
+A console result computed from another dataset is stored as a new dataset and keeps its own history.</p>
+<p>Under Emscripten, <code class="docutils literal notranslate"><span class="pre">MenuActionDispatcher.dispatch_gui</span></code> returns the <code class="docutils literal notranslate"><span class="pre">dispatch_gui_async</span></code> coroutine for ICLabel instead of running it.
+The main window schedules it on the running asyncio event loop, and shows a warning when no loop is running.</p>
 </section>
 <section id="standalone-runtime-boundary">
 <h2>Standalone Runtime Boundary<a class="headerlink" href="#standalone-runtime-boundary" title="Link to this heading">#</a></h2>
@@ -661,6 +718,7 @@ inventory tests. See <a class="reference internal" href="../development.html#dev
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-dictionaries">EEG Dictionaries</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#session-selection">Session Selection</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-and-menu-inventory">History and Menu Inventory</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-results">Asynchronous Results</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#standalone-runtime-boundary">Standalone Runtime Boundary</a></li>
 </ul>
   </nav></div>
