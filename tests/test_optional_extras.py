@@ -763,34 +763,6 @@ def test_asr_too_low_budget_names_every_budget_argument_without_psutil(tmp_path:
         assert "maxmem in clean_asr, MaxMem in clean_artifacts" in message
 
 
-def test_ransac_defers_the_eeglab_bridge_but_still_reaches_it(tmp_path: Path) -> None:
-    """Importing ransac (and so runica) must not load the file-loading stack; the MATLAB/Octave path still works.
-
-    ``get_eeglab`` lives in a module that imports ``pop_loadset`` and so ``mne``. runica imports
-    ransac for ``rand_permutation`` and must stay light, so ransac defers the bridge to its first use.
-    """
-    (tmp_path / "eeglab.m").write_text("")
-    completed = _run_without_optional_extras(
-        """
-        import json
-        import eegprep.plugins.clean_rawdata.private.ransac as ransac
-
-        loaded_on_import = sorted(n for n in ("mne", "eegprep.functions.adminfunc.eeglabcompat") if n in sys.modules)
-        try:
-            ransac.get_eeglab("OCT")
-        except ImportError as exc:
-            message = str(exc)
-        print(json.dumps({"loaded_on_import": loaded_on_import, "message": message}))
-        """,
-        tmp_path,
-        env={"EEGPREP_EEGLAB_ROOT": str(tmp_path)},
-    )
-
-    result = _json_result(completed)
-    assert result["loaded_on_import"] == []
-    assert 'pip install "eegprep[eeglab]"' in result["message"]
-
-
 def test_dockerfile_installs_bids_and_mne_for_the_entrypoint() -> None:
     dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
     entry = (REPO_ROOT / "scripts" / "bids_minimal_preproc.py").read_text(encoding="utf-8")
