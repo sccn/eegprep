@@ -622,6 +622,32 @@ def test_iclabel_web_bridge_keeps_its_model_bytes_when_the_session_detaches_its_
 @requires_node
 @pytest.mark.parametrize(
     ("options", "expected_threads"),
+    [("{}", 4), ("{ numThreads: 2 }", 2)],
+    ids=["host-count-kept", "option-overrides-host-count"],
+)
+def test_iclabel_web_bridge_leaves_a_thread_count_the_host_already_set(options, expected_threads):
+    # ort.env.wasm.numThreads is process-wide, so a host that set 4 for its own models must not
+    # find them dropped to 1 thread by this bridge, unless the host asks for a count here.
+    _run_node_bridge_script(
+        f"""
+        const seen = [];
+        const recording = makeOrt((modelBytes, options, runtime) => {{
+          seen.push(runtime.env.wasm.numThreads);
+          return {{ run: async () => ({{ output: {{ data: [1] }} }}) }};
+        }});
+        recording.env.wasm.numThreads = 4;
+
+        const bridge = createIcLabelWebBridge(recording, new Uint8Array(), {options});
+        await bridge.run(input, shape, input, shape, input, shape);
+        if (seen[0] !== {expected_threads}) throw new Error(`threads at create: ${{seen[0]}}`);
+        if (recording.env.wasm.numThreads !== {expected_threads}) throw new Error('count changed after create');
+        """
+    )
+
+
+@requires_node
+@pytest.mark.parametrize(
+    ("options", "expected_threads"),
     [("{}", 1), ("{ numThreads: 2 }", 2)],
     ids=["default", "host-chooses"],
 )

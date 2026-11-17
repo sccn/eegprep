@@ -7,11 +7,12 @@
  *
  * The returned object also exposes modelBytes, the Uint8Array it was given.
  *
- * options.numThreads (default 1) sets ort.env.wasm.numThreads; every other option is passed
- * to InferenceSession.create.
+ * options.numThreads sets ort.env.wasm.numThreads; without it the bridge sets 1 unless the host
+ * already set a value. Every other option is passed to InferenceSession.create.
  */
 export function createIcLabelWebBridge(ort, modelBytes, options = {}) {
   const { numThreads = 1, ...sessionOptions } = options;
+  const chooseThreads = "numThreads" in options;
   const createOptions = { executionProviders: ["wasm"], ...sessionOptions };
   let sessionPromise;
 
@@ -19,8 +20,11 @@ export function createIcLabelWebBridge(ort, modelBytes, options = {}) {
     if (sessionPromise === undefined) {
       // ONNX Runtime Web's thread count is the process-wide ort.env.wasm.numThreads, read once
       // when its WebAssembly backend starts; a session option cannot set it. A host that already
-      // created another session therefore decides the count.
-      ort.env.wasm.numThreads = numThreads;
+      // created another session therefore decides the count. The bridge overwrites a count the host
+      // set itself only when the host passes numThreads, so that the host's other models keep theirs.
+      if (chooseThreads || ort.env.wasm.numThreads === undefined) {
+        ort.env.wasm.numThreads = numThreads;
+      }
       // A copy, because onnxruntime-web may transfer the buffer it is given to a worker, which
       // detaches it; modelBytes must stay intact for the digest check and for a retried create.
       sessionPromise = ort.InferenceSession.create(modelBytes.slice(), createOptions).catch((error) => {

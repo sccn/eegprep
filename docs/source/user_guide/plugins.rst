@@ -215,8 +215,10 @@ wrong model cannot classify silently. It also raises a ``RuntimeError`` when
 source repository; it creates one ``onnxruntime-web`` session from the bytes of
 the packaged ``iclabel_int8.onnx``, the 8-bit network meant for the browser.
 It runs on one thread unless the host passes ``numThreads`` in its options
-argument. ONNX Runtime Web reads that count once, when its WebAssembly backend
-starts, so a host that already created another session decides it.
+argument or has already set ``ort.env.wasm.numThreads`` itself, which the
+bridge then leaves alone. ONNX Runtime Web reads that count once, when its
+WebAssembly backend starts, so a host that already created another session
+decides it.
 
 Review components visually with ``pop_viewprops`` before removing them.
 
