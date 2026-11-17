@@ -6,12 +6,8 @@ from HDF5 format files.
 """
 
 import os
-import unittest
-
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
 import sys
-import os
+import unittest
 
 # Add src to path for imports
 sys.path.insert(0, 'src')

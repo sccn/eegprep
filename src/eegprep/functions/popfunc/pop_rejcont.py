@@ -9,10 +9,14 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc._rejection import copy_eeg, one_based_indices, parse_numeric_sequence
+from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
+from eegprep.functions.popfunc.eeg_regepochs import eeg_regepochs
+from eegprep.functions.adminfunc.vararg2str import _matlab_history_value
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.sigprocfunc.eegplot import eegplot
+from eegprep.functions.sigprocfunc.nan_mean import nan_mean
 
 
 _REJCONT_WINREJ_COLOR = (0.0, 0.9, 0.0)
@@ -56,7 +60,8 @@ def pop_rejcont_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         title="Reject continuous portions of data - pop_rejcont()",
         function_name="pop_rejcont",
         eeglab_source="functions/popfunc/pop_rejcont.m",
-        help_text="pophelp('pop_rejcont')",
+        help_text=None,
+        show_help_button=False,
         size=(560, 332),
         geometry=((2, 1),) * 7,
         controls=(
@@ -117,23 +122,28 @@ def _apply_one(
     )
     epochlength = float(parse_numeric_sequence(options.get("epochlength", 0.5), dtype=float)[0])
     overlap = float(parse_numeric_sequence(options.get("overlap", 0.25), dtype=float)[0])
-    threshold = float(parse_numeric_sequence(options.get("threshold", 10), dtype=float)[0])
     contiguous = int(parse_numeric_sequence(options.get("contiguous", 4), dtype=float)[0])
-    addlength = float(parse_numeric_sequence(options.get("addlength", 0.25), dtype=float)[0])
-    freqlimit = parse_numeric_sequence(options.get("freqlimit", [35, min(128, srate / 2)]), dtype=float)
+    addlength = _one_seconds(
+        options.get("addlength", 0.25),
+        "Add trails before and after regions (s)",
+        "0.25",
+    )
+    bands = _rejection_bands(
+        options.get("threshold", 10),
+        options.get("freqlimit", [35, min(128.0, srate / 2)]),
+    )
     selected = _selected_regions(
-        data,
-        [item - 1 for item in elecrange],
+        out,
+        elecrange,
         srate,
         epochlength,
         overlap,
-        freqlimit,
-        threshold,
+        bands,
         contiguous,
         addlength,
         options,
     )
-    command = _history_command(options)
+    comment = _history_comment(options)
     browser_display = display and str(options.get("onlyreturnselection", "off")).lower() != "on"
     if browser_display:
         _open_rejcont_browser(
@@ -142,18 +152,22 @@ def _apply_one(
             selected,
             elecrange,
             options,
-            command=command,
             command_callback=command_callback,
             show=show,
         )
+        command = comment
     elif selected.size and str(options.get("onlyreturnselection", "off")).lower() != "on":
         if str(options.get("correct", "remove")).lower() == "blank":
             for start, stop in selected.astype(int):
                 data[np.asarray(elecrange, dtype=int) - 1, start - 1 : stop] = 0
             out["data"] = data
+            command = comment
         else:
             out = pop_select(out, "nopoint", selected.tolist(), gui=False)
-    return (EEG if browser_display else out), selected, "" if browser_display else command
+            command = comment + "\n" + _pop_select_history(selected)
+    else:
+        command = comment
+    return (EEG if browser_display else out), selected, command
 
 
 def _open_rejcont_browser(
@@ -163,7 +177,6 @@ def _open_rejcont_browser(
     elecrange: list[int],
     options: dict[str, Any],
     *,
-    command: str,
     command_callback: Any | None,
     show: bool,
 ) -> Any:
@@ -172,9 +185,9 @@ def _open_rejcont_browser(
     winrej = _rejcont_winrej(selected, len(elecrange))
 
     def _accept(winrej_rows: np.ndarray) -> None:
-        eeg_out = _apply_rejcont_winrej(EEG, winrej_rows, elecrange, options)
+        eeg_out, select_command = _apply_rejcont_winrej(EEG, winrej_rows, elecrange, options)
         if command_callback is not None:
-            command_callback(eeg_out, command)
+            command_callback(eeg_out, select_command)
 
     kwargs: dict[str, Any] = {
         "srate": EEG.get("srate", 256),
@@ -185,6 +198,7 @@ def _open_rejcont_browser(
         "events": EEG.get("event", []),
         "winlength": 50,
         "xgrid": "off",
+        "spacing": _eegplot_spacing(selected_data),
         "winrej": winrej,
         "wincolor": _REJCONT_WINREJ_COLOR,
         "butlabel": "Reject",
@@ -202,11 +216,11 @@ def _apply_rejcont_winrej(
     winrej_rows: np.ndarray,
     elecrange: list[int],
     options: dict[str, Any],
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], str]:
     out = copy_eeg(EEG)
     selected = _continuous_rows_to_regions(winrej_rows, int(out.get("pnts", np.asarray(out.get("data")).shape[1])))
     if selected.size == 0:
-        return out
+        return out, ""
     if str(options.get("correct", "remove")).lower() == "blank":
         data = np.asarray(out.get("data"), dtype=float)
         if data.ndim == 3:
@@ -214,8 +228,8 @@ def _apply_rejcont_winrej(
         for start, stop in selected.astype(int):
             data[np.asarray(elecrange, dtype=int) - 1, start - 1 : stop] = 0
         out["data"] = data
-        return out
-    return pop_select(out, "nopoint", selected.tolist(), gui=False)
+        return out, ""
+    return pop_select(out, "nopoint", selected.tolist(), gui=False), _pop_select_history(selected)
 
 
 def _continuous_rows_to_regions(winrej_rows: np.ndarray, pnts: int) -> np.ndarray:
@@ -241,7 +255,6 @@ def _rejcont_winrej(selected: np.ndarray, channel_count: int) -> np.ndarray:
     rows = np.zeros((selected.shape[0], 5 + channel_count), dtype=float)
     rows[:, 0:2] = selected[:, 0:2]
     rows[:, 2:5] = np.asarray(_REJCONT_WINREJ_COLOR, dtype=float)
-    rows[:, 5:] = 1
     return rows
 
 
@@ -250,61 +263,195 @@ def _selected_chanlocs(EEG: dict[str, Any], selected_rows: np.ndarray) -> list[d
     return [chanlocs[index] for index in selected_rows if index < len(chanlocs)]
 
 
+def _eegplot_spacing(data: np.ndarray) -> float:
+    # eegplot.m:457-473
+    sample_count = min(1000, int(data.shape[1]))
+    stds = np.std(np.asarray(data, dtype=float)[:, :sample_count], axis=1, ddof=1)
+    stds = np.sort(stds[np.isfinite(stds)])
+    if stds.size > 2:
+        spacing = float(np.mean(stds[1:-1]) * 3.0)
+    elif stds.size:
+        spacing = float(np.mean(stds) * 3.0)
+    else:
+        spacing = 1.0
+    if spacing > 10:
+        spacing = float(np.floor(spacing + 0.5))
+    if spacing == 0 or np.isnan(spacing):
+        spacing = 1.0
+    return spacing
+
+
 def _selected_regions(
-    data: np.ndarray,
-    rows: list[int],
+    EEG: dict[str, Any],
+    elecrange: list[int],
     srate: float,
     epochlength: float,
     overlap: float,
-    freqlimit: list[float],
-    threshold: float,
+    bands: list[tuple[float, float, list[float]]],
     contiguous: int,
     addlength: float,
     options: dict[str, Any],
 ) -> np.ndarray:
-    window = max(1, int(round(epochlength * srate)))
-    step = max(1, int(round((epochlength - overlap) * srate)))
-    if window > data.shape[1]:
+    work = copy_eeg(EEG)
+    work["event"] = _boundary_events(work.get("event"))
+    work["urevent"] = np.empty(0, dtype=object)
+    try:
+        epoched = eeg_regepochs(work, overlap, [0.0, epochlength], np.nan)
+    except ValueError as exc:
+        raise ValueError(f"pop_rejcont: {exc}. Use a shorter epoch length or a positive overlap.") from exc
+    spectra, frequencies = _epoch_log_spectrum(epoched, srate, str(options.get("taper", "none")))
+    if spectra.size == 0 or not elecrange:
         return np.empty((0, 2), dtype=int)
-    starts = list(range(0, data.shape[1] - window + 1, step))
-    flagged = np.zeros(len(starts), dtype=bool)
-    taper = np.hamming(window) if str(options.get("taper", "none")).lower() == _REJCONT_TAPER else np.ones(window)
-    freqs = np.fft.rfftfreq(window, d=1 / srate)
-    if len(freqlimit) < 2:
-        freqlimit = [35, min(128, srate / 2)]
-    freq_mask = (freqs >= freqlimit[0]) & (freqs <= freqlimit[-1])
-    if not freq_mask.any():
-        return np.empty((0, 2), dtype=int)
-    for index, start in enumerate(starts):
-        segment = data[rows, start : start + window] * taper
-        power = 10 * np.log10(np.maximum(np.abs(np.fft.rfft(segment, axis=1)) ** 2, np.finfo(float).tiny))
-        score = (
-            power[:, freq_mask].max(axis=1)
-            if str(options.get("mode", "max")).lower() == "max"
-            else power[:, freq_mask].mean(axis=1)
+    selected_rows = [index - 1 for index in elecrange]
+    averaged = np.asarray(nan_mean(spectra[selected_rows], axis=0), dtype=float)
+    if averaged.ndim == 1:
+        averaged = averaged[:, np.newaxis]
+    rejected = np.array([], dtype=int)
+    for low, high, freqlimit in bands:
+        rejected = np.union1d(
+            rejected,
+            _threshold_epochs(averaged, frequencies, freqlimit, low, high, str(options.get("mode", "max"))),
         )
-        flagged[index] = bool(np.any(score > threshold))
-    regions = _runs_to_regions(flagged, starts, window, contiguous)
-    if not regions:
+    rows = _windows_for_epochs(epoched, rejected, epochlength, srate)
+    grouplen = contiguous / 2.0 * epochlength * srate + 1.0
+    rows = _merge_rejcont_windows(rows, grouplen, contiguous)
+    point_count = int(EEG.get("pnts", np.asarray(EEG.get("data")).shape[1]))
+    padded = [
+        [max(1.0, row[0] - addlength * srate), min(float(point_count), row[1] + addlength * srate)] for row in rows
+    ]
+    if not padded:
         return np.empty((0, 2), dtype=int)
-    pad = int(round(addlength * srate))
-    padded = [[max(1, start + 1 - pad), min(data.shape[1], stop + pad)] for start, stop in regions]
-    return _merge_regions(np.asarray(padded, dtype=int))
+    return np.rint(np.asarray(padded, dtype=float)).astype(int)
 
 
-def _runs_to_regions(flagged: np.ndarray, starts: list[int], window: int, contiguous: int) -> list[list[int]]:
-    regions = []
-    index = 0
-    while index < flagged.size:
-        if not flagged[index]:
-            index += 1
+def _boundary_events(value: Any) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1).tolist()
+    if isinstance(value, dict):
+        records = [value]
+    elif isinstance(value, list):
+        records = [item for item in value if isinstance(item, dict)]
+    else:
+        records = []
+    if not records:
+        return []
+    bounds = eeg_findboundaries(EEG=records)
+    return [records[index] for index in bounds] if bounds else []
+
+
+def _epoch_log_spectrum(epoched: dict[str, Any], srate: float, taper: str) -> tuple[np.ndarray, np.ndarray]:
+    data = np.asarray(epoched.get("data"), dtype=float)
+    if data.ndim == 2:
+        data = data[:, :, np.newaxis]
+    if data.ndim != 3 or data.shape[1] < 2:
+        return np.empty((0, 0, 0), dtype=float), np.empty(0, dtype=float)
+    if taper.lower() == _REJCONT_TAPER:
+        data = data * np.hamming(data.shape[1])[np.newaxis, :, np.newaxis]
+    spectrum = np.fft.fft(data, axis=1)
+    half = spectrum.shape[1] // 2
+    frequencies = np.fft.fftfreq(spectrum.shape[1], d=1.0 / float(srate))[1:half]
+    spectrum = spectrum[:, 1:half, :]
+    power = 10.0 * np.log10(np.maximum(np.abs(spectrum) ** 2, np.finfo(float).tiny))
+    power = power - np.mean(power, axis=2, keepdims=True)
+    return power, frequencies
+
+
+def _threshold_epochs(
+    spectrum: np.ndarray,
+    frequencies: np.ndarray,
+    freqlimit: list[float],
+    low: float,
+    high: float,
+    mode: str,
+) -> np.ndarray:
+    if frequencies.size == 0:
+        return np.empty(0, dtype=int)
+    if mode.lower() == "max":
+        timerange = (float(frequencies[0]), float(frequencies[-1]))
+        span = timerange[1] - timerange[0]
+        if span == 0:
+            return np.empty(0, dtype=int)
+        frame_low = max(1, int(np.floor((freqlimit[0] - timerange[0]) / span * (frequencies.size - 1))) + 1)
+        frame_high = int(np.floor((freqlimit[-1] - timerange[0]) / span * (frequencies.size - 1))) + 1
+        frame_high = min(frequencies.size, max(frame_low, frame_high))
+        segment = spectrum[frame_low - 1 : frame_high, :]
+    else:
+        nearest_start = int(np.argmin(np.abs(frequencies - freqlimit[0])))
+        nearest_stop = int(np.argmin(np.abs(frequencies - freqlimit[-1])))
+        if nearest_stop < nearest_start:
+            nearest_start, nearest_stop = nearest_stop, nearest_start
+        segment = np.mean(spectrum[nearest_start : nearest_stop + 1, :], axis=0, keepdims=True)
+    if segment.size == 0:
+        return np.empty(0, dtype=int)
+    rejected = (np.min(segment, axis=0) < low) | (np.max(segment, axis=0) > high)
+    return np.flatnonzero(rejected) + 1
+
+
+def _windows_for_epochs(
+    epoched: dict[str, Any], rejected: np.ndarray, epochlength: float, srate: float
+) -> list[list[float]]:
+    events = epoched.get("event")
+    if events is None:
+        events = []
+    if isinstance(events, np.ndarray):
+        events = events.reshape(-1).tolist()
+    if any("epoch" not in event for event in events):
+        raise ValueError(
+            "pop_rejcont: some events are not associated with any epoch. "
+            "Reload the continuous dataset and run pop_rejcont again."
+        )
+    by_epoch: dict[int, list[dict[str, Any]]] = {}
+    for event in events:
+        by_epoch.setdefault(int(event["epoch"]), []).append(event)
+    urevents = epoched.get("urevent")
+    if urevents is None:
+        urevents = []
+    if isinstance(urevents, np.ndarray):
+        urevents = urevents.reshape(-1).tolist()
+    rows: list[list[float]] = []
+    width = epochlength * srate - 1.0
+    for epoch_number in rejected.tolist():
+        matched = by_epoch.get(int(epoch_number))
+        if not matched:
             continue
-        run_start = index
-        while index < flagged.size and flagged[index]:
-            index += 1
-        if index - run_start >= contiguous:
-            regions.append([starts[run_start], starts[index - 1] + window])
-    return regions
+        event = matched[0]
+        if str(event.get("type")) != "X":
+            raise ValueError(
+                "pop_rejcont: an epoch event was not type 'X'. "
+                "Run pop_rejcont on continuous data; boundary events are kept and regular epochs are rebuilt."
+            )
+        latency = float(urevents[int(event["urevent"])]["latency"])
+        rows.append([latency, latency + width])
+    return rows
+
+
+def _merge_rejcont_windows(rows: list[list[float]], grouplen: float, contiguous: int) -> list[list[float]]:
+    # pop_rejcont.m:293-316
+    index = len(rows) - 1
+    while index >= 0:
+        count = len(rows)
+        start, stop = rows[index][0], rows[index][1]
+        if contiguous >= 2 and count >= index + 1 and stop - start > grouplen:
+            del rows[index]
+        elif contiguous >= 2 and index == 0 and count > 1 and rows[1][0] - stop > grouplen:
+            del rows[index]
+        elif contiguous >= 2 and index == count - 1 and count > 1 and start - rows[index - 1][1] > grouplen:
+            del rows[index]
+        elif (
+            contiguous >= 2
+            and 0 < index < count - 1
+            and count > 1
+            and rows[index + 1][0] - stop > grouplen
+            and start - rows[index - 1][1] > grouplen
+        ):
+            del rows[index]
+        elif index < count - 1 and count > 1 and rows[index + 1][0] - stop <= grouplen:
+            rows[index][1] = rows[index + 1][1]
+            del rows[index + 1]
+        index -= 1
+    return rows
 
 
 def _merge_regions(regions: np.ndarray) -> np.ndarray:
@@ -318,26 +465,85 @@ def _merge_regions(regions: np.ndarray) -> np.ndarray:
     return np.asarray(merged, dtype=int)
 
 
-def _history_command(options: dict[str, Any]) -> str:
-    values: list[Any] = []
-    for key in (
-        "elecrange",
-        "freqlimit",
-        "threshold",
-        "epochlength",
-        "overlap",
-        "mode",
-        "contiguous",
-        "addlength",
-        "taper",
-        "correct",
-        "onlyreturnselection",
-        "eegplot",
-    ):
-        if key in options:
-            values.extend([key, options[key]])
+def _history_comment(options: dict[str, Any]) -> str:
+    # pop_rejcont.m:370
+    parts = [f"'{key}',{_history_argument(value)}" for key, value in options.items() if key != "eegplot"]
     return (
-        "EEG = pop_rejcont(EEG, "
-        + ", ".join(format_history_value(item, cell_for_sequence=None) for item in values)
-        + ");"
+        "% the command below does the automated rejection "
+        "(the pop_select command after that includes manual editing)\n"
+        "% EEG = pop_rejcont(EEG, " + ",".join(parts) + ");"
     )
+
+
+def _pop_select_history(selected: np.ndarray) -> str:
+    # pop_select.m:749
+    rows = ";".join(f"{int(start)} {int(stop)}" for start, stop in np.asarray(selected, dtype=int))
+    return f"EEG = pop_select( EEG, 'nopoint',[{rows}]);"
+
+
+def _one_seconds(value: Any, field: str, example: str) -> float:
+    try:
+        values = parse_numeric_sequence(value, dtype=float)
+    except ValueError:
+        values = []
+    if len(values) != 1 or not np.isfinite(values[0]):
+        raise ValueError(
+            f"pop_rejcont: {field} must be one finite number of seconds, for example {example}. "
+            f"The entered value was {value!r}."
+        )
+    return float(values[0])
+
+
+def _history_argument(value: Any) -> str:
+    if _is_option_cell(value):
+        items = value.reshape(-1).tolist() if isinstance(value, np.ndarray) else list(value)
+        return "{" + ",".join(_history_argument(item) for item in items) + "}"
+    return _matlab_history_value(value)
+
+
+def _rejection_bands(threshold: Any, freqlimit: Any) -> list[tuple[float, float, list[float]]]:
+    # pop_rejcont.m:172-177, 239
+    threshold_cell = _is_option_cell(threshold)
+    freq_cell = _is_option_cell(freqlimit)
+    thresholds = _cell_vectors(threshold) if threshold_cell else [_numeric_vector(threshold)]
+    limits = _cell_vectors(freqlimit) if freq_cell else [_numeric_vector(freqlimit)]
+    if not threshold_cell and len(thresholds[0]) == 2 and freq_cell and len(limits) == 2:
+        thresholds = [[thresholds[0][0]], [thresholds[0][1]]]
+    if len(limits) == 1 and len(thresholds) > 1:
+        limits = limits * len(thresholds)
+    if len(limits) != len(thresholds):
+        raise ValueError(
+            "pop_rejcont: freqlimit and threshold must have one entry each, or the same number of bands. "
+            f"Got {len(limits)} frequency range(s) and {len(thresholds)} threshold(s)."
+        )
+    bands = []
+    for values, band in zip(thresholds, limits, strict=True):
+        if len(values) == 1:
+            low, high = -100.0, values[0]
+        elif len(values) >= 2:
+            low, high = values[0], values[1]
+        else:
+            raise ValueError("pop_rejcont: threshold is empty. Pass a maximum, or [min max].")
+        if len(band) < 2:
+            raise ValueError("pop_rejcont: freqlimit must contain a low and a high frequency, in Hz.")
+        bands.append((low, high, [band[0], band[1]]))
+    return bands
+
+
+def _is_option_cell(value: Any) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.dtype == object
+    if isinstance(value, (list, tuple)) and value:
+        return any(isinstance(item, (list, tuple, np.ndarray, dict)) for item in value)
+    return False
+
+
+def _cell_vectors(value: Any) -> list[list[float]]:
+    items = value.reshape(-1).tolist() if isinstance(value, np.ndarray) else list(value)
+    return [_numeric_vector(item) for item in items]
+
+
+def _numeric_vector(value: Any) -> list[float]:
+    if isinstance(value, (list, tuple)) and len(value) == 1 and isinstance(value[0], (list, tuple, np.ndarray)):
+        value = value[0]
+    return [float(item) for item in parse_numeric_sequence(value, dtype=float)]

@@ -8,9 +8,9 @@ MATLAB runica() function from EEGLAB, maintaining numerical parity.
 Derived from MATLAB:
     This code was translated from EEGLAB's runica.m function. The Python
     implementation produces scientifically equivalent results to MATLAB
-    with 99.97-99.99% component-wise correlation. Minor differences in
-    component ordering may occur due to variance computation differences.
-    Extended-ICA achieves exact step-count match with MATLAB.
+    with 99.97-99.99% component-wise correlation. Component order uses the
+    projected-variance key in runica.m line 1519. Extended-ICA kurtosis
+    draws the same fix(rand) subset as runica.m lines 890-896.
 
 Reference:
     Makeig, S., Bell, A.J., Jung, T-P and Sejnowski, T.J.,
@@ -26,9 +26,18 @@ import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
 from ..miscfunc.misc import finite_pinv
+from ..miscfunc.value_parsing import parse_key_value_args
 from . import runica_matmul as _runica_matmul
 
 logger = logging.getLogger(__name__)
+
+
+def _kurtosis_columns(rng: np.random.RandomState, datalength: int, kurtsize: int) -> np.ndarray:
+    selected = np.fix(rng.rand(kurtsize) * datalength).astype(np.int64, copy=False)
+    while np.any(selected == 0):
+        missing = selected == 0
+        selected[missing] = np.fix(rng.rand(int(np.count_nonzero(missing))) * datalength).astype(np.int64, copy=False)
+    return selected - 1
 
 
 def _matmul(left, right):
@@ -66,12 +75,15 @@ DEFAULT_PCAFLAG = 'off'
 DEFAULT_POSACTFLAG = 'off'
 DEFAULT_VERBOSE = 1
 DEFAULT_BIASFLAG = 1
-DEFAULT_RESETRANDOMSEED = False  # Note: Changed to False in 2015 (was True before)
+DEFAULT_RESETRANDOMSEED = False
 
 
-def runica(data, **kwargs):
+def runica(data, *args, **kwargs):
     """
     Perform Independent Component Analysis (ICA) decomposition using infomax.
+
+    Positional EEGLAB name/value pairs, such as ``runica(data, 'extended', 1)``,
+    are accepted and merged with keywords. Pair names are case-insensitive.
 
     This function implements the logistic infomax ICA algorithm of Bell & Sejnowski
     (1995) with the natural gradient feature, or optionally the extended-ICA
@@ -141,8 +153,7 @@ def runica(data, **kwargs):
             Draw interrupt figure. Options: 'on', 'off'.
 
         rndreset : str or bool, default='off' or False
-            Reset the random seed based on time of day. Default 'off' means
-            ICA will always return the SAME decomposition (deterministic).
+            Reset the random seed from the clock. Omitted calls stay off.
 
         seed : int, optional
             Random seed for RNG initialization. If provided, overrides rndreset
@@ -178,8 +189,15 @@ def runica(data, **kwargs):
     This is a direct translation of EEGLAB's MATLAB runica.m function.
     Uses float64 precision throughout for numerical consistency.
 
-    The RNG uses np.random.RandomState with seed 5489 (MATLAB default)
-    when rndreset='off', or a time-based seed when rndreset='on'.
+    ``runica.m`` line 205 sets ``DEFAULT_RESETRANDOMSEED = true``, so an omitted
+    ``rndreset`` takes the clock reseed at lines 816-817
+    (``rand('state', sum(100*clock))``). The help at lines 48-50 says the
+    default has been ``'off'`` since 2015, so repeated calls return the same
+    decomposition, and the off branch at line 819 is ``rand('state', 0)``.
+    EEGPrep follows that help text. An omitted ``rndreset`` is off and uses
+    ``RandomState(5489)``, the MT19937 stream ``pythoncompat`` selects at line
+    814 (``rng(5489, 'twister')``), rather than the legacy ``rand('state', 0)``
+    stream. ``rndreset='on'`` seeds from the clock.
 
     MATLAB Parity Validation Report
     -------------------------------
@@ -206,8 +224,8 @@ def runica(data, **kwargs):
 
     Known Acceptable Differences:
 
-    1. Component Ordering: May differ from MATLAB due to variance scaling.
-       Scientifically acceptable (ICA permutation ambiguity).
+    1. Component ordering follows runica.m line 1519: sphered-channel energy
+       when ``posact`` is off, activation energy when ``posact`` is on.
 
     2. Convergence Steps (Standard ICA only): May take ~10% more steps
        due to sqrtm precision differences. Extended-ICA: 0% difference.
@@ -233,8 +251,7 @@ def runica(data, **kwargs):
     if chans < 2:
         raise ValueError(f'runica(): data size ({chans},{frames}) too small.')
 
-    # Parse keyword arguments (case-insensitive)
-    kwargs_lower = {k.lower(): v for k, v in kwargs.items()}
+    kwargs_lower = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
 
     pcaflag = DEFAULT_PCAFLAG
     sphering = DEFAULT_SPHEREFLAG
@@ -662,19 +679,15 @@ def runica(data, **kwargs):
                         if extblocks > 0 and blockno % extblocks == 0:
                             # Random subset selection or whole data (MATLAB lines 868-879)
                             if kurtsize < frames:
-                                # Pick random subset (MATLAB lines 869-876)
-                                # Use randint to avoid index overflow (rand() * datalength could equal datalength)
-                                rp = rng.randint(1, datalength, size=kurtsize)
-                                partact = _runica_matmul.runica_matmul(weights, data[:, rp[:kurtsize]])
+                                rp = _kurtosis_columns(rng, datalength, kurtsize)
+                                partact = _runica_matmul.runica_matmul(weights, data[:, rp])
                             else:
-                                # For small data sets, use whole data (MATLAB lines 877-878)
                                 partact = _runica_matmul.runica_matmul(weights, data)
 
-                            # Compute kurtosis (MATLAB lines 880-882)
                             m2 = np.mean(partact**2, axis=1) ** 2
                             m4 = np.mean(partact**4, axis=1)
-                            # Add epsilon to prevent division by zero for near-zero variance components
-                            kk = (m4 / (m2 + 1e-10)) - 3.0  # kurtosis estimates
+                            with np.errstate(divide="ignore", invalid="ignore"):
+                                kk = (m4 / m2) - 3.0
 
                             # Apply momentum to kurtosis (MATLAB lines 883-886)
                             if extmomentum:
@@ -985,16 +998,15 @@ def runica(data, **kwargs):
                     if not wts_blowup:
                         if extblocks > 0 and blockno % extblocks == 0:
                             if kurtsize < frames:
-                                # Use randint to avoid index overflow (rand() * datalength could equal datalength)
-                                rp = rng.randint(1, datalength, size=kurtsize)
-                                partact = _runica_matmul.runica_matmul(weights, data[:, rp[:kurtsize]])
+                                rp = _kurtosis_columns(rng, datalength, kurtsize)
+                                partact = _runica_matmul.runica_matmul(weights, data[:, rp])
                             else:
                                 partact = _runica_matmul.runica_matmul(weights, data)
 
                             m2 = np.mean(partact**2, axis=1) ** 2
                             m4 = np.mean(partact**4, axis=1)
-                            # Add epsilon to prevent division by zero for near-zero variance components
-                            kk = (m4 / (m2 + 1e-10)) - 3.0
+                            with np.errstate(divide="ignore", invalid="ignore"):
+                                kk = (m4 / m2) - 3.0
 
                             if extmomentum:
                                 kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
@@ -1243,6 +1255,10 @@ def runica(data, **kwargs):
     # Compute activations (MATLAB lines 1439-1455)
     # Note: data matrix was mean-centered at the start
     # Need to add back row means for activation computation
+    if posactflag == "on" or data.shape[0] != ncomps:
+        projected_energy = None
+    else:
+        projected_energy = np.sum(data**2, axis=1)
 
     # Make activations from sphered data (MATLAB line 1439)
     # Add back the row means removed from data before sphering (MATLAB lines 1442-1447)
@@ -1281,9 +1297,9 @@ def runica(data, **kwargs):
             logger.info('Using pseudo-inverse of weight matrix to rank order component projections.')
         winv = finite_pinv(unmixing, solver=pinv)
 
-    # Compute variances without backprojecting (MATLAB line 1486)
-    # Formula from Rey Ramirez 8/07
-    meanvar = np.sum(winv**2, axis=0) * np.sum(activations_unsorted**2, axis=1) / ((chans * frames) - 1)
+    if projected_energy is None:
+        projected_energy = np.sum(activations_unsorted**2, axis=1)
+    meanvar = np.sum(winv**2, axis=0) * projected_energy / ((chans * frames) - 1)
 
     # Sort components by mean variance (MATLAB lines 1490-1492)
     sortvar = np.argsort(meanvar)

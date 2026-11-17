@@ -35,9 +35,9 @@ def pop_interp(
     Args:
         EEG: EEG dictionary. MATLAB callback-string mode is handled internally
             by the GUI renderer in EEGPrep rather than by public string calls.
-        bad_elec: 0-based channel indices, channel labels, or channel-location
-            dictionaries to interpolate. When omitted, the EEGLAB-like GUI is
-            shown.
+        bad_elec: 1-based channel indices, channel labels, or channel-location
+            dictionaries to interpolate. Channel 1 is the first channel.
+            When omitted, the EEGLAB-like GUI is shown.
         method: Interpolation method. Defaults to ``"spherical"`` when
             ``bad_elec`` is provided, matching EEGLAB.
         t_range: Optional ``[start, end]`` interpolation time range in seconds.
@@ -233,7 +233,7 @@ def _run_gui(
     timerange_text = str(result.get("timerange", "") or "").strip()
     t_range = _gui_t_range(EEG, timerange_text)
     return {
-        "bad_elec": selection["chans"],
+        "bad_elec": _gui_channels_as_one_based(selection["chans"]),
         "chanstr": selection["chanstr"],
         "method": _gui_method(result.get("method", 1), is_continuous=_is_continuous(EEG)),
         "t_range": t_range,
@@ -280,6 +280,14 @@ def _gui_method(value: Any, *, is_continuous: bool = True) -> str:
     if index == 2:
         return "invdist" if is_continuous else "sphericalKang"
     return "invdist"
+
+
+def _gui_channels_as_one_based(chans: Any) -> Any:
+    if isinstance(chans, np.ndarray):
+        chans = chans.tolist()
+    if isinstance(chans, list) and chans and isinstance(chans[0], (int, np.integer)) and not isinstance(chans[0], bool):
+        return [int(channel) + 1 for channel in chans]
+    return chans
 
 
 def _gui_t_range(EEG: dict, value: Any) -> list[float]:

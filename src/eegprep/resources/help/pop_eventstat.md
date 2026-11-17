@@ -11,6 +11,7 @@ stats = pop_eventstat(EEG, "latency", [], [], 5)
 stats = pop_eventstat(EEG, "duration", ["square"], [0, 300], 5)
 ```
 
+Latency and duration are converted to milliseconds before the statistics run.
 String-valued event fields are ignored because the statistical workflow requires
 numeric values.
 

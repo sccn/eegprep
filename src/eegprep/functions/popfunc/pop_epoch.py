@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
@@ -126,6 +127,7 @@ def pop_epoch_dialog_spec(EEG: dict[str, Any], *, multiple: bool = False) -> Dia
                         "button": "eventtypes_button",
                         "target": "events",
                         "event_types": event_types,
+                        "selectionmode": "multiple",
                     },
                     matlab_callback="pop_chansel(unique({ EEG.event.type }))",
                 ),
@@ -329,7 +331,10 @@ def _normalise_eventindices(value: Any, event_count: int) -> list[int]:
     indices = [int(item) for item in _as_list(value)]
     normalised = [index - 1 for index in indices]
     if any(index < 0 or index >= event_count for index in normalised):
-        raise ValueError("eventindices must be 1-based and within EEG.event")
+        raise ValueError(
+            f"pop_epoch: eventindices {indices} are outside 1..{event_count}. "
+            "Pass 1-based indices that exist in EEG.event."
+        )
     return sorted(set(normalised))
 
 
@@ -513,7 +518,7 @@ def _default_epoch_limits(EEG: dict[str, Any]) -> str:
         is_epoched = data.ndim == 3 and data.shape[2] > 1
     is_epoched = is_epoched or int(EEG.get("trials", 1) or 1) > 1
     if is_epoched:
-        return f"{round(float(EEG.get('xmin', 0) or 0)):g} {round(float(EEG.get('xmax', 0) or 0)):g}"
+        return f"{int(round_mat(float(EEG.get('xmin', 0) or 0))):g} {int(round_mat(float(EEG.get('xmax', 0) or 0))):g}"
     return "-1 2"
 
 

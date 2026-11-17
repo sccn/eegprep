@@ -12,6 +12,9 @@ stats = pop_signalstat(EEG, 1, 1, 5)
 stats = pop_signalstat(EEG, 0, 2, 10)
 ```
 
+The figure lists the trimmed mean, the trim quantiles, and the
+Kolmogorov-Smirnov verdict, and a channel map marks the selected electrode.
+
 The GUI asks for the channel/component number and trim percentage, then renders
 a histogram, boxplot, QQ plot, topographic context when channel locations are
 available, and statistics panel.

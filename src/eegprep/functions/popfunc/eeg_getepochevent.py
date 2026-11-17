@@ -21,6 +21,13 @@ def eeg_getepochevent(
     Both EEGLAB's positional form ``(type, timewin, fieldname)`` and its
     key/value form are accepted. Trial selections are 1-based; stored event
     fields such as ``urevent`` are returned in EEGPrep's 0-based form.
+    As in EEGLAB, numeric event types match by value (``2``, ``2.0`` and
+    ``"2"``) and text types match exactly.
+    Events of continuous data, where no event has an ``epoch`` field, belong to epoch 1.
+
+    Raises:
+        ValueError: an event has no ``epoch`` while others have one, or its
+            epoch is outside 1..trials.
     """
     options = _parse_options(args, kwargs)
     if isinstance(EEG, list):
@@ -30,13 +37,14 @@ def eeg_getepochevent(
     field_name = str(options["fieldname"])
     events = events_as_list(EEG.get("event", []))
     trial_count = int(EEG.get("trials", 1))
+    has_epochs = any("epoch" in event for event in events)
     epoch_values: list[Any] = [np.nan] * trial_count
     all_epoch_values: list[list[Any]] = [[] for _ in range(trial_count)]
 
-    for event in events:
+    for number, event in enumerate(events, start=1):
         if not _matches_type(event.get("type"), event_types) or field_name not in event:
             continue
-        epoch = _event_epoch(event)
+        epoch = _event_epoch(event, number, trial_count) if has_epochs else 1
         latency_ms = float(
             eeg_point2lat(
                 [event["latency"]],
@@ -52,8 +60,6 @@ def eeg_getepochevent(
         if value is None:
             continue
         index = epoch - 1
-        if index < 0 or index >= trial_count:
-            raise ValueError("event epoch is outside EEG.trials")
         if field_name != "latency" or not all_epoch_values[index]:
             epoch_values[index] = _numeric_value(value)
         all_epoch_values[index].append(value)
@@ -138,17 +144,42 @@ def _is_numeric_pair(value: Any) -> bool:
 def _matches_type(value: Any, requested: Any) -> bool:
     if requested is None or (isinstance(requested, (list, tuple, np.ndarray)) and len(requested) == 0):
         return True
-    requested_values = [requested] if isinstance(requested, (str, int, float)) else list(requested)
-    return any(_type_text(value) == _type_text(candidate) for candidate in requested_values)
+    requested_values = [requested] if isinstance(requested, (str, int, float, np.number)) else list(requested)
+    return any(_same_type(value, candidate) for candidate in requested_values)
 
 
-def _event_epoch(event: dict[str, Any]) -> int:
-    value = event.get("epoch", 1)
+def _same_type(event_type: Any, candidate: Any) -> bool:
+    """EEGLAB matches numeric event types by value (typed text through str2num) and text types exactly."""
+    if _is_number(event_type):
+        return _number_or_none(candidate) == float(event_type)
+    return str(event_type) == event_type_text(candidate)
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, (bool, np.bool_))
+
+
+def _number_or_none(value: Any) -> float | None:
+    if _is_number(value):
+        return float(value)
+    try:
+        return float(str(value))
+    except ValueError:
+        return None
+
+
+def _event_epoch(event: dict[str, Any], number: int, trial_count: int) -> int:
+    if "epoch" not in event:
+        raise ValueError(f"event {number} has no 'epoch' field, while other events have one")
+    value = event["epoch"]
     if isinstance(value, np.ndarray):
-        value = value.ravel()[0]
+        value = value.ravel()[0] if value.size else None
     elif isinstance(value, (list, tuple)):
-        value = value[0]
-    return int(value)
+        value = value[0] if value else None
+    epoch = _number_or_none(value) if value is not None else None
+    if epoch is None or not epoch.is_integer() or not 1 <= epoch <= trial_count:
+        raise ValueError(f"event {number} has epoch {value!r}, outside 1..{trial_count}")
+    return int(epoch)
 
 
 def _field_value(value: Any, field: str, srate: float, latency_ms: float) -> Any:
@@ -186,10 +217,11 @@ def _numeric_value(value: Any) -> Any:
     return output
 
 
-def _type_text(value: Any) -> str:
-    if isinstance(value, (int, float, np.integer, np.floating)) and float(value).is_integer():
+def event_type_text(value: Any) -> str:
+    """An event type as text, integer-valued numbers without a decimal point (2.0 is '2')."""
+    if _is_number(value) and float(value).is_integer():
         return str(int(value))
     return str(value)
 
 
-__all__ = ["eeg_getepochevent"]
+__all__ = ["eeg_getepochevent", "event_type_text"]

@@ -176,6 +176,8 @@ def _read_locs(source: Any, options: dict[str, Any]) -> list[dict[str, Any]]:
         locs = _read_mat_locations(path)
     elif filetype in {"polhemus", "polhemusx", "polhemusy"}:
         locs = readelp(path)
+        if not locs:
+            locs = _read_text_locations(path, "besa", options)
         if filetype == "polhemusy":
             for loc in locs:
                 loc["X"], loc["Y"] = loc.get("Y", ""), loc.get("X", "")
@@ -208,12 +210,16 @@ def _read_text_locations(path: Path, filetype: str, options: dict[str, Any]) -> 
     if not rows:
         return []
     rows = [row for row in rows if not _is_dash_row(row)]
+    if filetype == "besa" and rows and len(rows[0]) == 1:
+        rows.pop(0)
     if rows and _is_header_row(rows[0]):
         fields = tuple(_canonical_field(item) for item in rows.pop(0))
         rows = [row for row in rows if not _is_dash_row(row)]
 
     locs: list[dict[str, Any]] = []
     for row in rows:
+        if filetype in {"loc", "sph", "besa"}:
+            row = [item for item in row if item]
         if len(row) < len(fields):
             if filetype != "chanedit":
                 raise ValueError("Channel-location row has fewer columns than the selected format")

@@ -4,13 +4,47 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
+from eegprep.functions.popfunc.eeg_boundarytype import eeg_boundarytype
 from ..miscfunc.misc import round_mat
 
 
 logger = logging.getLogger(__name__)
+
+
+def _events_as_dicts(events):
+    """Return event records as dicts.
+
+    A structured array is one record per element, in C order. An empty array is
+    an empty list. Any other value raises instead of being discarded.
+    """
+    if events is None:
+        return []
+    if isinstance(events, dict):
+        return [dict(events)]
+    if isinstance(events, np.ndarray):
+        if events.size == 0:
+            return []
+        if events.dtype.names:
+            return [{name: record[name] for name in events.dtype.names} for record in events.reshape(-1)]
+        records = list(events.reshape(-1))
+    elif isinstance(events, (list, tuple)):
+        records = list(events)
+    else:
+        raise TypeError("EEG.event must be a list of event dicts or a structured array")
+    converted = []
+    for record in records:
+        if isinstance(record, dict):
+            converted.append(dict(record))
+            continue
+        if isinstance(record, np.void) and record.dtype.names:
+            converted.append({name: record[name] for name in record.dtype.names})
+            continue
+        raise TypeError("EEG.event must be a list of event dicts or a structured array")
+    return converted
 
 
 def _eegrej(
@@ -58,8 +92,8 @@ def _eegrej(
     if r.ndim != 2 or r.shape[1] != 2:
         raise ValueError("regions must be of shape (n_regions, 2)")
 
-    # Round, clamp to [1, n], sort each row then sort rows (EEGLAB parity)
-    r = np.rint(r).astype(int)
+    # Round half away from zero, clamp to [1, n], sort each row then sort rows.
+    r = np.asarray(round_mat(r), dtype=int)
     r[:, 0] = np.clip(r[:, 0], 1, n)
     r[:, 1] = np.clip(r[:, 1], 1, n)
     r.sort(axis=1)
@@ -179,7 +213,7 @@ def _eegrej(
 
     # Insert boundary events (always, even if no original events)
     if True:
-        bound_type = "boundary"
+        bound_type = eeg_boundarytype(events_out)
         for i in range(len(boundevents)):
             be = float(boundevents[i])
             if be > 0 and be < (newn + 1):
@@ -255,7 +289,7 @@ def _eegrej(
     return newx, newt, events_out, boundevents
 
 
-def eeg_eegrej(EEG, regions):
+def eeg_eegrej(EEG, regions, *, return_regions: bool = False):
     """Reject EEG data segments specified by regions.
 
     Parameters
@@ -263,35 +297,29 @@ def eeg_eegrej(EEG, regions):
     EEG : dict
         EEG data structure
     regions : array-like
-        Regions to reject, shape (n_regions, 2) or (n_regions, 4)
+        Regions to reject, shape (n_regions, 2) or wider eegplot rows.
+        Columns 3 and 4 of a wider row are the sample bounds.
+    return_regions : bool
+        Also return the reduced two-column bounds that were removed.
 
     Returns
     -------
     EEG : dict
-        Updated EEG data structure with rejected segments removed
+        Updated EEG data structure with rejected segments removed.
+        With ``return_regions``, a tuple of that dataset and the reduced bounds.
     """
     source_data = EEG.get("data")
     EEG = deepcopy(EEG)
     if regions is None or len(regions) == 0:
-        return EEG
+        reduced = np.zeros((0, 2), dtype=float)
+        return (EEG, reduced) if return_regions else EEG
 
-    # Round first like MATLAB, then convert to int
-    regions = np.asarray(regions, dtype=float)
-    regions = round_mat(regions).astype(np.int64)
-
-    # sort rows like MATLAB
-    if regions.shape[1] > 2:
-        regions = regions[np.argsort(regions[:, 2])]
-    else:
-        regions = regions[np.argsort(regions[:, 0])]
-
-    if regions.shape[1] > 2:
-        regions = regions[:, 2:4]
-
-    regions = _combine_regions(regions)
+    # Sort, then merge fractional bounds the way combineregions does. Rounding
+    # happens in _eegrej, after overlaps have been collapsed.
+    regions = _reduced_regions(regions)
 
     # Use original events; backend will handle pruning, shifting, and boundary insertion
-    events = list(EEG.get("event", []))
+    events = _events_as_dicts(EEG.get("event", []))
 
     xdur = float(EEG["xmax"] - EEG["xmin"])
     data_out, xmax_rel, event2, boundevents = _eegrej(EEG["data"], regions, xdur, events)
@@ -300,14 +328,14 @@ def eeg_eegrej(EEG, regions):
     EEG["data"] = mapped_output_like(source_data, data_out)
     EEG["pnts"] = int(data_out.shape[1])
     EEG["xmax"] = float(EEG["xmin"] + xmax_rel)
+    if EEG["pnts"] == 0:
+        # eeg_checkset: xmax = (pnts-1)/srate + xmin, which is xmin - 1/srate.
+        EEG["xmax"] = float(EEG["xmin"]) - 1.0 / float(EEG["srate"])
     EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'], dtype=float)
 
     # Use backend-generated events list (boundary insertion already done by _eegrej)
-    EEG["event"] = list(event2) if isinstance(event2, list) else []
+    EEG["event"] = _events_as_dicts(event2)
     EEG["event"].sort(key=lambda e: e.get("latency", float("inf")))
-
-    if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
-        EEG["event"].pop()
 
     # light duplicate cleanup mirroring MATLAB edge cases: only drop boundary
     # events sitting at the very first/last sample, never genuine stimulus events
@@ -332,21 +360,58 @@ def eeg_eegrej(EEG, regions):
                     if f not in ev:
                         ev[f] = np.array([])
 
-    return EEG
+    # eeg_checkset.m:440-449 removes events with latency > pnts*trials+1
+    # before lines 821-826 replace a stale trials value. A stored 0 would
+    # drop every event past sample 1. Set trials from the data shape first.
+    # eeg_eegrej.m:144 then runs that check, which also snaps xmax.
+    # Lines 145-147 drop the event that is now past the last kept sample.
+    data = EEG["data"]
+    EEG["trials"] = int(data.shape[2]) if np.ndim(data) == 3 else 1
+    eeg_checkset(EEG, "eventconsistency")
+    EEG["event"] = _events_as_dicts(EEG.get("event"))
+    if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
+        EEG["event"].pop()
+    return (EEG, regions) if return_regions else EEG
+
+
+def _reduced_regions(regions):
+    regions = np.asarray(regions, dtype=float)
+    if regions.ndim == 1:
+        regions = regions.reshape(1, -1)
+    if regions.shape[1] > 2:
+        regions = regions[np.argsort(regions[:, 2], kind="mergesort")]
+    else:
+        regions = regions[np.argsort(regions[:, 0], kind="mergesort")]
+    if regions.shape[1] > 2:
+        regions = regions[:, 2:4]
+    return _combine_regions(regions)
 
 
 def _combine_regions(regs):
-    if len(regs) == 0:
-        return regs
-    regs = np.array(sorted(regs.tolist(), key=lambda r: (r[0], r[1])), dtype=np.int64)
-    merged = [regs[0].tolist()]
-    for beg, end in regs[1:]:
-        mbeg, mend = merged[-1]
-        if beg <= mend + 1:
-            merged[-1][1] = max(mend, end)
-        else:
-            merged.append([beg, end])
-    newregs = np.asarray(merged, dtype=np.int64)
+    """Merge regions with EEGLAB combineregions (cumsum of starts and ends).
+
+    A shared endpoint merges because the stable sort keeps the +1 start before
+    the -1 end. A one-sample gap stays two regions.
+    """
+    regs = np.asarray(regs, dtype=float)
+    if regs.size == 0:
+        return regs.reshape(0, 2)
+    regs = np.sort(regs, axis=1)
+    regs = regs[np.argsort(regs[:, 0], kind="mergesort")]
+    values = np.concatenate([regs[:, 0], regs[:, 1]])
+    signs = np.concatenate([np.ones(regs.shape[0]), -np.ones(regs.shape[0])])
+    order = np.argsort(values, kind="mergesort")
+    values = values[order]
+    boundary = np.cumsum(signs[order])
+    merged = []
+    index = 0
+    n_bounds = values.size
+    while index != n_bounds:
+        start = values[index]
+        offset = int(np.argmin(np.abs(boundary[index:])))
+        merged.append([start, values[index + offset]])
+        index = index + offset + 1
+    newregs = np.asarray(merged, dtype=float)
     if newregs.shape[0] != regs.shape[0]:
         logger.warning("Overlapping regions detected and fixed in eeg_eegrej")
     return newregs

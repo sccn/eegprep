@@ -3,12 +3,13 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import pytest
 
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.qt import _firpm_order_shape
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt, pop_eegfilt_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew, pop_eegfiltnew_dialog_spec
-from eegprep.plugins.firfilt.pop_firpm import pop_firpm
+from eegprep.plugins.firfilt.pop_firpm import pop_firpm, pop_firpm_dialog_spec
 from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord
 from eegprep.plugins.firfilt.pop_firws import pop_firws
 
@@ -32,6 +33,45 @@ def _eeg():
             {"labels": "EOG", "type": "EOG"},
         ],
     }
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("accept", [True, False])
+def test_firpm_estimate_opens_ripple_attenuation_dialog(qt_dialogs, accept):
+    widgets = qt_dialogs.build(pop_firpm_dialog_spec(_eeg()))
+    widgets["fcutoff"].setText("8 30")
+    widgets["ftrans"].setText("4")
+    original = {tag: widgets[tag].text() for tag in ("forder", "wtpass", "wtstop")}
+    opened = []
+    timer = qt_dialogs.qt.QtCore.QTimer()
+
+    def answer():
+        dialog = qt_dialogs.qt.QtWidgets.QApplication.activeModalWidget()
+        if dialog is None:
+            return
+        timer.stop()
+        opened.append(dialog.objectName())
+        if accept:
+            dialog.findChild(qt_dialogs.qt.QtWidgets.QLineEdit, "rp").setText("0.2")
+            dialog.findChild(qt_dialogs.qt.QtWidgets.QLineEdit, "rs").setText("40")
+            dialog.accept()
+        else:
+            dialog.reject()
+
+    timer.timeout.connect(answer)
+    timer.start(10)
+    widgets["orderpush"].click()
+    timer.stop()
+
+    assert opened == ["pop_firpmord"]
+    assert not qt_dialogs.messages
+    if accept:
+        edges, amplitudes = _firpm_order_shape([8, 30], 4, "bandpass", 200)
+        passdev = (10 ** (0.2 / 20) - 1) / (10 ** (0.2 / 20) + 1)
+        expected = pop_firpmord(edges, amplitudes, [0.01, passdev, 0.01], 200)
+        assert [widgets[tag].text() for tag in original] == [f"{value:g}" for value in expected]
+    else:
+        assert {tag: widgets[tag].text() for tag in original} == original
 
 
 class PopFirfiltGuiTests(unittest.TestCase):

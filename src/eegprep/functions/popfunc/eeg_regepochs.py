@@ -65,6 +65,7 @@ def eeg_regepochs(EEG: dict[str, Any] | list[dict[str, Any]], *args: Any, **kwar
         ]
         for index, event in enumerate(events):
             event["urevent"] = index
+    extract = str(options["extractepochs"]).casefold()
     for index in range(event_count):
         latency = recurrence * index * sampling_rate + 1
         urevent = {"type": event_type, "latency": latency, **deepcopy(extra)}
@@ -72,10 +73,9 @@ def eeg_regepochs(EEG: dict[str, Any] | list[dict[str, Any]], *args: Any, **kwar
         urevents.append(urevent)
         events.append(event)
     events.sort(key=lambda event: float(event.get("latency", np.inf)))
-    dataset["event"] = events
-    dataset["urevent"] = urevents
+    dataset["event"] = np.array(events, dtype=object)
+    dataset["urevent"] = np.array(urevents, dtype=object)
 
-    extract = str(options["extractepochs"]).casefold()
     if extract == "off":
         dataset["saved"] = "no"
         return dataset

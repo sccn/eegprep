@@ -196,7 +196,7 @@ def test_current_eeglab_execmenu_workflow_updates_session_and_replays_determinis
 
         eeglab_execmenu(*calls[7], session=session)
         assert session.EEG["chanlocs"][0]["labels"] == "FPz"
-        assert session.EEG["chanlocs"][0]["urchan"] == 0
+        assert session.EEG["chanlocs"][0]["urchan"] == 1
         assert np.isfinite(session.EEG["chanlocs"][0]["X"])
         assert "theta" not in session.EEG["chanlocs"][1]
 

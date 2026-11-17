@@ -88,8 +88,10 @@ Ports of the upstream MATLAB tests use only the current
 `sccn/eeglab_tests <https://github.com/sccn/eeglab_tests>`_ repository. The
 older ``sccn/eeglab-testcases`` repository is stale and must not be used.
 EEGPrep currently pins ``eeglab_tests`` commit
-``ff605546f3f70868916fb8d49c007472b3257b50`` and the EEGLAB submodule commit
-``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``.
+``fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9`` and the EEGLAB submodule commit
+``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``.
+That suite commit is the squash merge of ``sccn/eeglab_tests`` pull request
+16 on ``master``.
 
 The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
@@ -130,7 +132,7 @@ commit and run the source-driven audit:
 .. code-block:: bash
 
     git clone https://github.com/sccn/eeglab_tests.git /tmp/eeglab_tests
-    git -C /tmp/eeglab_tests checkout ff605546f3f70868916fb8d49c007472b3257b50
+    git -C /tmp/eeglab_tests checkout fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9
     git -C /tmp/eeglab_tests submodule update --init eeglab
     uv run python -m tools.eeglab_test_port_audit /tmp/eeglab_tests
 
@@ -274,7 +276,62 @@ maximum p-value residuals are approximately ``6.07e-18``, ``2.78e-17``,
 ``7.81e-18`` and ``1.73e-17``; the direct fixture run passed 74 of 78 cases,
 matching the hybrid failures. These are retained reference fixture/platform
 discrepancies, not established EEGPrep defects. The original tolerances and
-failing assertions remain unchanged.
+failing assertions remain unchanged. The Python backend now runs the same
+fixtures. Cases 31-78 match, including the seeded resampling arrays. Every
+fixture input is double. Cases 1, 2, and 7-14 are t-tests. On the Python
+backend their statistic tolerance is ``n * eps``, where ``eps`` is float64
+machine epsilon and ``n`` is the accumulation length: the case count of the
+paired difference, or the sum of both case counts for an unpaired test,
+because both samples enter the means and the pooled variance. On these
+fixtures that tolerance is about ``2.2e-15`` to ``4.4e-15``. The two-tailed
+p-value is ``2 * sf(|t|, df)``. Its relative condition number in ``t`` is
+``|t| * 2 * pdf(|t|, df) / |p|``. The p-value tolerance is the statistic
+tolerance times the maximum of that factor on the stored reference, one
+bound for the whole array, about ``1e-13`` here. A per-element bound is
+tighter than the last-bit ``tcdf`` difference on some elements whose ``t``
+already matches. The statistic matches bit for bit in 9 of these 10 cases,
+so the p-value bound covers ``tcdf`` implementation differences. Zero and
+subnormal reference probabilities stay exact: they are left out of the
+maximum, and a non-finite bound fails the comparison. Degrees of freedom
+and the empty parametric surrogate stay exact. The stored fixture
+tolerances remain zero, and the MATLAB backend still uses them. The worst
+residuals inside this bound are a statistic relative error of ``8.8e-16``
+and a p-value relative error of ``1.9e-14``.
+
+The ANOVA cases (3-6 and 15-30) are parametric F tests. EEGLAB accumulates
+those sums of squares in double (``anova1_cell.m`` returns the column effect
+of ``anova2_cell.m``; ``anova1rm_cell.m`` lines 67-68 and 97-112;
+``anova2_cell.m`` lines 87-106; ``anova2rm_cell.m`` lines 83-194) and evaluates
+the tail in ``myfpval.m`` lines 11-19. The stored tolerances remain zero. On
+the Python backend each sum of squares over the ``N`` observations of one
+feature uses the same accumulation rule as the t-test, ``N * eps = 2 * N * u``
+with ``u = 2^{-53}``. An F ratio adds the numerator and the denominator.
+Repeated-measures brackets multiply each side by ``κ = Σ|term| / |sum|``,
+applied per element, because ``anova1rm_cell.m`` and ``anova2rm_cell.m``
+subtract those terms (the interaction residual has eight). The unpaired
+factor is 1 because ``anova1_cell`` delegates to the two-pass ``anova2_cell``,
+so that tolerance is ``4 * N * u``. The p-value limit is also per element.
+Its derived part is the F tolerance times ``|F| * pdf(F; df1, df2)``. Its
+measured part is ``C_beta * u * |p|`` with ``C_beta = 2048``, an allowance for
+``betainc`` evaluation error between MATLAB and SciPy rather than an operation
+count. That one constant covers the full tail down to ``p = 1e-300``: a
+measured MATLAB sweep reaches 1966.5u and SciPy reaches about 70u. Zero and
+subnormal reference probabilities stay exact. Degrees of
+freedom and the empty parametric surrogate stay exact. The MATLAB backend
+still uses the stored zero tolerance. F resampling arrays are float64 when
+``arraycomp`` is on, because ``statcond.m`` lines 384 and 421 replace the
+single preallocation at line 261 with the double ANOVA output, and float32
+when ``arraycomp`` is off. ``concatdata.m`` stores surrogate draws as single
+and ``ttest_cell`` keeps that class, so a t-test resampling array and its
+confidence interval stay float32 for both ``arraycomp`` modes. A confidence
+interval follows the surrogate class. Supplied stats and resampling arrays
+keep the class they were given when ``naccu`` matches the supplied length.
+A supplied statistic is accepted when its shape matches the resampling array
+without the last axis after trailing length-1 dimensions are removed. A
+transpose or a flattened column is rejected. p-values stay float64. Cases
+31-78 are ``returnresamplingarray`` condition grids and stay float32. On
+these fixtures the largest measured-to-limit ratio is about 0.030 for F and
+about 0.16 for p.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
 center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
@@ -826,18 +883,88 @@ Nightly differential fuzzing
 
 ``.github/workflows/fuzz-nightly.yml`` compares EEGPrep with EEGLAB on
 generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
-oracle. The job runs at 10:23 UTC and can be started manually with
-``workflow_dispatch``. A known-good sanity case runs first. If that case
-fails, the job fails and does not open an issue. Later mismatches are shrunk
-with Hypothesis, saved under the ``fuzz-repros`` artifact, and filed (at most
-three new issues a night) with the labels ``fuzz`` and ``fuzz-unconfirmed``.
+oracle. The job runs at 10:23 UTC on MATLAB R2024b and can be started
+manually with ``workflow_dispatch``. The bridge restores ``EEG.data`` from a
+float64 MAT variable after ``pop_loadset`` and checks that MATLAB saw the
+same shape, dtype, NaN, +Inf, -Inf, and values before any numeric comparison.
+An identity transfer of values float32 cannot represent runs before the
+other sanity cases. If that check fails, the job fails and does not open an
+issue. A MATLAB exception, and a cleaning wrapper that returns its input
+unchanged, are oracle failures. The two known EEGLAB ASR defects (a zero
+fit width on the reference that was actually selected, and ``sort(wz)``
+across time on one channel) are not filed. Other mismatches are shrunk on
+the failure mechanism, saved under the ``fuzz-repros`` artifact with the
+oracle identifier and stack, and filed (at most three new issues a night)
+with the labels ``fuzz`` and ``fuzz-unconfirmed``. Repeated findings group
+by diagnosed cause. NaN, +Inf, and -Inf are compared as separate masks.
+
+The nightly targets are ``pop_eegfiltnew``, ``pop_reref``, ``pop_resample``,
+``clean_asr``, ``pop_clean_rawdata``, ``eeg_eegrej``, ``pop_select``,
+``pop_epoch``, ``pop_rmbase``, ``clean_windows``, ``clean_channels``,
+``clean_flatlines``, and a ``pipeline`` chain. The original five targets
+compare data only. The event-aware targets also compare events in returned
+order (type, latency, duration, epoch, urevent), channel labels, ``nbchan``,
+``pnts``, ``trials``, ``xmin``, ``xmax``, ``clean_channel_mask``,
+``clean_sample_mask``, and extra outputs such as ``pop_epoch`` indices. A
+missing event duration is not treated as zero. A NaN event field matches a
+NaN on the other side. The pipeline runs a realistic
+sequence (filter or ``clean_rawdata``, re-reference, epoch or select,
+baseline) and compares after every step. The first mismatch names that step.
+
+About 70% of the new draws use parameter values from EEGLAB defaults, the
+EEGPrep dialogs, ``bids_preproc``, and the tutorial / ds003061 stage
+settings. The rest walk edge cases. Crops come from the committed tutorial
+recordings and, when those trees are present, from the ds003061 and ds003194
+files the parity tests already load (``EEGPREP_EEGLAB_SUITE_ROOT`` and
+``EEGPREP_OPENNEURO_ROOT``). The event-aware strategies draw those external
+recordings along with the tutorial sets. A pipeline crop is 30 seconds, or
+the whole prefix when the recording is shorter, so ``clean_rawdata`` sees a
+real window. Each pipeline step is compared on the same input; the next step
+starts from the oracle EEG. A known-divergence predicate runs after that
+comparison and does not file the step: continuous ``pop_rmbase`` with a
+boundary and a baseline that starts after sample 1, and only when the two
+outputs actually differ. The chain then continues from the oracle EEG. That
+difference is listed under "Known Differences from EEGLAB". ``pop_rmbase``
+is also a match when EEGLAB took the ``mean()`` branch (epoched data, no
+events, or a non-text first event) and the oracle matches that mean of the
+baseline. One baseline NaN then fills the channel on the MATLAB side. The
+next step starts from the Python EEG. Explicit
+``pop_reref`` is the same kind of match, including inside the pipeline,
+when EEGLAB's reference matrix spreads a NaN through ``0*NaN`` and
+EEGPrep's subtraction keeps that NaN on its channel. The next pipeline
+step then starts from that subtraction, so later steps are not compared
+on the NaN-filled matrix product. ``eeg_eegrej`` with a stored ``trials``
+of 0 is a match when the data agree and MATLAB's events are exactly the
+Python events whose latency is at most 1. A missing ``trials`` value does
+not count. The next pipeline step then starts from the Python EEG. An
+edge draw sets that stored 0 on about half of the non-user ``eeg_eegrej``
+cases. ``pop_select`` with ``sorttrial='off'`` and a repeated trial is a
+match when EEGPrep kept the first copy and EEGLAB's ``unique_bc`` kept the
+last (``pop_select.m`` lines 282-286); the next step starts from the
+first-copy dataset. An epoched ``pop_select`` ``notime`` that misses both
+epoch edges, and a ``pop_epoch`` ``eventindices`` past the last event, are
+the same failure on both sides. Numeric event types compare as numbers,
+so ``np.int64(65)`` matches the double ``65.0``. Text types stay exact.
+Both sides
+raising on a ``clean_windows`` input whose fit width rounds to 1 or less is
+a match. The MATLAB copy replaces ``None`` ``chaninfo`` fields, including
+``plotrad`` and ``shrink``, with ``[]`` before ``savemat``.
+
+Channel selections in fuzz cases use EEGLAB's one-based indices. The
+Python ``pop_select`` adapter subtracts 1 from numeric ``channel``,
+``nochannel``, and ``rmchannel`` values; labels and trial numbers are
+unchanged. Duplicate-channel draws use the cropped channel count.
+`Finding #543 <https://github.com/sccn/eegprep/issues/543>`_ used the
+original count of 32 on a 26-channel crop and omitted that conversion.
+Both implementations rejected the saved selection. The harness now matches
+their channel-index range errors by semantic markers while preserving
+EEGPrep's corrective error message.
 
 Per-function absolute and relative tolerances live in
 ``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull
-requests.
-
-Run it locally against a MATLAB session that is already serving
-``tests/matlab/eegprep_batch_engine_serve.m`` the same way the workflow does:
+requests. Sections for the event-aware targets are proposals until that
+review. CI stays on MATLAB R2024b. Replay against a MATLAB session that is
+already serving ``tests/matlab/eegprep_batch_engine_serve.m``:
 
 .. code-block:: bash
 
@@ -876,6 +1003,63 @@ MATLAB is not configured:
             pytest.skip("MATLAB not available")
         outcome = run_repro("tests/fuzz/repros/pop_reref-numeric-1e-3.json")
         assert not outcome.diverged
+
+Baseline summation-order roundoff (#542)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`Finding #542 <https://github.com/sccn/eegprep/issues/542>`_ was settled as
+platform-specific baseline-mean summation roundoff in the
+`MATLAB capture and acceptance decision
+<https://github.com/sccn/eegprep/issues/542#issuecomment-6700428397>`_.
+EEGPrep keeps its existing ``rmbase`` and ``pop_rmbase`` reductions;
+the fuzz harness accepts only tightly bounded numeric differences for this
+target. The stored ``pop_rmbase`` absolute and relative tolerances remain
+zero, and other targets retain their existing comparisons.
+
+On jamming's MATLAB R2025b Update 1 / MKL 2024.1 / AVX2 CNR build,
+EEGLAB ``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``
+``pop_rmbase.m:201-203`` computes and subtracts per-channel means.
+The oracle-advanced input was bit-identical on both sides, with shape
+``(30, 192, 13)`` and baseline samples 1–65 (−500 through 0 ms).
+The first mean was ``-7.421567849802465`` in Python and
+``-7.421567849802467`` in MATLAB, a 2-ULP gap. Substituting MATLAB's
+means made all 74,880 corrected samples bit-identical.
+
+The observed MATLAB reduction was sequential below 44 samples and used four
+interleaved accumulators from 44 samples onward. That rule reproduced all
+390 captured means and 16,560 probe means across 276 lengths and 1/2/4/8
+threads. It is not a portable reduction contract, so EEGPrep does not copy
+this implementation detail. The capture reproduced maximum absolute error
+``7.105427357601002e-15`` at finite index 3821. Maximum relative error was
+``9.479199342225629e-12`` versus the nightly report's
+``4.739599671157742e-12``; the nightly intermediate input was not saved.
+
+After the ordinary comparison reports a numeric difference, the shared
+success comparator uses ``_rmbase_roundoff_is_known`` for ``pop_rmbase``
+only. Let ``M`` be the larger finite absolute output magnitude across both
+sides, with a floor of 1. The classifier accepts when
+``max_abs <= 4 * np.finfo(np.float64).eps * M``. The captured gap was
+less than ``eps * M``; a factor of four allows a few rounding steps without
+a fixed absolute allowance. On the capture, ``M = 65.51950259320964``
+and the bound is ``5.819300827277519e-14``.
+
+Both calls must succeed, shapes and finite masks must match, and non-finite
+values must agree (including NaN placement and infinity signs).
+Sampling rate, events, metadata, and any selected mask/extra comparisons
+still run. Accepted results retain their measured errors and identify
+platform-specific baseline-mean roundoff with ``#542`` in the detail.
+Standalone and pipeline comparisons share this rule; pipelines continue
+from the oracle EEG as usual.
+
+``test_rmbase_542_roundoff_acceptance`` accepts the captured-size gap and
+rejects ``1e-12`` on the same fixture in both paths. Bound tests cover
+below, exactly at, and above the threshold at multiple magnitudes, and
+verify that other targets still report the difference. Additional checks
+preserve structural, non-finite, metadata, event, sampling-rate, and
+exception findings. The existing
+``test_rmbase_542_double_mean_and_inclusive_baseline`` continues to check
+exact means, inclusive endpoints, float32/float64 output, and channel
+selection without changing the processing implementation.
 
 Full-Pipeline Parity Harness
 ----------------------------
@@ -975,6 +1159,16 @@ Rows use these statuses:
 - ``external_dependency_skip``: the function depends on external MATLAB
   toolboxes/plugins or web/path integration outside this epic.
 
+``status`` records the implementation decision. ``test_notes`` name the tests
+and what each test asserts. A status of ``implemented`` or ``consolidated``
+records that an EEGPrep path exists. A ``test_notes`` string is not
+unconditional proof of MATLAB parity. Keep four kinds of evidence distinct: a
+provenance-linked smoke call, a Python behavioral test, a live MATLAB
+comparison, and a selected strict expected failure. An ``@eeglab_test`` source
+link, a pinned suite SHA, or a filename containing ``eeglab_tests`` does not
+by itself establish a live MATLAB comparison. A ``gui``-marked contract
+excluded by ``-m "not gui"`` stays outside the normal non-GUI CI lane.
+
 Use ``stale_skip`` only when every stale-policy field in the matrix is false:
 the function is not menu-reachable, not a documented user API, not called by an
 in-scope workflow, not required by parity tests, not needed as a helper for the
@@ -1020,7 +1214,8 @@ The final standalone parity epic uses a second machine-readable matrix at
 ``docs/parity/eeglab_final_parity_matrix.json``. It extends the core matrix into
 the remaining product surfaces that are not simple core-function parity rows:
 bundled plugin depth, MATLAB object/storage semantics, optional-toolbox
-workflows, and documentation/tutorial coverage.
+workflows, and documentation/tutorial coverage. Final-matrix ``test_notes``
+follow the core-matrix evidence rule above.
 
 Rows group source files into user workflows, but every discovered final-epic
 EEGLAB reference path must be covered exactly once. The validator discovers:

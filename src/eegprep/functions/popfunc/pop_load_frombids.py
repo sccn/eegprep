@@ -5,7 +5,13 @@ import copy
 from typing import Dict, Any, Tuple, Union, Optional
 import logging
 import warnings
-from eegprep.plugins.EEG_BIDS.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, root_for_fpath
+from eegprep.plugins.EEG_BIDS.bids import (
+    layout_for_fpath,
+    layout_get_lenient,
+    metadata_for_bids_file,
+    query_for_adjacent_fpath,
+    root_for_fpath,
+)
 from eegprep.plugins.EEG_BIDS.coords import (
     chanloc_has_coords,
     chanlocs_to_coords,
@@ -16,18 +22,53 @@ from eegprep.plugins.EEG_BIDS.coords import (
 )
 from eegprep.plugins.EEG_BIDS.montage import apply_montage_inference
 from eegprep.plugins.EEG_BIDS.raw import load_raw_eeg_file
-from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug, round_mat
+from eegprep.plugins.EEG_BIDS.sidecar import read_bids_json, read_bids_table
+from eegprep.extras import import_optional_dependency
+from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-# list of candidate column names for event types in BIDS events files, in order of preference.
-event_type_columns = ['trial_type', 'type', 'event_type', 'HED', 'value', 'code']
+# bids_importeventfile.m:14 and pop_importbids.m:181 default the type column to value.
+event_type_columns = ['value', 'trial_type', 'type', 'event_type', 'HED', 'code']
+
+
+def _event_type_text(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (str, np.str_)):
+        return "" if str(value).strip().lower() == "nan" else value
+    try:
+        if np.isnan(value):
+            return ""
+    except TypeError:
+        return value
+    return value
+
 
 # a list of column names that we interpret to contain event timing information
 event_timing_columns = ['onset', 'duration', 'sample']
+
+_MISSING_COORD_FIELDS = ('theta', 'radius', 'X', 'Y', 'Z', 'sph_theta', 'sph_phi', 'sph_radius')
+
+
+def _blank_numeric(numeric_null: Any) -> Any:
+    if isinstance(numeric_null, np.ndarray):
+        return np.array(numeric_null, copy=True)
+    return numeric_null
+
+
+def _fill_missing_coordinates(chanlocs: Any, numeric_null: Any) -> None:
+    if chanlocs is None:
+        return
+    for record in chanlocs:
+        if not isinstance(record, dict):
+            continue
+        for field in _MISSING_COORD_FIELDS:
+            if record.get(field) is None:
+                record[field] = _blank_numeric(numeric_null)
 
 
 def pop_load_frombids(
@@ -45,7 +86,11 @@ def pop_load_frombids(
 ) -> Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]:
     """Load an EEG data file of a supported format from a BIDS dataset.
 
-    Supported formats are EDF, BrainVision, EEGLAB SET, BDF.
+    Supported formats are EDF, BDF, BrainVision, and EEGLAB SET. EDF and BDF
+    are read with ``pop_biosig``. BrainVision headers, including vectorized
+    data, are read with ``pop_loadbv``. The dataset reference stays
+    ``common``; a BIDS ``EEGReference`` value is stored with the rest of the
+    sidecar in ``EEG["etc"]["BIDS"]``.
 
     Parameters
     ----------
@@ -125,13 +170,9 @@ def pop_load_frombids(
     if verbose:
         logger.info(f"Loading EEG data from {filename}...")
     basename = os.path.basename(filename)
-    EEG, Fs, times_sec, raw_report = load_raw_eeg_file(
-        filename,
-        dtype=dtype,
-        numeric_null=numeric_null,
-        warning=warning,
-        verbose=verbose,
-    )
+    EEG, Fs, times_sec, raw_report = load_raw_eeg_file(filename, dtype=dtype)
+    if not isinstance(EEG.get("etc"), dict):
+        EEG["etc"] = {}
     report.update(raw_report)
 
     report['EEGFileHadLocations'] = sum(chanloc_has_coords(ch) for ch in EEG['chanlocs'])
@@ -142,10 +183,9 @@ def pop_load_frombids(
     if bidsmetadata:
         if verbose:
             logger.info("  applying BIDS metadata...")
-        import bids
-
+        bids = import_optional_dependency("bids", feature="pop_load_frombids")
         layout: bids.BIDSLayout = layout_for_fpath(filename)
-        metadata: Dict[str, Any] = layout.get_metadata(filename, include_entities=True)
+        metadata: Dict[str, Any] = metadata_for_bids_file(layout, filename, include_entities=True)
 
         EEG['subject'] = metadata.get('subject', '')
         if EEG['ref'] == 'unknown':
@@ -153,8 +193,7 @@ def pop_load_frombids(
         EEG['etc']['BIDS'] = metadata
 
     if bidschanloc:
-        import bids
-
+        bids = import_optional_dependency("bids", feature="pop_load_frombids")
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
         query_entities = {**layout.parse_file_entities(filename), 'suffix': 'channels', 'extension': '.tsv'}
@@ -173,12 +212,10 @@ def pop_load_frombids(
                 f"Using the first one only."
             )
         for fo in channel_file_list:
-            import pandas as pd
-
             if verbose:
                 logger.info(f"  applying BIDS channel locations from {fo.filename}...")
             report['ChanlocsFrom'] = os.path.relpath(fo.path, root)
-            chans: pd.DataFrame = fo.get_df()
+            chans = read_bids_table(fo.path)
 
             # this is used to override the type (e.g. 'EEG', 'EOG', 'ECG', etc.) and the ref (if present)
             notfound = []
@@ -236,12 +273,10 @@ def pop_load_frombids(
             )
             elec_file_list = elec_file_list[:1]
         for elec_fo in elec_file_list:
-            import pandas as pd
-
             if verbose:
                 logger.info(f"  applying BIDS electrode locations from {fo.filename}...")
             report['ElectrodesFrom'] = os.path.relpath(elec_fo.path, root)
-            elecs: pd.DataFrame = elec_fo.get_df()
+            elecs = read_bids_table(elec_fo.path)
 
             query_entities = query_for_adjacent_fpath(elec_fo.path, suffix='coordsystem', extension='.json')
             coordsystem_file_list = layout_get_lenient(
@@ -272,7 +307,7 @@ def pop_load_frombids(
                     if verbose:
                         logger.info(f"  applying BIDS coordsystem from {coordsystem_fo.filename}...")
                     report['CoordsystemFrom'] = os.path.relpath(coordsystem_fo.path, root)
-                    content: Dict[str, Any] = coordsystem_fo.get_dict()
+                    content = read_bids_json(coordsystem_fo.path)
                     EEG['etc']['BIDSCoordsystem'] = content
                     coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
                     if 'EEGLAB' in coord_system.upper():
@@ -323,7 +358,12 @@ def pop_load_frombids(
                     f"or were invalid; not overriding channel locations."
                 )
             else:
-                if EEG['chaninfo']['nosedir'] != '+X':
+                chaninfo = EEG.get("chaninfo")
+                if not isinstance(chaninfo, dict):
+                    chaninfo = {}
+                    EEG["chaninfo"] = chaninfo
+                # eeg_checkchanlocs.m default nose direction is +X.
+                if chaninfo.get("nosedir", "+X") != "+X":
                     warning(
                         f"Converting to the coordinate system {coord_system} of "
                         f"the EEG data file is not supported by this importer. "
@@ -386,8 +426,7 @@ def pop_load_frombids(
                     report['NotfoundChanlocs'] = notfound
 
     if bidsevent:
-        import bids
-
+        bids = import_optional_dependency("bids", feature="pop_load_frombids")
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
         query_entities = query_for_adjacent_fpath(filename, suffix='events', extension='.tsv')
@@ -395,12 +434,10 @@ def pop_load_frombids(
             # retrieve the list of all such files
             events_file_list = layout.get(**query_entities, return_type='object')
             for fo in events_file_list:
-                import pandas as pd
-
                 if verbose:
                     logger.info(f"  applying BIDS events from {fo.filename}...")
                 report['EventsFrom'] = os.path.relpath(fo.path, root)
-                events: pd.DataFrame = fo.get_df()
+                events = read_bids_table(fo.path)
 
                 try:
                     # opportunistically look for the 'sample' column, which may be present in some files
@@ -432,13 +469,12 @@ def pop_load_frombids(
                 ev_lats = ev_lats + 1
 
                 try:
-                    durations = events['duration'].to_numpy(dtype=float).copy()
-                    durations[np.isnan(durations)] = 0.0  # replace NaNs with zero
+                    durations = events['duration'].to_numpy(dtype=float)
                 except KeyError:
                     # fall back to zero duration
                     durations = np.zeros_like(onsets, dtype=float)
-                # convert to EEGLAB's sample-based durations
-                ev_durs = round_mat(np.maximum(1, Fs * durations)).astype(int)
+                # bids_importeventfile.m:68 stores duration*srate, including 0 and NaN.
+                ev_durs = Fs * durations
 
                 # set of column names that we've already carried over into the
                 # event data structure
@@ -472,7 +508,7 @@ def pop_load_frombids(
                     )
                     ev_types = np.full_like(ev_lats, '', dtype=object)
 
-                ev_types = [typ or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
+                ev_types = [_event_type_text(typ) or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
 
                 # this does not in
                 extra_columns = sorted(set(events.columns) - set(used_columns))
@@ -493,9 +529,10 @@ def pop_load_frombids(
                         keep = np.ones_like(ev_types, dtype=bool)
                     elif bidsevent == 'merge':
                         if len(EEG['event']):
-                            orig_lats = [e['latency'] for e in EEG['event']]
-                            indexes = np.searchsorted(orig_lats, ev_lats)
-                            orig_types = [ev['type'] for ev in EEG['event'][indexes]]
+                            orig_events = np.asarray(EEG['event'], dtype=object).reshape(-1)
+                            orig_lats = [event['latency'] for event in orig_events]
+                            indexes = np.atleast_1d(np.searchsorted(orig_lats, ev_lats))
+                            orig_types = [orig_events[int(index)]['type'] for index in indexes]
                             keep = [o != e for o, e in zip(orig_types, ev_types)]
                         else:
                             keep = np.ones_like(ev_types, dtype=bool)
@@ -580,6 +617,15 @@ def pop_load_frombids(
         from eegprep import eeg_checkchanlocs
 
         EEG = eeg_checkchanlocs(EEG)
+        chaninfo = EEG.get("chaninfo")
+        if isinstance(chaninfo, dict):
+            for key in ("plotrad", "shrink"):
+                if chaninfo.get(key) is None:
+                    chaninfo[key] = np.array([])
+            nodatchans = chaninfo.get("nodatchans")
+            if isinstance(nodatchans, list):
+                _fill_missing_coordinates(nodatchans, numeric_null)
+        _fill_missing_coordinates(EEG.get("chanlocs"), numeric_null)
     except ImportError:
         logger.info("eeg_checkchanlocs not available, skipping channel location check.")
 

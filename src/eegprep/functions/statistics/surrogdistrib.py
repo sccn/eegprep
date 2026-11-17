@@ -13,9 +13,14 @@ from eegprep.functions.statistics._shared import condition_grid, flatten_grid, n
 
 @dataclass(frozen=True)
 class SurrogateDistribution:
-    """Surrogate condition grids produced by permutation or bootstrap."""
+    """Surrogate condition grids produced by permutation or bootstrap.
+
+    ``matlab_primary`` is the EEGLAB cell array returned when a caller asks
+    for one output. Direct callers keep ``samples``.
+    """
 
     samples: tuple[tuple[tuple[np.ndarray, ...], ...], ...]
+    matlab_primary: np.ndarray | None = None
 
     def __iter__(self) -> Iterator[tuple[tuple[np.ndarray, ...], ...]]:
         return iter(self.samples)

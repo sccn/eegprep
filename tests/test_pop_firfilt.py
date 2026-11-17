@@ -6,12 +6,16 @@ import unittest
 
 import numpy as np
 import pytest
+from scipy.signal import filtfilt
 
+import eegprep
 from eegprep.functions.adminfunc.console import _console_python_command
+from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.firfilt._filtering import apply_fir_filter, design_eegfiltnew
+from eegprep.plugins import firfilt
+from eegprep.plugins.firfilt._filtering import apply_eegfilt_legacy, apply_fir_filter, design_eegfiltnew
 from eegprep.plugins.firfilt.minphaserceps import minphaserceps
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from eegprep.plugins.firfilt.pop_firma import pop_firma
@@ -26,6 +30,56 @@ try:
     from .fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 except (ImportError, ValueError):
     from fixtures import SAMPLE_DATASET_PATH, create_test_eeg
+
+
+def test_single_precision_fir_cast_follows_firfilt_not_eegfilt():
+    eeg = _continuous_eeg()
+    eeg["data"] = np.asarray(eeg["data"], dtype=np.float32)
+    coefficients = np.array([0.25, 0.5, 0.25])
+    fir = apply_fir_filter(eeg, coefficients, causal=True)
+    legacy = apply_eegfilt_legacy(eeg, coefficients, causal=True)
+    assert fir["data"].dtype == np.float32
+    assert legacy["data"].dtype == np.float64
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_legacy_filter_class_follows_boundary_assignment(tmp_path, mapped: bool):
+    coefficients = np.array([0.25, 0.5, 0.25])
+    cases = (
+        ([], np.dtype(np.float64)),
+        ([{"type": "boundary", "latency": 300.5}], np.dtype(np.float32)),
+    )
+    for events, expected in cases:
+        eeg = _continuous_eeg()
+        eeg["data"] = np.asarray(eeg["data"], dtype=np.float32)
+        eeg["event"] = events
+        if mapped:
+            name = "boundary" if events else "plain"
+            eeg["data"] = MemmapData.from_array(eeg["data"], filename=tmp_path / f"{name}.fdt")
+        result = apply_eegfilt_legacy(eeg, coefficients, filtorder=2)["data"]
+        assert result.dtype == expected
+        assert isinstance(result, MemmapData) is mapped
+
+
+def test_legacy_filter_matches_double_math_for_single_input():
+    """EEGLAB eegfilt.m:210 runs filtfilt on single-precision input in single
+    precision, so its result differs from this one by single-precision rounding.
+    """
+    data = np.random.default_rng(4).standard_normal((2, 80)).astype(np.float32)
+    coefficients = np.array([0.25, 0.5, 0.25])
+    result = apply_eegfilt_legacy(
+        {
+            "data": data,
+            "nbchan": 2,
+            "pnts": data.shape[1],
+            "trials": 1,
+            "event": [],
+        },
+        coefficients,
+        filtorder=2,
+    )["data"]
+    expected = filtfilt(coefficients, [1.0], data.astype(np.float64), axis=1, padlen=3 * (coefficients.size - 1))
+    np.testing.assert_array_equal(result, expected)
 
 
 def test_pop_eegfiltnew_minphase_matches_real_cepstrum():
@@ -237,6 +291,126 @@ def test_pop_order_helpers_gui_results():
     assert dev == pytest.approx(0.001)
 
 
+@pytest.mark.parametrize("srate", [128.0, 250.0])
+def test_design_eegfiltnew_default_order_recomputes_transition_width(srate):
+    """pop_eegfiltnew.m:238 recomputes df after the default order is ceiled even."""
+    coefficients, meta = design_eegfiltnew(srate, locutoff=1.0)
+    order = int(meta["filtorder"])
+    expected_df = 3.3 / order * srate
+    assert meta["df"] == pytest.approx(expected_df)
+    explicit, explicit_meta = design_eegfiltnew(srate, locutoff=1.0, filtorder=order)
+    np.testing.assert_array_equal(coefficients, explicit)
+    assert explicit_meta["df"] == pytest.approx(expected_df)
+    assert explicit_meta["cutoff"] == pytest.approx(meta["cutoff"])
+
+
+def test_pop_eegfiltnew_records_each_applied_design():
+    """Stored designs are the coefficients that produced the filtered data."""
+    assert eegprep.design_eegfiltnew is firfilt.design_eegfiltnew is design_eegfiltnew
+
+    eeg = _continuous_eeg()
+    eeg["etc"]["kept"] = {"ok": True}
+    original = eeg["data"].copy()
+    srate = float(eeg["srate"])
+
+    lowpass, lowpass_command = pop_eegfiltnew(eeg, hicutoff=40, filtorder=80, plotfreqz=False, return_com=True)
+    notch, notch_command = pop_eegfiltnew(
+        lowpass,
+        locutoff=20,
+        hicutoff=40,
+        filtorder=100,
+        revfilt=True,
+        minphase=True,
+        channels=[2],
+        plotfreqz=False,
+        return_com=True,
+    )
+
+    np.testing.assert_array_equal(eeg["data"], original)
+    assert eeg["etc"] == {"kept": {"ok": True}}
+    assert lowpass_command == "EEG = pop_eegfiltnew(EEG, 'hicutoff', 40, 'filtorder', 80);"
+    assert notch_command == (
+        "EEG = pop_eegfiltnew(EEG, 'locutoff', 20, 'hicutoff', 40, 'filtorder', 100, "
+        "'revfilt', 1, 'minphase', 1, 'channels', [2]);"
+    )
+    assert lowpass["etc"]["kept"] == {"ok": True}
+    assert notch["etc"]["kept"] == {"ok": True}
+    assert len(lowpass["etc"]["eegfiltnew"]) == 1
+    designs = notch["etc"]["eegfiltnew"]
+    assert len(designs) == 2
+
+    lowpass_b, lowpass_meta = eegprep.design_eegfiltnew(srate, hicutoff=40, filtorder=80)
+    notch_b, notch_meta = eegprep.design_eegfiltnew(
+        srate, locutoff=20, hicutoff=40, filtorder=100, revfilt=True, minphase=True
+    )
+    _assert_applied_design(
+        lowpass["etc"]["eegfiltnew"][0],
+        lowpass_b,
+        lowpass_meta,
+        srate=srate,
+        channels=[1, 2, 3],
+        phase="zerophase",
+    )
+    _assert_applied_design(
+        designs[0],
+        lowpass_b,
+        lowpass_meta,
+        srate=srate,
+        channels=[1, 2, 3],
+        phase="zerophase",
+    )
+    _assert_applied_design(
+        designs[1],
+        notch_b,
+        notch_meta,
+        srate=srate,
+        channels=[2],
+        phase="minphase",
+    )
+    assert designs[0]["filtorder"] != designs[1]["filtorder"]
+    assert designs[0]["revfilt"] != designs[1]["revfilt"]
+    assert designs[0]["phase"] != designs[1]["phase"]
+    assert designs[0]["channels"] != designs[1]["channels"]
+    assert list(designs[0]["cutoff"]) != list(designs[1]["cutoff"])
+
+    replayed = eeg
+    for record in designs:
+        replayed = apply_fir_filter(
+            replayed,
+            record["coefficients"],
+            channels=record["channels"],
+            causal=record["phase"] == "minphase",
+        )
+    np.testing.assert_array_equal(replayed["data"], notch["data"])
+    np.testing.assert_array_equal(lowpass["data"][0], notch["data"][0])
+    np.testing.assert_array_equal(lowpass["data"][2], notch["data"][2])
+    assert not np.array_equal(lowpass["data"][1], notch["data"][1])
+    assert not np.array_equal(lowpass["data"], original)
+
+
+def _assert_applied_design(record, coefficients, metadata, *, srate, channels, phase):
+    assert record["srate"] == float(srate)
+    assert record["channels"] == list(channels)
+    assert record["phase"] == phase
+    assert record["phase"] == ("minphase" if metadata["minphase"] else "zerophase")
+    _assert_design_edge(record["locutoff"], metadata["locutoff"])
+    _assert_design_edge(record["hicutoff"], metadata["hicutoff"])
+    np.testing.assert_array_equal(
+        np.asarray(record["cutoff"], dtype=float), np.asarray(metadata["cutoff"], dtype=float)
+    )
+    assert record["filtorder"] == metadata["filtorder"]
+    assert record["df"] == metadata["df"]
+    assert record["revfilt"] is bool(metadata["revfilt"])
+    np.testing.assert_array_equal(record["coefficients"], coefficients)
+
+
+def _assert_design_edge(recorded, designed):
+    if designed is None:
+        assert np.isnan(recorded)
+        return
+    assert recorded == designed
+
+
 def test_pop_xfirws_designs_and_exports_filter_file(tmp_path):
     path = tmp_path / "demo.fir"
 
@@ -269,6 +443,31 @@ class TestPopFirfiltParity(unittest.TestCase):
         except Exception as exc:
             self.skipTest(f"MATLAB not available: {exc}")
         self.eeg = pop_loadset(SAMPLE_DATASET_PATH)
+
+    def test_parity_pop_eegfiltnew_default_order_highpass(self):
+        # eeg_checkset.m casts double data to single when option_single is on.
+        # Compare the default-order high-pass in double on both sides.
+        self.eeglab.engine.eval(
+            "if ~exist('option_single','var'), eeg_options; end; eegprep_option_single = option_single;",
+            nargout=0,
+        )
+        self.eeglab.engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+        try:
+            for srate in (128.0, 250.0):
+                eeg = create_test_eeg(n_channels=1, n_samples=int(srate * 4), srate=srate, n_trials=1)
+                rng = np.random.default_rng(0)
+                eeg["data"] = rng.standard_normal((1, eeg["pnts"])).astype(np.float64)
+                py_eeg = pop_eegfiltnew(copy.deepcopy(eeg), locutoff=1, plotfreqz=False)
+                ml_eeg = self.eeglab.pop_eegfiltnew(copy.deepcopy(eeg), "locutoff", 1, "plotfreqz", 0)
+                self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
+                np.testing.assert_allclose(
+                    np.asarray(py_eeg["data"], dtype=np.float64),
+                    np.asarray(ml_eeg["data"], dtype=np.float64),
+                    atol=1e-8,
+                    rtol=1e-8,
+                )
+        finally:
+            self.eeglab.engine.eval("pop_editoptions('option_single', eegprep_option_single);", nargout=0)
 
     def test_parity_pop_eegfiltnew_lowpass_sample_data(self):
         py_eeg = pop_eegfiltnew(copy.deepcopy(self.eeg), hicutoff=40, filtorder=100)

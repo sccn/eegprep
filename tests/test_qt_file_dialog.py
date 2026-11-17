@@ -21,6 +21,18 @@ def _qt_widgets():
     return SimpleNamespace(QFileDialog=FileDialog)
 
 
+def test_save_as_can_skip_the_typed_name_overwrite_prompt(monkeypatch):
+    class DialogOption:
+        DontUseNativeDialog = 4
+        DontConfirmOverwrite = 8
+
+    qt_widgets = SimpleNamespace(QFileDialog=SimpleNamespace(Option=DialogOption))
+    monkeypatch.setitem(EEG_OPTIONS, "option_native_dialogs", 1)
+
+    assert file_dialog_kwargs(qt_widgets, confirm_overwrite=False) == {"options": 8}
+    assert file_dialog_kwargs(qt_widgets, native_file_dialogs=False, confirm_overwrite=False) == {"options": 12}
+
+
 @pytest.mark.parametrize(
     ("configured", "explicit", "expected"),
     [

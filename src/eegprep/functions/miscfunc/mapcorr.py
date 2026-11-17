@@ -20,7 +20,12 @@ def mapcorr(
     method: int = 2,
     weighting: Any | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Match rows after aligning map columns by common channel labels."""
+    """Match rows after aligning map columns by common channel labels.
+
+    Returned row indices are 1-based. Subtract 1 before using them as NumPy
+    indices. EEGLAB forces method 2 for some non-square maps; the requested
+    method is kept here.
+    """
     left = real_array(first, "first")
     right = real_array(second, "second")
     if left.ndim != 2 or right.ndim != 2:
@@ -48,7 +53,8 @@ def mapcorr(
         right = right - np.mean(right, axis=1, keepdims=True)
     correlations = _cosine_rows(left[:, left_indices], right[:, right_indices])
     correlations = _apply_weighting(correlations, weighting)
-    return _match_correlations(correlations, method)
+    values, rows, columns, correlations = _match_correlations(correlations, method)
+    return values, rows + 1, columns + 1, correlations
 
 
 __all__ = ["mapcorr"]

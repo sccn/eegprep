@@ -19,19 +19,19 @@ Graphic interface:
 
 Channel index note:
 
-Numeric channel indices typed into EEGPrep GUI fields are 0-based, matching the Python API. For example, type `0` for the first channel. Generated EEGLAB-style history commands are written with 1-based indices so they can be read like EEGLAB commands.
+Numeric channel numbers are 1-based in the GUI, Python API, and command history. Type `1` for the first channel. For example, `exclude=[2, 6]` (or `2 6` in the dialog) excludes the second and sixth channels. Convert NumPy row indices by adding 1 when passing them to `pop_reref`. Empty reference metadata is displayed as `unknown`.
 
 Inputs:
 
 - `EEG`: input EEG dataset.
-- `ref`: `[]` or `None` for average reference, a 0-based channel index, a sequence of 0-based channel indices, a channel label, or a sequence of channel labels.
+- `ref`: `[]` or `None` for average reference, a 1-based channel number, a sequence of 1-based channel numbers, a channel label, or a sequence of channel labels.
 
 Optional inputs:
 
-- `interpchan`: channels to interpolate before re-referencing, `[]` to infer removed channels, or `"off"`.
-- `exclude`: channel indices excluded from re-referencing.
+- `interpchan`: channel locations or 1-based numbers into `EEG["urchanlocs"]` to interpolate before re-referencing, `[]` to infer removed channels, or `"off"`.
+- `exclude`: 1-based channel numbers excluded from re-referencing.
 - `keepref`: `"on"` keeps reference channels in the data; `"off"` removes explicit reference channels.
-- `refloc`: previous reference-channel location to reconstruct.
+- `refloc`: previous reference-channel location to reconstruct, or its 1-based number in the non-fiducial `EEG["chaninfo"]["nodatchans"]` list.
 - `refica`: `"on"`, `"off"`, `"backwardcomp"`, or `"remove"` for ICA handling.
 - `huber`: Huber threshold in microvolts.
 - `method`: rereferencing algorithm. EEGPrep currently supports EEGLAB's `"standard"` method.

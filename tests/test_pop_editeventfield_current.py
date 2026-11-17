@@ -5,11 +5,61 @@ import shutil
 import numpy as np
 import pytest
 
-from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
+from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield, pop_editeventfield_dialog_spec
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import assert_matlab_equal, eeglab_test
+from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 UPSTREAM = "unittesting_popfunc/pop_editeventfield/popfunc_pop_editeventfield_wrapperTest.m"
+
+
+@pytest.mark.gui
+def test_tutorial_eventfield_buttons_show_text_and_are_wired(qt_dialogs):
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    spec = pop_editeventfield_dialog_spec(eeg)
+    widgets = qt_dialogs.build(spec)
+
+    assert widgets["description_type"].text() == "Event type"
+    assert widgets["description_position"].text() == "Stimulus position"
+    assert widgets["description_latency"].text() == "Event latency"
+    for control in spec.controls:
+        if control.style == "pushbutton":
+            assert widgets[control.tag].isEnabled()
+            assert widgets[control.tag].receivers(qt_dialogs.qt.QtCore.SIGNAL("clicked(bool)")) > 0
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("description", ["Position code\nTen through forty", ""])
+def test_eventfield_file_picker_and_description_save(qt_dialogs, monkeypatch, tmp_path, description):
+    path = tmp_path / "event values.txt"
+    path.write_text("10\n20\n30\n40\n")
+    monkeypatch.setattr(qt_dialogs.qt.QtWidgets.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(path), ""))
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            widgets = qt_dialogs.build(spec)
+            widgets["browse_position"].click()
+            assert widgets["value_position"].text() == str(path)
+            timer = qt_dialogs.qt.QtCore.QTimer()
+            timer.setSingleShot(True)
+
+            def edit():
+                dialog = qt_dialogs.qt.QtWidgets.QApplication.activeModalWidget()
+                dialog.setTextValue(description)
+                dialog.accept()
+
+            timer.timeout.connect(edit)
+            timer.start(0)
+            widgets["description_position"].click()
+            timer.stop()
+            assert widgets["description_position"].text() == description.split("\n", 1)[0]
+            return {tag: qt_dialogs.qt._read_widget(widget) for tag, widget in widgets.items()}
+
+    out, command = pop_editeventfield(_eeg(4), renderer=Renderer(), return_com=True)
+    assert [event["position"] for event in out["event"]] == [10, 20, 30, 40]
+    assert out["eventdescription"][1] == description
+    assert "positioninfo" in command
 
 
 @pytest.fixture

@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 import pytest
-from eegprep import ICL_feature_extractor, iclabel, pop_loadset
+from eegprep import ICL_feature_extractor, eeg_autocorr_fftw, eeg_autocorr_welch, eeg_rpsd, iclabel, pop_loadset
 from eegprep.utils.testing import has_optional_dependency
 
 from eegprep.plugins.ICLabel import iclabel_net_onnx_web
@@ -296,6 +296,25 @@ class TestICLabelRuntime(unittest.TestCase):
         self.assertEqual(classifications.shape, (32, 7))
         self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
         _assert_within_int8_drift(classifications, _float32_classifications(eeg))
+
+
+def test_continuous_icaact_without_a_trial_axis_matches_a_singleton_trial():
+    rng = np.random.default_rng(0)
+    pnts = 256
+    activations = rng.standard_normal((3, pnts)).astype(np.float32)
+    eeg = {
+        "srate": 128,
+        "pnts": pnts,
+        "trials": 1,
+        "icaweights": np.eye(3),
+        "icaact": activations,
+    }
+    with_trial = dict(eeg)
+    with_trial["icaact"] = activations[:, :, None]
+
+    np.testing.assert_array_equal(eeg_rpsd(eeg, nfreqs=8), eeg_rpsd(with_trial, nfreqs=8))
+    np.testing.assert_array_equal(eeg_autocorr_welch(eeg), eeg_autocorr_welch(with_trial))
+    np.testing.assert_array_equal(eeg_autocorr_fftw(eeg), eeg_autocorr_fftw(with_trial))
 
 
 if __name__ == '__main__':

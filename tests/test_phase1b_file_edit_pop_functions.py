@@ -4,6 +4,7 @@ import ast
 import os
 from copy import deepcopy
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 import pytest
@@ -18,12 +19,28 @@ from eegprep.functions.popfunc.pop_copyset import pop_copyset
 from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_readlocs import pop_readlocs
+from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
-from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
+from eegprep.functions.popfunc.pop_selectevent import pop_selectevent, pop_selectevent_dialog_spec
 from tests.eeglab_tests import assert_matlab_equal, eeglab_test
 from tests.eeglab_tests.assertions import assert_matlab_struct_near, matlab_field_concat
 from tests.fixtures import SAMPLE_DATASET_PATH, matlab_engine_available
+
+
+@pytest.mark.parametrize("filename", ["eeglab_data.set", "eeglab_data_epochs_ica.set"])
+def test_tutorial_event_selection_descriptions(filename):
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH.with_name(filename)))
+
+    spec = pop_selectevent_dialog_spec(eeg)
+
+    descriptions = [control.string for control in spec.controls if control.style == "pushbutton"]
+    assert "Event type\nHere, either 'square' or 'rt'" in descriptions
+    assert "Stimulus position\n(Here, either position 1 or 2, both in the left hemifield)." in descriptions
+    latency_index = next(index for index, control in enumerate(spec.controls) if control.string.startswith("latency ("))
+    assert spec.controls[latency_index + 1].string == "Event latency\nin the continuous data (seconds)."
+    assert not any("array(" in text for text in descriptions)
 
 
 def _reference_selection_eeg(eeglab_backend):
@@ -296,6 +313,48 @@ def test_pop_selectevent_matches_nonnumeric_event_types_without_selecting_every_
     assert [event["type"] for event in out["event"]] == ["target"]
 
 
+@pytest.mark.parametrize("criterion", [255, "255", ["255"], "255.0"])
+def test_numeric_event_selection_records_numeric_history(criterion):
+    eeg = _eeg()
+    eeg["event"][0]["type"] = 255.0
+    eeg["event"][1]["type"] = 254.0
+
+    out, command = pop_selectevent(eeg, type=criterion, deleteevents="on", return_com=True)
+
+    assert [event["type"] for event in out["event"]] == [255.0]
+    assert "'255'" not in command and "'255.0'" not in command
+    namespace = {"EEG": eeg, "pop_selectevent": lambda *args, **kwargs: pop_selectevent(*args, **kwargs)[0]}
+    exec(_console_python_command(command), namespace)
+    assert [event["type"] for event in namespace["EEG"]["event"]] == [255.0]
+    np.testing.assert_array_equal(out["data"], eeg["data"])
+    assert out["data"].dtype == eeg["data"].dtype
+
+
+@pytest.mark.parametrize("with_boundary", [False, True])
+def test_pop_selectevent_warns_when_no_events_match(with_boundary):
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    if with_boundary:
+        eeg["event"] = [*eeg["event"], {"type": "boundary", "latency": 100.5, "duration": 10}]
+
+    with pytest.warns(UserWarning, match="pop_selectevent: no events matched.*Check event type"):
+        out, selected = pop_selectevent(eeg, type="absent", deleteevents="on")
+
+    assert len(out["event"]) == int(with_boundary)
+    assert len(selected) == int(with_boundary)
+    np.testing.assert_array_equal(out["data"], eeg["data"])
+
+
+def test_numeric_looking_string_event_types_keep_text_history():
+    eeg = _eeg()
+    eeg["event"][0]["type"] = "255"
+    eeg["event"][1]["type"] = "254"
+
+    out, command = pop_selectevent(eeg, type="255", deleteevents="on", return_com=True)
+
+    assert [event["type"] for event in out["event"]] == ["255"]
+    assert "'type', '255'" in command
+
+
 def test_pop_selectevent_renames_selected_types_and_keeps_old_type_field():
     out, command = pop_selectevent(
         _eeg(),
@@ -342,7 +401,7 @@ def test_pop_selectevent_renames_events_before_epoched_trial_selection():
     assert any(event["type"] == "target" for event in out["event"])
 
 
-def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events():
+def test_pop_selectevent_keeps_boundary99_when_deleting_continuous_events():
     eeg = _eeg()
     eeg["event"].insert(1, {"type": -99, "latency": 25.0, "duration": 0.0, "urevent": 2})
     eeg["urevent"].append({"type": -99, "latency": 25.0, "duration": 0.0})
@@ -354,7 +413,7 @@ def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events(
         EEG_OPTIONS["option_boundary99"] = old
 
     assert selected == [1, 2]
-    assert [event["type"] for event in out["event"]] == ["stim", -99]
+    assert [event["type"] for event in out["event"]] == ["stim", "-99"]
 
 
 def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
@@ -424,6 +483,43 @@ def test_pop_chanedit_changes_fields_converts_coordinates_and_round_trips_files(
     assert loaded["chanlocs"][0]["labels"] == "Fz"
 
 
+@pytest.mark.parametrize("lookup", [False, True])
+def test_pop_chanedit_load_separates_sfp_fiducials_from_data_channels(tmp_path, lookup):
+    eeg = _eeg()
+    loc_file = tmp_path / "fiducials.sfp"
+    loc_file.write_text("FidNz 0 1 0\nFidT9 -1 0 0\nFidT10 1 0 0\nCz 0 0 1\nPz 0 -1 0\n")
+    options = ["load", loc_file]
+    if lookup:
+        options.extend(["lookup", loc_file])
+
+    loaded = pop_chanedit(eeg, *options)
+
+    assert loaded["nbchan"] == eeg["nbchan"] == 2
+    assert [loc["labels"] for loc in loaded["chanlocs"]] == ["Cz", "Pz"]
+    assert len(loaded["chaninfo"]["nodatchans"]) == 3
+    assert [loc["labels"] for loc in loaded["chaninfo"]["nodatchans"]] == ["FidNz", "FidT9", "FidT10"]
+    np.testing.assert_array_equal(loaded["data"], eeg["data"])
+
+
+@pytest.mark.parametrize("location_type", [" FiD ", " iGnOrE "])
+def test_pop_chanedit_classifies_location_types_unless_datachan_is_explicit(location_type):
+    eeg = _eeg()
+    eeg["chanlocs"][0].update(type=location_type, datachan=1)
+    eeg["chanlocs"].extend(
+        [
+            {"labels": "Landmark", "type": location_type},
+            {"labels": "Reference", "type": "EEG", "datachan": 0},
+        ]
+    )
+
+    edited = pop_chanedit(eeg, changefield=[1, "labels", "X"])
+
+    assert edited["nbchan"] == 2
+    assert [loc["labels"] for loc in edited["chanlocs"]] == ["X", "Pz"]
+    assert [loc["labels"] for loc in edited["chaninfo"]["nodatchans"]] == ["Landmark", "Reference"]
+    np.testing.assert_array_equal(edited["data"], eeg["data"])
+
+
 def test_pop_chanedit_applies_same_edit_to_selected_datasets():
     first = _eeg("first")
     second = _eeg("second")
@@ -432,6 +528,37 @@ def test_pop_chanedit_applies_same_edit_to_selected_datasets():
 
     assert [output["chanlocs"][0]["type"] for output in outputs] == ["EEG", "EEG"]
     _assert_python_echo_is_parseable(command)
+
+
+@pytest.mark.parametrize("gui", [False, True])
+def test_pop_chanedit_preserves_removed_reference_as_nondata_location(gui):
+    eeg = _eeg()
+    eeg["data"] = np.arange(500, dtype=float).reshape(5, 100)
+    eeg["nbchan"] = 5
+    eeg["chanlocs"] = [{**eeg["chanlocs"][0], "labels": f"Ch{index}"} for index in range(1, 6)]
+    referenced = pop_reref(eeg, 5)
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            controls = controls_by_tag(spec)
+            displays = controls["next1"].callback.params["field_displays"]
+            assert displays[-1]["field_labels"] == "Ch5"
+            assert displays[-1]["field_datachan"] is False
+            result = {tag: control.value for tag, control in controls.items()}
+            result["field_labels"] = "X"
+            return result
+
+    if gui:
+        edited = pop_chanedit(referenced, gui=True, renderer=Renderer())
+    else:
+        edited = pop_chanedit(referenced, changefield=[1, "labels", "X"])
+
+    assert [loc["labels"] for loc in edited["chanlocs"]] == ["X", "Ch2", "Ch3", "Ch4"]
+    assert edited["nbchan"] == 4
+    np.testing.assert_array_equal(edited["data"], referenced["data"])
+    assert edited["chaninfo"]["nodatchans"][0]["labels"] == "Ch5"
+    assert edited["chaninfo"]["nodatchans"][0]["datachan"] == 0
+    assert "datachan" not in referenced["chaninfo"]["nodatchans"][0]
 
 
 def test_pop_chanedit_gui_unchanged_submission_does_not_emit_history():
@@ -464,7 +591,7 @@ def test_pop_chanedit_gui_submits_change_for_navigated_channel():
 
     assert output["chanlocs"][0]["labels"] == "Cz"
     assert output["chanlocs"][1]["labels"] == "Oz"
-    assert "'changefield', [2 'labels' 'Oz']" in command
+    assert "'changefield', {2 'labels' 'Oz'}" in command
 
 
 def test_qt_renderer_navigation_updates_channel_and_fields():
@@ -494,6 +621,102 @@ def test_qt_renderer_navigation_updates_channel_and_fields():
         dialog.close()
 
 
+def test_leaving_a_channel_keeps_the_edit_for_ok():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    eeg = _eeg()
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            renderer = qt_module.QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                widgets["channel"].setText("2")
+                widgets["channel"].editingFinished.emit()
+                widgets["field_labels"].setText("Oz")
+                widgets["back1"].click()
+                assert widgets["channel"].text() == "1"
+                assert widgets["field_labels"].text() == "Cz"
+                widgets["next1"].click()
+                assert widgets["channel"].text() == "2"
+                assert widgets["field_labels"].text() == "Oz"
+                dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    edited, command = pop_chanedit(deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
+    assert edited["chanlocs"][0]["labels"] == "Cz"
+    assert edited["chanlocs"][1]["labels"] == "Oz"
+    assert "Oz" in command
+
+
+def test_channel_number_enter_loads_that_channel_and_ok_does_not_copy_channel_1():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    eeg = _eeg()
+    renderer = qt_module.QtDialogRenderer()
+    _app, dialog, widgets = renderer.build_dialog(pop_chanedit_dialog_spec(eeg))
+    try:
+        widgets["channel"].setText("2")
+        widgets["channel"].editingFinished.emit()
+        assert widgets["channel"].text() == "2"
+        assert widgets["field_labels"].text() == "Pz"
+        widgets["field_labels"].setText("Oz")
+        dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+        entered = {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+    finally:
+        dialog.close()
+
+    class Entered:
+        def run(self, spec, initial_values=None):
+            return entered
+
+    edited = pop_chanedit(deepcopy(eeg), gui=True, renderer=Entered())
+    assert edited["chanlocs"][0]["labels"] == "Cz"
+    assert edited["chanlocs"][1]["labels"] == "Oz"
+
+    class Clamped:
+        def run(self, spec, initial_values=None):
+            renderer = qt_module.QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                widgets["field_labels"].setText("Oz")
+                widgets["channel"].setText("999")
+                dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+                assert widgets["channel"].text() == str(len(eeg["chanlocs"]))
+                assert widgets["field_labels"].text() == eeg["chanlocs"][-1]["labels"]
+                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    moved = pop_chanedit(deepcopy(eeg), gui=True, renderer=Clamped())
+    assert moved["chanlocs"][0]["labels"] == "Oz"
+    assert moved["chanlocs"][1]["labels"] == "Pz"
+
+
+def test_pop_chanedit_gui_rejects_a_channel_number_outside_the_list():
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            result = {control.tag: control.value for control in spec.controls if control.tag}
+            result["channel"] = "999"
+            result["field_labels"] = "Oz"
+            return result
+
+    eeg = _eeg()
+    with pytest.raises(ValueError, match=r"pop_chanedit: channel number 999 is outside 1 to"):
+        pop_chanedit(deepcopy(eeg), gui=True, renderer=Renderer())
+    assert eeg["chanlocs"][0]["labels"] == "Cz"
+
+
 def test_pop_chanedit_reads_comma_delimited_ced_with_comments(tmp_path):
     loc_file = tmp_path / "locs.ced"
     loc_file.write_text("% exported by EEGLAB\nlabels,X,Y,Z\nFz,0,1,0\nCz,0,0,1\n", encoding="utf-8")
@@ -515,7 +738,7 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
     assert eeg["setname"] == "first"
     assert alleeg[0]["setname"] == "first"
     assert alleeg[2]["setname"] == "first"
-    assert "LASTCOM" in command
+    assert command == "[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, 1, 3);"
     _assert_python_echo_is_parseable(command)
 
 
@@ -643,3 +866,256 @@ def test_pop_mergeset_default_indices_skip_deleted_slots():
     assert _default_indices_text([_eeg("first"), {}, _eeg("third")], None) == "1 3"
     assert _default_indices_text([{}, _eeg("second")], None) == "2"
     assert _default_indices_text([_eeg("only"), {}], None) == "1"
+
+
+@pytest.mark.parametrize("extension", ["elc", "elp"])
+def test_chanedit_standard_lookup_orientation_and_matching(tmp_path, extension):
+    path = tmp_path / f"standard_1005.{extension}"
+    if extension == "elc":
+        path.write_text("NumberPositions 1\nUnitPosition mm\nPositions\n-29.44 83.92 -6.99\nLabels\nFp1\n")
+        expected = [83.92, 29.44, -6.99]
+    else:
+        path.write_text("1\nEEG Fp1 -92.698 -72.074 85\n")
+        expected = [
+            85 * np.cos(np.deg2rad(2.698)) * np.cos(np.deg2rad(17.926)),
+            85 * np.cos(np.deg2rad(2.698)) * np.sin(np.deg2rad(17.926)),
+            -85 * np.sin(np.deg2rad(2.698)),
+        ]
+    eeg = _eeg()
+    eeg["chanlocs"][0]["labels"] = "fp1"
+    out = pop_chanedit(eeg, lookup=path)
+    np.testing.assert_allclose([out["chanlocs"][0][axis] for axis in "XYZ"], expected, atol=1e-10)
+    assert out["chaninfo"]["nosedir"] == "+X"
+
+
+def test_chanedit_lookup_without_matches_preserves_locations(tmp_path):
+    path = tmp_path / "unmatched.locs"
+    path.write_text("1 0 0.5 Other\n")
+    eeg = _eeg()
+    out = pop_chanedit(eeg, lookup=path)
+    for before, after in zip(eeg["chanlocs"], out["chanlocs"]):
+        for field in ("labels", "X", "Y", "Z"):
+            assert after[field] == before[field]
+
+
+@pytest.mark.parametrize("field", ["theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius"])
+def test_chanedit_rejects_nonnumeric_coordinates(field):
+    eeg = _eeg()
+    with pytest.raises(ValueError, match=f"pop_chanedit:.*{field}.*numeric"):
+        pop_chanedit(eeg, changefield=[1, field, "abc"])
+    assert eeg["chanlocs"][0].get(field) != "abc"
+
+
+def test_chanedit_history_uses_separate_matlab_cell_arguments():
+    out, command = pop_chanedit(_eeg(), changefield=[[1, "labels", "C3x"], [2, "type", "EOG"]], return_com=True)
+    assert command == "EEG = pop_chanedit(EEG, 'changefield', {1 'labels' 'C3x'}, 'changefield', {2 'type' 'EOG'});"
+    assert out["chanlocs"][0]["labels"] == "C3x"
+    _assert_python_echo_is_parseable(command)
+
+
+def test_chanedit_all_actions_enabled_and_wired_offscreen():
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+
+    spec = pop_chanedit_dialog_spec(_eeg())
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(spec)
+    try:
+        for control in spec.controls:
+            if control.style == "pushbutton":
+                assert widgets[control.tag].isEnabled(), control.string
+                assert control.callback is not None, control.string
+    finally:
+        dialog.close()
+
+
+def test_chanedit_head_radius_scales_cartesian_coordinates():
+    eeg = _eeg()
+    expected = np.array([[ch[axis] for axis in "XYZ"] for ch in eeg["chanlocs"]]) * 85
+    out = pop_chanedit(eeg, convert="cart2all", headrad=85)
+    np.testing.assert_allclose([[ch[axis] for axis in "XYZ"] for ch in out["chanlocs"]], expected, atol=1e-12)
+
+
+def test_chanedit_transform_and_repeated_fields_replay_in_order():
+    eeg = _eeg()
+    out = pop_chanedit(
+        eeg, "changefield", [1, "labels", "New"], "changefield", [2, "type", "EOG"], "transform", "TMP=X; X=-Y; Y=TMP"
+    )
+    assert out["chanlocs"][0]["labels"] == "New"
+    assert out["chanlocs"][1]["type"] == "EOG"
+    for before, after in zip(eeg["chanlocs"], out["chanlocs"]):
+        assert after["X"] == -before["Y"]
+        assert after["Y"] == before["X"]
+
+
+@pytest.mark.parametrize(
+    "expression",
+    ["__import__('os')", "X=Y.real", "X=abs(Y)", "X[0]=1", "chans(1)=1"],
+    ids=["import", "attribute", "call", "python-indexed-assignment", "matlab-indexed-assignment"],
+)
+def test_chanedit_transform_rejects_arbitrary_code(expression):
+    eeg = _eeg()
+    original = deepcopy(eeg)
+    with pytest.raises(
+        ValueError,
+        match="pop_chanedit: invalid coordinate transform.*numeric assignments.*X=-Y.*TMP=X; X=-Y; Y=TMP",
+    ):
+        pop_chanedit(eeg, changefield=[1, "labels", "Changed"], transform=f"X=-Y; {expression}")
+
+    assert eeg["chanlocs"] == original["chanlocs"]
+    np.testing.assert_array_equal(eeg["data"], original["data"])
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        pytest.param("X=9**9**9**9", id="power-tower"),
+        pytest.param("X='a'*10**9", id="string-allocation"),
+        pytest.param("X='boom'", id="string"),
+        pytest.param("X=b'123'", id="bytes"),
+        pytest.param("X=True", id="boolean"),
+        pytest.param("X=None", id="none"),
+        pytest.param("X=1j", id="complex"),
+        pytest.param("X=1e309", id="infinite"),
+        pytest.param("X=" + "9" * 400, id="huge-integer"),
+        pytest.param("X=9007199254740993", id="inexact-integer"),
+        pytest.param("X=2**13", id="large-exponent"),
+        pytest.param("X=Y**-13", id="negative-large-exponent"),
+        pytest.param("TMP=13; X=Y**TMP", id="variable-exponent"),
+        pytest.param("X=((9**12)**12)**12", id="nested-power-overflow"),
+    ],
+)
+def test_chanedit_transform_rejects_expensive_expressions(expression):
+    eeg = _eeg()
+    original = deepcopy(eeg)
+    start = perf_counter()
+    with pytest.raises(ValueError, match="pop_chanedit: invalid coordinate transform.*numeric assignments.*X=-Y"):
+        pop_chanedit(eeg, changefield=[1, "labels", "Changed"], transform=f"X=-Y; {expression}")
+
+    assert perf_counter() - start < 1.0
+    assert eeg["chanlocs"] == original["chanlocs"]
+    np.testing.assert_array_equal(eeg["data"], original["data"])
+
+
+@pytest.mark.parametrize("exponent", ["2", "+2", "-2", "0.5", "12", "-12"])
+def test_chanedit_transform_accepts_bounded_numeric_powers(exponent):
+    eeg = _eeg()
+    eeg["chanlocs"][0]["Y"] = 2.0
+    eeg["chanlocs"][1]["Y"] = 3.0
+
+    out = pop_chanedit(eeg, transform=f"X=Y**{exponent}")
+
+    np.testing.assert_allclose([loc["X"] for loc in out["chanlocs"]], np.array([2.0, 3.0]) ** float(exponent))
+
+
+def test_chanedit_insert_delete_and_save_actions_keep_edits_on_their_channel(tmp_path):
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+
+    path = tmp_path / "saved.ced"
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            if spec.function_name == "chanedit_save":
+                return {"filename": str(path)}
+            renderer = QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                widgets["next10"].click()
+                widgets["field_labels"].setText("Last")
+                widgets["append_button"].click()
+                widgets["next1"].click()
+                widgets["field_labels"].setText("M1")
+                widgets["save"].click()
+                widgets["delete_button"].click()
+                widgets["back1"].click()
+                assert widgets["channel"].text() == "1"
+                assert widgets["field_labels"].text() == "Cz"
+                widgets["next10"].click()
+                assert widgets["field_labels"].text() == "Last"
+                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    out = pop_chanedit(_eeg(), gui=True, renderer=Renderer())
+    assert out["chanlocs"][-1]["labels"] == "Last"
+    assert [ch["labels"] for ch in pop_readlocs(path)] == ["Cz", "Last", "M1"]
+
+
+def test_chanedit_cannot_delete_a_data_channel_or_overwrite_data():
+    eeg = _eeg()
+    with pytest.raises(ValueError, match="pop_chanedit:.*pop_select"):
+        pop_chanedit(eeg, delete=1)
+    np.testing.assert_array_equal(eeg["data"], _eeg()["data"])
+
+
+def test_chanedit_insert_data_channel_count_mismatch_raises():
+    eeg = _eeg()
+    original = deepcopy(eeg)
+    with pytest.raises(
+        ValueError,
+        match="pop_chanedit: location count does not match data channels.*pop_select.*non-data channels",
+    ):
+        pop_chanedit(eeg, changefield=[1, "labels", "Changed"], insert=[2, {"labels": "Extra", "datachan": True}])
+
+    assert eeg["nbchan"] == original["nbchan"]
+    assert eeg["chanlocs"] == original["chanlocs"]
+    np.testing.assert_array_equal(eeg["data"], original["data"])
+
+
+@pytest.mark.parametrize(
+    "tag, result, field, expected",
+    [
+        ("button_set_channel_types", {"indices": "2", "text": "EOG"}, "type", "EOG"),
+        ("button_set_reference", {"indices": "2", "text": "Cz"}, "ref", "Cz"),
+        ("button_set_head_radius", {"radius": "85"}, "Y", -85.0),
+        ("button_opt._head_center", {"center": "1 0 0"}, "X", -1.0),
+        ("button_rotate_axis", {"value": "0", "axis": "Y", "labels": "Pz"}, "Z", 1.0),
+        ("button_transform_axes", {"transform": "X=Y; Y=0"}, "X", -1.0),
+    ],
+)
+def test_chanedit_action_dialog_applies_to_the_current_montage(tag, result, field, expected):
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            if spec.function_name.startswith("chanedit_"):
+                return result
+            renderer = QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                widgets["next1"].click()
+                widgets[tag].click()
+                if isinstance(expected, str):
+                    assert widgets[f"field_{field}"].text() == expected
+                else:
+                    assert float(widgets[f"field_{field}"].text()) == pytest.approx(expected, abs=1e-12)
+                return {key: renderer._read_widget(widget) for key, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    out, command = pop_chanedit(_eeg(), gui=True, renderer=Renderer(), return_com=True)
+    actual = out["chanlocs"][1][field]
+    assert actual == expected if isinstance(expected, str) else actual == pytest.approx(expected, abs=1e-12)
+    assert command
+
+
+def test_chanedit_offers_lookup_for_labels_without_coordinates():
+    eeg = _eeg()
+    eeg["chanlocs"] = [{"labels": "Cz"}, {"labels": "Pz"}]
+
+    class Renderer:
+        def __init__(self):
+            self.seen = []
+
+        def run(self, spec, initial_values=None):
+            self.seen.append(spec.function_name)
+            if spec.function_name == "chanedit_lookup":
+                return {"filename": controls_by_tag(spec)["filename"].value}
+            return {control.tag: control.value for control in spec.controls if control.tag}
+
+    renderer = Renderer()
+    out, command = pop_chanedit(eeg, gui=True, renderer=renderer, return_com=True)
+    assert renderer.seen == ["chanedit_lookup", "pop_chanedit"]
+    assert np.isfinite(out["chanlocs"][0]["X"])
+    assert "'lookup'" in command

@@ -7,10 +7,13 @@ import tomllib
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.eeg_helphelp import eeg_helphelp
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import action_kind
 from eegprep.functions.guifunc.pophelp import pophelp_text
+from eegprep.functions.miscfunc.helpforexe import helpforexe
 from eegprep.functions.popfunc.pop_chansel import (
+    pop_chansel_resolve,
     pop_chansel_selected_string,
 )
 from tests.eeglab_tests import eeglab_test
@@ -43,6 +46,20 @@ def test_reference_eeg_helphelp(eeglab_backend, request):
         eeglab_backend("eegprep_test_run_script", "eeg_helphelp", np.empty((1, 0), dtype=object), nargout=0)
     else:
         eeglab_backend("eeg_helphelp", nargout=0)
+
+
+def test_eeg_helphelp_prints_its_docstring(capsys):
+    eeg_helphelp()
+    printed = capsys.readouterr().out
+    assert "How EEGPrep help is organized." in printed
+    assert "return_com=True" in printed
+
+
+def test_helpforexe_writes_docstring_disp_lines(tmp_path):
+    helpforexe(np.array([["eeg_helphelp.m"]], dtype=object), tmp_path)
+    script = (tmp_path / "help_eeg_helphelp.m").read_text(encoding="utf-8")
+    assert "disp('How EEGPrep help is organized.');\n" in script
+    assert "disp(' ');\n" in script
 
 
 class PopHelpAndChanSelTests(unittest.TestCase):
@@ -118,6 +135,16 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         selected = pop_chansel_selected_string(["Fp1", "Cz", "Pz"], [1, 3])
 
         self.assertEqual(selected, "Fp1 Pz")
+
+    def test_pop_chansel_keeps_an_empty_quoted_token(self):
+        _values, indices = pop_chansel_resolve(["", "Cz"], "'', Cz")
+
+        self.assertEqual(indices, [1, 2])
+
+    def test_pop_chansel_reads_a_brace_wrapped_channel_list(self):
+        _values, indices = pop_chansel_resolve(["Cz", "Fp1"], "{Cz, Fp1}")
+
+        self.assertEqual(indices, [1, 2])
 
 
 if __name__ == "__main__":

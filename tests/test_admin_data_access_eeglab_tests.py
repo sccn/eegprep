@@ -118,7 +118,7 @@ def test_current_eeg_checkchanlocs_normalizes_continuous_epoched_and_extended_lo
     assert all(all(location[field] is not None for field in ("X", "Y", "Z")) for location in continuous["chanlocs"])
     np.testing.assert_allclose(
         [[location[axis] for axis in ("X", "Y", "Z")] for location in continuous["chanlocs"]],
-        [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [-1.0, 0.0, 0.0]],
+        [[1.0, 0.0, 0.0], [0.0, 0.0, 85.0], [-85.0, 0.0, 0.0]],
         atol=1e-12,
     )
     assert continuous["chaninfo"] == {"plotrad": None, "shrink": None, "nosedir": "+X", "nodatchans": []}
@@ -168,6 +168,15 @@ def test_current_eeg_getdatact_channel_component_trial_and_removal_cases():
         epoched["icaact"][0],
     )
     np.testing.assert_allclose(eeg_getdatact(epoched, rmcomps=[1]), expected, atol=1e-12)
+
+
+def test_eeg_getdatact_computes_component_activity_when_icaact_is_none():
+    eeg = _eeg()
+    expected = (eeg["icaweights"][[0, 2]] @ eeg["icasphere"] @ eeg["data"])[:, :, np.newaxis]
+    missing = _eeg()
+    del missing["icaact"]
+    for dataset in ({**eeg, "icaact": None}, {**eeg, "icaact": np.array([])}, missing):
+        np.testing.assert_allclose(eeg_getdatact(dataset, component=[1, 3]), expected)
 
 
 def test_eeg_getdatact_computes_uncached_activity_backprojection_and_two_dimensional_shape():

@@ -23,7 +23,8 @@ def kmeanscluster(
 
     Returns zero-based labels, centroids, the converged previous-label vector,
     and an unchanged copy of the input observations. Deterministic mode
-    initializes from the first ``clusters`` rows, as EEGLAB does.
+    initializes from the first ``clusters`` rows, as EEGLAB does, and keeps
+    that centroid-row numbering.
     """
     matrix = _validated_observations(data, clusters)
     initial = None if randomized else matrix[: int(clusters)]

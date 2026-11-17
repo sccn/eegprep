@@ -58,7 +58,7 @@ def pop_iclabel(
     if icversion is None:
         return (EEG, "") if return_com else EEG
     output = [
-        None if dataset is None else iclabel(dataset, algorithm=icversion, engine=engine)
+        None if dataset is None else iclabel(dataset, algorithm=icversion, engine=engine, feature="pop_iclabel")
         for dataset in _datasets_with_ica(EEG)
     ]
     output = output if isinstance(EEG, list) else output[0]
@@ -117,7 +117,9 @@ async def pop_iclabel_async(
     if icversion is None:
         return (EEG, "") if return_com else EEG
     output = [
-        None if dataset is None else await iclabel_async(dataset, algorithm=icversion, engine=engine)
+        None
+        if dataset is None
+        else await iclabel_async(dataset, algorithm=icversion, engine=engine, feature="pop_iclabel_async")
         for dataset in _datasets_with_ica(EEG)
     ]
     output = output if isinstance(EEG, list) else output[0]

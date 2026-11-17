@@ -104,34 +104,37 @@ def help_file(tmp_path: Path) -> Path:
 def test_gethelpvar_returns_all_documented_variables(help_file: Path):
     descriptions, names = gethelpvar(help_file)
 
-    assert names == ["functions", "silent", "report"]
-    assert descriptions == [
+    assert list(names[0]) == ["functions", "silent", "report"]
+    assert list(descriptions[0]) == [
         "function names to test (without extension '.m')",
         "'noninteractive' for silent run\nwithout user interaction",
         "new report in ./reports directory",
     ]
+    assert descriptions.shape == (1, 3)
+    assert names.shape == (1, 3)
 
 
 def test_gethelpvar_returns_one_requested_description_and_all_names(help_file: Path):
     descriptions, names = gethelpvar(help_file, "functions")
 
-    assert descriptions == ["function names to test (without extension '.m')"]
-    assert names == ["functions", "silent", "report"]
+    assert list(descriptions[0]) == ["function names to test (without extension '.m')"]
+    assert list(names[0]) == ["functions", "silent", "report"]
+    assert descriptions.shape == (1, 1)
 
 
 def test_gethelpvar_returns_empty_text_for_an_unknown_variable(help_file: Path, caplog):
     descriptions, names = gethelpvar(help_file, ["report", "DOES_NOT_EXIST"])
 
-    assert descriptions == ["new report in ./reports directory", ""]
-    assert names == ["functions", "silent", "report"]
+    assert list(descriptions[0]) == ["new report in ./reports directory", ""]
+    assert list(names[0]) == ["functions", "silent", "report"]
     assert "DOES_NOT_EXIST" in caplog.text
 
 
 def test_gethelpvar_preserves_requested_variable_order(help_file: Path):
     descriptions, names = gethelpvar(help_file, ["report", "silent"])
 
-    assert descriptions == [
+    assert list(descriptions[0]) == [
         "new report in ./reports directory",
         "'noninteractive' for silent run\nwithout user interaction",
     ]
-    assert names == ["functions", "silent", "report"]
+    assert list(names[0]) == ["functions", "silent", "report"]

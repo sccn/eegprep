@@ -138,8 +138,26 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertEqual(result['data'].shape[1], 13)
 
     def test_eeg_eegrej_preserves_numeric_boundary99_when_enabled(self):
-        """Numeric -99 boundaries use the canonical boundary contract."""
+        """eeg_eegrej.m:144 keeps -99 when every event type is numeric."""
         EEG = self.base_eeg.copy()
+        EEG["event"] = [dict(event) for event in EEG["event"]]
+        for event, code in zip(EEG["event"], (1, -99, 2, 3), strict=True):
+            event["type"] = code
+        old = EEG_OPTIONS["option_boundary99"]
+        EEG_OPTIONS["option_boundary99"] = 1
+        try:
+            result = eeg_eegrej(EEG, np.array([[6, 10]], dtype=int))
+        finally:
+            EEG_OPTIONS["option_boundary99"] = old
+
+        preserved = [event for event in result["event"] if event.get("latency") == 6.0]
+        self.assertEqual(len(preserved), 1)
+        self.assertEqual(preserved[0]["type"], -99)
+
+    def test_eeg_eegrej_stringifies_a_numeric_boundary_beside_text(self):
+        """eeg_checkset.m:395-400 num2str's -99 when another type is text."""
+        EEG = self.base_eeg.copy()
+        EEG["event"] = [dict(event) for event in EEG["event"]]
         EEG["event"][1]["type"] = -99
         old = EEG_OPTIONS["option_boundary99"]
         EEG_OPTIONS["option_boundary99"] = 1
@@ -148,7 +166,7 @@ class TestEEGEegrejExtended(unittest.TestCase):
         finally:
             EEG_OPTIONS["option_boundary99"] = old
 
-        preserved = [event for event in result["event"] if event.get("type") == -99]
+        preserved = [event for event in result["event"] if event.get("type") == "-99"]
         self.assertEqual(len(preserved), 1)
         self.assertEqual(preserved[0]["latency"], 6.0)
 
@@ -163,10 +181,12 @@ class TestEEGEegrejExtended(unittest.TestCase):
         result = eeg_eegrej(EEG, regions)
 
         new_pnts = result['pnts']
-        expected_duration = original_duration * (new_pnts / original_pnts)
-        expected_xmax = EEG['xmin'] + expected_duration
-
-        self.assertAlmostEqual(result['xmax'], expected_xmax, places=10)
+        proportional = EEG['xmin'] + original_duration * (new_pnts / original_pnts)
+        # eeg_checkset.m:849 snaps when round(srate*(xmax-xmin)+1) is not pnts.
+        # 15 kept samples of a 2 s, 100 Hz recording are not on that grid.
+        self.assertEqual(new_pnts, 15)
+        self.assertAlmostEqual(proportional, 1.5, places=10)
+        self.assertAlmostEqual(result['xmax'], 0.14, places=10)
 
     def test_eeg_eegrej_event_cleanup(self):
         """Test eeg_eegrej event cleanup logic."""
@@ -188,11 +208,9 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertNotIn(0.0, latencies)
         self.assertNotIn(float(result['pnts']), latencies)
 
-    def test_eeg_eegrej_keeps_nonboundary_events_at_edges(self):
-        """Genuine (non-boundary) events at the first/last sample must not be dropped."""
+    def test_eeg_eegrej_drops_events_before_half_a_sample(self):
+        """eventconsistency removes latency < 0.5 and keeps a stim on the last sample."""
         EEG = self.base_eeg.copy()
-        # stim at the first sample (latency 0) and a stim that lands on the
-        # final sample after rejection (latency 20 -> 17 once 3 samples removed)
         EEG['event'] = [
             {"type": "stim", "latency": 0.0},
             {"type": "stim", "latency": 20.0},
@@ -204,8 +222,7 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertEqual(result['pnts'], 17)
         stim_events = [e for e in result['event'] if e.get('type') == 'stim']
         stim_latencies = sorted(e['latency'] for e in stim_events)
-        # both stim events survive: one at the first sample, one at the last sample
-        self.assertEqual(stim_latencies, [0.0, 17.0])
+        self.assertEqual(stim_latencies, [17.0])
 
     def test_eeg_eegrej_floating_point_regions(self):
         """Test eeg_eegrej with floating point regions (should be rounded)."""
@@ -219,6 +236,86 @@ class TestEEGEegrejExtended(unittest.TestCase):
         # 20 - (9-5+1) - (18-15+1) = 20 - 5 - 4 = 11
         self.assertEqual(result['pnts'], 11)
         self.assertEqual(result['data'].shape[1], 11)
+
+    def test_eeg_eegrej_adjacent_regions_stay_separate(self):
+        """combineregions closes on cumsum 0, so a one-sample gap is not a merge."""
+        EEG = self.base_eeg.copy()
+        regions = np.array([[1, 5], [6, 10]])
+        with self.assertNoLogs("eegprep.functions.popfunc.eeg_eegrej", level="WARNING"):
+            result = eeg_eegrej(EEG, regions)
+        self.assertEqual(result["pnts"], 10)
+
+    def test_eeg_eegrej_merges_reversed_fractional_regions_before_shifting(self):
+        """Overlapping reversed bounds are one span before event latencies move."""
+        EEG = self.base_eeg.copy()
+        EEG["data"] = np.zeros((1, 400), dtype=float)
+        EEG["pnts"] = 400
+        EEG["nbchan"] = 1
+        EEG["event"] = [{"type": "stim", "latency": 340.0}]
+        regions = np.array(
+            [
+                [145.9771655965767, 123.72682490095676],
+                [320.3381323213592, 26.319768749552097],
+                [272.79633006697026, 151.05315648702828],
+            ]
+        )
+        with self.assertLogs("eegprep.functions.popfunc.eeg_eegrej", level="WARNING"):
+            result = eeg_eegrej(EEG, regions)
+        stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
+        self.assertEqual(stims, [45.0])
+        self.assertEqual(result["pnts"], 105)
+
+    def test_eeg_eegrej_empty_result_xmax_is_minus_one_sample(self):
+        EEG = self.base_eeg.copy()
+        result = eeg_eegrej(EEG, np.array([[1, 20]]))
+        self.assertEqual(result["pnts"], 0)
+        self.assertAlmostEqual(result["xmax"], -1.0 / EEG["srate"])
+        self.assertEqual(np.asarray(result["times"]).size, 0)
+
+    def test_structured_events_are_kept_as_a_list(self):
+        """A MATLAB struct array is converted; it is not replaced with an empty list."""
+        EEG = self.base_eeg.copy()
+        EEG["event"] = np.array(
+            [[("mrk1", 5.0), ("mrk2", 12.0)]],
+            dtype=[("type", object), ("latency", object)],
+        )
+        result = eeg_eegrej(EEG, np.array([[10.0, 12.0]]))
+        self.assertIsInstance(result["event"], list)
+        self.assertEqual([event["latency"] for event in result["event"] if event.get("type") == "mrk1"], [5.0])
+        self.assertFalse(any(event.get("type") == "mrk2" for event in result["event"]))
+
+    def test_non_event_array_raises(self):
+        EEG = self.base_eeg.copy()
+        EEG["event"] = np.array([1.0, 2.0, 3.0])
+        with self.assertRaises(TypeError):
+            eeg_eegrej(EEG, np.array([[10.0, 12.0]]))
+
+    def test_last_event_pop_follows_eventconsistency(self):
+        """eeg_eegrej.m:144-147 drops the new last event after out-of-range events are gone."""
+        EEG = self.base_eeg.copy()
+        EEG["event"] = [
+            {"type": "stim", "latency": 5.0},
+            {"type": "stim", "latency": 20.6},
+            {"type": "stim", "latency": 21.2},
+        ]
+        result = eeg_eegrej(EEG, np.array([[1.0, 3.0]]))
+        stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
+        self.assertEqual(stims, [2.0])
+
+    def test_zero_trials_keeps_events_past_sample_one_unlike_eeglab(self):
+        """Intentionally different from EEGLAB.
+
+        eeg_checkset.m:440-449 removes events past sample 1 while trials is
+        still 0. Lines 821-826 then set trials from the data shape. EEGPrep
+        sets trials first, so the event at sample 5 stays.
+        """
+        EEG = self.base_eeg.copy()
+        EEG["trials"] = 0
+        EEG["event"] = [{"type": "stim", "latency": 5.0}]
+        result = eeg_eegrej(EEG, np.array([[1, 2]]))
+        self.assertEqual(result["trials"], 1)
+        stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
+        self.assertEqual(stims, [3.0])
 
 
 if __name__ == "__main__":

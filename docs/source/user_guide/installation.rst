@@ -25,15 +25,25 @@ Installation Methods
 Using uv (Recommended)
 ----------------------
 
-For a project managed by uv, add eegprep with:
+For a project managed by uv, add the ``eegprep`` package with:
 
 .. code-block:: bash
 
     uv add eegprep
 
-To include the optional EEGPrep dependencies listed under
-:ref:`optional-extras` below (all of them except the developer-only ``torch``
-extra):
+This installs EEGPrep. It does not install the separate ``eegprep-lean``
+distribution (import name ``eegprep_lean``). NumPy, SciPy, Matplotlib,
+psutil, pyedflib, and h5py are part of this base install. Loading, cleaning,
+plotting, and EDF, BDF, and GDF export work with no brackets.
+
+Octave, MNE, PyBIDS, and Picard are extras. Install them together with:
+
+.. code-block:: bash
+
+    uv add "eegprep[full]"
+
+To include every optional extra, including the GUI, console, docs, ICLabel,
+and PyTorch dependencies:
 
 .. code-block:: bash
 
@@ -58,129 +68,128 @@ To install eegprep from source for development:
 
     git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
 and uses ``uv.lock`` for reproducible dependency resolution. The development
-environment includes the GUI, console, and ICLabel runtime dependencies, so a
-fresh checkout can immediately launch ``uv run eegprep-console --full`` and
-run the ICLabel quickstart.
+environment includes the GUI and console runtime dependencies, so a fresh
+checkout can immediately launch ``uv run eegprep-console --full``. It also
+installs the ``eeglab``, ``mne``, ``pybids``, ``picard``, and ``iclabel``
+packages so the test suite can exercise Octave, MNE conversion, BIDS import,
+Picard ICA, and ICLabel.
 
 To develop or build documentation from source, include the docs extra:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs --extra iclabel
-
-.. _optional-extras:
+    uv sync --group dev --extra docs
 
 Optional Dependencies
 =====================
 
-A plain ``eegprep`` install is deliberately lean. Features that need additional
-packages raise an ``ImportError`` that names the extra to install when it is
-missing.
+eegprep has several optional dependencies that enable additional functionality.
+Calling a function whose extra is not installed raises ``ImportError``. The
+message names the library, the function, and the command to install it, for
+example ``pip install "eegprep[mne]"``, and it mentions ``eegprep[full]``.
+When another path does not need that library, the message says what to do
+instead, such as leaving ``engine`` unset or using ``runica``.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 14 24 62
+``dir(eegprep)`` lists every public name. ``eegprep.help()`` prints those
+names with a one-line summary, read from the function's docstring without
+importing its module, and names the extra when one path of the function needs
+it. ``help`` is not exported by ``from eegprep import *``.
 
-   * - Extra
-     - Installs
-     - Needed for
-   * - ``iclabel``
-     - ``onnxruntime`` 1.20 or newer
-     - ``pop_iclabel`` and ``iclabel`` component classification.
-   * - ``gui``
-     - ``PySide6``, ``pyqtgraph``
-     - The EEGPrep windows and dialogs.
-   * - ``console``
-     - ``gui`` and ``ipython``
-     - ``eegprep-console``, the shared GUI and Python workspace.
-   * - ``edf``
-     - ``pyedflib``
-     - EDF and BDF output of ``pop_writeeeg``. GDF output and EDF/BDF input do
-       not need it.
-   * - ``eeglab``
-     - ``oct2py``
-     - Calling a real EEGLAB through Octave for parity checks.
-   * - ``sys``
-     - ``psutil``
-     - Memory-based reservations such as ``ReservePerJob="4GB"``.
-   * - ``docs``
-     - Sphinx and its extensions
-     - Building this documentation.
-   * - ``torch``
-     - ``torch``, ``onnx``
-     - Developers only: rebuilding the packaged ICLabel network. Not part of
-       ``all``.
-   * - ``all``
-     - Every extra above except ``torch``
-     - Everything a user may need.
+``full`` restores the previous base install
+-------------------------------------------
+
+.. code-block:: bash
+
+    uv add "eegprep[full]"
+
+This installs four extras:
+
+- ``eeglab`` (``oct2py``), the Octave runtime for
+  ``pop_resample(..., engine="octave")``, ``iclabel(..., engine="octave")``,
+  the RANSAC octave subroutine used by ``clean_channels``, and
+  ``eeglab_clean_artifacts``.
+- ``mne``, conversion to and from MNE objects, and the EDF, BDF, GDF, and
+  EGI ``.mff`` readers in ``pop_biosig`` and ``pop_fileio``. BrainVision
+  ``.eeg`` files, and ``.vhdr`` files when a block range is set, also use it.
+  EEGLAB ``.set``, CNT, BrainVision ``.vhdr`` without a block range, and
+  BrainVision Analyzer ``.mat`` exports do not.
+- ``pybids``, BIDS import and ``bids_preproc``.
+- ``picard`` (``python-picard``), Picard ICA. The default ``runica`` path
+  does not need it. This extra also installs scikit-learn.
+
+``eegprep[all]`` includes these four extras plus the GUI, console, docs,
+ICLabel, and PyTorch extras.
+
+Riemannian ASR (``clean_asr(..., useriemannian=True)`` and
+``Distance="Riemannian"``) is included. It uses NumPy and SciPy; there is no
+separate manifold package to install.
 
 ICLabel (component classification)
------------------------------------
+----------------------------------
 
 ``pop_iclabel`` and ``iclabel`` classify independent components with a packaged
-Open Neural Network Exchange (ONNX) network run by ``onnxruntime``. Install the ``iclabel`` extra to enable
-them:
+Open Neural Network Exchange (ONNX) network run by ``onnxruntime``. Install the
+``iclabel`` extra to enable them. It is not part of ``full``:
 
 .. code-block:: bash
 
     uv add "eegprep[iclabel]"
 
-PyTorch is not required to run ICLabel classification. The packaged
-``iclabel.onnx`` stores the network weights as 8-bit integers (about 2.9 MB);
-:ref:`iclabel_measured_agreement` reports how closely it matches the
-full-precision network. Developers who change the network rebuild it with the
-``torch`` extra, following :ref:`releasing`.
+PyTorch is not required to run ICLabel classification. Two network files ship
+in the package. ``iclabel.onnx`` holds the full-precision weights (about 11.6 MB)
+and is what ``iclabel`` and ``pop_iclabel`` load on every native platform; it
+matches the previous PyTorch network to about 1e-6.
+``iclabel_int8.onnx`` stores the weights as 8-bit integers (about 2.9 MB) for the
+browser, where the host page supplies the model bytes to ONNX Runtime Web and
+``iclabel_async`` awaits the result. :ref:`iclabel_measured_agreement` reports how
+closely each file matches the others. Developers who change the network rebuild
+both files with the ``torch`` extra, following :ref:`releasing`; ICLabel itself
+does not need that extra.
 
-EDF and BDF Export
-------------------
+In a browser (Pyodide), ``psutil`` and ``pyedflib`` are not installed because
+they have no WebAssembly build, although every other install includes them. EDF
+and BDF export, memory-based ``ReservePerJob`` reservations such as ``"4GB"``,
+and the free-memory fallback of ASR then raise an ``ImportError`` that says so;
+give ASR an explicit ``maxmem`` that fits its lookahead buffers instead.
 
-``pop_writeeeg`` writes EDF and BDF files through ``pyedflib``, which is not
-installed by default. Install it with the ``edf`` extra:
+PyTorch (for GPU acceleration)
+------------------------------
 
-.. code-block:: bash
-
-    uv add "eegprep[edf]"
-
-Without this extra, writing an EDF or BDF file raises an ``ImportError`` naming
-this extra. GDF output has its own writer and works without it, and EDF/BDF
-files are read through MNE and Neo, which are always installed.
-
-MATLAB/Octave Parity Helpers
------------------------------
-
-``eeg_checkset`` in ``eegprep.functions.adminfunc.eeglabcompat``, ``clean_drifts``,
-and other helpers there can call into a real EEGLAB installation through Octave
-for development and parity testing. This path needs ``oct2py``, which is not
-installed by default because it pulls in several packages with no
-WebAssembly build. Install it with the ``eeglab`` extra:
+To use GPU-accelerated processing with PyTorch:
 
 .. code-block:: bash
 
-    uv add "eegprep[eeglab]"
+    uv add torch
 
-Without this extra, calling ``get_eeglab('OCT')`` raises an ``ImportError``
-naming this extra, provided an EEGLAB checkout is found first (``EEGPREP_EEGLAB_ROOT``
-or a checkout next to the repository); otherwise it reports the missing checkout.
-
-System-Aware Parallel Jobs
----------------------------
-
-``bids_preproc``'s ``ReservePerJob`` argument can size the number of
-parallel jobs from available system RAM (for example ``"4GB"``). This needs
-``psutil``, which is not installed by default. Install it with the ``sys``
-extra:
+For CUDA support (NVIDIA GPUs):
 
 .. code-block:: bash
 
-    uv add "eegprep[sys]"
+    uv add torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-Without this extra, a memory-based ``ReservePerJob`` reservation raises an
-``ImportError`` naming this extra. CPU-based reservations (for example
-``"2CPU"``) do not need it.
+For CPU-only PyTorch:
+
+.. code-block:: bash
+
+    uv add torch --index-url https://download.pytorch.org/whl/cpu
+
+pAMICA
+------
+
+pAMICA is a Python implementation of AMICA built on PyTorch.
+It needs no executable.
+Install it with the ``pamica`` extra, which also installs PyTorch:
+
+.. code-block:: bash
+
+    uv add "eegprep[pamica]"
+
+``pop_runica(EEG, icatype="pamica")`` and ``eeg_pamica`` use it.
+The extra is part of ``eegprep[all]`` and not of ``eegprep[full]``.
 
 AMICA
 -----
@@ -212,7 +221,7 @@ To build the documentation locally:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs --extra iclabel
+    uv sync --group dev --extra docs
     uv run --no-sync sphinx-build -b html docs/source docs/_build/html
 
 The ``docs/Makefile`` target is also available:
@@ -234,7 +243,18 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[iclabel,gui,edf,docs,eeglab,sys]"
+    uv add "eegprep[iclabel,gui,docs]"
+
+eegprep-lean
+============
+
+The commands on this page install EEGPrep. They do not install the separate
+``eegprep-lean`` distribution (import name ``eegprep_lean``). In Pyodide that
+package reads with ``PyfetchTransport(timeout_s=60)``. The browser request is
+aborted if the response headers and the body have not both arrived within
+``timeout_s`` seconds. A host that registers its own client with
+``FetchTransport`` keeps that client's deadline. ``eegprep-lean`` does not
+add a second one.
 
 Verification
 ============
@@ -245,8 +265,10 @@ After installation, verify that eegprep is correctly installed by running:
 
     import eegprep
     print(eegprep.__version__)
+    eegprep.help()
 
-You should see the version number printed without any errors.
+You should see the version number, then a list of public names, printed
+without any errors.
 
 To verify all core modules are available:
 
@@ -281,7 +303,7 @@ If installing from source, ensure you're in the correct directory and use:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra iclabel
+    uv sync --group dev
 
 Version Conflicts
 -----------------
@@ -295,6 +317,28 @@ Version Conflicts
     uv venv eegprep_env
     source eegprep_env/bin/activate  # On Windows: eegprep_env\Scripts\activate
     uv pip install eegprep
+
+PyTorch Installation Issues
+----------------------------
+
+**Problem**: PyTorch installation fails or GPU not detected
+
+**Solution**:
+
+1. Check your CUDA version:
+
+.. code-block:: bash
+
+    nvidia-smi
+
+2. Install the matching PyTorch version from https://pytorch.org/get-started/locally/
+
+3. Verify PyTorch installation:
+
+.. code-block:: python
+
+    import torch
+    print(torch.cuda.is_available())
 
 EEGLAB File Format Issues
 --------------------------
@@ -329,6 +373,7 @@ Memory Issues
 1. Process data in chunks or epochs
 2. Reduce the number of channels if possible
 3. Increase available RAM or use a machine with more memory
+4. Use GPU acceleration if available
 
 Getting Help
 ============

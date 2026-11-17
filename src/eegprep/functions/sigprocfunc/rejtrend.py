@@ -19,8 +19,10 @@ def rejtrend(
     if data.ndim != 3:
         raise ValueError("signal must be channels x points x trials")
     window = int(pointrange)
-    if window < 2 or window > data.shape[1]:
-        raise ValueError("pointrange must be between 2 and the number of points")
+    if window < 2:
+        raise ValueError("pointrange must be at least 2")
+    if window > data.shape[1]:
+        return np.zeros(data.shape[2], dtype=bool), np.zeros((data.shape[0], data.shape[2]), dtype=bool)
     stride = window if step is None else int(step)
     if stride < 1:
         raise ValueError("step must be positive")

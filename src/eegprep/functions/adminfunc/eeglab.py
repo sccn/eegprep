@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
+from eegprep.functions.adminfunc.pop_editoptions import load_eegprep_options
 from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.session import EEGPrepSession
 
@@ -49,6 +50,8 @@ def eeglab(
     gui_session = session or EEGPrepSession()
     if onearg == "nogui":
         return gui_session
+    if session is None:
+        load_eegprep_options()
     if onearg == "full":
         all_menus = True
     window = build_main_window(

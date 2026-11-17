@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import ttest_1samp, ttest_rel
 from scipy.signal import butter, sosfiltfilt
@@ -18,9 +17,12 @@ from eegprep.functions.popfunc.plot_utils import (
     eeg_times_ms,
     history_command,
     numeric_vector,
+    parse_plot_options_text,
     show_figures,
 )
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import is_on
+from eegprep.functions.sigprocfunc.plottopo import plottopo
 
 
 def pop_comperp(
@@ -83,6 +85,7 @@ def pop_comperp(
         if diff_stack is not None:
             diff_stack = _lowpass(diff_stack, cutoff, srate, axis=2)
     times = eeg_times_ms(datasets[int(add_indices[0])])
+    _apply_single_dataset_rules(options, add_stack.shape[0], 0 if sub_stack is None else sub_stack.shape[0])
     figure = _plot_comperp(
         erp1,
         erp2,
@@ -93,6 +96,8 @@ def pop_comperp(
         times,
         pvalues=pvalues,
         options=options,
+        chanlocs=_plot_chanlocs(datasets[int(add_indices[0])], int(flag), options.get("chans")),
+        rect=int(flag) == 0 or str(options.get("geom") or "").lower() == "array",
     )
     result = {"erp1": erp1, "erp2": erp2, "erpsub": erpsub, "times": times, "pvalues": pvalues, "figure": figure}
     show_figures(figure, plot=plot)
@@ -234,6 +239,30 @@ def _selected_rows(values: Any, count: int) -> np.ndarray:
     return vector - 1
 
 
+def _apply_single_dataset_rules(options: dict[str, Any], add_count: int, sub_count: int) -> None:
+    if add_count == 1 and is_on(options.get("addavg")):
+        options["addall"] = "on"
+        options["addavg"] = "off"
+    if sub_count == 1 and is_on(options.get("subavg")):
+        options["suball"] = "on"
+        options["subavg"] = "off"
+    if add_count == 1 and sub_count == 1 and is_on(options.get("diffavg")):
+        options["diffall"] = "on"
+        options["diffavg"] = "off"
+
+
+def _plot_chanlocs(dataset: dict[str, Any], flag: int, chans: Any) -> list[dict[str, Any]]:
+    if not flag:
+        count = int(np.asarray(dataset.get("icaweights", [])).shape[0] or dataset.get("nbchan", 0) or 0)
+        selected = _selected_rows(chans, count) if count else np.asarray([], dtype=int)
+        return [{"labels": str(int(index) + 1)} for index in selected]
+    locs = chanlocs_as_list(dataset.get("chanlocs", []))
+    if not locs:
+        return []
+    selected = _selected_rows(chans, len(locs))
+    return [locs[int(index)] for index in selected]
+
+
 def _plot_comperp(
     erp1: np.ndarray,
     erp2: np.ndarray | None,
@@ -245,43 +274,68 @@ def _plot_comperp(
     *,
     pvalues: np.ndarray | None,
     options: dict[str, Any],
+    chanlocs: list[dict[str, Any]],
+    rect: bool,
 ):
-    fig, ax = plt.subplots(figsize=(8, 4.5))
     plot_times, mask = _plot_time_mask(times, options.get("tlim"))
     mode = str(options.get("mode") or "ave").lower()
+    traces: list[np.ndarray] = []
+    styles: list[dict[str, Any]] = []
+
+    def add_trace(values: np.ndarray, style: dict[str, Any]) -> None:
+        traces.append(np.asarray(values, dtype=float)[:, mask])
+        styles.append(style)
+
+    def add_stack_traces(stack: np.ndarray, color: str, label: str) -> None:
+        for index, erp in enumerate(stack):
+            add_trace(erp, {"color": color, "linewidth": 0.8, "label": label if index == 0 else None})
+
+    def add_std(stack: np.ndarray, center: np.ndarray, color: str, label: str) -> None:
+        spread = np.nanstd(stack, axis=0, ddof=1 if stack.shape[0] > 1 else 0)
+        if mode == "rms":
+            center = _collapse_erps(stack, mode)
+        add_trace(center + spread, {"color": color, "linestyle": ":", "linewidth": 1.0, "label": label})
+        add_trace(center - spread, {"color": color, "linestyle": ":", "linewidth": 1.0, "label": None})
+
     if is_on(options.get("addall")):
-        _plot_all(ax, add_stack, plot_times, mask, color="0.45", label_prefix="add")
+        add_stack_traces(add_stack, "b", "Add")
     if is_on(options.get("suball")) and sub_stack is not None:
-        _plot_all(ax, sub_stack, plot_times, mask, color="0.65", label_prefix="sub")
+        add_stack_traces(sub_stack, "r", "Subtract")
     if is_on(options.get("diffall")) and diff_stack is not None:
-        _plot_all(ax, diff_stack, plot_times, mask, color="0.35", label_prefix="diff")
+        add_stack_traces(diff_stack, "k", "Difference")
+    average_label = "RMS" if mode == "rms" else "Average"
     if is_on(options.get("addavg")):
-        ax.plot(plot_times, np.nanmean(erp1, axis=0)[mask], color="blue", label="add")
+        add_trace(erp1, {"color": "b", "linewidth": 2.0, "label": f"Add {average_label}"})
     if erp2 is not None and is_on(options.get("subavg")):
-        ax.plot(plot_times, np.nanmean(erp2, axis=0)[mask], color="red", label="subtract")
+        add_trace(erp2, {"color": "r", "linewidth": 2.0, "label": f"Subtract {average_label}"})
     if erpsub is not None and is_on(options.get("diffavg")):
-        ax.plot(plot_times, np.nanmean(erpsub, axis=0)[mask], color="black", label="difference")
+        add_trace(erpsub, {"color": "k", "linewidth": 2.0, "label": f"Difference {average_label}"})
     if is_on(options.get("addstd")):
-        _plot_std(ax, add_stack, plot_times, mask, color="blue", label="add std", mode=mode)
-    if is_on(options.get("substd")) and sub_stack is not None:
-        _plot_std(ax, sub_stack, plot_times, mask, color="red", label="sub std", mode=mode)
-    if is_on(options.get("diffstd")) and diff_stack is not None:
-        _plot_std(ax, diff_stack, plot_times, mask, color="black", label="diff std", mode=mode)
+        add_std(add_stack, erp1, "b", "Add std")
+    if is_on(options.get("substd")) and sub_stack is not None and erp2 is not None:
+        add_std(sub_stack, erp2, "r", "Subtract std")
+    if is_on(options.get("diffstd")) and diff_stack is not None and erpsub is not None:
+        add_std(diff_stack, erpsub, "k", "Difference std")
+    if not traces:
+        add_trace(erp1, {"color": "b", "linewidth": 1.2, "label": "Add"})
+    data = np.stack(traces, axis=2)
+    regions = None
     alpha = options.get("alpha")
     if pvalues is not None and alpha is not None:
-        _shade_significance(ax, times, mask, pvalues, float(alpha))
-    ax.axhline(0, color="0.7", linewidth=0.6)
-    ax.set_xlabel("Time (ms)")
-    ax.set_ylabel("uV")
-    ax.set_title(str(options.get("title") or "ERP grand average"))
-    ylim = numeric_vector(options.get("ylim", []))
-    if ylim.size == 2:
-        ax.set_ylim(float(ylim[0]), float(ylim[1]))
-    if ax.get_legend_handles_labels()[0]:
-        ax.legend()
-    ax.grid(True, alpha=0.25)
-    fig.tight_layout()
-    return fig
+        regions = np.asarray(pvalues, dtype=float)[:, mask] < float(alpha)
+    ydir = int(parse_plot_options_text(str(options.get("tplotopt") or "")).get("ydir", -1))
+    return plottopo(
+        data,
+        times=plot_times,
+        chanlocs=chanlocs,
+        title=str(options.get("title") or "ERP grand average"),
+        ydir=ydir,
+        ylimits=options.get("ylim"),
+        rect=rect or not chanlocs,
+        overlay=True,
+        styles=styles,
+        regions=regions,
+    )
 
 
 def _validate_time_grid(datasets: list[dict[str, Any]]) -> None:
@@ -358,6 +412,8 @@ def _normalise_options(options: dict[str, Any], *, has_sub: bool) -> dict[str, A
         "alpha": _optional_alpha(options.get("alpha")),
         "tlim": options.get("tlim", []),
         "ylim": options.get("ylim", []),
+        "geom": str(options.get("geom") or ""),
+        "tplotopt": str(options.get("tplotopt") or ""),
         "addavg": _onoff_option(options.get("addavg"), True),
         "subavg": _onoff_option(options.get("subavg"), has_sub),
         "diffavg": _onoff_option(options.get("diffavg"), has_sub),
@@ -421,43 +477,6 @@ def _plot_time_mask(times: np.ndarray, tlim: Any) -> tuple[np.ndarray, np.ndarra
     if not np.any(mask):
         raise ValueError("tlim does not include any samples")
     return times[mask], mask
-
-
-def _plot_all(
-    ax: Any, stack: np.ndarray, times: np.ndarray, mask: np.ndarray, *, color: str, label_prefix: str
-) -> None:
-    for index, erp in enumerate(stack, start=1):
-        label = f"{label_prefix} #{index}" if index == 1 else None
-        ax.plot(times, np.nanmean(erp, axis=0)[mask], color=color, linewidth=0.8, alpha=0.65, label=label)
-
-
-def _plot_std(
-    ax: Any, stack: np.ndarray, times: np.ndarray, mask: np.ndarray, *, color: str, label: str, mode: str
-) -> None:
-    center = np.nanmean(_collapse_erps(stack, mode), axis=0)
-    channel_spread = np.nanstd(stack, axis=0, ddof=1 if stack.shape[0] > 1 else 0)
-    spread = np.nanmean(channel_spread, axis=0)
-    ax.plot(times, (center + spread)[mask], color=color, linestyle=":", linewidth=1.0, label=label)
-    ax.plot(times, (center - spread)[mask], color=color, linestyle=":", linewidth=1.0)
-
-
-def _shade_significance(ax: Any, times: np.ndarray, mask: np.ndarray, pvalues: np.ndarray, alpha: float) -> None:
-    significant = np.nanmin(pvalues, axis=0) < alpha
-    significant = significant & mask
-    starts: list[int] = []
-    stops: list[int] = []
-    in_region = False
-    for index, value in enumerate(significant.tolist()):
-        if value and not in_region:
-            starts.append(index)
-            in_region = True
-        elif not value and in_region:
-            stops.append(index - 1)
-            in_region = False
-    if in_region:
-        stops.append(len(significant) - 1)
-    for start, stop in zip(starts, stops):
-        ax.axvspan(float(times[start]), float(times[stop]), color="gold", alpha=0.18, linewidth=0)
 
 
 __all__ = ["pop_comperp", "pop_comperp_dialog_spec"]

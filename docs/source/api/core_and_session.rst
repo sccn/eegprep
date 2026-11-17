@@ -11,8 +11,14 @@ Dataset containers, validation, and the shared session that the GUI and ``eegpre
    eegprep.EEGPrepSession
    eegprep.EEG_OPTIONS
    eegprep.eeg_readoptions
+   eegprep.disp
+   eegprep.eeg_helphelp
+   eegprep.eeg_hist
    eegprep.gethelpvar
    eegprep.getkeyval
+   eegprep.helpforexe
+   eegprep.is_sccn
+   eegprep.iseeglabdeployed
    eegprep.vararg2str
    eegprep.EEGobj
    eegprep.checkset

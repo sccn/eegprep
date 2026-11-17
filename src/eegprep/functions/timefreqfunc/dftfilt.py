@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.timefreqfunc.dftfilt3 import symmetric_hanning
 
 
@@ -22,8 +23,8 @@ def dftfilt(length: int, maxfreq: float, cycle: float, oversmp: float, wavfact: 
         return np.empty((length, 0), dtype=complex)
     filters = np.column_stack(columns)
     for column in range(filters.shape[1]):
-        discard = int(round(float(wavfact) * length * column / (column + float(oversmp))))
-        upper = int(round(discard / 2.0))
+        discard = int(round_mat(float(wavfact) * length * column / (column + float(oversmp))))
+        upper = int(round_mat(discard / 2.0))
         lower = discard - upper
         taper_length = length - discard
         if taper_length <= 0:

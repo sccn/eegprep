@@ -43,16 +43,44 @@ EEGLAB checkout at runtime.
 
 ## Install
 
-EEGPrep uses `uv` for development and CI. For a published release, install the
-lean package with:
+EEGPrep uses `uv` for development and CI. For a published release:
 
 ```bash
 uv add eegprep
 ```
 
-To install all optional extras, including GUI, console, docs, the ICLabel
-runtime (Open Neural Network Exchange (ONNX) Runtime), EDF/BDF export, MATLAB/Octave parity, and system-aware
-job scheduling dependencies, use:
+That command installs this package, `eegprep`. It does not install
+`eegprep-lean` (import name `eegprep_lean`), which is a separate
+zero-dependency reader. NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py
+are part of this base install, so loading, cleaning, plotting, and EDF, BDF,
+and GDF export need no brackets.
+
+Four heavier libraries are extras. `pip install "eegprep[full]"` puts them
+back and restores the previous complete install:
+
+```bash
+uv add "eegprep[full]"   # oct2py, mne, pybids, and python-picard
+```
+
+| Extra | Installs | Used for |
+| --- | --- | --- |
+| `eeglab` | oct2py | Octave runtime |
+| `mne` | mne | MNE conversion and EDF, BDF, and GDF import |
+| `pybids` | pybids | BIDS import and `bids_preproc` |
+| `picard` | python-picard | Picard ICA; the default `runica` path does not need it |
+| `full` | the four above | the previous complete install |
+| `iclabel` | onnxruntime | ICLabel classification (`iclabel`, `pop_iclabel`); not part of `full` |
+| `gui`, `console`, `docs` | Qt, IPython, Sphinx | unchanged |
+| `torch` | PyTorch, onnx | regenerating the packaged ICLabel network from `netICL.mat`; ICLabel does not need it |
+| `all` | every extra above | GUI, docs, ICLabel, PyTorch, and `full` |
+
+A function whose extra is missing raises `ImportError` naming that function,
+`pip install "eegprep[<extra>]"`, and `eegprep[full]`. When another path does
+not need the library, the message says what to do instead.
+`dir(eegprep)` lists every public name, and `eegprep.help()` prints a one-line
+summary of each, including which extra it needs.
+
+To install the GUI, console, docs, ICLabel, and PyTorch extras as well:
 
 ```bash
 uv add "eegprep[all]"
@@ -70,13 +98,21 @@ For a source checkout:
 ```bash
 git clone https://github.com/sccn/eegprep.git
 cd eegprep
-uv sync --group dev --extra iclabel
+uv sync --group dev
 ```
 
-The `iclabel` extra installs ONNX Runtime, which `pop_iclabel` and the gallery
-examples need. PyTorch is not required for ICLabel and is not part of
-`eegprep[all]`; the separate `torch` extra is only for regenerating the packaged
-ICLabel network from `netICL.mat` (see `docs/source/releasing.rst`).
+The development group installs the `eeglab`, `mne`, `pybids`, `picard`, and
+`iclabel` packages so the test suite can exercise those paths. It does not
+install `eegprep-lean`.
+
+`pop_iclabel` and the gallery examples need the `iclabel` extra, which installs
+ONNX Runtime. PyTorch is not required for ICLabel; the `torch` extra is only for
+regenerating the packaged ICLabel network from `netICL.mat` (see
+`docs/source/releasing.rst`).
+
+The complete install can pull in large optional binaries on some platforms,
+especially the PyTorch extras (`torch` and `pamica`). You can install a
+lightweight CPU-only PyTorch build manually if that better matches your system.
 
 ## Quick Start
 
@@ -286,14 +322,50 @@ engine.eval("disp('hello world');", nargout=0)
 
 The MATLAB comparison entry point is `tests/matlab/main_compare.m`.
 
-## Cite
+## Citing EEGPrep
 
-If EEGPrep contributes to your research, please cite EEGPrep and the EEGLAB
-methods it ports. For EEGLAB, cite:
+If EEGPrep contributes to your research, please cite the preprint:
+
+Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., &
+Aristimunha, B. (2026). EEGPrep: a validated Python implementation of the
+EEGLAB preprocessing pipeline. arXiv:2607.16647.
+<https://doi.org/10.48550/arXiv.2607.16647>
+
+```bibtex
+@misc{delorme2026eegprep,
+  author = {Delorme, Arnaud and Ranganath, Suraj and Kothe, Christian and Jaiswal, Aman and Makeig, Scott and Aristimunha, Bruno},
+  title = {EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline},
+  year = {2026},
+  eprint = {2607.16647},
+  archivePrefix = {arXiv},
+  primaryClass = {eess.SP},
+  doi = {10.48550/arXiv.2607.16647},
+  url = {https://arxiv.org/abs/2607.16647}
+}
+```
+
+EEGPrep builds on EEGLAB. Please also cite:
 
 Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for analysis
 of single-trial EEG dynamics including independent component analysis. *Journal
 of Neuroscience Methods*, 134(1), 9-21.
+<https://doi.org/10.1016/j.jneumeth.2003.10.009>
+
+```bibtex
+@article{delorme2004eeglab,
+  author = {Delorme, Arnaud and Makeig, Scott},
+  title = {EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis},
+  journal = {Journal of Neuroscience Methods},
+  volume = {134},
+  number = {1},
+  pages = {9--21},
+  year = {2004},
+  doi = {10.1016/j.jneumeth.2003.10.009}
+}
+```
+
+Citations for the other methods EEGPrep implements are on the
+[References](https://sccn.github.io/eegprep/references.html) page.
 
 ## Core Maintainers
 

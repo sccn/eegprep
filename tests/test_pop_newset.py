@@ -35,13 +35,13 @@ def test_pop_newset_stores_setname_and_retrieves_dataset():
     assert current_set == 1
     assert current["setname"] == "renamed"
     assert alleeg[0]["setname"] == "renamed"
-    assert command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'renamed');"
+    assert command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 0, 'setname', 'renamed', 'gui', 'off');"
 
     _alleeg, retrieved, retrieved_set, retrieve_command = pop_newset(alleeg, current, current_set, "retrieve", 1)
 
     assert retrieved_set == 1
     assert retrieved["setname"] == "renamed"
-    assert retrieve_command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', 1);"
+    assert retrieve_command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'retrieve', 1);"
 
 
 def test_pop_newset_overwrites_current_dataset_when_requested():
@@ -54,7 +54,7 @@ def test_pop_newset_overwrites_current_dataset_when_requested():
     assert current_set == 1
     assert current["setname"] == "updated"
     assert alleeg[0]["setname"] == "updated"
-    assert command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');"
+    assert command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'overwrite', 'on', 'gui', 'off');"
 
 
 def test_pop_newset_gui_choice_can_create_new_dataset():
@@ -71,10 +71,7 @@ def test_pop_newset_gui_choice_can_create_new_dataset():
     assert current_set == 2
     assert current["setname"] == "processed"
     assert current["comments"] == "new notes"
-    assert command == (
-        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, "
-        "'setname', 'processed', 'comments', 'new notes', 'overwrite', 'off');"
-    )
+    assert command == ("[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'comments', 'new notes', 'gui', 'off');")
 
 
 def test_pop_newset_gui_description_button_value_updates_comments():
@@ -92,8 +89,7 @@ def test_pop_newset_gui_description_button_value_updates_comments():
     assert current_set == 2
     assert current["comments"] == "edited notes"
     assert command == (
-        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, "
-        "'setname', 'processed', 'comments', 'edited notes', 'overwrite', 'off');"
+        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'comments', 'edited notes', 'gui', 'off');"
     )
 
 
@@ -112,9 +108,7 @@ def test_pop_newset_gui_untouched_description_button_preserves_comments():
     assert len(alleeg) == 2
     assert current_set == 2
     assert current["comments"] == "old notes"
-    assert command == (
-        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'processed', 'overwrite', 'off');"
-    )
+    assert command == ("[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'gui', 'off');")
 
 
 def test_pop_newset_gui_choice_can_overwrite_current_dataset():
@@ -131,9 +125,7 @@ def test_pop_newset_gui_choice_can_overwrite_current_dataset():
     assert len(alleeg) == 1
     assert current_set == 1
     assert current["setname"] == "processed"
-    assert command == (
-        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'processed', 'overwrite', 'on');"
-    )
+    assert command == ("[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'overwrite', 'on', 'gui', 'off');")
 
 
 def test_pop_newset_gui_cancel_retrieves_original_without_history_command():

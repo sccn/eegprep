@@ -40,7 +40,7 @@ def test_getkeyval_can_return_the_full_key_value_fragment():
 def test_getkeyval_full_mode_handles_a_key_named_inside_a_parent_cell():
     command = "testfunction({'bar', 'eeglab', 'test'}, 'key', 'val', 'foo');"
 
-    assert getkeyval(command, "eeglab", "full") == "'eeglab', 'key'"
+    assert getkeyval(command, "eeglab", "full") == "'eeglab',  'key'"
 
 
 def test_getkeyval_selects_a_one_based_numeric_vector_element():

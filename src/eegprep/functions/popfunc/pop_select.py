@@ -26,7 +26,18 @@ logger = logging.getLogger(__name__)
 
 
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
-    """Select EEG data using EEGLAB ``pop_select`` semantics."""
+    """Select EEG data using EEGLAB ``pop_select`` semantics.
+
+    Numeric ``channel``, ``nochannel``, and ``rmchannel`` arguments use
+    zero-based Python indices. The GUI uses one-based channel numbers.
+    Channel labels can be used in either interface.
+
+    With ``sorttrial='off'``, a repeated trial is kept at its first position.
+    ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
+    ``pop_select.m`` lines 282-286 call ``unique_bc``
+    (``unique(..., 'legacy')``), which keeps the last copy, so the same
+    input becomes ``[4, 3, 2, 1, 5]``.
+    """
     options = parse_key_value_args(args, kwargs)
     if not isinstance(EEG, list) and EEG.get("data") is None:
         raise ValueError('EEG["data"] is required')
@@ -157,21 +168,37 @@ def _pop_select_apply(EEG, **kwargs):
         _, idx = np.unique(trial_seq, return_index=True)
         g['trial'] = trial_seq[np.sort(idx)].tolist()
 
-    if g['trial'] and (min(g['trial']) < 1 or max(g['trial']) > trials):
+    if np.size(g['trial']) and (np.min(g['trial']) < 1 or np.max(g['trial']) > trials):
         raise ValueError('Wrong trial range')
 
     # 2) Channel selection by name or type, with mutual exclusion
     def _decode_list(x):
-        if x is None or x == []:
+        if x is None:
             return []
-        if isinstance(x, (list, tuple, np.ndarray)):
+        if isinstance(x, np.ndarray):
+            return [] if x.size == 0 else list(x.ravel())
+        if isinstance(x, (list, tuple)):
             return list(x)
+        if x == []:
+            return []
         return [x]
+
+    def _is_channel_index(value):
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, np.integer)):
+            return True
+        return isinstance(value, (float, np.floating)) and float(value).is_integer()
 
     def _numeric_channel_indices(values):
         inds = [int(value) for value in values]
-        if any(index < 0 or index >= nbchan for index in inds):
-            raise ValueError("Wrong channel range")
+        invalid = [index for index in inds if index < 0 or index >= nbchan]
+        if invalid:
+            raise ValueError(
+                f"pop_select: channel indices {invalid} are out of range for nbchan={nbchan}. "
+                f"Use Python 0-based indices 0..{nbchan - 1}; EEGLAB/GUI uses 1-based 1..{nbchan} "
+                "(subtract 1 before calling Python), or pass channel labels."
+            )
         return inds
 
     chan_selected_flag = np.ones(nbchan, dtype=bool)  # default keep all
@@ -183,12 +210,12 @@ def _pop_select_apply(EEG, **kwargs):
 
         if _decode_list(g['channel']):
             ch_list = _decode_list(g['channel'])
-            if all(isinstance(c, (int, np.integer)) for c in ch_list):
+            if ch_list and all(_is_channel_index(c) for c in ch_list):
                 inds = _numeric_channel_indices(ch_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
             # show warning if not all channels are found and error if no channels are found
-            if len(inds) != len(g['channel']):
+            if len(inds) != len(ch_list):
                 logger.warning("%s channels not found", len(g['channel']) - len(inds))
             if len(inds) == 0:
                 raise ValueError(f"Channels not found: {g['channel']}")
@@ -197,13 +224,13 @@ def _pop_select_apply(EEG, **kwargs):
 
         if _decode_list(g['nochannel']):
             nc_list = _decode_list(g['nochannel'])
-            if all(isinstance(c, (int, np.integer)) for c in nc_list):
+            if nc_list and all(_is_channel_index(c) for c in nc_list):
                 inds = _numeric_channel_indices(nc_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
             # show warning if not all channels are found and error if no channels are found
-            if len(inds) != len(g['nochannel']):
+            if len(inds) != len(nc_list):
                 logger.warning("%s channels not found", len(g['nochannel']) - len(inds))
 
     else:
@@ -226,12 +253,12 @@ def _pop_select_apply(EEG, **kwargs):
         if x.size == 0:
             return x.reshape(0, 2)
         x = x.astype(float)
-        if x.ndim == 1:
-            if x.size <= 2:
-                return np.array(x).reshape(1, 2)
-            # vector form → [first last]
+        if x.ndim == 1 or x.shape[1] > 2:
+            flat = x.reshape(-1, order="F")
+            if flat.size <= 2 and x.ndim == 1:
+                return np.array(flat).reshape(1, 2)
             logger.warning("Vector format for point/time range is deprecated")
-            return np.array([x[0], x[-1]], dtype=float).reshape(1, 2)
+            return np.array([flat[0], flat[-1]], dtype=float).reshape(1, 2)
         if x.shape[1] != 2:
             raise ValueError('Time/point range must contain exactly 2 columns')
         return x
@@ -277,7 +304,11 @@ def _pop_select_apply(EEG, **kwargs):
         else:
             # must touch epoch boundary
             if not (np.any(np.isclose(notime_mat[:, 0], xmin)) or np.any(np.isclose(notime_mat[:, 1], xmax))):
-                raise ValueError('Wrong notime range for epoched data; must include an epoch boundary')
+                raise ValueError(
+                    "pop_select: notime on epoched data must include the epoch start "
+                    f"({xmin}) or the epoch end ({xmax}). A span in the middle of an "
+                    "epoch cannot be removed; include one of those edges, or remove trials."
+                )
 
             # convert notime to keep time when aligned to boundaries
             if np.any(np.isclose(notime_mat[:, 1], xmax)) and np.any(np.isclose(notime_mat[:, 0], xmin)):
@@ -289,7 +320,11 @@ def _pop_select_apply(EEG, **kwargs):
                 elif np.any(np.isclose(notime_mat[:, 0], xmin)):
                     time_mat = np.array([[float(notime_mat[0, 1]), xmax]], dtype=float)
                 else:
-                    raise ValueError('Wrong notime range. Cannot remove a central slice from epoched data.')
+                    raise ValueError(
+                        "pop_select: notime on epoched data must include the epoch start "
+                        f"({xmin}) or the epoch end ({xmax}). A span in the middle of an "
+                        "epoch cannot be removed; include one of those edges, or remove trials."
+                    )
 
     # 4) Informational prints (optional)
     if len(g['trial']) != trials:
@@ -356,19 +391,22 @@ def _pop_select_apply(EEG, **kwargs):
                 # rare case: epoched flagged but data is 2D with trials meta
                 data = data[:, a - 1 : b]
             EEG['data'] = data
-            EEG['xmin'] = tmin
-            EEG['xmax'] = tmax
+            EEG['xmin'] = xmin + (a - 1) / srate
+            EEG['xmax'] = xmin + (b - 1) / srate
+            old_pnts = pnts
             EEG['pnts'] = data.shape[1]
             pnts = EEG['pnts']
+            if _has_content(EEG.get('icaact')):
+                EEG['icaact'] = EEG['icaact'][:, a - 1 : b, :]
 
             if _has_content(EEG.get('event')):
                 newevents = []
                 for ev in EEG['event']:
                     if 'epoch' in ev and 'latency' in ev:
-                        # within-epoch latency shift by (a-1) samples
-                        ev['latency'] = ev['latency'] - (a - 1)
-                        # keep only events that remain inside the cropped window
-                        if 1 <= ev['latency'] <= pnts * len(g['trial']):
+                        epoch_offset = int(ev['epoch']) - 1
+                        local_latency = float(ev['latency']) - epoch_offset * old_pnts
+                        if a <= local_latency <= b:
+                            ev['latency'] = local_latency - (a - 1) + epoch_offset * pnts
                             newevents.append(ev)
                 EEG['event'] = newevents
 
@@ -539,22 +577,7 @@ def _pop_select_apply(EEG, **kwargs):
     EEG['reject']['rejmanual'] = []
     EEG['stats']['jp'] = []
 
-    # event consistency check: remove events with out-of-bounds latencies.
-    # MATLAB eeg_checkset('eventconsistency') uses latency < 0.5 as the lower
-    # bound (not < 1), preserving boundary events at the half-sample position.
-    if EEG['event'] is not None and len(EEG['event']) > 0:
-        total_pts = EEG['pnts'] * EEG['trials']
-        cleaned = []
-        for ev in EEG['event']:
-            if 'latency' in ev:
-                lat = float(ev['latency'])
-                if lat >= 0.5 and lat <= total_pts + 1:
-                    cleaned.append(ev)
-            else:
-                cleaned.append(ev)
-        EEG['event'] = cleaned
-
-    EEG = eeg_checkset(EEG)
+    EEG = eeg_checkset(EEG, 'eventconsistency')
     EEG["data"] = mapped_output_like(source_data, EEG["data"])
 
     return EEG
@@ -567,9 +590,8 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
     chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
     channel_labels = tuple(str(chan.get("labels", "")) for chan in chanlocs if isinstance(chan, dict))
     channel_types = tuple(
-        value
-        for value in dict.fromkeys(
-            str(chan.get("type", "")) for chan in chanlocs if isinstance(chan, dict) and chan.get("type", "") != ""
+        dict.fromkeys(
+            value for chan in chanlocs if isinstance(chan, dict) and (value := _channel_type_text(chan.get("type")))
         )
     )
     type_enabled = bool(channel_types)
@@ -665,6 +687,10 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
     )
 
 
+def _channel_type_text(value) -> str:
+    return "".join(str(part) for part in np.asarray(value).reshape(-1) if part is not None).strip()
+
+
 def _scroll_dataset_enabled(EEG) -> bool:
     data = EEG.get("data") if isinstance(EEG, dict) else None
     return data is not None and np.asarray(data).size > 0
@@ -681,6 +707,14 @@ def _run_gui(EEG, renderer=None):
     _add_range_option(options, result, "trial", "rmtrial")
     _add_text_option(options, result, "chans", "rmchannel", keep_key="channel", remove_key="rmchannel")
     _add_text_option(options, result, "chantype", "rmchantype", keep_key="chantype", remove_key="rmchantype")
+    nbchan = int(EEG["nbchan"])
+    channels = options.get("channel", options.get("rmchannel", []))
+    invalid = [number for number in channels if isinstance(number, int) and not 1 <= number <= nbchan]
+    if invalid:
+        raise ValueError(
+            f"pop_select: channel numbers {invalid} are out of range for nbchan={nbchan}. "
+            f"Use GUI/EEGLAB 1-based numbers 1..{nbchan}, or pass channel labels."
+        )
     return options or None
 
 

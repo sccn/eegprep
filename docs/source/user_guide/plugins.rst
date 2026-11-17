@@ -96,16 +96,47 @@ Use ``clean_artifacts`` when you need lower-level tuple outputs:
 Channel correlation cleaning uses the spatial reconstruction method when the
 dataset has usable ``X``, ``Y``, and ``Z`` channel coordinates. If channel
 locations are empty, ``pop_clean_rawdata`` automatically uses the bundled
-location-free correlation method instead.
+location-free correlation method instead. The RANSAC subset size is
+``round(subset_size * nbchan)`` channels, and a larger count raises
+``ValueError``. The line-noise filter is a short FIR, so a NaN stays in a
+neighborhood of that channel instead of removing the channel from every
+correlation.
+
+``clean_windows`` keeps the removal duration from ``eeg_eegrej`` and sets
+``xmax`` to ``xmin + (pnts - 1) / srate`` only when that duration is off the
+sample grid. A recording whose fit widths round to 1 or less raises
+``ValueError``, and ``clean_asr`` calibrates on the whole recording instead.
+Eleven to twenty-two windows still fit.
 
 FIRFilt
 =======
 
-``pop_eegfiltnew`` is the usual filtering entry point:
+``pop_eegfiltnew`` is the usual filtering entry point. When the filter order
+is left at its default, the transition width is recomputed from that even
+order (``3.3 / order * srate``) so the reported cutoff matches the coefficients:
 
 .. code-block:: python
 
    EEG, com = pop_eegfiltnew(EEG, locutoff=1, hicutoff=40, plotfreqz=False, return_com=True)
+
+Each call appends the applied design to ``EEG["etc"]["eegfiltnew"]``. A later
+filter appends another record, so the two stay distinguishable. A record
+contains the sampling rate, the 1-based channels that were filtered,
+``phase`` (``zerophase`` or ``minphase``), the passband edges, the -6 dB
+cutoffs, the order, the transition width, ``revfilt``, and the coefficients
+passed to the filter. A missing passband edge is NaN. A highpass is stored
+as the reversed lowpass that was designed: ``locutoff`` is NaN, ``hicutoff``
+is the passband edge, and ``revfilt`` is true. ``return_com=True``
+still returns the filtered dataset and the history command for the requested
+options.
+
+``design_eegfiltnew`` is that same designer:
+
+.. code-block:: python
+
+   from eegprep import design_eegfiltnew
+
+   coefficients, design = design_eegfiltnew(EEG["srate"], locutoff=1, hicutoff=40)
 
 Use the lower-level FIRFilt helpers for custom order/window work:
 

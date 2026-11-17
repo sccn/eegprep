@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_activations
 
@@ -333,8 +334,8 @@ def browser_max_channel_offset(browser_data: BrowserData, state: BrowserState) -
 def visible_sample_bounds(browser_data: BrowserData, state: BrowserState) -> tuple[int, int]:
     """Return 0-based half-open sample bounds for the visible window."""
     multiplier = browser_data.pnts if browser_data.epoched else state.srate
-    start = int(round(float(state.time) * float(multiplier)))
-    stop = int(round((float(state.time) + float(state.winlength)) * float(multiplier)))
+    start = int(round_mat(float(state.time) * float(multiplier)))
+    stop = int(round_mat((float(state.time) + float(state.winlength)) * float(multiplier)))
     start = max(0, min(start, browser_data.total_samples - 1))
     stop = max(start + 1, min(stop, browser_data.total_samples))
     return start, stop
@@ -343,7 +344,7 @@ def visible_sample_bounds(browser_data: BrowserData, state: BrowserState) -> tup
 def time_to_sample(time_value: float, browser_data: BrowserData, state: BrowserState) -> int:
     """Convert a browser time in seconds or epochs to a 0-based sample index."""
     multiplier = browser_data.pnts if browser_data.epoched else state.srate
-    return max(0, min(int(round(float(time_value) * float(multiplier))), browser_data.total_samples - 1))
+    return max(0, min(int(round_mat(float(time_value) * float(multiplier))), browser_data.total_samples - 1))
 
 
 def event_latency_to_sample(latency: float, browser_data: BrowserData) -> int:
@@ -464,11 +465,11 @@ def eegplot2event(
     """
     rows = _filtered_winrej_rows(eegplotrej, color=color, colorout=colorout, round_colors=False)
     if rows.size == 0:
-        return np.zeros((0, 7), dtype=float)
+        return np.zeros((0, 0), dtype=float)
     events = np.zeros((rows.shape[0], 7), dtype=float)
     events[:, 0] = float(event_type)
     events[:, 1] = 1.0
-    events[:, 2:4] = np.rint(rows[:, 0:2])
+    events[:, 2:4] = round_mat(rows[:, 0:2])
     events[:, 4:7] = rows[:, 2:5]
     return events
 
@@ -548,8 +549,6 @@ def add_winrej_region(
     end_value = int(round(float(end)))
     if end_value < start_value:
         start_value, end_value = end_value, start_value
-    if start_value == end_value:
-        return toggle_winrej_at_sample(regions, start_value, n_channels=n_channels, channel_index=channel_index)
     if pnts is not None:
         return _add_epoched_winrej(
             regions,
@@ -561,6 +560,8 @@ def add_winrej_region(
             color,
             channel_index,
         )
+    if start_value == end_value:
+        return toggle_winrej_at_sample(regions, start_value, n_channels=n_channels, channel_index=channel_index)
     start_value = max(1, min(start_value, int(total_samples)))
     end_value = max(1, min(end_value, int(total_samples)))
     mask = _new_mask(n_channels, channel_index)

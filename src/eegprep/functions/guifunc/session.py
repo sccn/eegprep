@@ -221,6 +221,7 @@ class EEGPrepSession:
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
     _command_echo_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
     _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
+    _gui_action_stack: list[str] = field(default_factory=list, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
@@ -254,13 +255,19 @@ class EEGPrepSession:
 
     def begin_gui_action(self, action: str) -> None:
         """Notify listeners that a GUI action is about to run."""
+        self._gui_action_stack.append(action)
         for listener in list(self._gui_action_listeners):
             listener("begin", action)
 
     def end_gui_action(self, action: str) -> None:
         """Notify listeners that a GUI action has finished."""
+        self._gui_action_stack.pop()
         for listener in list(self._gui_action_listeners):
             listener("end", action)
+
+    def active_gui_action(self) -> str:
+        """Return the action responsible for the current GUI operation."""
+        return self._gui_action_stack[-1] if self._gui_action_stack else ""
 
     @contextmanager
     def gui_action(self, action: str) -> Iterator[None]:
@@ -464,8 +471,14 @@ class EEGPrepSession:
         """
         if not self.CURRENTSET:
             return
-        deleted_indices = list(self.CURRENTSET)
-        self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
+        self.delete_indices(list(self.CURRENTSET))
+
+    def delete_indices(self, indices: list[int]) -> None:
+        """Delete datasets by 1-based index and select the nearest survivor."""
+        if not indices:
+            return
+        deleted_indices = [int(index) for index in indices]
+        self.ALLEEG, command = pop_delset(self.ALLEEG, deleted_indices)
         self.add_history(command, notify=False)
         target = nearest_dataset_index(self.ALLEEG, min(deleted_indices))
         if target is not None:

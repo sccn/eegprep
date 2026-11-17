@@ -3,22 +3,28 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
+import urllib.request
 import webbrowser
 from collections.abc import Callable, Coroutine, Mapping
 from functools import wraps
 from pathlib import Path
 from typing import Any
+from importlib.metadata import version
+from packaging.version import Version
 
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs, native_file_dialog_override
 from eegprep.functions.guifunc.long_task import LongTaskHandle, run_long_task
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
-from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
-from eegprep.functions.adminfunc.eegh import eegh
+from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data, _ica_absent
+from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.functions.popfunc._coming_soon import coming_soon
 from eegprep.functions.popfunc.pop_newset import pop_newset
+from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
+from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.plugins.ICLabel.iclabel import IS_EMSCRIPTEN
 
 
@@ -225,6 +231,7 @@ _NEWSET_COMMIT_ACTIONS = {
     "pop_reref",
     "pop_rmbase",
     "pop_rmdat",
+    "pop_rejepoch",
     "pop_select",
     "pop_selectevent",
     "pop_subcomp",
@@ -327,11 +334,39 @@ class MenuActionDispatcher:
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
+        needs_ica = (
+            variant in {"components", "ica", "reject_ica"}
+            or base in {"pop_subcomp", "pop_selectcomps", "pop_iclabel", "pop_icflag", "pop_envtopo"}
+            or (base in {"pop_topoplot", "pop_headplot"} and variant != "erp")
+        )
+        if needs_ica:
+            selection = self.session.current_eeg()
+            datasets = selection if isinstance(selection, list) else [selection]
+            if any(_ica_absent(eeg) for eeg in datasets):
+                self._warn(
+                    parent,
+                    f"{base}: EEG.icaweights is empty for a selected dataset. "
+                    "Run Tools > Decompose data by ICA (pop_runica) first, or select a dataset with ICA.",
+                )
+                return
         if action_kind(action, extension_runtime=self.extension_runtime) == "placeholder":
             self.show_coming_soon(action, parent)
             return
         if base == "quit":
             if parent is not None:
+                unsaved = [eeg for eeg in self.session.ALLEEG if eeg and eeg.get("saved") != "yes"]
+                if unsaved:
+                    qt_widgets = _require_qt_widgets()
+                    choice = qt_widgets.QMessageBox.question(
+                        parent,
+                        "Quit EEGPrep",
+                        "There are unsaved datasets. Cancel and use File > Save current dataset as to save them, "
+                        "or discard the unsaved changes and quit.",
+                        qt_widgets.QMessageBox.Discard | qt_widgets.QMessageBox.Cancel,
+                        qt_widgets.QMessageBox.Cancel,
+                    )
+                    if choice != qt_widgets.QMessageBox.Discard:
+                        return
                 parent.close()
             return
         if base == "clear_study":
@@ -360,7 +395,24 @@ class MenuActionDispatcher:
             webbrowser.open(_tutorial_url())
             return
         if base == "updates":
-            webbrowser.open(f"{EEGPREP_REPO_URL}/releases")
+            installed = version("eegprep")
+            try:
+                with urllib.request.urlopen("https://pypi.org/pypi/eegprep/json", timeout=5) as response:
+                    latest = str(json.load(response)["info"]["version"])
+                if Version(latest) > Version(installed):
+                    message = (
+                        f"EEGPrep {latest} is available. You are using {installed}.\n"
+                        "Update with: pip install --upgrade eegprep"
+                    )
+                else:
+                    message = f"You are using the latest version of EEGPrep ({installed})."
+            except (OSError, ValueError, KeyError) as exc:
+                self._warn(
+                    parent,
+                    f"Check for updates: could not read the release version. Check your connection and try again.\n{exc}",
+                )
+                return
+            self._info(parent, message)
             return
         if base == "pop_loadset":
             self._loadset(parent)
@@ -388,8 +440,7 @@ class MenuActionDispatcher:
             self._saveset(parent, resave=variant == "resave")
             return
         if base == "pop_delset":
-            self.session.delete_current()
-            self._refresh()
+            self._delete_datasets(parent)
             return
         if base == "retrieve_dataset":
             self._retrieve_dataset(int(variant))
@@ -519,37 +570,93 @@ class MenuActionDispatcher:
         self._store_current_from_gui(eeg, new=True, command=command)
         self._refresh()
 
+    def _delete_datasets(self, parent: Any | None) -> None:
+        # pop_delset.m:52-70
+        loaded = [index for index, eeg in enumerate(self.session.ALLEEG, start=1) if eeg]
+        if len(loaded) < 2:
+            self._warn(
+                parent,
+                "pop_delset cannot delete the only loaded dataset. "
+                "Use File > Clear study / Clear all to remove every dataset.",
+            )
+            return
+        from eegprep.functions.guifunc.inputdlg2 import inputdlg2
+        from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+
+        default = " ".join(str(index) for index in self.session.CURRENTSET) or "1"
+        answers = inputdlg2(
+            ["Dataset(s) to delete:"],
+            "Delete dataset -- pop_delset()",
+            1,
+            [default],
+            "pop_delset",
+        )
+        if not answers or not str(answers[0]).strip():
+            return
+        try:
+            indices = [int(value) for value in parse_numeric_sequence(answers[0], dtype=int)]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"pop_delset: '{answers[0]}' is not a list of dataset numbers. "
+                "Enter numbers such as 2 or 1 3, or a range such as 1:3."
+            ) from exc
+        if not indices:
+            return
+        self.session.delete_indices(indices)
+        self._refresh()
+
     def _saveset(self, parent: Any | None, *, resave: bool = False) -> None:
         selection = self._current_selection_or_warn(parent, allow_multiple=resave)
         if selection is None:
             return
         datasets = selection if isinstance(selection, list) else [selection]
-        filenames = [_existing_dataset_filename(eeg) if resave else "" for eeg in datasets]
+        filenames = [_resave_set_path(eeg) if resave else "" for eeg in datasets]
         if resave and len(datasets) > 1 and not all(filenames):
-            self._warn(parent, "Cannot resave multiple datasets until every selected dataset has a filename.")
+            self._warn(
+                parent,
+                "pop_saveset cannot resave these datasets because one has never been saved as a .set file. "
+                "Save each dataset with File > Save current dataset as, then resave.",
+            )
             return
         filename = filenames[0] if len(datasets) == 1 else ""
+        prompted = False
         if len(datasets) == 1 and not filename:
+            prompted = True
             qt_widgets = _require_qt_widgets()
             filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
                 parent,
                 "Save current dataset as",
-                str(datasets[0].get("filename") or ""),
+                _save_as_suggestion(datasets[0]),
                 "EEGPrep/EEGLAB datasets (*.set);;All files (*)",
-                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
+                **file_dialog_kwargs(
+                    qt_widgets,
+                    native_file_dialogs=self.native_file_dialogs,
+                    confirm_overwrite=False,
+                ),
             )
+            if filename:
+                filename = _confirm_set_overwrite(qt_widgets, parent, filename)
             filenames = [filename]
         if len(datasets) == 1 and not filename:
             return
         from eegprep.functions.popfunc.pop_saveset import pop_saveset
 
+        written: list[str] = []
         for eeg, filename in zip(datasets, filenames):
             pop_saveset(eeg, filename)
-            _apply_save_metadata(eeg, filename)
+            actual = _existing_dataset_filename(eeg)
+            _apply_save_metadata(eeg, actual)
+            written.append(actual)
         stored = datasets if isinstance(selection, list) else datasets[0]
-        command = (
-            "EEG = pop_saveset(EEG, 'savemode', 'resave');" if resave else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
-        )
+        if resave and not prompted:
+            command = "EEG = pop_saveset(EEG, 'savemode', 'resave');"
+        else:
+            # EEGLAB history form: separate 'filename' and 'filepath' (F27).
+            first = datasets[0]
+            command = (
+                f"EEG = pop_saveset(EEG, 'filename', {format_history_value(first['filename'])}, "
+                f"'filepath', {format_history_value(first['filepath'])});"
+            )
         self._store_current_from_gui(stored, command=command, mark_saved=True)
         self._refresh()
 
@@ -566,22 +673,26 @@ class MenuActionDispatcher:
                 return
             from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
 
-            eeg_out, command = pop_importbids(source, return_com=True)
+            study, datasets, command = pop_importbids(source, gui=True, return_study=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            loaded = datasets if isinstance(datasets, list) else [datasets]
+            self.session.set_study(study, loaded, command=command)
+            self._refresh()
+            return
         else:
-            filename = self._open_import_filename(action, parent)
-            if not filename:
+            filename = "" if action == "pop_importdata" else self._open_import_filename(action, parent)
+            if not filename and action != "pop_importdata":
                 return
             if action == "pop_importdata":
-                srate = self._ask_float(parent, "Import data", "Data sampling rate (Hz)", 1.0)
-                if srate is None:
-                    return
                 from eegprep.functions.popfunc.pop_importdata import pop_importdata
 
-                eeg_out, command = pop_importdata("data", filename, "srate", srate, return_com=True)
+                eeg_out, command = pop_importdata(gui=True, datasets=self.session.ALLEEG, return_com=True)
             elif action == "pop_biosig":
                 from eegprep.functions.popfunc.pop_biosig import pop_biosig
 
-                eeg_out, command = pop_biosig(filename, return_com=True)
+                eeg_out, command = pop_biosig(filename, gui=True, return_com=True)
             elif action == "pop_fileio_brainvision_mat":
                 from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
 
@@ -589,22 +700,39 @@ class MenuActionDispatcher:
             elif action == "pop_fileio_brainvision":
                 from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 
-                eeg_out, command = pop_loadbv(filename, return_com=True)
+                eeg_out, command = pop_loadbv(filename, gui=True, return_com=True)
+            elif action == "pop_fileio_cnt":
+                from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
+
+                eeg_out, command = pop_loadcnt(filename, gui=True, return_com=True)
+            elif Path(filename).suffix.lower() == ".raw":
+                from eegprep.functions.popfunc.pop_readegi import pop_readegi
+
+                eeg_out, command = pop_readegi(filename, gui=True, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
-                eeg_out, command = pop_fileio(filename, return_com=True)
+                eeg_out, command = pop_fileio(filename, gui=True, return_com=True)
+        if not command:
+            return
         self._store_current_from_gui(eeg_out, new=True, command=command)
         self._refresh()
 
     def _open_import_filename(self, action: str, parent: Any | None) -> str:
         qt_widgets = _require_qt_widgets()
+        if action == "pop_fileio_mff":
+            return qt_widgets.QFileDialog.getExistingDirectory(
+                parent,
+                "Select an EGI MFF folder",
+                "",
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
+            )
         filters = {
             "pop_importdata": "Data arrays (*.txt *.csv *.tsv *.mat *.npy *.npz *.fdt);;All files (*)",
             "pop_biosig": "BIOSIG files (*.bdf *.edf *.gdf);;All files (*)",
             "pop_fileio_mff": "EGI MFF (*.mff);;All files (*)",
             "pop_fileio_cnt": "Neuroscan CNT (*.cnt);;All files (*)",
-            "pop_fileio_eeg": "Neuroscan/BrainVision EEG (*.eeg);;All files (*)",
+            "pop_fileio_eeg": "Neuroscan EEG (*.eeg *.EEG);;All files (*)",
             "pop_fileio_brainvision": "BrainVision header (*.vhdr);;All files (*)",
             "pop_fileio_brainvision_mat": "BrainVision Analyzer MATLAB (*.mat);;All files (*)",
         }
@@ -612,7 +740,9 @@ class MenuActionDispatcher:
             parent,
             "Import data",
             "",
-            filters.get(action, "EEG files (*.set *.edf *.bdf *.gdf *.vhdr *.mff *.cnt *.eeg);;All files (*)"),
+            filters.get(
+                action, "EEG files (*.set *.edf *.bdf *.gdf *.vhdr *.ahdr *.mff *.cnt *.eeg *.EEG *.raw);;All files (*)"
+            ),
             **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
         )
         return filename
@@ -623,12 +753,21 @@ class MenuActionDispatcher:
             return
         qt_widgets = _require_qt_widgets()
         if action == "pop_chanevent":
-            channel, ok = qt_widgets.QInputDialog.getInt(parent, "Import event info", "Event channel index", 1, 1)
-            if not ok:
-                return
             from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 
-            eeg_out, command = pop_chanevent(selection, channel, return_com=True)
+            eeg_out, command = pop_chanevent(selection, gui=True, return_com=True)
+        elif action == "pop_importepoch":
+            from eegprep.functions.popfunc.pop_importepoch import pop_importepoch
+
+            eeg_out, command = pop_importepoch(selection, gui=True, return_com=True)
+        elif action == "pop_importevent":
+            from eegprep.functions.popfunc.pop_importevent import pop_importevent
+
+            eeg_out, command = pop_importevent(selection, gui=True, return_com=True)
+        elif action == "pop_importerplab":
+            from eegprep.functions.popfunc.pop_importerplab import pop_importerplab
+
+            eeg_out, command = pop_importerplab(selection, gui=True, return_com=True)
         else:
             filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
                 parent,
@@ -639,22 +778,16 @@ class MenuActionDispatcher:
             )
             if not filename:
                 return
-            if action == "pop_importepoch":
-                from eegprep.functions.popfunc.pop_importepoch import pop_importepoch
-
-                eeg_out, command = pop_importepoch(selection, filename, return_com=True)
-            elif action == "pop_importpres":
+            if action == "pop_importpres":
                 from eegprep.functions.popfunc.pop_importpres import pop_importpres
 
-                eeg_out, command = pop_importpres(selection, filename, return_com=True)
-            elif action == "pop_importerplab":
-                from eegprep.functions.popfunc.pop_importerplab import pop_importerplab
-
-                eeg_out, command = pop_importerplab(selection, filename, return_com=True)
+                eeg_out, command = pop_importpres(selection, filename, gui=True, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
                 eeg_out, command = pop_importevent(selection, "event", filename, "append", "no", return_com=True)
+        if not command:
+            return
         self._store_current_from_gui(eeg_out, command=command)
         self._refresh()
 
@@ -663,20 +796,32 @@ class MenuActionDispatcher:
         selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
         if selection is None:
             return
-        qt_widgets = _require_qt_widgets()
         if action in {"pop_exportbids", "bids_exporter"}:
-            directory = qt_widgets.QFileDialog.getExistingDirectory(
-                parent,
-                "Export to BIDS folder structure",
-                "",
-                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
-            )
-            if not directory:
-                return
+            if self.session.CURRENTSTUDY != 1 or not self.session.STUDY:
+                raise ValueError(
+                    "pop_exportbids: BIDS export can only export EEGLAB studies. "
+                    "Create a study with File > Create study, then export again."
+                )
+            datasets = [eeg for eeg in self.session.ALLEEG if isinstance(eeg, dict) and has_eeg_data(eeg)]
             from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 
-            _output, command = pop_exportbids(selection, directory, return_com=True)
+            _output, command = pop_exportbids(
+                datasets,
+                gui=True,
+                require_study=True,
+                study=self.session.STUDY,
+                return_com=True,
+            )
+        elif action == "pop_export":
+            from eegprep.functions.popfunc.pop_export import pop_export
+
+            command = pop_export(selection)
+        elif action == "pop_writeeeg":
+            from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
+
+            command = pop_writeeeg(selection)
         else:
+            qt_widgets = _require_qt_widgets()
             filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
                 parent,
                 "Export data",
@@ -686,22 +831,16 @@ class MenuActionDispatcher:
             )
             if not filename:
                 return
-            if action == "pop_export":
-                from eegprep.functions.popfunc.pop_export import pop_export
-
-                command = pop_export(selection, filename, "transpose", "on")
-            elif action == "pop_expica":
+            if action == "pop_expica":
                 from eegprep.functions.popfunc.pop_expica import pop_expica
 
                 command = pop_expica(selection, filename, variant or "weights")
-            elif action == "pop_expevents":
+            else:
                 from eegprep.functions.popfunc.pop_expevents import pop_expevents
 
                 command = pop_expevents(selection, filename)
-            else:
-                from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
-
-                command = pop_writeeeg(selection, filename)
+        if not command:
+            return
         self._add_history_from_gui(command)
         self._refresh()
 
@@ -863,50 +1002,10 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _edit_options(self, parent: Any | None) -> None:
-        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-        from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
-
-        allmenus_val = int(EEG_OPTIONS.get("option_allmenus", 0))
-        native_dialogs_val = int(EEG_OPTIONS.get("option_native_dialogs", 1))
-
-        if parent is None:
-            allmenus_val = int(not bool(allmenus_val))
-        else:
-            qt_widgets = _require_qt_widgets()
-            dialog = qt_widgets.QDialog(parent)
-            dialog.setWindowTitle("EEGPrep preferences")
-            layout = qt_widgets.QVBoxLayout(dialog)
-
-            allmenus_cb = qt_widgets.QCheckBox("Show advanced legacy menu items?")
-            allmenus_cb.setChecked(bool(allmenus_val))
-            layout.addWidget(allmenus_cb)
-
-            group_box = qt_widgets.QGroupBox("Experimental Features")
-            group_layout = qt_widgets.QVBoxLayout(group_box)
-            native_dialogs_cb = qt_widgets.QCheckBox("Use Native OS Dialogs")
-            native_dialogs_cb.setChecked(bool(native_dialogs_val))
-            group_layout.addWidget(native_dialogs_cb)
-            layout.addWidget(group_box)
-
-            button_box = qt_widgets.QDialogButtonBox(
-                qt_widgets.QDialogButtonBox.Ok | qt_widgets.QDialogButtonBox.Cancel
-            )
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
-            layout.addWidget(button_box)
-
-            if dialog.exec() != qt_widgets.QDialog.Accepted:
-                return
-
-            allmenus_val = int(allmenus_cb.isChecked())
-            native_dialogs_val = int(native_dialogs_cb.isChecked())
-
-        command = pop_editoptions(option_allmenus=allmenus_val, option_native_dialogs=native_dialogs_val)
+        command = pop_editoptions(gui=True)
+        if not command:
+            return
         self._add_history_from_gui(command)
-        self._info(
-            parent,
-            "Preferences updated. File-dialog changes apply immediately; reopen the main window to rebuild menus.",
-        )
         self._refresh()
 
     def _save_history(self, variant: str, parent: Any | None) -> None:
@@ -928,6 +1027,8 @@ class MenuActionDispatcher:
             if variant == "dataset" and isinstance(self.session.EEG, dict)
             else self.session.ALLCOM
         )
+        if isinstance(history, list):
+            history = "\n".join(["[ALLEEG EEG CURRENTSET ALLCOM] = eeglab;", *history, "eeglab redraw;"])
         command = pop_saveh(history, path.name, path.parent)
         self._add_history_from_gui(command)
         self._refresh()
@@ -985,20 +1086,24 @@ class MenuActionDispatcher:
             from eegprep.plugins.EEG_BIDS.bids_tools import validate_bids
 
             report = validate_bids(directory)
+            detail = "\n".join(report["errors"][:12])
+            note = str(report.get("note") or "")
             self._info(
-                parent, f"BIDS validation complete: {len(report['errors'])} errors, {len(report['warnings'])} warnings."
+                parent,
+                f"validate_bids: {len(report['errors'])} errors, {len(report['warnings'])} warnings."
+                + (f"\n{note}" if note else "")
+                + (f"\n{detail}" if detail else ""),
             )
             return
         target = self.session.STUDY if self.session.CURRENTSTUDY == 1 and self.session.STUDY else self.session.EEG
         if isinstance(target, list):
             self._warn(parent, "Select one dataset or a study before editing BIDS metadata")
             return
-        metadata = self._ask_metadata(parent, action)
-        if metadata is None:
-            return
         from eegprep.plugins.EEG_BIDS import bids_tools
 
-        updated, command = getattr(bids_tools, action)(target, **metadata)
+        updated, command = getattr(bids_tools, action)(target, gui=True)
+        if not command:
+            return
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
             self.session.echo_command(command)
             self.session.set_study(updated, command=command)
@@ -1124,6 +1229,22 @@ class MenuActionDispatcher:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
         if selection is None:
             return
+        if parent is not None and isinstance(selection, list) and len(selection) > 1:
+            qt_widgets = _require_qt_widgets()
+            warning = qt_widgets.QMessageBox(parent)
+            warning.setWindowTitle("Multiple dataset warning")
+            warning.setText(
+                "When processing multiple datasets, it is not possible to enter new names "
+                "for the newly created datasets and old datasets are overwritten.\n"
+                "You may still cancel this operation."
+            )
+            warning.addButton("Cancel", qt_widgets.QMessageBox.RejectRole)
+            proceed = warning.addButton("Proceed", qt_widgets.QMessageBox.AcceptRole)
+            warning.setDefaultButton(proceed)
+            warning.exec()
+            if warning.clickedButton() is not proceed:
+                return
+        leading_command = ""
         if name == "pop_adjustevents":
             from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 
@@ -1236,27 +1357,35 @@ class MenuActionDispatcher:
 
             def accept_eegplot(eeg_out: Any, command: str) -> None:
                 with self.session.gui_action("pop_eegplot"):
-                    if command:
-                        store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
-                        store_command = "" if command in recorded_commands else command
-                        recorded_commands.add(command)
-                        store_index = None if store_new else target_index
-                        self._store_current_from_gui(
-                            eeg_out,
-                            new=store_new,
-                            command=store_command,
-                            index=store_index,
-                        )
+                    if not command:
+                        self._store_current_from_gui(eeg_out, command="", index=target_index)
                         self._refresh()
+                        return
+                    store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
+                    if store_new and parent is not None:
+                        self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent)
+                        self._refresh()
+                        return
+                    store_command = "" if command in recorded_commands else command
+                    recorded_commands.add(command)
+                    store_index = None if store_new else target_index
+                    self._store_current_from_gui(
+                        eeg_out,
+                        new=store_new,
+                        command=store_command,
+                        index=store_index,
+                    )
+                    self._refresh()
 
-            out = pop_eegplot(
-                selection,
-                icacomp=icacomp,
-                superpose=superpose,
-                reject=reject,
-                command_callback=accept_eegplot,
-                return_com=True,
-            )
+            plot_kwargs: dict[str, Any] = {
+                "icacomp": icacomp,
+                "command_callback": accept_eegplot,
+                "return_com": True,
+            }
+            if variant != "data":
+                plot_kwargs["superpose"] = superpose
+                plot_kwargs["reject"] = reject
+            out = pop_eegplot(selection, **plot_kwargs)
             command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
             if command:
                 self._add_history_from_gui(command)
@@ -1296,6 +1425,8 @@ class MenuActionDispatcher:
             command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
             eeg_out = out[0] if isinstance(out, tuple) and out else out
             if name == "pop_rejcont":
+                if command:
+                    self._add_history_from_gui(command)
                 return
             if command:
                 self._store_current_from_gui(eeg_out, command=command)
@@ -1307,13 +1438,19 @@ class MenuActionDispatcher:
 
             out = pop_rejchan(selection, return_com=True)
         elif name == "pop_rejepoch":
+            from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
             from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 
             if isinstance(selection, list):
                 self._warn(parent, "Select one dataset before rejecting marked epochs.")
                 return
-            marks = (selection.get("reject") or {}).get("rejglobal", [])
-            out = pop_rejepoch(selection, marks, return_com=True)
+            # eeglab.m:663-664 (data) and eeglab.m:676-677 (ICA) superpose before pop_rejepoch.
+            if parent is not None and not _confirm_reject_epochs(parent):
+                return
+            typerej = 0 if variant == "ica" else 1
+            superposed, superpose_command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
+            out = pop_rejepoch(superposed, return_com=True)
+            leading_command = superpose_command
         elif name == "pop_rejmenu":
             from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
 
@@ -1351,7 +1488,9 @@ class MenuActionDispatcher:
             return
         if command:
             if name in _NEWSET_COMMIT_ACTIONS:
-                self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent)
+                self._commit_processed_dataset_from_gui(
+                    eeg_out, command=command, parent=parent, leading_command=leading_command
+                )
             else:
                 self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
@@ -1507,7 +1646,7 @@ class MenuActionDispatcher:
         default_indices = selected if len(selected) >= 2 else None
         eeg_out, command = pop_mergeset(self.session.ALLEEG, default_indices, gui=True, return_com=True)
         if command:
-            self._store_current_from_gui(eeg_out, new=True, command=command)
+            self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent, new=True)
             self._refresh()
 
     def _run_rejsuperpose(self, variant: str, parent: Any | None) -> None:
@@ -1516,9 +1655,19 @@ class MenuActionDispatcher:
             return
         from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 
-        typerej = 0 if variant == "data_to_ica" else 1
+        # eeglab.m:661-662 exports data marks onto icarejmanual; lines 674-675 export ICA marks onto rejmanual.
+        typerej = 1 if variant == "data_to_ica" else 0
         eeg_out, command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
-        self._store_current_from_gui(eeg_out, command=command)
+        reject = eeg_out.setdefault("reject", {})
+        copied = reject["rejglobal"].copy()
+        if variant == "data_to_ica":
+            reject["icarejmanual"] = copied
+            copy_command = "EEG.reject.icarejmanual = EEG.reject.rejglobal;"
+        else:
+            reject["rejmanual"] = copied
+            copy_command = "EEG.reject.rejmanual = EEG.reject.rejglobal;"
+        self._add_history_from_gui(command)
+        self._store_current_from_gui(eeg_out, command=copy_command)
         self._refresh()
 
     def _run_dipfit_function(self, name: str, parent: Any | None) -> None:
@@ -1631,7 +1780,17 @@ class MenuActionDispatcher:
         elif name == "pop_erpimage":
             from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
 
-            _result, command = pop_erpimage(selection, typeplot=0 if variant == "components" else 1, return_com=True)
+            typeplot = 0 if variant == "components" else 1
+            # Like EEGLAB's menu, the dialog reopens with the last matching command's values.
+            lastcom = eegh_find(self.session.ALLCOM, f"pop_erpimage(EEG, {typeplot},")
+            _result, command = pop_erpimage(selection, typeplot, lastcom=lastcom, return_com=True)
+        elif name == "pop_envtopo" and variant == "compare":
+            from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
+
+            alleeg = list(self.session.ALLEEG)
+            if len(alleeg) < 2:
+                raise ValueError("pop_envtopo: Need at least 2 datasets")
+            _result, command = pop_envtopo(alleeg, return_com=True)
         elif name == "pop_envtopo":
             from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
 
@@ -1684,30 +1843,51 @@ class MenuActionDispatcher:
     def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
         command = kwargs.get("command")
         self.session.echo_command(command)
-        return self.session.store_current(eeg, **kwargs)
+        index = self.session.store_current(eeg, **kwargs)
+        if command and kwargs.get("new"):
+            self._add_history_from_gui("[ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG, 0);")
+        return index
 
-    def _commit_processed_dataset_from_gui(self, eeg: Any, *, command: str, parent: Any | None) -> None:
+    def _commit_processed_dataset_from_gui(
+        self,
+        eeg: Any,
+        *,
+        command: str,
+        parent: Any | None,
+        leading_command: str = "",
+        new: bool = False,
+    ) -> None:
         if not command:
             return
+        if any(not has_eeg_data(dataset) for dataset in (eeg if isinstance(eeg, list) else [eeg])):
+            function = command.split("=", 1)[-1].strip().split("(", 1)[0]
+            raise ValueError(
+                f"{function}: EEG.data is empty. Choose a selection containing at least one channel, sample, and epoch."
+            )
         old_currentset = self.session.current_set_value()
         old_selection = list(self.session.CURRENTSET)
         gui = parent is not None and not isinstance(eeg, list)
         if isinstance(eeg, list):
             for offset, _dataset in enumerate(eeg, start=1):
                 logger.info("Processing group dataset %s of %s.", offset, len(eeg))
+        newset_options = (
+            {"study": int(bool(self.session.STUDY))}
+            if isinstance(eeg, list)
+            else {"gui": "on" if gui else "off", "overwrite": "off" if gui or new else "on"}
+        )
         alleeg, current, current_set, newset_command = pop_newset(
             self.session.ALLEEG,
             eeg,
             old_currentset,
-            "gui",
-            "on" if gui else "off",
-            "overwrite",
-            "on" if isinstance(eeg, list) or not gui else "off",
+            **newset_options,
         )
         if not newset_command:
             if old_selection:
                 self.session.retrieve(old_selection if len(old_selection) > 1 else old_selection[0])
             return
+        if leading_command:
+            self.session.echo_command(leading_command)
+            self.session.add_history(leading_command, notify=False)
         for dataset in current if isinstance(current, list) else [current]:
             if isinstance(dataset, dict):
                 eegh(command, dataset)
@@ -1722,8 +1902,12 @@ class MenuActionDispatcher:
 
     def _retrieve_dataset(self, index: int) -> None:
         was_study = self.session.CURRENTSTUDY == 1
+        previous = format_history_value(self.session.current_set_value())
         self.session.retrieve(index)
-        command = f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', {index});"
+        command = (
+            f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, {previous}, "
+            f"'retrieve', {index}, 'study', {int(bool(self.session.STUDY))});"
+        )
         if was_study:
             self.session.apply_workspace_state(currentstudy=0)
             command = f"CURRENTSTUDY = 0;{command}"
@@ -1756,6 +1940,12 @@ class MenuActionDispatcher:
         return None
 
     def _warn(self, parent: Any | None, message: str) -> None:
+        action = self.session.active_gui_action().partition(":")[0]
+        if action and not message.startswith(action):
+            if action in {"pop_loadset", "pop_fileio", "pop_fileio_eeg", "pop_biosig"}:
+                message = f"{action}: could not read the selected data file. Check the filename and file format; re-export the file if it is damaged.\n{message}"
+            else:
+                message = f"{action}: {message}"
         qt_widgets = _qt_widgets()
         if qt_widgets is not None:
             qt_widgets.QMessageBox.warning(parent, "EEGPrep", message)
@@ -1801,6 +1991,68 @@ def _existing_dataset_filename(eeg: dict[str, Any]) -> str:
     if filepath and filename:
         return str(Path(filepath) / filename)
     return filename
+
+
+def _resave_set_path(eeg: dict[str, Any]) -> str:
+    path = _existing_dataset_filename(eeg)
+    if path and Path(path).suffix.lower() == ".set":
+        return path
+    return ""
+
+
+def _confirm_reject_epochs(parent: Any | None) -> bool:
+    # pop_rejepoch.m:78-80
+    qt_widgets = _qt_widgets()
+    if qt_widgets is None or parent is None:
+        return True
+    box = qt_widgets.QMessageBox
+    yes = _message_button(box, "Yes")
+    no = _message_button(box, "No")
+    answer = box.question(
+        parent,
+        "Reject pre-labelled epochs -- pop_rejepoch()",
+        "Are you sure, you want to reject the labeled trials ?",
+        no | yes,
+        yes,
+    )
+    return answer == yes
+
+
+def _confirm_set_overwrite(qt_widgets: Any, parent: Any | None, filename: str) -> str:
+    # pop_saveset.m:126-127
+    target = Path(filename).with_suffix(".set")
+    if not target.is_file():
+        return str(target)
+    box = qt_widgets.QMessageBox
+    yes = _message_button(box, "Yes")
+    no = _message_button(box, "No")
+    answer = box.question(
+        parent,
+        "Save current dataset as",
+        f"{target} already exists.\nDo you want to replace it?",
+        yes | no,
+        no,
+    )
+    return str(target) if answer == yes else ""
+
+
+def _message_button(box: Any, name: str) -> Any:
+    standard = getattr(box, "StandardButton", None)
+    value = getattr(standard, name, None) if standard is not None else None
+    if value is not None:
+        return value
+    return getattr(box, name)
+
+
+def _save_as_suggestion(eeg: dict[str, Any]) -> str:
+    existing = _resave_set_path(eeg)
+    if existing:
+        return existing
+    filename = str(eeg.get("filename") or "")
+    filepath = str(eeg.get("filepath") or "")
+    stem = Path(filename).stem if filename else str(eeg.get("setname") or "dataset")
+    suggestion = f"{stem}.set"
+    return str(Path(filepath) / suggestion) if filepath else suggestion
 
 
 def _existing_study_filename(study: dict[str, Any]) -> str:
@@ -1875,8 +2127,6 @@ def _required_extension_parameters(
 
 
 def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:
-    # Mirrors eeglab.m callbacks: cb_eegplot/cb_eegplotrej* omit optional args,
-    # while Plot scroll actions explicitly call pop_eegplot(EEG, icacomp, 1, 1).
     if variant == "components":
         return 0, 1, 1
     if variant == "reject_ica":

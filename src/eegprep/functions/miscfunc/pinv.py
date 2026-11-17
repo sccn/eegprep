@@ -1,67 +1,35 @@
-"""Matrix pseudoinverse computation utilities."""
+"""Moore-Penrose pseudoinverse with MATLAB's singular-value cutoff."""
 
 import numpy as np
-from scipy.linalg import pinv as scipy_pinv
 
 
-def pinv(A, tol=None, method='scipy'):
-    """Compute the Moore-Penrose pseudoinverse of a matrix.
+def pinv(A: np.ndarray, tol: float | None = None) -> np.ndarray:
+    """Moore-Penrose pseudoinverse using MATLAB's singular-value cutoff.
 
-    Parameters
-    ----------
-    A : array_like
-        Input matrix to compute pseudoinverse of
-    tol : float, optional
-        Tolerance for small singular values. If None, uses scipy's default.
-        This parameter matches MATLAB's pinv(A, tol) interface.
-    method : str, optional
-        Method to use for computation. Options:
-        - 'scipy': Use scipy.linalg.pinv (default)
-        - 'svd': Use explicit SVD decomposition for more control
-        - 'gelsd': Use scipy.linalg.lstsq with gelsd driver
+    The singular-value decomposition is computed once. Singular values at or
+    below ``max(size(A)) * eps(norm(A, 2))`` are treated as zero. Non-finite
+    input returns an all-NaN matrix of the transposed shape.
 
-    Returns
-    -------
-    ndarray
-        The pseudoinverse of A
+    Args:
+        A: Matrix with shape ``(m, n)``. Cast to float64.
+        tol: Absolute singular-value cutoff, matching MATLAB ``pinv(A, tol)``.
+            Replaces the default cutoff. Singular values at or below ``tol``
+            are treated as zero.
+
+    Returns:
+        Pseudoinverse with shape ``(n, m)``.
     """
-    A = np.asarray(A, dtype=np.float64)
+    matrix = np.asarray(A, dtype=np.float64)
+    if matrix.ndim != 2:
+        raise ValueError('pinv requires a 2-D array.')
+    rows, columns = matrix.shape
+    if rows == 0 or columns == 0:
+        return np.zeros((columns, rows), dtype=np.float64)
+    if not np.isfinite(matrix).all():
+        return np.full((columns, rows), np.nan, dtype=np.float64)
 
-    if method == 'scipy':
-        if tol is None:
-            return scipy_pinv(A)
-        else:
-            return scipy_pinv(A, rtol=tol)
-
-    elif method == 'svd':
-        # Explicit SVD-based pseudoinverse for maximum control
-        U, s, Vt = np.linalg.svd(A, full_matrices=False)
-
-        if tol is None:
-            # Use MATLAB's default tolerance: max(size(A)) * eps(max(s))
-            tol = max(A.shape) * np.finfo(A.dtype).eps * np.max(s)
-
-        # Threshold singular values
-        s_inv = np.where(s > tol, 1.0 / s, 0.0)
-
-        return Vt.T @ np.diag(s_inv) @ U.T
-
-    elif method == 'gelsd':
-        # Use least squares solver for pseudoinverse
-        from scipy.linalg import lstsq
-
-        m, n = A.shape
-        if m >= n:
-            # Tall or square matrix: A_pinv = (A^T A)^(-1) A^T
-            # But use lstsq for numerical stability
-            identity = np.eye(m, dtype=A.dtype)
-            A_pinv, residuals, rank, s = lstsq(A, identity, lapack_driver='gelsd')
-            return A_pinv
-        else:
-            # Wide matrix: A_pinv = A^T (A A^T)^(-1)
-            identity = np.eye(n, dtype=A.dtype)
-            A_pinv, residuals, rank, s = lstsq(A.T, identity, lapack_driver='gelsd')
-            return A_pinv.T
-
-    else:
-        raise ValueError(f"Unknown method: {method}. Use 'scipy', 'svd', or 'gelsd'.")
+    left, singular_values, right = np.linalg.svd(matrix, full_matrices=False)
+    cutoff = float(tol) if tol is not None else float(max(rows, columns) * np.spacing(singular_values[0]))
+    factors = np.zeros_like(singular_values)
+    np.divide(1.0, singular_values, out=factors, where=singular_values > cutoff)
+    return (right.T * factors) @ left.T

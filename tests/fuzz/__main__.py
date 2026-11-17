@@ -13,8 +13,6 @@ from tests.fuzz.harness import (
     FakeOracle,
     MatlabBackend,
     PythonBackend,
-    default_sanity,
-    default_strategies,
     nightly_seed,
     run_repro,
     run_session,
@@ -35,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--issue-cap", type=int, default=3)
     run.add_argument("--oracle", choices=("matlab", "fake"), default="matlab")
     run.add_argument("--fake-mode", choices=("match", "survey-diverge", "sanity-fail"), default="match")
-    run.add_argument("--functions", default="", help="Comma-separated subset of the four targets")
+    run.add_argument("--functions", default="", help="Comma-separated subset of the nightly targets")
     run.add_argument("--file-issues", action="store_true", help="File confirmed divergences with gh")
 
     replay = sub.add_parser("reproduce", help="Replay a saved repro JSON")
@@ -53,6 +51,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         oracle = MatlabBackend()
 
+    try:
+        return _run(args, python, oracle)
+    finally:
+        close = getattr(oracle, "close", None)
+        if close is not None:
+            close()
+
+
+def _run(args, python, oracle) -> int:
     if args.command == "reproduce":
         outcome = run_repro(args.path, python_backend=python, oracle_backend=oracle)
         print(
@@ -63,12 +70,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if outcome.both_ok and not outcome.diverged else 1
 
     seed_value = nightly_seed() if args.seed is None else args.seed
-    strategies = default_strategies()
-    sanity = default_sanity()
+    functions = None
     if args.functions:
-        selected = tuple(part.strip() for part in args.functions.split(",") if part.strip())
-        strategies = {name: strategies[name] for name in selected}
-        sanity = [case for case in sanity if case.function in selected]
+        functions = tuple(part.strip() for part in args.functions.split(",") if part.strip())
     tracker = None
     if args.file_issues:
         tracker = tracker_from_env(default_run_url())
@@ -84,8 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         issue_cap=args.issue_cap,
         python_backend=python,
         oracle_backend=oracle,
-        strategies=strategies,
-        sanity=sanity,
+        functions=functions,
         tracker=tracker,
         run_url=default_run_url(),
     )

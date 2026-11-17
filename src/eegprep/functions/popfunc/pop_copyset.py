@@ -48,7 +48,7 @@ def pop_copyset(
     while len(output) < set_out:
         output.append({})
     output[set_out - 1] = copied
-    command = f"[ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, {int(set_in)}, {set_out});"
+    command = f"[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, {int(set_in)}, {set_out});"
     return (output, deepcopy(copied), set_out, command) if return_com else (output, deepcopy(copied), set_out)
 
 

@@ -1,3 +1,4 @@
+import copy
 import os
 import tempfile
 import unittest
@@ -6,6 +7,7 @@ import numpy as np
 import scipy.io
 
 from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
+from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
@@ -42,6 +44,49 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(urchan_after, urchan_before)  # still 0-based in memory
         self.assertEqual(urevent_after, urevent_before)
         np.testing.assert_array_equal(latency_after, latency_before)
+
+    def test_saveset_writes_empty_icaact_and_load_recomputes(self):
+        data = np.arange(20, dtype=np.float64).reshape(4, 5)
+        weights = np.array([[0.25, -0.5, 0.125, 0.125], [0.1, 0.2, -0.3, 0.4]])
+        sphere = np.eye(4)
+        eeg = eeg_emptyset()
+        eeg.update(
+            {
+                "setname": "ica-cache",
+                "data": data,
+                "nbchan": 4,
+                "pnts": 5,
+                "trials": 1,
+                "srate": 100.0,
+                "xmin": 0.0,
+                "xmax": 0.04,
+                "times": np.arange(5, dtype=float) * 10.0,
+                "chanlocs": [{"labels": f"E{index}"} for index in range(1, 5)],
+                "icaweights": weights,
+                "icasphere": sphere,
+                "icawinv": np.linalg.pinv(weights @ sphere),
+                "icachansind": np.arange(4),
+                "saved": "no",
+            }
+        )
+        stale = np.full((2, 5), 7.0)
+        eeg["icaact"] = stale
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for savemode in ("onefile", "twofiles"):
+                out = os.path.join(tmp, f"{savemode}.set")
+                pop_saveset(eeg, out, savemode=savemode)
+                np.testing.assert_array_equal(eeg["icaact"], stale)
+                saved = scipy.io.loadmat(out, squeeze_me=False)
+                self.assertEqual(saved["icaact"].shape, (0, 0))
+                loaded = pop_loadset(out)
+                reference = copy.deepcopy(eeg)
+                reference["icaact"] = np.array([])
+                if savemode == "twofiles":
+                    reference["data"] = np.asarray(reference["data"], dtype=np.float32)
+                expected = eeg_checkset(reference)["icaact"]
+                np.testing.assert_array_equal(loaded["icaact"], expected)
+                self.assertFalse(np.allclose(loaded["icaact"], stale))
 
     def test_saveset_writes_one_based_urevent_after_edit(self):
         EEG = pop_loadset(os.path.join(local_url, 'eeglab_data.set'))
@@ -235,6 +280,162 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(np.asarray(reloaded[0]['radius']).size, 1)
         self.assertEqual(np.asarray(reloaded[1]['theta']).size, 0)
         self.assertEqual(np.asarray(reloaded[1]['radius']).size, 0)
+
+    def _continuous(self, events):
+        return {
+            'setname': 'mixed-urevent',
+            'nbchan': 1,
+            'trials': 1,
+            'pnts': 8,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.07,
+            'times': np.arange(8) / 100.0,
+            'data': np.zeros((1, 8)),
+            'chanlocs': [{'labels': 'Cz'}],
+            'event': events,
+            'icachansind': np.array([]),
+        }
+
+    def test_saveset_tolerates_events_without_urevent(self):
+        # The first record must not decide the field for every later event.
+        events = [
+            {'type': 'boundary', 'latency': 1.5, 'duration': 2.0, 'urevent': 0},
+            {'type': 'stim', 'latency': 4.0},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'mixed.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(int(np.asarray(saved[0].urevent).reshape(-1)[0]), 1)
+        self.assertEqual(np.size(saved[1].urevent), 0)
+        self.assertEqual(EEG['event'][0]['urevent'], 0)
+        self.assertNotIn('urevent', EEG['event'][1])
+
+        # A leading event without the field still leaves a later index 1-based on disk.
+        events = [
+            {'type': 'stim', 'latency': 2.0},
+            {'type': 'boundary', 'latency': 5.0, 'urevent': 2},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'leading-missing.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(np.size(saved[0].urevent), 0)
+        self.assertEqual(int(np.asarray(saved[1].urevent).reshape(-1)[0]), 3)
+        self.assertNotIn('urevent', EEG['event'][0])
+        self.assertEqual(EEG['event'][1]['urevent'], 2)
+
+    def test_saveset_increments_structured_event_urevent(self):
+        events = np.array(
+            [('boundary', 1.5, 0.0), ('stim', 4.0, 2.0)],
+            dtype=[('type', 'U16'), ('latency', np.float64), ('urevent', np.float64)],
+        )
+        before = events['urevent'].copy()
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'structured.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual([int(ev.urevent) for ev in saved], [1, 3])
+        np.testing.assert_array_equal(EEG['event']['urevent'], before)
+
+    def test_saveset_treats_none_and_empty_urevent_as_absent(self):
+        events = [
+            {'type': 'stim', 'latency': 2.0, 'urevent': None},
+            {'type': 'boundary', 'latency': 5.0, 'urevent': []},
+            {'type': 'stim', 'latency': 7.0, 'urevent': 4},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'empty-urevent.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(np.size(saved[0].urevent), 0)
+        self.assertEqual(np.size(saved[1].urevent), 0)
+        self.assertEqual(int(np.asarray(saved[2].urevent).reshape(-1)[0]), 5)
+        self.assertIsNone(EEG['event'][0]['urevent'])
+        self.assertEqual(EEG['event'][1]['urevent'], [])
+        self.assertEqual(EEG['event'][2]['urevent'], 4)
+
+    def test_resave_refuses_to_overwrite_a_raw_source_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = os.path.join(tmp, 'recording.vhdr')
+            with open(raw, 'wb') as stream:
+                stream.write(b'raw-header')
+            eeg = self._continuous([])
+            eeg['filename'] = 'recording.vhdr'
+            eeg['filepath'] = tmp
+            eeg['saved'] = 'no'
+            with self.assertRaises(ValueError) as caught:
+                pop_saveset(eeg, savemode='resave')
+            message = str(caught.exception)
+            self.assertIn('pop_saveset', message)
+            self.assertIn('.set', message)
+            self.assertIn(raw, message)
+            with open(raw, 'rb') as stream:
+                self.assertEqual(stream.read(), b'raw-header')
+            self.assertFalse(os.path.exists(os.path.join(tmp, 'recording.set')))
+            self.assertEqual(eeg['saved'], 'no')
+            self.assertEqual(eeg['filename'], 'recording.vhdr')
+
+    def test_saveset_replaces_a_non_set_extension(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = os.path.join(tmp, 'recording.edf')
+            with open(raw, 'wb') as stream:
+                stream.write(b'edf-bytes')
+            other = os.path.join(tmp, 'my.data')
+            eeg = self._continuous([])
+            pop_saveset(eeg, raw)
+            with open(raw, 'rb') as stream:
+                self.assertEqual(stream.read(), b'edf-bytes')
+            self.assertTrue(os.path.isfile(os.path.join(tmp, 'recording.set')))
+            self.assertEqual(eeg['filename'], 'recording.set')
+            eeg = self._continuous([])
+            pop_saveset(eeg, other)
+            self.assertTrue(os.path.isfile(os.path.join(tmp, 'my.set')))
+            self.assertFalse(os.path.exists(other))
+            self.assertEqual(eeg['filename'], 'my.set')
+
+    def test_saveset_appends_set_extension_when_the_name_has_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            requested = os.path.join(tmp, 'noext')
+            eeg = self._continuous([])
+            pop_saveset(eeg, requested)
+            self.assertTrue(os.path.isfile(requested + '.set'))
+            self.assertFalse(os.path.exists(requested))
+            self.assertEqual(eeg['filename'], 'noext.set')
+
+    def test_saveset_creates_a_missing_parent_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'nodir', 'x.set')
+            eeg = self._continuous([])
+            eeg['saved'] = 'no'
+            pop_saveset(eeg, out)
+            self.assertTrue(os.path.isfile(out))
+            self.assertEqual(eeg['saved'], 'yes')
+            self.assertEqual(eeg['filename'], 'x.set')
+            self.assertEqual(eeg['filepath'], os.path.join(tmp, 'nodir'))
+
+    def test_saveset_refuses_a_parent_that_is_not_a_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            blocker = os.path.join(tmp, 'notdir')
+            with open(blocker, 'w', encoding='utf-8') as stream:
+                stream.write('x')
+            out = os.path.join(blocker, 'x.set')
+            eeg = self._continuous([])
+            eeg['saved'] = 'no'
+            eeg['filename'] = 'demo.set'
+            with self.assertRaises(ValueError) as caught:
+                pop_saveset(eeg, out)
+            message = str(caught.exception)
+            self.assertIn('pop_saveset', message)
+            self.assertIn(out, message)
+            self.assertEqual(eeg['saved'], 'no')
+            self.assertEqual(eeg['filename'], 'demo.set')
+            self.assertFalse(os.path.exists(out))
 
 
 if __name__ == '__main__':

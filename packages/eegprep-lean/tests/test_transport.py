@@ -19,7 +19,8 @@ import asyncio
 import socket
 import sys
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
@@ -36,11 +37,46 @@ from eegprep_lean.transport import (
 
 BODY = b"0123456789" * 32
 
+#: Shorter than the stall below, long enough that scheduling noise is not the failure.
+_DEADLINE_S = 0.05
+#: Longer than the deadline and shorter than the stall, so a transport that never aborts
+#: fails the test instead of hanging it.
+_WATCHDOG_S = 0.75
+_STALL_S = 2.0
+
+
+class _Server(ThreadingHTTPServer):
+    daemon_threads = True
+
 
 class _Handler(BaseHTTPRequestHandler):
-    """Serves BODY, honoring Range unless the path asks it not to."""
+    """Serves BODY, honoring Range unless the path asks it not to.
+
+    ``/stall-headers`` and ``/stall-body`` hold the corresponding half of the response
+    open, which is what a deadline has to stop.
+    """
 
     def do_GET(self) -> None:  # noqa: N802 - name fixed by BaseHTTPRequestHandler
+        if self.path == "/stall-headers":
+            time.sleep(_STALL_S)
+            self._send(200, BODY)
+            return
+
+        if self.path == "/stall-body":
+            try:
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(BODY)))
+                self.end_headers()
+                self.wfile.flush()
+            except OSError:
+                return
+            time.sleep(_STALL_S)
+            try:
+                self.wfile.write(BODY)
+            except OSError:
+                return
+            return
+
         if self.path == "/missing":
             self.send_response(404)
             self.end_headers()
@@ -79,10 +115,16 @@ class _Handler(BaseHTTPRequestHandler):
             self.wfile.write(chunk)
             return
 
-        self.send_response(200)
-        self.send_header("Content-Length", str(len(BODY)))
-        self.end_headers()
-        self.wfile.write(BODY)
+        self._send(200, BODY)
+
+    def _send(self, status: int, body: bytes) -> None:
+        try:
+            self.send_response(status)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except OSError:
+            return
 
     def log_message(self, *args: object) -> None:
         """Quiet. The default writes every request to stderr."""
@@ -90,7 +132,7 @@ class _Handler(BaseHTTPRequestHandler):
 
 @pytest.fixture(scope="module")
 def base_url():
-    server = HTTPServer(("127.0.0.1", 0), _Handler)
+    server = _Server(("127.0.0.1", 0), _Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -240,6 +282,83 @@ class TestPyfetchTransport:
             {"Range": "bytes=-16"},
             {},
         ]
+
+    def test_pyfetch_timeout_before_headers(self, base_url: str, pyodide_http) -> None:
+        """Headers that arrive after the deadline are a timeout, not a hang."""
+        url = f"{base_url}/stall-headers"
+
+        self._assert_deadline(url)
+
+        assert [headers for _, headers in pyodide_http.seen] == [{}]
+
+    def test_pyfetch_timeout_during_body(self, base_url: str, pyodide_http) -> None:
+        """A body that stalls after the headers is the same timeout."""
+        url = f"{base_url}/stall-body"
+
+        self._assert_deadline(url)
+
+        assert [headers for _, headers in pyodide_http.seen] == [{}]
+
+    def test_pyfetch_cancellation_is_not_a_timeout(self, base_url: str, pyodide_http) -> None:
+        """Cancelling the read is not the deadline, and it must not be swallowed."""
+        transport = PyfetchTransport(timeout_s=2)
+
+        async def run() -> None:
+            task = asyncio.create_task(transport.get(f"{base_url}/stall-headers"))
+            await asyncio.sleep(0.01)
+            task.cancel()
+            await task
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(asyncio.wait_for(run(), 0.5))
+
+        assert [headers for _, headers in pyodide_http.seen] == [{}]
+
+    def test_pyfetch_deadline_is_the_value_at_call_time(self, base_url: str, pyodide_http) -> None:
+        """Assigning ``timeout_s`` after construction changes the next read, as it does for urllib."""
+        transport = PyfetchTransport(timeout_s=30)
+        transport.timeout_s = _DEADLINE_S
+        url = f"{base_url}/stall-headers"
+        started = time.perf_counter()
+
+        async def run() -> None:
+            await asyncio.wait_for(transport.get(url), _WATCHDOG_S)
+
+        with pytest.raises(TransportError) as caught:
+            asyncio.run(run())
+
+        assert time.perf_counter() - started < _WATCHDOG_S
+        assert caught.value.url == url
+        assert f"{_DEADLINE_S:g}" in str(caught.value)
+        assert [headers for _, headers in pyodide_http.seen] == [{}]
+
+    def test_pyfetch_fast_response_with_deadline(self, base_url: str, pyodide_http) -> None:
+        """A deadline does not change a ranged read that finishes, or the headers it sends."""
+        transport = PyfetchTransport(timeout_s=2)
+        url = f"{base_url}/data"
+
+        response = _get(transport, url, start=10, end=19)
+
+        assert response.status == 206
+        assert response.body == BODY[10:20]
+        assert [headers for _, headers in pyodide_http.seen] == [{"Range": "bytes=10-19"}]
+
+    def _assert_deadline(self, url: str) -> None:
+        transport = PyfetchTransport(timeout_s=_DEADLINE_S)
+        started = time.perf_counter()
+
+        async def run() -> None:
+            await asyncio.wait_for(transport.get(url), _WATCHDOG_S)
+
+        with pytest.raises(TransportError) as caught:
+            asyncio.run(run())
+
+        assert time.perf_counter() - started < _WATCHDOG_S
+        assert caught.value.url == url
+        assert caught.value.status is None
+        text = str(caught.value)
+        assert "timed out" in text
+        assert f"{_DEADLINE_S:g}" in text
 
 
 class TestPlatformSelection:

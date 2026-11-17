@@ -17,3 +17,7 @@ continuous inputs use EEGLAB's cross-spectrum mode. Bootstrap, shuffle,
 Python.
 
 When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.
+
+With no frequency range, cross-coherence runs from 0 Hz to 50 Hz (`maxfreq` changes that upper limit). The dialog's epoch time limits are whole milliseconds, rounded to the nearest integer with halves away from zero.
+
+The sample window includes the sample at the end of `tlimits`. Pinned `pop_newcrossf.m` line 189 does not add 1 before rounding that index, so EEGLAB drops the last sample of a whole-millisecond limit such as 1992 ms. EEGPrep keeps that sample, the same window `pop_newtimef` uses.

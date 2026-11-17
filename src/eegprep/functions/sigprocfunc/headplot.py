@@ -146,6 +146,7 @@ def headplot(values: Any, arg1: Any = None, **kwargs: Any):
     mesh = load_headplot_mesh(kwargs.get("meshfile") or spline.meshfile or DEFAULT_MESH)
     interpolated = _interpolate_values(data, spline)
     maplimits = _map_limits(interpolated, kwargs.get("maplimits", "absmax"))
+    cmap_name = str(kwargs.pop("colormap", "") or "turbo")
 
     ax = kwargs.get("ax")
     if ax is None:
@@ -153,7 +154,7 @@ def headplot(values: Any, arg1: Any = None, **kwargs: Any):
         ax = fig.add_subplot(111, projection="3d")
     else:
         fig = ax.figure
-    _plot_head_mesh(ax, mesh, spline, interpolated, maplimits, kwargs)
+    _plot_head_mesh(ax, mesh, spline, interpolated, maplimits, kwargs, cmap_name)
     _set_view(ax, kwargs.get("view", [143, 18]))
     if str(kwargs.get("electrodes", "on")).lower() == "on":
         _plot_electrodes(ax, spline, labels=int(kwargs.get("labels", 0) or 0))
@@ -163,7 +164,7 @@ def headplot(values: Any, arg1: Any = None, **kwargs: Any):
     ax.set_axis_off()
     ax.set_box_aspect((1, 1, 1))
     if kwargs.get("cbar", None) is not None:
-        mappable = cm.ScalarMappable(norm=colors.Normalize(*maplimits), cmap=plt.get_cmap("turbo"))
+        mappable = cm.ScalarMappable(norm=colors.Normalize(*maplimits), cmap=plt.get_cmap(cmap_name))
         fig.colorbar(mappable, ax=ax, shrink=0.7)
     if kwargs.get("tight_layout", True):
         fig.tight_layout()
@@ -624,6 +625,7 @@ def _plot_head_mesh(
     interpolated: np.ndarray,
     maplimits: tuple[float, float],
     kwargs: dict[str, Any],
+    cmap_name: str = "turbo",
 ) -> None:
     vertex_values = np.full(mesh.vertices.shape[0], np.nan)
     indices = spline.vertex_indices if spline.vertex_indices.size else mesh.scalp_indices
@@ -632,7 +634,7 @@ def _plot_head_mesh(
     vertex_values[indices] = interpolated
     with np.errstate(invalid="ignore"):
         face_values = np.nanmean(vertex_values[mesh.faces], axis=1)
-    cmap = plt.get_cmap("turbo")
+    cmap = plt.get_cmap(cmap_name)
     norm = colors.Normalize(*maplimits)
     facecolors = cmap(norm(face_values))
     facecolors[~np.isfinite(face_values)] = HEADPLOT_FACE_COLOR

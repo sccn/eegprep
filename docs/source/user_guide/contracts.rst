@@ -29,7 +29,9 @@ data, or component backprojections without mutating the dataset. Its selector
 arguments are 1-based at the public API boundary, while stored
 ``icachansind`` values remain 0-based. The default result is always
 ``(signals, samples, trials)``; ``reshape="2d"`` concatenates trials in
-column-major order for EEGLAB-compatible numerical workflows.
+column-major order for EEGLAB-compatible numerical workflows. A missing
+``icaact``, an empty ``icaact``, and ``icaact`` set to ``None`` all compute
+component activity from ``icaweights``, ``icasphere``, and the channel data.
 
 ``event`` entries keep EEGLAB-facing ``latency`` values and, when available,
 ``urevent`` pointers back to ``urevent`` entries. ``urevent`` is the
@@ -71,6 +73,9 @@ EEGLAB's callback behavior.
 replayable Python input before progress messages or warnings from the same
 action. ``eegh`` presents history newest-first like EEGLAB, while
 ``EEGPrepSession.ALLCOM`` stays chronological internally.
+``eegh(n)`` for a positive ``n`` runs that history entry in the console and
+records the same command once. ``disp`` is available there for history
+commands that only display a value.
 When one command is applied to a multi-dataset selection, each selected EEG
 history records it with the ``% multiple datasets command:`` marker used by
 EEGLAB, while the session records the command once in ``ALLCOM``.
@@ -122,7 +127,9 @@ Runtime package code never reads, imports, or shells out to
 ``src/eegprep/eeglab``; that tree is a development parity reference only. GUI
 Help buttons and Help-menu topics resolve to packaged Markdown files under
 ``src/eegprep/resources/help`` rather than falling back to the vendored EEGLAB
-tree or Python docstrings.
+tree or Python docstrings. ``eeg_helphelp`` and ``helpforexe`` are the
+exception used by command history and compiled-style help scripts: they read
+the function docstring, which takes the place of an EEGLAB ``.m`` help block.
 
 Menu placeholders are machine-readable: each placeholder action carries either a
 target epic phase or an explicit exclusion reason for workflows that cannot be

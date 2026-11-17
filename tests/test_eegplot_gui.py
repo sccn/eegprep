@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import os
 from pathlib import Path
 
@@ -139,3 +140,117 @@ def test_gui_accept_callback_receives_winrej_and_cancel_does_not(qapp) -> None:
     assert accepted
     np.testing.assert_array_equal(accepted[-1][:, :2], [[2, 6]])
     window.close()
+
+
+@pytest.mark.modal_dialogs
+def test_gui_cancel_browser_menu_dialog_keeps_menu_bar(qapp) -> None:
+    qt_core = pytest.importorskip("PySide6.QtCore")
+    qt_widgets = pytest.importorskip("PySide6.QtWidgets")
+    is_valid = pytest.importorskip("shiboken6").isValid
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(
+        np.zeros((2, 40)),
+        srate=10,
+        winlength=2,
+        spacing=1,
+        plottitle="kept",
+    )
+    window = EEGBrowserWindow(model)
+    window.show()
+    qapp.processEvents()
+    before_bar = _browser_menu_bar(window)
+    assert [item[0] for item in before_bar] == ["Figure", "Display", "Settings", "Help"]
+    watched = _watched_browser_actions(window)
+    before_actions = [_action_state(action) for action in watched]
+    before_tree = _browser_menu_tree(window)
+
+    _popup_browser_menu(qapp, window, "Display")
+    gc.collect()
+    assert all(is_valid(action) for action in watched), "opening Display collected browser menu actions"
+
+    def cancel() -> None:
+        dialog = qapp.activeModalWidget()
+        button = _cancel_button(dialog, qt_widgets) if dialog is not None else None
+        if button is None:
+            qt_core.QTimer.singleShot(0, cancel)
+            return
+        gc.collect()
+        button.click()
+
+    qt_core.QTimer.singleShot(0, cancel)
+    window.title_action.trigger()
+    qapp.processEvents()
+    gc.collect()
+
+    assert _browser_menu_bar(window) == before_bar
+    assert [_action_state(action) for action in watched] == before_actions
+    assert all(is_valid(action) for action in watched)
+    assert _browser_menu_tree(window) == before_tree
+    assert model.state.plottitle == "kept"
+    window.close()
+    qapp.processEvents()
+
+
+def _watched_browser_actions(window):
+    return (
+        window.accept_action,
+        window.title_action,
+        window.marks_action,
+        window.xgrid_action,
+        window.time_range_action,
+        window.zoom_on_action,
+        window.events_on_action,
+        window.help_action,
+    )
+
+
+def _action_state(action):
+    return (action.text(), action.isEnabled())
+
+
+def _browser_menu_bar(window):
+    menubar = window.menuBar()
+    return [
+        (
+            action.text(),
+            action.isEnabled(),
+            menubar.actionGeometry(action).x(),
+            menubar.actionGeometry(action).width(),
+        )
+        for action in menubar.actions()
+    ]
+
+
+def _browser_menu_tree(window):
+    return [
+        (action.text(), _menu_tree(action.menu()) if action.menu() is not None else None)
+        for action in window.menuBar().actions()
+    ]
+
+
+def _menu_tree(menu):
+    return [
+        (action.text(), action.isEnabled(), _menu_tree(action.menu()) if action.menu() is not None else None)
+        for action in menu.actions()
+    ]
+
+
+def _popup_browser_menu(qapp, window, label: str) -> None:
+    menubar = window.menuBar()
+    for action in menubar.actions():
+        if action.text() == label and action.menu() is not None:
+            menu = action.menu()
+            menu.popup(menubar.mapToGlobal(menubar.actionGeometry(action).bottomLeft()))
+            qapp.processEvents()
+            return
+    raise AssertionError(f"no browser menu named {label}")
+
+
+def _cancel_button(dialog, qt_widgets):
+    if dialog is None:
+        return None
+    for button in dialog.findChildren(qt_widgets.QPushButton):
+        if button.text().replace("&", "") == "Cancel":
+            return button
+    return None

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -18,8 +19,11 @@ from eegprep.functions.popfunc.plot_utils import (
     selected_indices,
     show_figures,
 )
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list, channel_has_coordinates
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.sigprocfunc.spectopo import plot_component_spectra, spectopo
+
+logger = logging.getLogger(__name__)
 
 
 def pop_spectopo(
@@ -69,6 +73,12 @@ def pop_spectopo(
         icamaps = np.asarray([], dtype=int)
         spectral_options, topoplot_options = _split_spectopo_options(options)
         plot_data = _channel_spectral_data(data, process)
+        channel_locations = chanlocs_as_list(EEG.get("chanlocs", []))
+        if freqs and not any(channel_has_coordinates(loc) for loc in channel_locations):
+            logger.info(
+                "pop_spectopo: topographic plot options ignored. Import a channel location file to draw scalp maps."
+            )
+            channel_locations = []
         spectra, frequency_values, speccomp, contrib, specstd, figure = spectopo(
             plot_data,
             int(plot_data.shape[1]),
@@ -76,7 +86,7 @@ def pop_spectopo(
             percent=percent,
             freqs=freqs,
             freqrange=freqrange,
-            chanlocs=EEG.get("chanlocs", []),
+            chanlocs=channel_locations,
             topoplot_options=topoplot_options,
             title="",  # EEGLAB spectopo adds no default suptitle
             **spectral_options,
@@ -129,12 +139,17 @@ def pop_spectopo(
         "figure": figure,
         "times": times,
     }
+    if "freqs" in history_options:
+        history_options["freq"] = history_options.pop("freqs")
+    history_range = timerange
+    if history_range is None or history_range == []:
+        history_range = [float(times[0]), float(times[-1])] if len(times) else []
     command = history_command(
         "pop_spectopo",
-        eeg_name="EEG",
-        dataflag=dataflag,
-        timerange=timerange,
-        process=None if process == "EEG" else process,
+        int(dataflag),
+        history_range,
+        process,
+        leading_figure=True,
         **history_options,
     )
     show_figures(figure, plot=plot)
@@ -144,6 +159,7 @@ def pop_spectopo(
 def pop_spectopo_dialog_spec(EEG: dict[str, Any], *, dataflag: int = 1) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_spectopo``."""
     continuous = int(EEG.get("trials", 1) or 1) == 1
+    has_locations = any(channel_has_coordinates(loc) for loc in chanlocs_as_list(EEG.get("chanlocs", [])))
     controls = [
         ControlSpec("text", "Epoch time range to analyze [min_ms max_ms]:"),
         ControlSpec(
@@ -156,7 +172,12 @@ def pop_spectopo_dialog_spec(EEG: dict[str, Any], *, dataflag: int = 1) -> Dialo
                 ControlSpec("text", "Percent data to sample (1 to 100):"),
                 ControlSpec("edit", tag="percent", value="100"),
                 ControlSpec("text", "Frequencies to plot as scalp maps (Hz):"),
-                ControlSpec("edit", tag="freqs", value="6 10 22"),
+                ControlSpec(
+                    "edit",
+                    tag="freqs",
+                    value="6 10 22" if has_locations else "",
+                    enabled=has_locations,
+                ),
             ]
         )
         if not continuous:

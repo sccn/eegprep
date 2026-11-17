@@ -2,7 +2,9 @@ import copy
 import os
 import unittest
 import numpy as np
+import pytest
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.eeg_interp import eeg_interp, spheric_spline, computeg
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -16,6 +18,44 @@ from tests.eeglab_tests import eeglab_test
 # test_parity_spherical_kang	        2.81e-04	2.98e-03 (0.30%)	SphericalKang method, 3 channels, 1 trial
 # test_parity_spherical_basic	        2.50e-04	3.18e-03 (0.32%)	Basic spherical, 3 channels, 1 trial
 # test_parity_custom_time_range	        2.49e-04	2.02e-03 (0.20%)	Custom time range, 3 channels
+
+
+def test_spherical_interpolation_follows_the_input_dtype():
+    coords = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    chanlocs = [
+        {"labels": f"E{index + 1}", "X": float(x), "Y": float(y), "Z": float(z)}
+        for index, (x, y, z) in enumerate(coords)
+    ]
+    values = np.random.RandomState(5).standard_normal((5, 40)) * 80.0
+    eeg64 = {
+        "data": values.astype(np.float64),
+        "nbchan": 5,
+        "pnts": 40,
+        "trials": 1,
+        "srate": 100,
+        "xmin": 0.0,
+        "xmax": 0.39,
+        "chanlocs": chanlocs,
+    }
+    eeg32 = copy.deepcopy(eeg64)
+    eeg32["data"] = values.astype(np.float32)
+
+    out64 = eeg_interp(eeg64, [1])
+    out32 = eeg_interp(eeg32, [1])
+    explicit64 = eeg_interp(eeg64, [1], dtype="float64")
+
+    assert out64["data"].dtype == np.float64
+    assert out32["data"].dtype == np.float32
+    np.testing.assert_allclose(out64["data"], explicit64["data"])
+    assert np.max(np.abs(out64["data"][0] - out32["data"][0].astype(np.float64))) > 0
 
 
 def test_current_suite_checkinterp_preserves_existing_channels_when_restoring_montage():
@@ -111,12 +151,13 @@ class TestEegInterpPlanarGeometry(unittest.TestCase):
             loc["theta"] = []
             loc["radius"] = []
 
-        by_theta = eeg_interp(eeg_theta, [0], method="invdist")
-        by_xy = eeg_interp(eeg_xy, [0], method="invdist")
+        by_theta = eeg_interp(eeg_theta, [1], method="invdist")
+        by_xy = eeg_interp(eeg_xy, [1], method="invdist")
 
         np.testing.assert_allclose(by_theta["data"], by_xy["data"], rtol=1e-12, atol=1e-12)
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegInterpParity(unittest.TestCase):
     """Test parity between Python eeg_interp and MATLAB eeg_interp.m"""
@@ -139,7 +180,7 @@ class TestEegInterpParity(unittest.TestCase):
             'srate': 500,
             'xmin': -1.0,
             'xmax': 1.0,
-            'times': np.linspace(-1.0, 1.0, n_timepoints),
+            'times': linspace(-1.0 * 1000.0, 1.0 * 1000.0, n_timepoints),
             'chanlocs': [],
             # Required fields for pop_saveset
             'icaact': np.array([]),
@@ -222,11 +263,11 @@ class TestEegInterpParity(unittest.TestCase):
 
     def test_parity_spherical_basic(self):
         """Test parity for basic spherical interpolation with channel indices"""
-        bad_chans = [0, 1, 2]  # First 3 channels (0-based for Python)
+        bad_chans = [0, 1, 2]  # NumPy rows of the first three channels
         bad_chans_matlab = [1, 2, 3]  # 1-based for MATLAB
 
         # Python interpolation
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='spherical')
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method='spherical')
 
         # MATLAB interpolation
         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'spherical')
@@ -238,7 +279,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans = [5, 10]
         bad_chans_matlab = [6, 11]  # 1-based for MATLAB
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='sphericalKang')
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method='sphericalKang')
         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'sphericalKang')
 
         # Compare results using the helper method
@@ -249,7 +290,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans = [3, 7]
         bad_chans_matlab = [4, 8]  # 1-based for MATLAB
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='sphericalCRD')
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method='sphericalCRD')
         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'sphericalCRD')
 
         # Compare results using the helper method
@@ -261,7 +302,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans_matlab = [2, 5]  # 1-based for MATLAB
         custom_params = (1e-6, 3, 10)
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, params=custom_params)
+        py_result = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, params=custom_params)
 
         # Convert tuple to numpy array for MATLAB
         custom_params_array = np.array(custom_params)
@@ -271,19 +312,36 @@ class TestEegInterpParity(unittest.TestCase):
         self._compare_eeg_results(py_result, ml_result)
 
     def test_parity_custom_time_range(self):
-        """Test parity with custom time range"""
         bad_chans = [2, 8]
-        bad_chans_matlab = [3, 9]  # 1-based for MATLAB
+        bad_chans_matlab = [3, 9]
         t_range = (-0.5, 0.5)
+        times_ms = linspace(
+            self.test_EEG["xmin"] * 1000.0,
+            self.test_EEG["xmax"] * 1000.0,
+            self.test_EEG["pnts"],
+        )
+        inside = (times_ms >= t_range[0] * 1000.0) & (times_ms <= t_range[1] * 1000.0)
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='spherical', t_range=t_range)
+        py_partial = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method="spherical", t_range=t_range)
+        py_full = eeg_interp(self.test_EEG, np.asarray(bad_chans) + 1, method="spherical")
+        ml_full = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, "spherical")
+        ml_partial = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, "spherical", np.array(t_range))
 
-        # Convert tuple to numpy array for MATLAB
-        t_range_array = np.array(t_range)
-        ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'spherical', t_range_array)
+        py_data = py_partial["data"][:, :, 0] if py_partial["data"].ndim == 3 else py_partial["data"]
+        full_data = py_full["data"][:, :, 0] if py_full["data"].ndim == 3 else py_full["data"]
+        original = self.test_EEG["data"][:, :, 0]
+        np.testing.assert_array_equal(py_data[np.ix_(bad_chans, ~inside)], original[np.ix_(bad_chans, ~inside)])
+        np.testing.assert_array_equal(py_data[:, inside], full_data[:, inside])
 
-        # Compare results using the helper method
-        self._compare_eeg_results(py_result, ml_result)
+        ml_partial_data = np.asarray(ml_partial["data"])
+        if ml_partial_data.ndim == 3:
+            ml_partial_data = ml_partial_data[:, :, 0]
+        self._compare_eeg_results(py_full, ml_full)
+        self.assertGreater(
+            np.max(np.abs(ml_partial_data[bad_chans, -1] - original[bad_chans, -1])),
+            5e-2,
+        )
+        np.testing.assert_array_equal(py_data[bad_chans, -1], original[bad_chans, -1])
 
     def test_parity_multiple_trials(self):
         """Test parity with multiple trials (epochs)"""
@@ -294,13 +352,14 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans = [0, 5, 10]
         bad_chans_matlab = [1, 6, 11]  # 1-based for MATLAB
 
-        py_result = eeg_interp(multi_trial_EEG, bad_chans, method='spherical')
+        py_result = eeg_interp(multi_trial_EEG, np.asarray(bad_chans) + 1, method='spherical')
         ml_result = self.eeglab.eeg_interp(multi_trial_EEG, bad_chans_matlab, 'spherical')
 
         # Compare results using the helper method
         self._compare_eeg_results(py_result, ml_result)
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestSphericalSplineParity(unittest.TestCase):
     """Test parity between Python spheric_spline and MATLAB spheric_spline"""
@@ -355,6 +414,7 @@ class TestSphericalSplineParity(unittest.TestCase):
                 self.assertTrue(np.allclose(py_result, ml_interpolated, atol=1e-10))
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestComputeGParity(unittest.TestCase):
     """Test parity between Python computeg and MATLAB computeg"""

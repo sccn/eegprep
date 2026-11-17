@@ -6,9 +6,10 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.vararg2str import _matlab_history_value
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc._rejection import copy_eeg, jointprob, one_based_indices, parse_numeric_sequence, rejkurt
 from eegprep.functions.popfunc.pop_select import pop_select
 
@@ -49,14 +50,41 @@ def pop_rejchan_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Electrode (number(s); Ex: 2 4 5)"),
             ControlSpec("edit", tag="elec", value=f"1:{int(EEG.get('nbchan', 0) or 0)}"),
             ControlSpec("text", "Measure to use"),
-            ControlSpec("popupmenu", "Probability|Kurtosis|Spectrum|Standard deviation", tag="measure", value=2),
+            ControlSpec(
+                "popupmenu",
+                "Probability|Kurtosis|Spectrum",
+                tag="measure",
+                value=2,
+                callback=CallbackSpec(
+                    "toggle_index_enabled",
+                    {"source": "measure", "targets": ["freq_label", "freqrange"], "enabled_index": 3},
+                ),
+            ),
             ControlSpec("text", "Normalize measure (check=on)"),
-            ControlSpec("checkbox", tag="norm", value=True),
+            ControlSpec(
+                "checkbox",
+                tag="norm",
+                value=True,
+                callback=CallbackSpec(
+                    "toggle_checked_text",
+                    {
+                        "source": "norm",
+                        "target": "normlab",
+                        "checked": "Z-score threshold [max] or [min max]",
+                        "unchecked": "Absolute threshold [max] or [min max]",
+                    },
+                ),
+            ),
             ControlSpec("spacer"),
-            ControlSpec("text", "Z-score threshold [max] or [min max]"),
+            ControlSpec("text", "Z-score threshold [max] or [min max]", tag="normlab"),
             ControlSpec("edit", tag="threshold", value="5"),
-            ControlSpec("text", "Spectrum freq. range"),
-            ControlSpec("edit", tag="freqrange", value=f"1 {float(EEG.get('srate', 1)) / 2:g}"),
+            ControlSpec("text", "Spectrum freq. range", tag="freq_label", enabled=False),
+            ControlSpec(
+                "edit",
+                tag="freqrange",
+                value=f"1 {float(EEG.get('srate', 1)) / 2:g}",
+                enabled=False,
+            ),
         ),
     )
 
@@ -65,7 +93,7 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None) -> dict[str, Any] | None
     result = inputgui(pop_rejchan_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
-    measures = ("prob", "kurt", "spec", "std")
+    measures = ("prob", "kurt", "spec")
     value = result.get("measure", 2)
     measure = measures[int(value) - 1] if isinstance(value, int) else str(value).lower()
     options = {
@@ -93,8 +121,7 @@ def _apply_one(EEG: dict[str, Any], options: dict[str, Any]) -> tuple[dict[str, 
     threshold = parse_numeric_sequence(options.get("threshold", 400), dtype=float)
     measure_name = str(options.get("measure", "kurt")).lower()
     norm = str(options.get("norm", "off")).lower() == "on"
-    measure = _channel_measure(flat[selected], measure_name, threshold, norm, out, options)
-    rejected_mask = _threshold_measure(measure, threshold)
+    measure, rejected_mask = _channel_measure(flat[selected], measure_name, threshold, norm, out, options)
     rejected = [elec[index] for index, flag in enumerate(rejected_mask) if flag]
     if rejected and str(options.get("indexonly", "off")).lower() != "on":
         out = pop_select(out, "nochannel", [index - 1 for index in rejected], gui=False)
@@ -109,15 +136,16 @@ def _channel_measure(
     norm: bool,
     EEG: dict[str, Any],
     options: dict[str, Any],
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     if measure_name == "prob":
-        scores, _rej = jointprob(flat, threshold, options.get("precomp", []), 2 if norm else 0)
-        return scores.ravel()
+        scores, rejected = jointprob(flat, threshold, options.get("precomp", []), 2 if norm else 0)
+        return scores.ravel(), rejected.ravel()
     if measure_name == "kurt":
-        scores, _rej = rejkurt(flat, threshold, options.get("precomp", []), 2 if norm else 0)
-        return scores.ravel()
+        scores, rejected = rejkurt(flat, threshold, options.get("precomp", []), 2 if norm else 0)
+        return scores.ravel(), rejected.ravel()
     if measure_name == "std":
-        return flat.std(axis=1)
+        measure = flat.std(axis=1)
+        return measure, _threshold_measure(measure, threshold)
     if measure_name == "spec":
         spectra = np.abs(np.fft.rfft(flat - flat.mean(axis=1, keepdims=True), axis=1)) ** 2
         freqs = np.fft.rfftfreq(flat.shape[1], d=1 / float(EEG.get("srate", 1)))
@@ -131,8 +159,12 @@ def _channel_measure(
             std = power.std(axis=0, keepdims=True)
             std[std == 0] = 1.0
             power = (power - mean) / std
-        return power.max(axis=1)
-    raise ValueError("measure must be one of 'prob', 'kurt', 'spec', or 'std'")
+        measure = power.max(axis=1)
+        return measure, _threshold_measure(measure, threshold)
+    raise ValueError(
+        "pop_rejchan: measure must be 'prob', 'kurt', 'spec', or 'std'. "
+        "The dialog offers Probability, Kurtosis, and Spectrum; pass measure='std' to reject by standard deviation."
+    )
 
 
 def _threshold_measure(measure: np.ndarray, threshold: list[float]) -> np.ndarray:
@@ -144,12 +176,9 @@ def _threshold_measure(measure: np.ndarray, threshold: list[float]) -> np.ndarra
 
 
 def _history_command(options: dict[str, Any]) -> str:
-    values: list[Any] = []
-    for key in ("elec", "threshold", "measure", "norm", "freqrange", "indexonly"):
+    # pop_rejchan.m:246
+    parts = []
+    for key in ("elec", "threshold", "norm", "measure", "freqrange", "indexonly"):
         if key in options:
-            values.extend([key, options[key]])
-    return (
-        "EEG = pop_rejchan(EEG, "
-        + ", ".join(format_history_value(item, cell_for_sequence=None) for item in values)
-        + ");"
-    )
+            parts.append(f"'{key}',{_matlab_history_value(options[key])}")
+    return "EEG = pop_rejchan(EEG, " + ",".join(parts) + ");"

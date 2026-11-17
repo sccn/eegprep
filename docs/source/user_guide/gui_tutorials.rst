@@ -36,6 +36,10 @@ model and implementation details.
    backends (for example ``Agg`` in headless runs) the figure is built and
    returned without opening a window.
 
+   Plot menu commands are stored as MATLAB history, for example
+   ``figure; pop_spectopo(EEG, 1, ...);``. ``eegprep-console`` replays that
+   text, including a leading ``figure;``.
+
    When scripting, pass ``plot='off'`` to any plotting ``pop_*`` function to
    build and return the figure without popping a window, for example
    ``fig = pop_spectopo(EEG, 1, [], freqs=[10], plot='off')['figure']`` to save
@@ -55,7 +59,10 @@ Load, Inspect, and Save a Dataset
      <p>Choose <strong>Plot > Channel data (scroll)</strong> to inspect the
      current dataset in EEGBrowser.</p>
      <p>Choose <strong>File > Save current dataset as</strong> when you want a
-     new <code>.set</code> file.</p>
+     new <code>.set</code> file. <strong>File > Resave current dataset(s)</strong>
+     updates a dataset that already has a <code>.set</code> file. A dataset
+     imported from a raw recording opens Save as instead, so the original
+     file is not replaced.</p>
    </div>
 
 Equivalent console calls:
@@ -156,13 +163,59 @@ Equivalent console calls:
 Use the empty component list in ``pop_subcomp(EEG, [])`` to remove components
 currently marked in ``EEG.reject.gcompreject``.
 
+Sort Trials in an ERP Image
+===========================
+
+An event-related potential (ERP) image stacks the single trials of one channel or component as colored rows,
+sorted by an event value,
+so latency or phase effects that the average hides become visible.
+Load the ICA sample, or reload ``sample_data/eeglab_data_epochs_ica.set`` if you removed components above:
+
+.. raw:: html
+
+   <div class="eegprep-path">
+     <p>Choose <strong>Plot > Channel ERP image</strong>.</p>
+     <p>Enter <code>Cz</code> (or <code>14</code>) as the channel
+     and keep smoothing at 10.</p>
+     <p>Press <strong>Epoch-sorting field</strong> and pick <code>latency</code>;
+     a reminder asks for an event type while that box is empty.
+     Then press <strong>Event type(s)</strong>, pick <code>rt</code>, and press OK.</p>
+     <p>In the console, <code>LASTCOM</code> holds the Python call, for example
+     <code>pop_erpimage(EEG, 1, 'Cz', smooth=10, decimate=1, sortingtype=['rt'], sortingeventfield='latency')</code>.</p>
+     <p>Edit and run it there, for example with <code>erpstd='on'</code> added,
+     to try <code>erpimage</code> options that have no dialog field
+     (they also fit in More options).
+     EEGLAB-style <code>'key', value</code> pairs work only after all ten positional arguments,
+     so add keywords to this call.</p>
+     <p>Choose the menu again: the dialog reopens with these values.</p>
+   </div>
+
+Equivalent console call:
+
+.. code-block:: python
+
+   from eegprep import pop_erpimage
+
+   result, com = pop_erpimage(EEG, 1, "Cz", None, "", 10, 1, ["rt"], None, "latency", return_com=True)
+   result.outdata.shape  # (frames, smoothed trials)
+   result.sortidx[:5]  # 0-based input trials, in plotted order
+
+Both the menu and the console record the same command in ``ALLCOM``;
+an ERP image does not change ``EEG`` or ``ALLEEG``.
+Epochs without a matching event are left out of the image, and a console warning lists them.
+When no epoch has a matching event, ``pop_erpimage`` raises an error instead.
+``Plot > Component ERP image`` works the same way for components,
+with an optional channel to project them onto.
+
 Use EEGBrowser for Rejection
 ============================
 
-``Plot > Channel data (scroll)`` opens EEGBrowser for inspection. Rejection
-workflows open the same browser in a marking mode. Continuous marks can become
-sample-removal intervals through ``eeg_eegrej``; epoch marks can update
-``EEG.reject.rejmanual`` and then be removed with ``pop_rejepoch``.
+``Plot > Channel data (scroll)`` opens EEGBrowser for inspection. ``Tools >
+Inspect/reject data by eye`` opens the same browser after an instruction
+dialog; Cancel leaves the data unchanged. Rejection workflows mark continuous
+stretches by dragging and whole epochs by clicking. Reject then removes the
+marks with ``eeg_eegrej`` or ``pop_rejepoch`` and asks whether to keep the
+result as a new dataset.
 
 See :ref:`eegbrowser` for browser modes, mark fields, and performance behavior.
 

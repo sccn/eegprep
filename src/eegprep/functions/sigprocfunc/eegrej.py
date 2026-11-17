@@ -52,7 +52,7 @@ def eegrej(
         raise ValueError("regions must be of shape (n_regions, 2)")
 
     # Round, clamp to [1, n], sort each row then sort rows (EEGLAB parity)
-    r = np.rint(r).astype(int)
+    r = np.asarray(round_mat(r), dtype=int)
     r[:, 0] = np.clip(r[:, 0], 1, n)
     r[:, 1] = np.clip(r[:, 1], 1, n)
     r.sort(axis=1)

@@ -65,7 +65,14 @@ def pop_plottopo(
         rect=rect,
         singletrials=bool(singletrials),
     )
-    command = history_command("pop_plottopo", chans, plottitle, int(bool(singletrials)), **command_options)
+    command = history_command(
+        "pop_plottopo",
+        chans,
+        plottitle,
+        int(bool(singletrials)),
+        leading_figure=True,
+        **command_options,
+    )
     show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 

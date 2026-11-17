@@ -11,6 +11,9 @@ chanlist, chanliststr, labels = pop_chansel(EEG["chanlocs"], withindex="on")
 
 Use `field="type"` to select from channel types instead of labels. Use
 `selectionmode="single"` when only one channel or type should be selected.
+Selection text may quote labels that contain spaces. An empty pair of quotes
+is an empty label. A list wrapped in braces, such as `{Cz, Fp1}`, uses the
+labels inside the braces.
 
 The helper is used by GUI dialogs such as clean_rawdata and ICA channel/type
 selectors. Programmatic scripts can use `pop_chansel_display_values` and

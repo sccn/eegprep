@@ -86,7 +86,7 @@ def pop_rejspec_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
             ControlSpec("edit", tag="elecrange", value=f"1:{rows}"),
             ControlSpec("text", "Spectrum computation method"),
             ControlSpec("spacer"),
-            ControlSpec("popupmenu", "FFT|Multitaper", tag="method", value=2),
+            ControlSpec("popupmenu", "FFT|Multitaper", tag="method", value=1),
             ControlSpec("text", "Minimum power rejection threshold(s) (dB)"),
             ControlSpec("spacer"),
             ControlSpec("edit", tag="lowlim", value="-30"),

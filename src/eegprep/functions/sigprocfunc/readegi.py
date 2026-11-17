@@ -45,7 +45,10 @@ def readegi(
 
     nchan = int(header["nchan"])
     trial_data = values[:nchan].astype(np.float64, copy=False)
-    event_data = values[nchan:].astype(np.float64, copy=False)
+    if int(header["eventtypes"]) > 0:
+        event_data = values[nchan:].astype(np.float64, copy=False)
+    else:
+        event_data = np.empty((0, 0), dtype=np.float64)
     if header["bits"] != 0 and header["range"] != 0:
         trial_data = trial_data * (float(header["range"]) / (2.0 ** int(header["bits"])))
     return header, trial_data, event_data, categories

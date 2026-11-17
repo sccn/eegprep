@@ -6,11 +6,12 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
+from eegprep.functions.adminfunc.vararg2str import _matlab_history_value
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
-from eegprep.functions.popfunc._pop_utils import format_history_value
-from eegprep.functions.popfunc._rejection import eegthresh_marks, parse_numeric_sequence
+from eegprep.functions.popfunc._rejection import eegthresh_marks
 
 
 def pop_eegthresh(
@@ -104,7 +105,7 @@ def pop_eegthresh_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> D
         controls=(
             ControlSpec("text", label),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="elecrange", value=f"1:{rows}"),
+            ControlSpec("edit", tag="elecrange", value=f"1:{rows}" if is_data else "1:5"),
             ControlSpec("text", f"Minimum rejection threshold(s) ({unit}, Ex:-20 -10 -15):"),
             ControlSpec("spacer"),
             ControlSpec("edit", tag="negthresh", value="-10" if is_data else "-20"),
@@ -113,10 +114,10 @@ def pop_eegthresh_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> D
             ControlSpec("edit", tag="posthresh", value="10" if is_data else "20"),
             ControlSpec("text", "Start time limit(s) (seconds, Ex -0.1 0.3):"),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="starttime", value=f"{float(EEG.get('xmin', 0)):g}"),
+            ControlSpec("edit", tag="starttime", value=_matlab_num2str(float(EEG.get("xmin", 0)))),
             ControlSpec("text", "End time limit(s) (seconds, Ex 0.2):"),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="endtime", value=f"{float(EEG.get('xmax', 0)):g}"),
+            ControlSpec("edit", tag="endtime", value=_matlab_num2str(float(EEG.get("xmax", 0)))),
             ControlSpec("spacer"),
             ControlSpec("text", "Display previous rejection marks"),
             ControlSpec("spacer"),
@@ -215,18 +216,15 @@ def _history_command(
     superpose: int | bool,
     reject: int | bool,
 ) -> str:
-    args = [
-        int(bool(icacomp)),
-        parse_numeric_sequence(elecrange, dtype=int),
-        parse_numeric_sequence(negthresh, dtype=float),
-        parse_numeric_sequence(posthresh, dtype=float),
-        parse_numeric_sequence(starttime, dtype=float),
-        parse_numeric_sequence(endtime, dtype=float),
-        int(superpose),
-        int(bool(reject)),
+    # pop_eegthresh.m:252 always writes 0. Replay needs the flag that was applied.
+    parts = [
+        str(int(bool(icacomp))),
+        _matlab_history_value(elecrange),
+        _matlab_history_value(negthresh),
+        _matlab_history_value(posthresh),
+        _matlab_history_value(starttime),
+        _matlab_history_value(endtime),
+        str(int(bool(superpose))),
+        str(int(bool(reject))),
     ]
-    return (
-        "EEG = pop_eegthresh(EEG, "
-        + ", ".join(format_history_value(arg, cell_for_sequence=None) for arg in args)
-        + ");"
-    )
+    return "EEG = pop_eegthresh(EEG," + ",".join(parts) + ");"

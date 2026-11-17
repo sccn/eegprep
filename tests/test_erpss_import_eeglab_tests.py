@@ -130,6 +130,28 @@ def test_read_erpss_reads_uncompressed_big_endian_samples_and_header_rate(tmp_pa
     assert [channel["labels"] for channel in eeg["chanlocs"]] == ["A1", "A2", "EOG"]
 
 
+def test_pop_read_erpss_imports_a_recording_shorter_than_its_channel_count(tmp_path: Path) -> None:
+    recording = tmp_path / "short.raw"
+    expected = np.arange(8, dtype=np.int16).reshape(4, 2)
+    labels = ["Cz", "Pz", "Fz", "Oz"]
+    _write_erpss(
+        recording,
+        [expected],
+        compressed=False,
+        byteorder="little",
+        labels=labels,
+        sample_interval=2000,
+    )
+
+    eeg = pop_read_erpss(recording)
+
+    np.testing.assert_array_equal(eeg["data"], expected)
+    assert eeg["nbchan"] == 4
+    assert eeg["pnts"] == 2
+    assert eeg["srate"] == 500
+    assert [channel["labels"] for channel in eeg["chanlocs"]] == labels
+
+
 def _write_erpss(
     path: Path,
     blocks: list[np.ndarray],

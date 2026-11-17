@@ -15,8 +15,8 @@ from scipy.io import loadmat
 
 
 EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab_tests.git"
-EEGLAB_TESTS_COMMIT = "ff605546f3f70868916fb8d49c007472b3257b50"
-EEGLAB_TESTS_EEGLAB_COMMIT = "8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba"
+EEGLAB_TESTS_COMMIT = "fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9"
+EEGLAB_TESTS_EEGLAB_COMMIT = "d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4"
 STALE_EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab-testcases.git"
 MATLAB_TEST_EPSILON = 0.0001
 
@@ -111,6 +111,13 @@ def assert_matlab_equal(first, second):
                 assert_matlab_equal(first[index], second[index])
         else:
             assert np.array_equal(first, second, equal_nan=False)
+        return
+    if isinstance(first, (list, tuple)) or isinstance(second, (list, tuple)):
+        # A list of empty arrays cannot use ==: NumPy returns an empty bool array.
+        assert isinstance(first, (list, tuple)) and isinstance(second, (list, tuple))
+        assert len(first) == len(second)
+        for item, other in zip(first, second, strict=True):
+            assert_matlab_equal(item, other)
         return
     assert first == second
 

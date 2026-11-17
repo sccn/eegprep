@@ -1,0 +1,593 @@
+{
+  "pop_eegfiltnew": [
+    {
+      "function": "pop_eegfiltnew",
+      "params": {
+        "filtorder": 40,
+        "hicutoff": 5,
+        "locutoff": null,
+        "minphase": false,
+        "revfilt": false,
+        "usefftfilt": false
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          0
+        ],
+        "start": 0,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_eegfiltnew",
+      "params": {
+        "filtorder": 100,
+        "hicutoff": 8,
+        "locutoff": null,
+        "minphase": true,
+        "revfilt": false,
+        "usefftfilt": false
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "start": 284,
+        "length": 654,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_eegfiltnew",
+      "params": {
+        "filtorder": 60,
+        "hicutoff": 18,
+        "locutoff": 8,
+        "minphase": true,
+        "revfilt": true,
+        "usefftfilt": true
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          29,
+          30
+        ],
+        "start": 91,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_eegfiltnew",
+      "params": {
+        "filtorder": 100,
+        "hicutoff": 38,
+        "locutoff": 7,
+        "minphase": true,
+        "revfilt": true,
+        "usefftfilt": false
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "start": 30180,
+        "length": 324,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    }
+  ],
+  "pop_reref": [
+    {
+      "function": "pop_reref",
+      "params": {
+        "exclude": [],
+        "keepref": "off",
+        "ref": []
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          0
+        ],
+        "start": 0,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_reref",
+      "params": {
+        "exclude": [
+          12
+        ],
+        "keepref": "off",
+        "ref": []
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "start": 284,
+        "length": 654,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_reref",
+      "params": {
+        "exclude": [
+          0
+        ],
+        "keepref": "off",
+        "ref": []
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "start": 3600,
+        "length": 1190,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_reref",
+      "params": {
+        "exclude": [],
+        "keepref": "off",
+        "ref": []
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          15,
+          16,
+          17
+        ],
+        "start": 1050,
+        "length": 55,
+        "decimate": 2,
+        "nan_channel": 0,
+        "nan_start": 8,
+        "nan_length": 2
+      }
+    }
+  ],
+  "pop_resample": [
+    {
+      "function": "pop_resample",
+      "params": {
+        "freq": 64
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          0
+        ],
+        "start": 0,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_resample",
+      "params": {
+        "freq": 90
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "start": 284,
+        "length": 654,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_resample",
+      "params": {
+        "freq": 100
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "start": 11364,
+        "length": 78,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "pop_resample",
+      "params": {
+        "freq": 64
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30
+        ],
+        "start": 3770,
+        "length": 861,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    }
+  ],
+  "clean_asr": [
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          0
+        ],
+        "start": 0,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": 0.2,
+        "window_len": 0.5
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "start": 284,
+        "length": 654,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": 0.2,
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "start": 3600,
+        "length": 1190,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          15,
+          16,
+          17
+        ],
+        "start": 1050,
+        "length": 55,
+        "decimate": 2,
+        "nan_channel": 0,
+        "nan_start": 8,
+        "nan_length": 2
+      }
+    }
+  ],
+  "pop_clean_rawdata": [
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          0
+        ],
+        "start": 0,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": 0.2,
+        "window_len": 0.5
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "start": 284,
+        "length": 654,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": 0.2,
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "start": 3600,
+        "length": 1190,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          15,
+          16,
+          17
+        ],
+        "start": 1050,
+        "length": 55,
+        "decimate": 2,
+        "nan_channel": 0,
+        "nan_start": 8,
+        "nan_length": 2
+      }
+    }
+  ]
+}
