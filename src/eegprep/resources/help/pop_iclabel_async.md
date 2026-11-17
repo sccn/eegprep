@@ -39,7 +39,10 @@ with one method, and EEGPrep runs the network through it:
 
 In the EEGPrep source repository, `tools/pyodide/iclabel_web_bridge.mjs` (`createIcLabelWebBridge`)
 is the reference implementation: it creates one `onnxruntime-web` session from the bytes of the
-packaged `iclabel_int8.onnx`, the 8-bit network meant for the browser. A host may run Pyodide in a Web Worker to keep the page responsive.
+packaged `iclabel_int8.onnx`, the 8-bit network meant for the browser. It runs on one thread
+unless the host passes `numThreads` in its options argument; ONNX Runtime Web reads that count
+once, when its WebAssembly backend starts, so a host that already created another session decides it.
+A host may run Pyodide in a Web Worker to keep the page responsive.
 If no bridge is registered, the call raises an error that names it.
 
 See also: POP_ICLABEL

@@ -4,18 +4,22 @@
  * The Python side passes flat Float32Array values and explicit tensor shapes.
  * Returning the output typed array from the Promise keeps the Pyodide boundary
  * asynchronous without exposing ONNX Runtime objects to Python.
+ *
+ * options.numThreads (default 1) sets ort.env.wasm.numThreads; every other option is passed
+ * to InferenceSession.create.
  */
 export function createIcLabelWebBridge(ort, modelBytes, options = {}) {
-  const sessionOptions = {
-    executionProviders: ["wasm"],
-    numThreads: 1,
-    ...options,
-  };
+  const { numThreads = 1, ...sessionOptions } = options;
+  const createOptions = { executionProviders: ["wasm"], ...sessionOptions };
   let sessionPromise;
 
   const getSession = () => {
     if (sessionPromise === undefined) {
-      sessionPromise = ort.InferenceSession.create(modelBytes, sessionOptions).catch((error) => {
+      // ONNX Runtime Web's thread count is the process-wide ort.env.wasm.numThreads, read once
+      // when its WebAssembly backend starts; a session option cannot set it. A host that already
+      // created another session therefore decides the count.
+      ort.env.wasm.numThreads = numThreads;
+      sessionPromise = ort.InferenceSession.create(modelBytes, createOptions).catch((error) => {
         sessionPromise = undefined;
         throw error;
       });

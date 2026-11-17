@@ -436,33 +436,68 @@ def test_runner_script_reports_a_missing_javascript_tool_before_downloading(tmp_
     assert not installer_log.exists()
 
 
-@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required for the browser bridge test")
+NODE_STAND_IN_ORT = textwrap.dedent(
+    """
+    import { createIcLabelWebBridge } from './tools/pyodide/iclabel_web_bridge.mjs';
+
+    class Tensor {
+      constructor(type, data, shape) {
+        this.type = type;
+        this.data = data;
+        this.shape = shape;
+      }
+    }
+
+    // A stand-in for onnxruntime-web: ``onCreate(modelBytes, options)`` is the session factory.
+    const makeOrt = (onCreate) => {
+      const runtime = {
+        env: { wasm: {} },
+        InferenceSession: { create: async (modelBytes, options) => onCreate(modelBytes, options, runtime) },
+        Tensor,
+      };
+      return runtime;
+    };
+    const ort = makeOrt((modelBytes, options) => ({ run: async () => ({ output: { data: [1] } }) }));
+    const input = new Float32Array([0]);
+    const shape = [1];
+    """
+)
+
+
+def _run_node_bridge_script(script):
+    """Run a script that imports the bridge, after the stand-in ``ort`` prelude, under Node."""
+    try:
+        result = subprocess.run(
+            ["node", "--input-type=module"],
+            input=NODE_STAND_IN_ORT + textwrap.dedent(script),
+            text=True,
+            capture_output=True,
+            cwd=REPO_ROOT,
+            check=False,
+            timeout=SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"The Node.js bridge script did not finish within {SUBPROCESS_TIMEOUT_SECONDS} s")
+    assert result.returncode == 0, result.stderr
+
+
+requires_node = pytest.mark.skipif(
+    shutil.which("node") is None, reason="Node.js is required for the browser bridge test"
+)
+
+
+@requires_node
 def test_iclabel_web_bridge_retries_failed_session_initialization():
-    script = textwrap.dedent(
+    _run_node_bridge_script(
         """
-        import { createIcLabelWebBridge } from './tools/pyodide/iclabel_web_bridge.mjs';
-
         let attempts = 0;
-        const ort = {
-          InferenceSession: {
-            create: async () => {
-              attempts += 1;
-              if (attempts === 1) throw new Error('transient model load failure');
-              return { run: async () => ({ output: { data: [1] } }) };
-            },
-          },
-          Tensor: class Tensor {
-            constructor(type, data, shape) {
-              this.type = type;
-              this.data = data;
-              this.shape = shape;
-            }
-          },
-        };
+        const flaky = makeOrt(() => {
+          attempts += 1;
+          if (attempts === 1) throw new Error('transient model load failure');
+          return { run: async () => ({ output: { data: [1] } }) };
+        });
 
-        const bridge = createIcLabelWebBridge(ort, new Uint8Array());
-        const input = new Float32Array([0]);
-        const shape = [1];
+        const bridge = createIcLabelWebBridge(flaky, new Uint8Array());
         try {
           await bridge.run(input, shape, input, shape, input, shape);
           throw new Error('first run unexpectedly succeeded');
@@ -473,16 +508,30 @@ def test_iclabel_web_bridge_retries_failed_session_initialization():
         if (attempts !== 2) throw new Error(`expected two session attempts, got ${attempts}`);
         """
     )
-    try:
-        result = subprocess.run(
-            ["node", "--input-type=module"],
-            input=script,
-            text=True,
-            capture_output=True,
-            cwd=Path(__file__).parents[1],
-            check=False,
-            timeout=SUBPROCESS_TIMEOUT_SECONDS,
-        )
-    except subprocess.TimeoutExpired:
-        pytest.fail(f"The Node.js bridge script did not finish within {SUBPROCESS_TIMEOUT_SECONDS} s")
-    assert result.returncode == 0, result.stderr
+
+
+@requires_node
+@pytest.mark.parametrize(
+    ("options", "expected_threads"),
+    [("{}", 1), ("{ numThreads: 2 }", 2)],
+    ids=["default", "host-chooses"],
+)
+def test_iclabel_web_bridge_sets_the_thread_count_before_creating_its_session(options, expected_threads):
+    # ONNX Runtime Web ignores a numThreads session option; only ort.env.wasm.numThreads counts,
+    # and it is read when the first session starts the backend.
+    _run_node_bridge_script(
+        f"""
+        const seen = [];
+        const recording = makeOrt((modelBytes, options, runtime) => {{
+          seen.push({{ threads: runtime.env.wasm.numThreads, keys: Object.keys(options).sort() }});
+          return {{ run: async () => ({{ output: {{ data: [1] }} }}) }};
+        }});
+
+        const bridge = createIcLabelWebBridge(recording, new Uint8Array(), {options});
+        await bridge.run(input, shape, input, shape, input, shape);
+        await bridge.run(input, shape, input, shape, input, shape);
+        if (seen.length !== 1) throw new Error(`expected one session, got ${{seen.length}}`);
+        if (seen[0].threads !== {expected_threads}) throw new Error(`threads at create: ${{seen[0].threads}}`);
+        if (seen[0].keys.join() !== 'executionProviders') throw new Error(`session options: ${{seen[0].keys}}`);
+        """
+    )
