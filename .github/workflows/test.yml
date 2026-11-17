@@ -472,11 +472,6 @@ jobs:
             exit 1
           fi
 
-      - name: Build the locked docopt wheel
-        run: |
-          uv run --no-sync python tools/pyodide/prepare_docopt_wheel.py \
-            --output-dir pyodide-artifacts/docopt
-
       - name: Validate Node runner argument handling
         run: |
           if output=$(node tools/pyodide/run_pyodide.mjs --not-a-real-option 2>&1); then
@@ -490,7 +485,6 @@ jobs:
           set -o pipefail
           tools/pyodide/run_pyodide.sh \
             --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
-            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
             --script tools/pyodide/smoke.py \
             --sample-data-dir sample_data \
             2>&1 | tee pyodide-artifacts/pyodide-smoke.log
@@ -510,7 +504,6 @@ jobs:
           tools/pyodide/run_pyodide.sh \
             --iclabel-web \
             --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
-            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
             --script tools/pyodide/iclabel_parity.py \
             --sample-data-dir sample_data \
             --output pyodide-artifacts/iclabel-pyodide.json \
@@ -544,7 +537,6 @@ jobs:
           set -o pipefail
           tools/pyodide/run_pyodide.sh \
             --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
-            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
             --script tools/pyodide/benchmark.py \
             --output pyodide-artifacts/benchmark-pyodide.json \
             -- --platform pyodide \

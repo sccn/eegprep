@@ -4,59 +4,42 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const USAGE = `Usage: run_pyodide.mjs --pyodide-module PATH --wheel PATH --docopt-wheel PATH --script PATH [--sample-data-dir PATH] [--output PATH] [--iclabel-model PATH --onnxruntime-web-module PATH] -- [script args...]`;
-// Dependencies of the EEGPrep base install that the Pyodide distribution ships
-// prebuilt (the "pyodide-lock" rows printed by tools/check_pyodide_base_resolution.py).
+const USAGE = `Usage: run_pyodide.mjs --pyodide-module PATH --wheel PATH --script PATH [--sample-data-dir PATH] [--output PATH] [--iclabel-model PATH --onnxruntime-web-module PATH] -- [script args...]`;
+// Dependencies of the EEGPrep base install, and of the picard extra the benchmark needs, that the
+// Pyodide distribution ships prebuilt (the "pyodide-lock" rows printed by
+// tools/check_pyodide_base_resolution.py, plus scikit-learn and joblib for Picard).
 // They load in one batch before micropip resolves the wheel, so micropip finds
 // them already installed instead of looking each one up. Compiled packages such
 // as numpy and scipy have no PyPI WebAssembly wheel, so the distribution's build
 // is the only one available. Keep in sync with the pinned Pyodide version in
 // tools/pyodide/package.json.
 const PYODIDE_PACKAGES = [
-  "certifi",
-  "charset-normalizer",
-  "click",
   "contourpy",
   "cycler",
-  "decorator",
   "fonttools",
-  "fsspec",
   "h5py",
-  "idna",
-  "jinja2",
   "joblib",
   "kiwisolver",
-  "lazy-loader",
-  "markupsafe",
   "matplotlib",
-  "narwhals",
   "numpy",
   "packaging",
-  "pandas",
   "pillow",
-  "platformdirs",
   "pyparsing",
   "python-dateutil",
-  "pytz",
   "pyyaml",
-  "requests",
   "scikit-learn",
   "scipy",
   "six",
   "threadpoolctl",
-  "tqdm",
-  "typing-extensions",
-  "tzdata",
-  "urllib3",
-  "wrapt",
 ];
-// mne is held at the floor declared in pyproject.toml (tests/test_pyodide_harness.py
-// checks they match) so the harness is deterministic and exercises the oldest
-// supported MNE release. threadpoolctl 3.6.0 matches uv.lock (the same test
-// checks that), so native and browser benchmark runs use the same library; the
-// Pyodide distribution bundles the older 3.5.0, hence the reinstall in
-// installCode below.
-const MICROPIP_CONSTRAINTS = ["mne==1.10.0", "threadpoolctl==3.6.0"];
+// threadpoolctl 3.6.0 matches uv.lock (tests/test_pyodide_harness.py checks that), so
+// native and browser benchmark runs use the same library; the Pyodide distribution
+// bundles the older 3.5.0, hence the reinstall in installCode below.
+const MICROPIP_CONSTRAINTS = ["threadpoolctl==3.6.0"];
+// The benchmark runs Picard, which is the picard extra of the wheel and not part of the
+// base install. micropip cannot apply an extra to a local wheel, so the requirement is
+// installed by name; tests/test_pyodide_harness.py checks it matches pyproject.toml.
+const PICARD_REQUIREMENT = "python-picard>=0.8,<0.9";
 
 function fail(message) {
   console.error(`${message}\n${USAGE}`);
@@ -74,7 +57,6 @@ function parseArguments(argv) {
       ![
         "--pyodide-module",
         "--wheel",
-        "--docopt-wheel",
         "--script",
         "--sample-data-dir",
         "--output",
@@ -91,7 +73,7 @@ function parseArguments(argv) {
     result[option.slice(2).replaceAll("-", "_")] = value;
     index += 1;
   }
-  for (const required of ["pyodide_module", "wheel", "docopt_wheel", "script"]) {
+  for (const required of ["pyodide_module", "wheel", "script"]) {
     if (!result[required]) {
       throw new Error(`Missing required option --${required.replaceAll("_", "-")}`);
     }
@@ -163,19 +145,17 @@ async function main() {
   // Keep the original PEP 427 names: micropip uses the filename to identify
   // a local wheel. ``emfs:`` makes the transport work through Pyodide's
   // virtual filesystem in both the Node harness and a browser worker.
-  const docoptWheelPath = `/tmp/${basename(args.docopt_wheel)}`;
   const eegprepWheelPath = `/tmp/${basename(args.wheel)}`;
-  copyToPyodide(pyodide, args.docopt_wheel, docoptWheelPath);
   copyToPyodide(pyodide, args.wheel, eegprepWheelPath);
 
   const installCode = `
 import micropip
 await micropip.install("threadpoolctl==3.6.0", reinstall=True)
-await micropip.install(${JSON.stringify(`emfs:${docoptWheelPath}`)})
 await micropip.install(
     ${JSON.stringify(`emfs:${eegprepWheelPath}`)},
     constraints=${JSON.stringify(MICROPIP_CONSTRAINTS)},
 )
+await micropip.install(${JSON.stringify(PICARD_REQUIREMENT)}, constraints=${JSON.stringify(MICROPIP_CONSTRAINTS)})
 `;
   await pyodide.runPythonAsync(installCode);
 

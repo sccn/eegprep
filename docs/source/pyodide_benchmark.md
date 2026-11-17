@@ -9,18 +9,16 @@ and checks that ICLabel gives the same classifications in the browser as nativel
 
 The harness pins [Pyodide 0.29.5](https://pyodide.org/en/stable/usage/faq.html)
 and uses Pyodide's `emfs:` local-wheel transport.
-The package-resolution path pre-installs a universal `docopt==0.6.2` wheel built from a hash-checked source distribution (sdist)
-because the PyPI release is an sdist.
-The live harness also pins `mne==1.10.0`, the lowest version EEGPrep declares,
-and `threadpoolctl==3.6.0`, the version in `uv.lock` (Pyodide bundles 3.5.0),
+The base install resolves under Pyodide with no extra wheel:
+`psutil` and `pyedflib`, which Pyodide cannot build, carry the marker `sys_platform != 'emscripten'` in `pyproject.toml`,
+and `tools/check_pyodide_base_resolution.py` checks that every other base package ships with Pyodide or has a pure-Python wheel.
+MNE, PyBIDS, and the other extras are not part of the base install, so they are not installed.
+The live harness pins `threadpoolctl==3.6.0`, the version in `uv.lock` (Pyodide bundles 3.5.0),
+and installs `python-picard` by name, because the benchmark runs Picard and micropip cannot apply the `picard` extra to a local wheel,
 while leaving EEGPrep's published dependency ranges unchanged.
-As of 2026-10-12, with Pyodide 0.29.5, the smoke install completes with this closure
-and no further sdist-only blocker has surfaced in the live harness.
 
 EEGPrep's ICA implementations do not use MNE.
 In particular, importing and running `runica` does not eagerly import MNE.
-The current published dependency closure still includes MNE for electroencephalography (EEG) file and interoperability paths;
-removing that browser-install dependency is a separate packaging task.
 
 Pyodide does not provide pthread support,
 so one Pyodide instance cannot run four or eight Python threads for a single ICA call.

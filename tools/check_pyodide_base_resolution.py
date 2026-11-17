@@ -38,11 +38,7 @@ PYODIDE_LOCK_URL = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/py
 PYPI_JSON_URL = "https://pypi.org/pypi/{name}/{version}/json"
 HTTP_TIMEOUT_S = 30
 
-# The live harness (tools/pyodide/prepare_docopt_wheel.py) builds this exact sdist into a local
-# universal wheel before asking micropip to resolve eegprep. Keep the package out of
-# ``KNOWN_GAPS`` so a known local transport is not recorded as a silent exception.
 KNOWN_GAPS: dict[str, str] = {}
-LOCAL_WHEEL_PACKAGES = {"docopt"}
 
 
 def _fetch_json(url: str) -> dict:
@@ -148,10 +144,6 @@ def classify_package(name: str, version: str, in_pyodide_lock: bool, universal_w
         return PackageCheck(name, version, STATUS_OK, "pyodide-lock")
     if universal_wheel:
         return PackageCheck(name, version, STATUS_OK, f"pypi wheel: {universal_wheel}")
-    if name in LOCAL_WHEEL_PACKAGES:
-        return PackageCheck(
-            name, version, STATUS_OK, "local pure-Python wheel built by tools/pyodide/prepare_docopt_wheel.py"
-        )
     if name in KNOWN_GAPS:
         return PackageCheck(name, version, STATUS_KNOWN_GAP, f"NOT FOUND, known gap: {KNOWN_GAPS[name]}")
     return PackageCheck(name, version, STATUS_FAIL, "NOT FOUND (no Pyodide build, no pure-Python wheel)")
