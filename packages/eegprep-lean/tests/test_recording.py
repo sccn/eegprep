@@ -20,6 +20,7 @@ import asyncio
 import dataclasses
 import gc
 import hashlib
+import itertools
 import json
 import pathlib
 import threading
@@ -28,7 +29,16 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from eegprep_lean import ElectrodeAttributes, IndexError_, Store, UrllibTransport, read_electrode_attributes, read_index
+from eegprep_lean import (
+    DatasetIndex,
+    ElectrodeAttributes,
+    ElectrodePositionsNotAnObject,
+    IndexError_,
+    Store,
+    UrllibTransport,
+    read_electrode_attributes,
+    read_index,
+)
 from eegprep_lean.index import INDEX_URL_TEMPLATE
 from eegprep_lean.recording import index_sha256, load_recording
 from eegprep_lean.transport import Response
@@ -359,6 +369,40 @@ def local_index(served):
     return asyncio.run(read_index(DATASET, index_url=f"{base_url}index.json"))
 
 
+@pytest.fixture(scope="module")
+def read_root(tmp_path_factory):
+    """``read(text)``: serve ``text`` as a store root's ``zarr.json`` over real HTTP and read
+    it with ``read_electrode_attributes``.
+
+    For the reads that are about the text itself, which a store written by zarr and
+    ``json.dump`` cannot give: an integer spelled with four hundred digits, or ``-0``."""
+    root = tmp_path_factory.mktemp("roots")
+    handler = type("Handler", (_Handler,), {"root": root, "documents": {}, "requested": []})
+    server = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    index = DatasetIndex(
+        dataset_id=DATASET,
+        format_version=3,
+        contract_base=f"http://127.0.0.1:{server.server_port}/",
+        store_count=0,
+        stores=(),
+    )
+    names = itertools.count()
+
+    def read(text: str) -> ElectrodeAttributes | None:
+        zarr_name = f"root{next(names)}.zarr"
+        (root / zarr_name).mkdir()
+        (root / zarr_name / "zarr.json").write_text(text)
+        store = Store(path=f"{zarr_name}.set", zarr=zarr_name, groups=())
+        return asyncio.run(read_electrode_attributes(index, store))
+
+    try:
+        yield read
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 class TestIndexSha256:
     def test_is_the_digest_of_the_exact_bytes_read(self, served) -> None:
         body, base_url, _ = served
@@ -595,7 +639,7 @@ class TestElectrodeAttributes:
     def test_a_position_map_that_is_not_an_object_is_refused_rather_than_ignored(self, served, local_index) -> None:
         """Ignoring it would hand back a recording with no locations and no sign that the
         store declared some."""
-        with pytest.raises(IndexError_, match="electrode_positions"):
+        with pytest.raises(ElectrodePositionsNotAnObject, match="electrode_positions"):
             load_recording(DATASET, MALFORMED_PATH, index=local_index)
 
     def test_the_locations_reach_chanlocs_through_a_real_read(self, served, local_index) -> None:
@@ -619,6 +663,65 @@ class TestElectrodeAttributes:
             "source": "subject",
             "file": "sub-05/eeg/sub-05_electrodes.tsv",
         }
+
+
+def _root(positions: str, **more: str) -> str:
+    """A store root whose attributes hold ``positions``, the text of a JSON value, as written,
+    and any ``more`` attributes given as the text of their values."""
+    attributes = {
+        "electrode_positions": positions,
+        "electrode_coordinate_system": '"CapTrak"',
+        "electrode_coordinate_units": '"m"',
+        **more,
+    }
+    body = ", ".join(f'"{key}": {value}' for key, value in attributes.items())
+    return f'{{"zarr_format": 3, "node_type": "group", "attributes": {{{body}}}}}'
+
+
+class TestTheStoreRootAsText:
+    @pytest.mark.parametrize("attributes", ["[]", "null"])
+    def test_attributes_that_are_empty_or_null_are_no_attributes(self, read_root, attributes: str) -> None:
+        """The reader reduces an empty list or a null to an empty mapping, and NEMAR's locations
+        digest of such a store is the digest of a store that states no position."""
+        assert read_root(f'{{"zarr_format": 3, "attributes": {attributes}}}') is None
+
+    def test_a_root_with_no_attributes_at_all_is_no_attributes(self, read_root) -> None:
+        assert read_root('{"zarr_format": 3, "node_type": "group"}') is None
+        assert read_root('{"zarr_format": 3, "attributes": {}}') is None
+
+    @pytest.mark.parametrize("digits", [400, 4300, 4301, 20000])
+    @pytest.mark.parametrize("sign", [pytest.param("", id="positive"), pytest.param("-", id="negative")])
+    def test_an_integer_too_large_for_a_float_is_a_channel_with_no_position(
+        self, read_root, digits: int, sign: str
+    ) -> None:
+        """JSON.parse reads an integer of this many digits as an infinity, and NEMAR's locations
+        digest, which is defined on that reading, gives its channel no position. Python's
+        ``json`` refuses to make an int of more than 4300 digits at all, and ``float`` of one of
+        400 raises. Neither is a refusal of the store: the other channels and the attributes
+        read as they do without it."""
+        huge = sign + "1" + "0" * (digits - 1)
+
+        attributes = read_root(_root('{"E1": [1, 2, %s], "E2": [4, 5, 6]}' % huge))
+
+        assert attributes == ElectrodeAttributes(
+            positions={"E2": (4.0, 5.0, 6.0)}, coordinate_system="CapTrak", coordinate_units="m"
+        )
+
+    @pytest.mark.parametrize("spelling", ["0", "0.0", "-0", "-0.0", "-0e0"])
+    def test_every_spelling_of_zero_is_positive_zero(self, read_root, spelling: str) -> None:
+        """Python's ``json`` reads ``-0`` as the integer 0 and ``-0.0`` as negative zero, and
+        ``JSON.parse`` reads both as negative zero. NEMAR's locations digest hashes every zero
+        as +0, and so does the reader, whatever the text says."""
+        attributes = read_root(_root('{"E1": [-1, %s, 5]}' % spelling))
+
+        assert attributes is not None
+        assert [repr(axis) for axis in attributes.positions["E1"]] == ["-1.0", "0.0", "5.0"]
+
+    def test_a_huge_integer_in_an_attribute_that_is_not_read_does_not_fail_the_store(self, read_root) -> None:
+        attributes = read_root(_root('{"E1": [1, 2, 3]}', conversion_counter="9" * 5000))
+
+        assert attributes is not None
+        assert attributes.positions == {"E1": (1.0, 2.0, 3.0)}
 
 
 # The smallest recording of a live public dataset with a verified Zarr copy.

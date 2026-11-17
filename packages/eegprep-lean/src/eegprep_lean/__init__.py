@@ -30,7 +30,7 @@ import re
 import textwrap
 
 from .channels import Channel, GroupMetadata, read_group_metadata
-from .electrodes import ElectrodeAttributes, read_electrode_attributes
+from .electrodes import ElectrodeAttributes, ElectrodePositionsNotAnObject, read_electrode_attributes
 from .extras import EXTRA_HINTS, EXTRA_ROOTS, is_missing_extra, missing_extra_error
 from .index import (
     SUPPORTED_FORMAT_VERSION,
@@ -189,6 +189,7 @@ __all__ = [
     "ChannelGroup",
     "DatasetIndex",
     "ElectrodeAttributes",
+    "ElectrodePositionsNotAnObject",
     "FetchTransport",
     "GroupMetadata",
     "IndexError_",
