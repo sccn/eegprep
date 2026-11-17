@@ -20,6 +20,11 @@ Unreleased
   ``EEG["etc"]["nemar"]["locations"]`` records what the store stated, how many channels were located and, when none was, why.
   A store that declares no positions gives ``chanlocs`` of labels alone, as before.
   With these locations ICLabel's feature extraction runs on a recording read from a store (#625).
+- ``eegprep_lean`` reads a store's electrode positions as NEMAR's locations digest defines them.
+  JSON integers are read as binary64, so an integer too large for a float, such as one of 400 digits, leaves its channel without a position instead of failing the read, and an integer literal of more than 4300 digits no longer raises ``ValueError``.
+  Every zero is read as ``+0.0`` whatever its spelling, so two stores that differ only in a signed zero give the same ``chanlocs``.
+  ``pop_load_frombids`` keeps the sign of a zero that a float column of an ``electrodes.tsv`` spells with a minus sign, so for such a file ``Y`` and ``theta`` can differ in sign between the two routes.
+  A store whose ``electrode_positions`` is not an object raises ``ElectrodePositionsNotAnObject``, an ``IndexError_``, which names the refusal.
 - ``pop_runica(EEG, icatype="pamica")`` decomposes with pAMICA, the PyTorch implementation of AMICA,
   through the new ``eeg_pamica``.
   Install it with the ``pamica`` extra, ``pip install "eegprep[pamica]"``.
