@@ -29,7 +29,7 @@ async def run_iclabel_net_async(image, psdmed, autocorr):
 
     Raises:
         ImportError: If not running in Pyodide, or the host never registered
-            the ``eegprep_iclabel_web`` global with a ``modelBytes`` property.
+            the ``eegprep_iclabel_web`` global with a ``modelBytes`` byte buffer.
         RuntimeError: If the host's ``modelBytes`` differ from the packaged
             ``iclabel_int8.onnx``, if the bridge returns a different number of
             values than seven class probabilities per input row, or if any of
@@ -63,6 +63,11 @@ def _require_packaged_model(bridge):
     model_bytes = getattr(bridge, "modelBytes", None)
     if model_bytes is None:
         raise ImportError(MISSING_HOST_MESSAGE.format(error="the bridge has no modelBytes property"))
+    # A buffer proxy has to_bytes(); a JavaScript number arrives as an int, whose to_bytes() is not a copy.
+    if isinstance(model_bytes, int) or not callable(getattr(model_bytes, "to_bytes", None)):
+        raise ImportError(
+            MISSING_HOST_MESSAGE.format(error=f"modelBytes is a {type(model_bytes).__name__}, not a Uint8Array")
+        )
     # Hashed on every call (about 3 MB, far less than the feature extraction) so no cache can go stale.
     host_digest = hashlib.sha256(model_bytes.to_bytes()).hexdigest()
     packaged_digest = hashlib.sha256(

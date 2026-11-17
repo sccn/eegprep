@@ -387,6 +387,22 @@ def test_browser_backend_requires_the_bridge_to_expose_its_model(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    "wrong_type",
+    ["a string", 1000, 3.5, object()],
+    ids=["string", "large-number", "float", "object"],
+)
+def test_browser_backend_fails_closed_on_a_model_that_is_not_a_byte_buffer(monkeypatch, wrong_type):
+    inputs = [np.zeros((1, 1, 1, 3), dtype=np.float32)] * 3
+    bridge = _StandInBridge(np.zeros(7, dtype=np.float32))
+    bridge.modelBytes = wrong_type
+    _install_pyodide_boundary(monkeypatch, bridge)
+
+    with pytest.raises(ImportError, match="createIcLabelWebBridge.*not a Uint8Array"):
+        asyncio.run(run_iclabel_net_async(*inputs))
+    assert bridge.calls == []
+
+
+@pytest.mark.parametrize(
     ("name", "status", "in_lock", "wheel"),
     [
         ("numpy", "ok", True, None),
