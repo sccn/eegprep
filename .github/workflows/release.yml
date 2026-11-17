@@ -185,12 +185,14 @@ jobs:
           set -euo pipefail
           uv venv --python 3.12 /tmp/relcheck
           wheel=$(ls dist/*.whl)
-          # Pin onnxruntime to the uv.lock version that the frozen teacher
-          # probabilities were computed with (tools/iclabel/evaluation_manifest.json)
-          # and that the test suite runs, so the released model is smoke-tested on
-          # the runtime it was validated with. Users still get any version the
-          # iclabel extra allows; bump this with uv.lock.
-          VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]" "onnxruntime==1.30.0"
+          # Pin onnxruntime to the version uv.lock resolves on Linux: the one the
+          # test suite, its frozen-gate tests included, runs on, so the released
+          # networks are smoke-tested on the validated runtime. The frozen teacher
+          # probabilities were computed with 1.30.0
+          # (tools/iclabel/evaluation_manifest.json); that is provenance, not the
+          # pin. Users get any version the iclabel extra allows. Bump this with
+          # uv.lock; tests/test_ci_workflows.py fails when the two differ.
+          VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]" "onnxruntime==1.32.0"
           VIRTUAL_ENV=/tmp/relcheck uv run --no-project python - <<'PY'
           import eegprep
           from importlib.resources import files
@@ -224,7 +226,7 @@ jobs:
           uv venv --python 3.12 /tmp/relcheck-sdist
           sdist=$(ls dist/*.tar.gz)
           # Same onnxruntime pin as the wheel smoke test above.
-          VIRTUAL_ENV=/tmp/relcheck-sdist uv pip install "${sdist}[iclabel]" "onnxruntime==1.30.0"
+          VIRTUAL_ENV=/tmp/relcheck-sdist uv pip install "${sdist}[iclabel]" "onnxruntime==1.32.0"
           VIRTUAL_ENV=/tmp/relcheck-sdist uv run --no-project python - <<'PY'
           import eegprep
           from importlib.resources import files

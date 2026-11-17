@@ -104,9 +104,10 @@ What the workflow does
    ``tools/iclabel/parity_report.json`` and that the report's ``gate_pass`` is
    true. It also runs ``twine check --strict`` and installs both artifacts with
    the ICLabel extra for runtime classification and the ASR filter smoke test.
-   The smoke tests also pin ``onnxruntime==1.30.0``, the ``uv.lock`` version the
-   model was validated with and stricter than the ``iclabel`` extra's ``>=1.20``
-   floor; bump the pin in ``release.yml`` together with ``uv.lock``.
+   The smoke tests also pin ``onnxruntime==1.32.0``, the version ``uv.lock``
+   resolves on Linux and the one the test suite runs on, which is stricter than the
+   ``iclabel`` extra's ``>=1.20`` floor. Bump the pin in ``release.yml`` together
+   with ``uv.lock``; ``tests/test_ci_workflows.py`` fails when they differ.
 3. **publish** — uploads to PyPI using Trusted Publishing, so no API token is
    stored in the repository.
 4. **github-release** — creates the GitHub release with the artifacts attached.
