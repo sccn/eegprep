@@ -134,38 +134,42 @@ jobs:
             echo "::error::Vendored EEGLAB leaked into the sdist"; exit 1
           fi
 
-          # Packaged data the runtime needs.
-          if [ "$(unzip -l "$whl" | grep -c 'eegprep/plugins/ICLabel/iclabel.onnx' || true)" = "0" ]; then
-            echo "::error::ICLabel network (iclabel.onnx) missing from the wheel"; exit 1
-          fi
+          # Packaged data the runtime needs: iclabel.onnx (full precision) is the network the
+          # native backend loads, and iclabel_int8.onnx (8-bit weights) is the browser's.
           if [ "$(unzip -l "$whl" | grep -c 'netICL.mat' || true)" != "0" ]; then
             echo "::error::ICLabel weights (netICL.mat) should not ship in the wheel; export iclabel.onnx instead"; exit 1
-          fi
-          packaged_model_sha256=$(unzip -p "$whl" eegprep/plugins/ICLabel/iclabel.onnx | sha256sum | cut -d' ' -f1)
-          source_model_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel.onnx | cut -d' ' -f1)
-          if [ "$packaged_model_sha256" != "$source_model_sha256" ]; then
-            echo "::error::Packaged ICLabel network differs from the source artifact"; exit 1
-          fi
-          sdist_model_path=$(tar tzf "$sdist" | grep '/src/eegprep/plugins/ICLabel/iclabel.onnx$' | head -n 1 || true)
-          if [ -z "$sdist_model_path" ]; then
-            echo "::error::ICLabel network (iclabel.onnx) missing from the sdist"; exit 1
           fi
           if [ "$(tar tzf "$sdist" | grep -c '/src/eegprep/plugins/ICLabel/netICL.mat$' || true)" != "0" ]; then
             echo "::error::ICLabel weights (netICL.mat) should not ship in the sdist; export iclabel.onnx instead"; exit 1
           fi
-          sdist_model_sha256=$(tar xOf "$sdist" "$sdist_model_path" | sha256sum | cut -d' ' -f1)
-          if [ "$sdist_model_sha256" != "$source_model_sha256" ]; then
-            echo "::error::Sdist ICLabel network differs from the source artifact"; exit 1
-          fi
+          for model in iclabel.onnx iclabel_int8.onnx; do
+            if [ "$(unzip -l "$whl" | grep -c "eegprep/plugins/ICLabel/$model" || true)" = "0" ]; then
+              echo "::error::ICLabel network ($model) missing from the wheel"; exit 1
+            fi
+            packaged_model_sha256=$(unzip -p "$whl" "eegprep/plugins/ICLabel/$model" | sha256sum | cut -d' ' -f1)
+            source_model_sha256=$(sha256sum "src/eegprep/plugins/ICLabel/$model" | cut -d' ' -f1)
+            if [ "$packaged_model_sha256" != "$source_model_sha256" ]; then
+              echo "::error::Packaged ICLabel network ($model) differs from the source artifact"; exit 1
+            fi
+            sdist_model_path=$(tar tzf "$sdist" | grep "/src/eegprep/plugins/ICLabel/$model\$" | head -n 1 || true)
+            if [ -z "$sdist_model_path" ]; then
+              echo "::error::ICLabel network ($model) missing from the sdist"; exit 1
+            fi
+            sdist_model_sha256=$(tar xOf "$sdist" "$sdist_model_path" | sha256sum | cut -d' ' -f1)
+            if [ "$sdist_model_sha256" != "$source_model_sha256" ]; then
+              echo "::error::Sdist ICLabel network ($model) differs from the source artifact"; exit 1
+            fi
+          done
           # tools/iclabel/quantize_iclabel_onnx.py writes the report only when the
-          # parity gate passes; the shipped model must be the one it describes.
+          # parity gate passes; the shipped 8-bit model must be the one it describes.
           report_gate_pass=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["gate_pass"])')
           if [ "$report_gate_pass" != "True" ]; then
             echo "::error::tools/iclabel/parity_report.json records a failed ICLabel parity gate"; exit 1
           fi
           report_model_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')
-          if [ "$source_model_sha256" != "$report_model_sha256" ]; then
-            echo "::error::Source ICLabel network does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
+          int8_model_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel_int8.onnx | cut -d' ' -f1)
+          if [ "$int8_model_sha256" != "$report_model_sha256" ]; then
+            echo "::error::Source iclabel_int8.onnx does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
           fi
           if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
             echo "::error::Packaged help resources missing from the wheel"; exit 1
@@ -193,9 +197,10 @@ jobs:
           import numpy as np
 
           print('installed', eegprep.__version__)
-          model = files('eegprep.plugins.ICLabel').joinpath('iclabel.onnx')
-          assert model.is_file(), 'installed ICLabel model is missing'
-          assert model.read_bytes(), 'installed ICLabel model is empty'
+          for name in ('iclabel.onnx', 'iclabel_int8.onnx'):
+              model = files('eegprep.plugins.ICLabel').joinpath(name)
+              assert model.is_file(), f'installed ICLabel model {name} is missing'
+              assert model.read_bytes(), f'installed ICLabel model {name} is empty'
           from eegprep.functions.popfunc.pop_loadset import pop_loadset
           from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
 
@@ -226,9 +231,10 @@ jobs:
           import numpy as np
 
           print('installed from sdist', eegprep.__version__)
-          model = files('eegprep.plugins.ICLabel').joinpath('iclabel.onnx')
-          assert model.is_file(), 'installed ICLabel model is missing'
-          assert model.read_bytes(), 'installed ICLabel model is empty'
+          for name in ('iclabel.onnx', 'iclabel_int8.onnx'):
+              model = files('eegprep.plugins.ICLabel').joinpath(name)
+              assert model.is_file(), f'installed ICLabel model {name} is missing'
+              assert model.read_bytes(), f'installed ICLabel model {name} is empty'
           from eegprep.functions.popfunc.pop_loadset import pop_loadset
           from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
 

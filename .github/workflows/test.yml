@@ -444,15 +444,16 @@ jobs:
           uv build --wheel --out-dir pyodide-artifacts
 
       # The documented regeneration sequence from tools/iclabel/quantize_iclabel_onnx.py:
-      # export the float32 network from netICL.mat, quantize it, and require the
+      # export the float32 network from netICL.mat, require its outputs to match the
+      # shipped iclabel.onnx on the evaluation features, quantize it, and require the
       # gate to pass against the frozen teacher probabilities and the result to be
-      # numerically identical to the shipped model on the evaluation features. A
-      # fresh PyTorch export is not guaranteed to be byte-identical across PyTorch
-      # versions, so bytes are not compared. The regenerated report's gate and
+      # numerically identical to the shipped iclabel_int8.onnx on the evaluation
+      # features. A fresh PyTorch export is not guaranteed to be byte-identical across
+      # PyTorch versions, so bytes are not compared. The regenerated report's gate and
       # metrics must match the committed report (drift metrics within 1e-5 for
-      # CPU differences), and the committed report must record the shipped
+      # CPU differences), and the committed report must record the shipped int8
       # model's SHA-256, which release.yml checks again.
-      - name: Regenerate the ICLabel model from netICL.mat
+      - name: Regenerate the ICLabel models from netICL.mat
         run: |
           set -euo pipefail
           regenerated="$RUNNER_TEMP/iclabel-regenerated"
@@ -460,15 +461,16 @@ jobs:
             --onnx-path "$regenerated/iclabel_float32.onnx"
           uv run --no-sync python tools/iclabel/quantize_iclabel_onnx.py \
             --float32-artifact "$regenerated/iclabel_float32.onnx" \
-            --output "$regenerated/iclabel.onnx" \
+            --output "$regenerated/iclabel_int8.onnx" \
             --report "$regenerated/parity_report.json" \
-            --require-identical-to src/eegprep/plugins/ICLabel/iclabel.onnx \
+            --require-float32-close-to src/eegprep/plugins/ICLabel/iclabel.onnx \
+            --require-identical-to src/eegprep/plugins/ICLabel/iclabel_int8.onnx \
             --require-matching-report tools/iclabel/parity_report.json \
             > pyodide-artifacts/iclabel-quantization.log
-          shipped_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel.onnx | cut -d' ' -f1)
+          shipped_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel_int8.onnx | cut -d' ' -f1)
           recorded_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')
           if [ "$shipped_sha256" != "$recorded_sha256" ]; then
-            echo "::error::tools/iclabel/parity_report.json does not describe the shipped iclabel.onnx; regenerate them together"
+            echo "::error::tools/iclabel/parity_report.json does not describe the shipped iclabel_int8.onnx; regenerate them together"
             exit 1
           fi
 
