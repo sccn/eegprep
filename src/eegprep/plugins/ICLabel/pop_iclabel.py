@@ -52,7 +52,10 @@ def pop_iclabel(
         NotImplementedError: If ``icversion`` is ``'lite'`` or ``'beta'`` with
             ``engine=None``.
         ImportError: If ``engine=None`` and onnxruntime is not installed; the
-            message names the ``eegprep[iclabel]`` extra.
+            message names the ``eegprep[iclabel]`` extra. onnxruntime is checked
+            first, before the dialog and the validation of ``icversion`` and the
+            ICA decomposition, so this error precedes the ``ValueError`` and
+            ``NotImplementedError`` above.
     """
     require_sync_backend(engine)
     # Before the dialog, so a missing onnxruntime is reported before the user picks a version.
@@ -116,6 +119,9 @@ async def pop_iclabel_async(
             ``engine=None``.
         ImportError: On native platforms, if ``engine=None`` and onnxruntime is
             not installed; the message names the ``eegprep[iclabel]`` extra.
+            It is checked first, before the dialog and the validation of
+            ``icversion`` and the ICA decomposition, so it precedes the
+            ``ValueError`` and ``NotImplementedError`` above.
     """
     if EEG is not None and engine is None and not IS_EMSCRIPTEN:
         require_onnxruntime("pop_iclabel_async")
