@@ -40,6 +40,7 @@ from typing import Any
 import numpy as np
 
 from .channels import GroupMetadata, read_group_metadata
+from .electrodes import ElectrodeAttributes
 from .extras import is_missing_extra, missing_extra_error
 from .index import ChannelGroup, DatasetIndex, IndexError_, Store
 from .transport import Transport
@@ -85,6 +86,15 @@ class Window:
 
     Level 0 is resampled to ``min(native rate, modality cap)``, so this is how a caller
     learns that 250 Hz of electroencephalography came from a 500 Hz recording.
+    """
+
+    electrodes: ElectrodeAttributes | None = None
+    """The electrode positions the store's root declares, or None.
+
+    None means no attributes were read into this window: :func:`read_window` makes no
+    request for the store root, and :func:`~eegprep_lean.load_recording` does and sets this
+    to None for a store that declares no positions. :func:`~eegprep_lean.to_eeg` fills the
+    EEG dictionary's ``chanlocs`` from it.
     """
 
     @property

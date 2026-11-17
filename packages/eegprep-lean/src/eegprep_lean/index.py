@@ -149,6 +149,14 @@ class DatasetIndex:
                 return store
         raise IndexError_(f"no store for {path!r} in {self.dataset_id}")
 
+    def store_url(self, store: Store) -> str:
+        """The store's root directory, whose ``zarr.json`` carries attributes of the whole
+        recording, such as the electrode positions a dataset declares.
+
+        The parent of every channel group's directory. Built on ``contract_base``.
+        """
+        return f"{self.contract_base}{store.zarr}"
+
     def level0_url(self, store: Store, group: ChannelGroup | None = None) -> str:
         """The full-resolution array's URL, from ``layout.level0``.
 

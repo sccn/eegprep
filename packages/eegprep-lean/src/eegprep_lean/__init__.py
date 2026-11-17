@@ -30,6 +30,7 @@ import re
 import textwrap
 
 from .channels import Channel, GroupMetadata, read_group_metadata
+from .electrodes import ElectrodeAttributes, read_electrode_attributes
 from .extras import EXTRA_HINTS, EXTRA_ROOTS, is_missing_extra, missing_extra_error
 from .index import (
     SUPPORTED_FORMAT_VERSION,
@@ -187,6 +188,7 @@ __all__ = [
     "Channel",
     "ChannelGroup",
     "DatasetIndex",
+    "ElectrodeAttributes",
     "FetchTransport",
     "GroupMetadata",
     "IndexError_",
@@ -209,6 +211,7 @@ __all__ = [
     "missing_extra_error",
     "open_array",
     "plot_window",
+    "read_electrode_attributes",
     "read_group_metadata",
     "read_index",
     "read_window",

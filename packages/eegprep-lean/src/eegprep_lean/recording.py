@@ -23,9 +23,11 @@ recording was read against, so a result can say what it was computed from.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
 from typing import TYPE_CHECKING
 
+from .electrodes import read_electrode_attributes
 from .extras import is_missing_extra, missing_extra_error
 from .index import INDEX_URL_TEMPLATE, ChannelGroup, DatasetIndex, IndexError_, Store, read_index
 from .transport import Transport, default_transport
@@ -139,6 +141,8 @@ async def _load(
             f"{group.n_samples} samples, {needed} bytes at peak ({PEAK_BYTES_PER_SAMPLE} per "
             f"channel-sample), over max_bytes={max_bytes}"
         )
+    # Before the signal, so a store root that cannot be read fails before gigabytes are fetched.
+    electrodes = await read_electrode_attributes(index, store, transport=transport)
     window = await read_window(
         index,
         store,
@@ -157,7 +161,7 @@ async def _load(
             f"{window.data.shape[1]} samples, and its index says {expected[0]} by {expected[1]}. "
             "The store and its index disagree, which is a dataset reconverted since the index was read."
         )
-    return window
+    return dataclasses.replace(window, electrodes=electrodes)
 
 
 def load_recording(
@@ -171,6 +175,10 @@ def load_recording(
     index_url: str | None = None,
 ) -> Window:
     """Read one whole recording at level 0, in physical units, as a :class:`~eegprep_lean.Window`.
+
+    The window's :attr:`~eegprep_lean.Window.electrodes` holds the electrode positions the
+    store's root declares, read with one more small request (the store's ``zarr.json``), and
+    is None for a store that declares none.
 
     ``store`` is the recording's source path in the index, for example
     ``sub-01/eeg/sub-01_task-rest_eeg.set``. ``group`` names a channel group; left out, it
