@@ -18,4 +18,10 @@ duration column. Pass `timeunit` to override the timestamp unit. Simple event
 tables without a Presentation header continue to use `fields` and `timeunit`
 as accepted by `pop_importevent`.
 
+The menu selects a LOG file, then shows lists for event type, latency and
+duration columns. Its default type is `Event Type` (or `Code` when absent),
+latency is `Time`, and duration is `None`. Scripts use
+`pop_importpres(EEG, filename, gui=True)` to show the same lists. Accepted
+choices are recorded in history; Cancel leaves the dataset unchanged.
+
 See also: POP_IMPORTEVENT

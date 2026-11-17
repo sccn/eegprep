@@ -90,7 +90,7 @@ def menu_enabled(item: MenuItemSpec, statuses: set[str]) -> bool:
         return False
     if "chanloc_absent" in statuses and "chanloc:on" in userdata:
         return False
-    if "ica_absent" in statuses and "ica:on" in userdata:
+    if "ica_absent" in statuses and "ica:on" in userdata and item.origin not in {"ICLabel", "extension:ICLabel"}:
         return False
     if "roi_connect" in statuses and "roi:off" in userdata:
         return False

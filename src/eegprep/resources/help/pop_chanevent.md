@@ -19,3 +19,5 @@ event type; multivalued channels retain the value at each transition unless
 `nbtype` requests a named type.
 
 See also: POP_IMPORTEVENT
+
+Call `pop_chanevent(EEG)` for channel, transform, edge direction, transition length, duration, and deletion options. Channels are 1-based. Duration requires leading edges. Both events at a coincident rising/falling latency retain their own types. Supported transforms are comparisons such as `X>0` and `X<10`.

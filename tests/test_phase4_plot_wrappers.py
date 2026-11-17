@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 import scipy.io
 
+from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp
@@ -36,6 +37,7 @@ from eegprep.functions.popfunc.plot_utils import (
     component_activations,
     data_time_slice,
     parse_plot_options_text,
+    python_literal,
 )
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
@@ -320,7 +322,7 @@ def test_pop_headplot_setup_reuses_existing_spline_file(sample_eeg, tmp_path):
     )
 
     np.testing.assert_allclose(load_headplot_spline(splinefile).transform, original_transform)
-    assert "setup={" in command
+    assert "'setup', {" in command
     plt.close(figures[0])
 
 
@@ -405,11 +407,13 @@ def test_pop_headplot_gui_setup_result_is_replayable(sample_eeg, tmp_path):
     assert renderer.spec.title == "ERP head plot(s) -- pop_headplot()"
     assert (tmp_path / "gui.spl").exists()
     assert _current_spline_file(eeg, 1) == ""  # plot must not mutate the caller's EEG
-    assert "setup={" in command
-    assert "electrodes='off'" in command
+    assert "'setup', {" in command
+    assert "'electrodes', 'off'" in command
     _assert_python_command(command)
+    from eegprep.functions.adminfunc.console import _console_python_command
+
     replay_namespace = {"EEG": deepcopy(sample_eeg), "pop_headplot": pop_headplot}
-    exec(command, replay_namespace)
+    exec(_console_python_command(command), replay_namespace)
     plt.close(figures[0])
     plt.close("all")
 
@@ -625,7 +629,7 @@ def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_
 
     timtopo_fig, _ = pop_timtopo(sample_epoch, plottimes=[0], return_com=True)
     plottopo_fig, _ = pop_plottopo(sample_epoch, chans=[1, 2], return_com=True)
-    erpimage_result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    erpimage_result, _ = pop_erpimage(sample_epoch, 1, 1, return_com=True)
     prop_fig, _ = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
     topoplot_figs, _ = pop_topoplot(ica_epoch, typeplot=0, items=[1], colorbar="off", return_com=True)
     spectopo_result, _ = pop_spectopo(ica_epoch, dataflag=0, freqs=[10], return_com=True)
@@ -635,7 +639,7 @@ def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_
     expected = [
         timtopo_fig,
         plottopo_fig,
-        erpimage_result["figure"],
+        erpimage_result.figure,
         prop_fig,
         *topoplot_figs,
         spectopo_result["figure"],
@@ -815,8 +819,10 @@ def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
     assert len(figure.axes) >= 2
     _assert_python_command(command)
     plt.close(figure)
-    with pytest.raises(ValueError, match="one dataset"):
-        pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1])
+    compared, compared_command = pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1], return_com=True)
+    assert "EEG([" not in compared_command
+    _assert_python_command(compared_command)
+    plt.close(compared)
 
 
 def test_pop_envtopo_blank_gui_subcomps_removes_none(ica_epoch):
@@ -837,7 +843,7 @@ def test_pop_envtopo_blank_gui_subcomps_removes_none(ica_epoch):
     figure, command = pop_envtopo(ica_epoch, gui=True, renderer=Renderer(), return_com=True)
 
     assert isinstance(figure, Figure)
-    assert "subcomps=0" in command
+    assert "'subcomps', 0" in command
     assert "subcomps=[]" not in command
     _assert_python_command(command)
     plt.close(figure)
@@ -881,82 +887,12 @@ def test_pop_comperp_significance_shading_marks_known_effect(sample_epoch):
     plt.close(result["figure"])
 
 
-def test_pop_erpimage_applies_time_limits_and_decimation(sample_epoch):
-    result, command = pop_erpimage(
-        sample_epoch,
-        typeplot=1,
-        index=1,
-        limits=[-50, 100],
-        decimate=2,
-        caxis=[-1, 1],
-        cbar=False,
-        return_com=True,
-    )
-
-    expected_samples = np.count_nonzero((sample_epoch["times"] >= -50) & (sample_epoch["times"] <= 100))
-    assert result["image"].shape[1] == expected_samples
-    assert result["image"].shape[0] == int(np.ceil(sample_epoch["trials"] / 2))
-    assert "limits=[-50, 100]" in command
-    _assert_python_command(command)
-    plt.close(result["figure"])
-
-
-def test_pop_erpimage_default_caxis_is_symmetric(sample_epoch):
-    """With no caxis, the color axis is symmetric about 0 (EEGLAB erpimage default)."""
-    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
-    image_ax = next(ax for ax in result["figure"].axes if ax.images)
-    vmin, vmax = image_ax.images[0].get_clim()
-    assert vmax > 0
-    assert vmin == pytest.approx(-vmax)
-    assert vmax == pytest.approx(float(np.nanmax(np.abs(result["image"]))))
-    plt.close(result["figure"])
-
-
-def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
-    eeg = deepcopy(sample_epoch)
-    eeg["data"] = np.asarray(
-        [
-            [
-                [1.0, 2.0, 3.0],
-                [1.0, 2.0, 3.0],
-                [1.0, 2.0, 3.0],
-                [1.0, 2.0, 3.0],
-            ]
-        ]
-    )
-    eeg["nbchan"] = 1
-    eeg["pnts"] = 4
-    eeg["trials"] = 3
-    eeg["srate"] = 100.0
-    eeg["xmin"] = 0.0
-    eeg["xmax"] = 0.03
-    eeg["times"] = np.asarray([0.0, 10.0, 20.0, 30.0])
-    eeg["event"] = [
-        {"type": "rt", "latency": 2, "epoch": 1, "rt": 30},
-        {"type": "rt", "latency": 6, "epoch": 2, "rt": 10},
-        {"type": "rt", "latency": 10, "epoch": 3, "rt": 20},
-    ]
-
-    result, command = pop_erpimage(
-        eeg,
-        typeplot=1,
-        index=1,
-        sortingeventfield="rt",
-        sortingtype=["rt"],
-        sortingwin=[0, 20],
-        return_com=True,
-    )
-    unsorted, _command = pop_erpimage(eeg, typeplot=1, index=1, sort_values=[30, 10, 20], nosort=True, return_com=True)
-
-    np.testing.assert_allclose(result["image"][:, 0], [2, 3, 1])
-    np.testing.assert_allclose(unsorted["image"][:, 0], [1, 2, 3])
-    assert "sortingeventfield='rt'" in command
-    _assert_python_command(command)
-    plt.close(result["figure"])
-    plt.close(unsorted["figure"])
-
-    with pytest.raises(ValueError, match="standalone ERP image"):
-        pop_erpimage(eeg, typeplot=1, index=1, align=[0])
+def test_python_literal_writes_numpy_values_as_plain_literals():
+    values = [np.str_("rt"), np.int64(3), np.float32(0.5), np.bool_(True), np.float64(np.nan)]
+    assert python_literal(values) == "['rt', 3, 0.5, True, float('nan')]"
+    location = {"labels": np.str_("Fz"), "theta": np.float64(-20.0), "radius": np.array([0.25])}
+    assert python_literal(location) == "{'labels': 'Fz', 'theta': -20, 'radius': [0.25]}"
+    assert python_literal(("x",)) == "('x',)"
 
 
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
@@ -983,13 +919,24 @@ def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
         return_com=True,
     )
 
-    assert "timerange=[-50, 100]" in timtopo_command
-    assert "winsize=[10]" in timtopo_command
-    assert "title='custom timtopo'" in timtopo_command
-    assert "timerange=[-50, 100]" in plottopo_command
-    assert "title='custom plottopo'" in plottopo_command
-    assert "components=[1]" in envtopo_command
-    assert "title='custom envtopo'" in envtopo_command
+    assert "figure; pop_timtopo(EEG, [-50 100], [0], 'custom timtopo'" in timtopo_command
+    assert "'winsize', [10]" in timtopo_command
+    replayed = eval(
+        _console_python_command(timtopo_command),
+        {"EEG": sample_epoch, "pop_timtopo": pop_timtopo},
+    )
+    map_titles = [
+        axis.get_title().strip()
+        for axis in replayed.axes
+        if axis.get_title().strip() and axis.get_title().strip() != "custom timtopo"
+    ]
+    assert map_titles == ["0"]
+    plt.close(replayed)
+    assert "figure; pop_plottopo(EEG, [1], '', 0" in plottopo_command
+    assert "'timerange', [-50 100]" in plottopo_command
+    assert "'title', 'custom plottopo'" in plottopo_command
+    assert "'components', [1]" in envtopo_command
+    assert "'title', 'custom envtopo'" in envtopo_command
     for command in (timtopo_command, plottopo_command, envtopo_command):
         _assert_python_command(command)
     plt.close(timtopo_fig)
@@ -1029,7 +976,7 @@ def test_timtopo_mixed_nan_plottimes_fills_slot_with_auto_latency(sample_epoch):
 
 
 def _assert_python_command(command: str) -> None:
-    ast.parse(command)
+    ast.parse(_console_python_command(command))
 
 
 def test_component_activations_dedup_contract():
@@ -1064,6 +1011,17 @@ def test_component_activations_dedup_contract():
     # Rejection ignores the stored icaact; the default plotting path trusts it.
     assert not np.allclose(rejection_activations(eeg), stored)
     assert np.allclose(component_activations(eeg), stored)
+
+
+def test_headplot_dialog_latency_range_rounds_halves_away_from_zero():
+    eeg = {
+        "xmin": 0.0005,
+        "xmax": 1.0005,
+        "chanlocs": [{"labels": "Cz", "theta": 0.0, "radius": 0.5}],
+        "nbchan": 1,
+    }
+    texts = [control.string for control in pop_headplot_dialog_spec(eeg).controls]
+    assert any("from 1 to 1001 ms" in text for text in texts)
 
 
 def _matlab_string(path: Any) -> str:

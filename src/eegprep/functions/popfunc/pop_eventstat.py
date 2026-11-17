@@ -10,7 +10,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import history_command, numeric_vector, show_figures
 from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
-from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
+from eegprep.functions.popfunc.eeg_getepochevent import eeg_getepochevent
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 
 
@@ -83,23 +83,24 @@ def pop_eventstat_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
 
 
 def event_values(EEG: dict[str, Any], eventfield: str, *, type: Any = None, latrange: Any = None) -> np.ndarray:
-    """Extract numeric event-field values using EEGLAB-style filters."""
-    requested_types = _type_set(type)
-    lat_bounds = numeric_vector(latrange)
+    """Extract numeric event-field values using EEGLAB-style filters.
+
+    Latency and duration come back in milliseconds, the same conversion
+    ``eeg_getepochevent`` applies.
+    """
+    requested_types = [] if _is_empty(type) else list(_type_set(type))
+    bounds = numeric_vector(latrange)
+    timewin = bounds.tolist() if bounds.size == 2 else [-np.inf, np.inf]
+    _epoch_values, grouped = eeg_getepochevent(EEG, requested_types, timewin, eventfield)
     values = []
-    for event in _event_list(EEG.get("event", [])):
-        if requested_types and str(event.get("type", "")) not in requested_types:
-            continue
-        if lat_bounds.size == 2 and not _event_in_latency_range(EEG, event, lat_bounds):
-            continue
-        if eventfield not in event:
-            continue
-        try:
-            value = float(np.asarray(event[eventfield]).squeeze())
-        except (TypeError, ValueError):
-            continue
-        if np.isfinite(value):
-            values.append(value)
+    for group in grouped:
+        for item in group:
+            try:
+                number = float(np.asarray(item).squeeze())
+            except (TypeError, ValueError):
+                continue
+            if np.isfinite(number):
+                values.append(number)
     return np.asarray(values, dtype=float)
 
 
@@ -113,16 +114,6 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
         "latrange": numeric_vector(result.get("latrange", [])).tolist(),
         "percent": float(numeric_vector(result.get("percent", 5))[0]),
     }
-
-
-def _event_list(events: Any) -> list[dict[str, Any]]:
-    if events is None:
-        return []
-    if isinstance(events, np.ndarray):
-        events = events.ravel().tolist()
-    if isinstance(events, dict):
-        return [events]
-    return [event for event in events if isinstance(event, dict)]
 
 
 def _type_set(value: Any) -> set[str]:
@@ -140,27 +131,6 @@ def _parse_type_text(value: Any) -> Any:
     if not text:
         return []
     return sorted(_type_set(text))
-
-
-def _event_in_latency_range(EEG: dict[str, Any], event: dict[str, Any], bounds: np.ndarray) -> bool:
-    try:
-        latency = float(np.asarray(event.get("latency")).squeeze())
-    except (TypeError, ValueError):
-        return False
-    try:
-        epoch = float(np.asarray(event.get("epoch", 1)).squeeze())
-    except (TypeError, ValueError):
-        epoch = 1.0
-    latency_ms = float(
-        eeg_point2lat(
-            [latency],
-            [epoch],
-            float(EEG.get("srate", 1) or 1),
-            [float(EEG.get("xmin", 0) or 0) * 1000.0, float(EEG.get("xmax", 0) or 0) * 1000.0],
-            1e-3,
-        )[0]
-    )
-    return bool(bounds[0] <= latency_ms <= bounds[1])
 
 
 __all__ = ["event_values", "pop_eventstat", "pop_eventstat_dialog_spec"]

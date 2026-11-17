@@ -1,11 +1,14 @@
 """Quantize the ICLabel network to int8 and check it against the frozen gate.
 
 This developer-only tool turns the float32 ONNX export of ``netICL.mat`` into
-the packaged ``src/eegprep/plugins/ICLabel/iclabel.onnx``. Only Conv weights
-are quantized (int8 per output channel, with a float ``DequantizeLinear``
-before each Conv), so the model inputs, outputs, and softmax stay float32.
-Feature extraction, float32 casting, the four-way augmentation, and the
-averaging of augmented outputs run outside the network and are unchanged.
+the packaged ``src/eegprep/plugins/ICLabel/iclabel_int8.onnx``, the network the
+browser loads. The float32 export itself is the packaged ``iclabel.onnx``, which
+every native backend loads; this tool uses it as the gate's teacher and never
+changes it. Only Conv weights are quantized (int8 per output channel, with a
+float ``DequantizeLinear`` before each Conv), so the model inputs, outputs, and
+softmax stay float32. Feature extraction, float32 casting, the four-way
+augmentation, and the averaging of augmented outputs run outside the network
+and are unchanged.
 
 The gate compares the quantized model with frozen float32 "teacher"
 probabilities, the outputs of the unquantized network, on the 217 evaluation
@@ -14,7 +17,7 @@ most probable class agrees for at least 95% of components, the keep-or-reject
 decision under the default ``pop_icflag`` thresholds agrees for at least 99%,
 and no class probability moves by more than 0.015.
 
-Regenerate the packaged model after changing ``netICL.mat``,
+Regenerate the packaged models after changing ``netICL.mat``,
 ``iclabel_net.py``, or this script, from the repository root::
 
     uv sync --group dev --extra torch --extra iclabel
@@ -22,21 +25,23 @@ Regenerate the packaged model after changing ``netICL.mat``,
         --onnx-path build/iclabel/iclabel_float32.onnx
     uv run --no-sync python tools/iclabel/quantize_iclabel_onnx.py \\
         --float32-artifact build/iclabel/iclabel_float32.onnx \\
-        --output build/iclabel/iclabel.onnx \\
+        --output build/iclabel/iclabel_int8.onnx \\
         --report tools/iclabel/parity_report.json
-    cp build/iclabel/iclabel.onnx src/eegprep/plugins/ICLabel/iclabel.onnx
+    cp build/iclabel/iclabel_float32.onnx src/eegprep/plugins/ICLabel/iclabel.onnx
+    cp build/iclabel/iclabel_int8.onnx src/eegprep/plugins/ICLabel/iclabel_int8.onnx
 
-Then commit ``iclabel.onnx`` and ``parity_report.json`` together: the tests
-and the release workflow require the packaged model's SHA-256 to equal the
-one in the report. The quantize step exits nonzero, without writing the
-report, when the gate fails. If ``netICL.mat`` itself changes, first refreeze
-the teacher with :func:`write_teacher_probabilities` (the command is recorded
-in ``evaluation_manifest.json``) and update the SHA-256 recorded there.
+Then commit both models and ``parity_report.json`` together: the tests and
+the release workflow require the int8 model's SHA-256 to equal the one in the
+report. The quantize step exits nonzero, without writing the report, when
+the gate fails. If ``netICL.mat`` itself changes, first refreeze the teacher
+with :func:`write_teacher_probabilities` (the command is recorded in
+``evaluation_manifest.json``) and update the SHA-256 recorded there.
 
 CI runs the export and quantize steps into a temporary directory with
-``--require-identical-to src/eegprep/plugins/ICLabel/iclabel.onnx`` and
+``--require-float32-close-to src/eegprep/plugins/ICLabel/iclabel.onnx``,
+``--require-identical-to src/eegprep/plugins/ICLabel/iclabel_int8.onnx`` and
 ``--require-matching-report tools/iclabel/parity_report.json``, so the
-committed model and the gate numbers in the committed report are reproduced
+committed models and the gate numbers in the committed report are reproduced
 from ``netICL.mat`` on every run.
 """
 
@@ -61,7 +66,8 @@ MIN_TOP1_AGREEMENT = 0.95
 MIN_KEEP_REJECT_AGREEMENT = 0.99
 MAX_PROBABILITY_ABS_DIFF = 0.015
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-PACKAGED_MODEL = _REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
+PACKAGED_FLOAT32_MODEL = _REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
+PACKAGED_MODEL = _REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
 DEFAULT_FROZEN_MANIFEST = Path(__file__).with_name("evaluation_manifest.json")
 DEFAULT_EVALUATION_FEATURES = Path(__file__).with_name("evaluation_features.npz")
 DEFAULT_TEACHER_PROBABILITIES = Path(__file__).with_name("evaluation_teacher_probabilities.npy")
@@ -74,6 +80,10 @@ _HASH_CHUNK_SIZE = 1024 * 1024
 # threshold, so they must match exactly.
 _DRIFT_METRICS = ("max_probability_abs_diff", "mean_probability_abs_diff")
 _DRIFT_METRIC_TOLERANCE = 1e-5
+# A fresh float32 export need not be byte-identical to the packaged one across PyTorch versions;
+# its raw network outputs on the evaluation features must agree to the cross-CPU float32 noise
+# above, which is also the atol the native ICLabel tests use against PyTorch and MATLAB.
+FLOAT32_REGENERATION_TOLERANCE = 1e-5
 
 
 def _sha256(path: Path) -> str:
@@ -427,6 +437,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="float32 ONNX export of netICL.mat written by export_iclabel_onnx.py",
     )
     parser.add_argument("--output", type=Path, required=True, help="where to write the int8 model")
+    parser.add_argument(
+        "--require-float32-close-to",
+        type=Path,
+        help=(
+            "fail unless the float32 artifact's raw outputs on the evaluation features are within "
+            f"{FLOAT32_REGENERATION_TOLERANCE} of this model's (the packaged iclabel.onnx)"
+        ),
+    )
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT, help="parity report, written only on success")
     parser.add_argument(
         "--require-identical-to",
@@ -439,6 +457,21 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="fail unless the new report's gate and metrics match this committed report",
     )
     args = parser.parse_args(argv)
+
+    if args.require_float32_close_to is not None:
+        features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, load_frozen_manifest())
+        difference = float(
+            np.max(
+                np.abs(
+                    run_network(args.float32_artifact, features) - run_network(args.require_float32_close_to, features)
+                )
+            )
+        )
+        if not difference <= FLOAT32_REGENERATION_TOLERANCE:
+            raise SystemExit(
+                f"ICLabel float32 export {args.float32_artifact} differs from {args.require_float32_close_to} "
+                f"by {difference:.3e} on the evaluation features; the limit is {FLOAT32_REGENERATION_TOLERANCE}"
+            )
 
     model = quantize_weight_only(args.float32_artifact, args.output)
     report = evaluate_model(model)

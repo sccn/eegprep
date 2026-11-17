@@ -37,6 +37,41 @@ The default GUI offers runica, robust runica, AMICA, and Picard choices.
 Standalone AMICA requires an AMICA executable configured outside the Python
 package.
 
+AMICA input uses a channels-by-frames matrix. EEGPrep writes its binary input
+as little-endian float32 values, with all channels of each frame together,
+matching MATLAB's ``runamica15``. Versions affected by `issue #435
+<https://github.com/sccn/eegprep/issues/435>`_ wrote entire channels consecutively,
+scrambling the samples read by AMICA. Recompute affected AMICA decompositions
+and downstream component labels and rejection decisions from the original data.
+
+pAMICA runs AMICA in Python with PyTorch, so it needs no executable.
+Install it with ``pip install "eegprep[pamica]"``, then call:
+
+.. code-block:: python
+
+   EEG = pop_runica(EEG, icatype="pamica", gui=False, max_iter=2000)
+
+The decomposition is computed by the ``pamica`` package, through its ``pamica.AMICA(backend='torch').fit`` pipeline, and not by EEGLAB's AMICA binary.
+It runs in float64 on the CPU with one thread and ``seed=5489``.
+Reproducibility is pamica's promise: the same seed, data, settings, and pamica and torch versions give bit-identical weights in float64 on the CPU with one thread, on one machine.
+EEGPrep's tests check this on one host, by repeating a run and by replaying a run from its record.
+Another platform, another torch version, a GPU, or more threads is not covered by that check.
+The settings that reproduce a run are the ones recorded in ``EEG["etc"]["pamica"]``.
+A setting you do not pass takes eegprep's ``runamica15`` default, such as ``lrate=0.05`` and ``do_newton=True``.
+These defaults follow eegprep's own table (``_AMICA_DEFAULTS``), which differs from EEGLAB's ``runamica15.m`` in places.
+The exception is ``block_size``, which is pAMICA's own 131072, because the 128 of ``runamica15`` is the block each thread of the Fortran program processes.
+Pass ``pcakeep`` to keep fewer components than channels.
+``icaweights @ icasphere`` is the unmixing pAMICA applies.
+``pop_runica`` sorts components by variance by default, as it does for the other engines; ``reorder="off"`` keeps pAMICA's order, which ``eeg_pamica`` called directly keeps by default.
+``EEG["etc"]["pamica"]`` records the pamica and torch versions, the pamica ``backend`` class and ``pipeline`` that produced the decomposition, the device, the seed, the settings used, the rank that ran, the iteration count, the stop reason, and ``did_converge``.
+``did_converge`` is false when pAMICA used all ``max_iter`` iterations without meeting a convergence check.
+If pAMICA ends on a non-finite value, ``pop_runica`` raises ``PamicaFitError`` (from ``eegprep.functions.popfunc.eeg_pamica``) and leaves the ICA fields unset.
+The ICA dialog does not list pAMICA yet, so choose it from the command line or the console.
+
+EEGPrep's test suite also compares a pAMICA decomposition of ``sample_data/eeglab_data.set`` with one from EEGLAB's ``runamica15`` binary, and prints the Hungarian-matched correlations of the unmixing rows and their Amari distance.
+That comparison is informational.
+The binary seeds its random start from the clock, so the numbers depend on that start: two runs of the same code gave a minimum matched correlation of 0.9966 and of 0.5339.
+
 Picard accepts EEGLAB's PCA option through ``options``. A positive value is the
 requested component count; a negative value subtracts dimensions from the
 selected channel count. For example, ``options={"pca": -1}`` computes one
@@ -50,6 +85,13 @@ random starting point, call ``eeg_picard(EEG, random_state=42)`` or pass
 An explicit ``w_init`` matrix takes precedence over the seed. Passing
 ``random_state=None`` explicitly uses NumPy's global random state, as in
 Python Picard. Different starts can converge to equivalent ICA solutions.
+
+``eeg_picard`` and ``eeg_runica`` then scale each component so the RMS of its
+mixing column is 1, matching EEGLAB ``eeg_checkset`` with
+``option_scaleicarms`` on. The unscaled weights and sphere are stored in
+``EEG["etc"]["icaweights_beforerms"]`` and
+``EEG["etc"]["icasphere_beforerms"]``. ICLabel uses those scaled activations
+and topographies, so label probabilities change if the scale is skipped.
 
 ICLabel Workflow
 ================
@@ -155,11 +197,29 @@ Network Availability
 ====================
 
 The standalone Python engine ships one ICLabel network, the EEGLAB ``default``
-network, as ``iclabel.onnx`` (2,932,897 bytes) and classifies components with
-``onnxruntime``. Install the ``iclabel`` extra (``eegprep[iclabel]``) to run it.
-Feature extraction, the cast to float32, four-way augmentation, and the output
-softmax are unchanged; only the convolution weights are stored as 8-bit
-integers (weight-only quantization) to keep the file small.
+network, in two files, and classifies components with ``onnxruntime``. Install
+the ``iclabel`` extra (``eegprep[iclabel]``) to run it. Feature extraction, the
+cast to float32, four-way augmentation, and the output softmax are the same for
+both files.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 16 60
+
+   * - File
+     - Size
+     - What loads it
+   * - ``iclabel.onnx``
+     - 11.6 MB
+     - ``iclabel``, ``pop_iclabel``, and ``pop_iclabel_async`` on every native
+       platform. The weights are full-precision float32, so probabilities match
+       the PyTorch network of earlier releases to about 1e-6.
+   * - ``iclabel_int8.onnx``
+     - 2.9 MB
+     - The browser. The host page gives these bytes to ONNX Runtime Web, which
+       ``iclabel_async`` awaits under Pyodide. Only the convolution weights are
+       stored as 8-bit integers (weight-only quantization) to keep the download
+       small.
 
 EEGLAB ``lite`` and ``beta`` network artifacts are not bundled in the Python
 package; requesting them with ``engine=None`` raises a clear limitation. They
@@ -168,17 +228,25 @@ when that runtime has an EEGLAB ICLabel checkout with those artifacts.
 
 .. _iclabel_measured_agreement:
 
-Measured Agreement with the Full-Precision Network
---------------------------------------------------
+Measured Agreement of the Two Files
+-----------------------------------
 
-Quantization changes the class probabilities slightly. To measure how much,
-the full-precision (float32) network built from the same EEGLAB weights
-classified a frozen set of 217 independent components, one recording from each
-of seven subjects of the public OpenNeuro dataset ds002680, and its
-probabilities were stored once as reference values
-(``tools/iclabel/evaluation_teacher_probabilities.npy``). The committed manifest
-``tools/iclabel/evaluation_manifest.json`` records the recordings and the ICA
-settings. The shipped network passed all three acceptance criteria:
+The full-precision file matches the PyTorch network built from the same EEGLAB
+weights to float32 kernel noise. On the 217 evaluation components described
+below, the raw network outputs differ from PyTorch by at most 2.1e-06 and the
+averaged class probabilities by at most 1.2e-06, with the same top-1 class and
+keep-or-reject decision for every component
+(``tests/test_iclabel_quantization.py`` checks this against PyTorch whenever
+PyTorch is installed).
+
+Quantization changes the class probabilities of the 8-bit file slightly. To
+measure how much, the full-precision (float32) network classified a frozen set
+of 217 independent components, one recording from each of seven subjects of the
+public OpenNeuro dataset ds002680, and its probabilities were stored once as
+reference values (``tools/iclabel/evaluation_teacher_probabilities.npy``). The
+committed manifest ``tools/iclabel/evaluation_manifest.json`` records the
+recordings and the ICA settings. The 8-bit file passed all three acceptance
+criteria:
 
 .. list-table::
    :header-rows: 1
@@ -208,18 +276,19 @@ also quantized the activations (calibrated int8) was evaluated during developmen
 and exceeded the 0.015 probability criterion, so it was not shipped.
 
 The complete report is ``tools/iclabel/parity_report.json``. It records the
-SHA-256 of ``iclabel.onnx``, which the release workflow checks against the
-packaged file. Continuous integration also rebuilds the network from
-``netICL.mat`` and requires it to produce network outputs identical to the
-shipped file's on the evaluation components.
+SHA-256 of ``iclabel_int8.onnx``, which the release workflow checks against the
+packaged file. Continuous integration also rebuilds both networks from
+``netICL.mat``, requires the full-precision export to match the shipped
+``iclabel.onnx`` to 1e-5 and the 8-bit file to produce network outputs
+identical to the shipped ``iclabel_int8.onnx`` on the evaluation components.
 
 These are measured agreement results on one frozen set, not an accuracy claim.
 The set is dominated by one class: the full-precision network labels 193 of the
 217 components Other (and 18 Brain, 5 Eye, 1 Muscle), and Heart, Line Noise, and
 Channel Noise do not occur, so the agreement figures say nothing about those
-classes. Releases up to 0.4.0 classified with PyTorch, so probabilities can
-differ from those releases by up to about 0.0135 (the largest difference
-measured on this set).
+classes. Native results follow releases up to 0.4.0, which classified with
+PyTorch, to about 1e-6; results from the browser's 8-bit file can differ from
+them by up to about 0.0135 (the largest difference measured on this set).
 
 Developers who change ``netICL.mat`` or the quantization rebuild the packaged
-network with the ``torch`` extra; the procedure is in :ref:`releasing`.
+networks with the ``torch`` extra; the procedure is in :ref:`releasing`.

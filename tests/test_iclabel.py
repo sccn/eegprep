@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 import pytest
-from eegprep import ICL_feature_extractor, iclabel, pop_loadset
+from eegprep import ICL_feature_extractor, eeg_autocorr_fftw, eeg_autocorr_welch, eeg_rpsd, iclabel, pop_loadset
 from eegprep.utils.testing import has_optional_dependency
 
 from eegprep.plugins.ICLabel import iclabel_net_onnx_web
@@ -195,25 +195,14 @@ def test_eeglab_engines_are_unavailable_under_emscripten(sample_ica_eeg, emscrip
         emscripten_pop_module.pop_iclabel(None, engine=engine)
 
 
-# Shipped int8 model versus the float32 network on eeglab_data_with_ica_tmp.set
-# (32 components), measured with ONNX Runtime 1.30.0 and PyTorch 2.12.0: max abs diff 0.0079,
-# mean 0.00061, identical argmax and default pop_icflag decisions (closest top-two margin 0.019,
-# closest Eye probability 0.062 from its 0.9 threshold). The frozen quantization gate allows up to
-# 0.015 on its 217 evaluation components, so these bounds are tighter than the gate while leaving
-# far more room than the ~1e-6 float32 differences between CPUs.
-_INT8_MAX_ABS_DIFF = 1e-2
-_INT8_MEAN_ABS_DIFF = 1e-3
-
-
 def _rejection_flags(probabilities):
     labeled = {'etc': {'ic_classification': {'ICLabel': {'classifications': probabilities}}}}
     return eeg_icflag(labeled, DEFAULT_ICFLAG_THRESHOLDS)['reject']['gcompreject']
 
 
-def _assert_within_int8_drift(actual, reference):
-    difference = np.abs(actual - reference)
-    assert float(difference.max()) < _INT8_MAX_ABS_DIFF
-    assert float(difference.mean()) < _INT8_MEAN_ABS_DIFF
+def _assert_matches_float32_network(actual, reference):
+    """The native default is the float32 export of netICL.mat, so it follows PyTorch to float32 noise."""
+    np.testing.assert_allclose(actual, reference, rtol=1e-4, atol=1e-5)
     np.testing.assert_array_equal(actual.argmax(axis=1), reference.argmax(axis=1))
     np.testing.assert_array_equal(_rejection_flags(actual), _rejection_flags(reference))
 
@@ -270,22 +259,47 @@ class TestICLabelEngines(unittest.TestCase):
         print(f"Python autocorr max: {np.max(features_python[2]):.6f}, min: {np.min(features_python[2]):.6f}")
         print(f"{'=' * 60}\n")
 
-        # MATLAB runs the float32 network and iclabel() the shipped int8 one. MATLAB matched the
-        # Python float32 network within 3.37e-06 on this dataset, so the int8 drift bounds above
-        # still hold and the class and keep-or-reject decisions (margins 0.019 and 0.062) must agree.
+        EEG_python = iclabel(self.EEG, algorithm='default', engine=None)
         EEG_matlab = iclabel(self.EEG, algorithm='default', engine='matlab')
 
-        res1 = iclabel(self.EEG)['etc']['ic_classification']['ICLabel']['classifications']
-        res2 = EEG_matlab['etc']['ic_classification']['ICLabel']['classifications']
+        res1 = EEG_python['etc']['ic_classification']['ICLabel']['classifications'].flatten()
+        res2 = EEG_matlab['etc']['ic_classification']['ICLabel']['classifications'].flatten()
 
-        difference = np.abs(res1 - res2)
-        print(f"\nPython int8 versus MATLAB: max abs diff {difference.max():.2e}, mean {difference.mean():.2e}")
-        _assert_within_int8_drift(res1, res2)
+        # Diagnostic output
+        print(f"\n{'=' * 60}")
+        print("DIAGNOSTIC OUTPUT")
+        print(f"{'=' * 60}")
+        print(f"Python result dtype: {res1.dtype}")
+        print(f"MATLAB result dtype: {res2.dtype}")
+        print(f"Python result shape: {res1.shape}")
+        print(f"MATLAB result shape: {res2.shape}")
+        print(f"\nMax absolute difference: {np.max(np.abs(res1 - res2)):.2e}")
+        print(f"Mean absolute difference: {np.mean(np.abs(res1 - res2)):.2e}")
+        print(f"Max relative difference: {np.max(np.abs(res1 - res2) / (np.abs(res2) + 1e-10)):.2e}")
+        print(f"Mean relative difference: {np.mean(np.abs(res1 - res2) / (np.abs(res2) + 1e-10)):.2e}")
+        print(f"\nPython results (first 20 values):\n{res1[:20]}")
+        print(f"\nMATLAB results (first 20 values):\n{res2[:20]}")
+        print(f"\nDifferences (first 20 values):\n{(res1 - res2)[:20]}")
+        print(f"\nRelative differences (first 20 values):\n{((res1 - res2) / (res2 + 1e-10))[:20]}")
+
+        # Count how many values exceed tolerances
+        abs_diffs = np.abs(res1 - res2)
+        rel_diffs = np.abs(res1 - res2) / (np.abs(res2) + 1e-10)
+        exceeds_abs = abs_diffs > 1e-8
+        exceeds_rel = rel_diffs > 1e-5
+        exceeds_both = exceeds_abs & exceeds_rel
+        print(f"\nValues exceeding absolute tolerance (1e-8): {np.sum(exceeds_abs)}/{len(res1)}")
+        print(f"Values exceeding relative tolerance (1e-5): {np.sum(exceeds_rel)}/{len(res1)}")
+        print(f"Values exceeding BOTH tolerances: {np.sum(exceeds_both)}/{len(res1)}")
+        print(f"{'=' * 60}\n")
+
+        # Max abs diff: 3.37e-06, Max rel diff: 4.25e-05
+        self.assertTrue(np.allclose(res1, res2, rtol=1e-4, atol=1e-5), 'ICLabel results differ beyond tolerance')
 
 
 @unittest.skipUnless(has_optional_dependency('onnxruntime'), "install eegprep[iclabel] to run ICLabel runtime coverage")
 class TestICLabelRuntime(unittest.TestCase):
-    def test_default_entry_point_stays_within_int8_drift_of_the_float32_network(self):
+    def test_default_entry_point_matches_the_float32_network_from_netICL(self):
         if not has_optional_dependency('torch'):
             self.skipTest("install eegprep[torch] to rebuild the float32 ICLabel network from netICL.mat")
         eeg = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
@@ -295,7 +309,26 @@ class TestICLabelRuntime(unittest.TestCase):
 
         self.assertEqual(classifications.shape, (32, 7))
         self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
-        _assert_within_int8_drift(classifications, _float32_classifications(eeg))
+        _assert_matches_float32_network(classifications, _float32_classifications(eeg))
+
+
+def test_continuous_icaact_without_a_trial_axis_matches_a_singleton_trial():
+    rng = np.random.default_rng(0)
+    pnts = 256
+    activations = rng.standard_normal((3, pnts)).astype(np.float32)
+    eeg = {
+        "srate": 128,
+        "pnts": pnts,
+        "trials": 1,
+        "icaweights": np.eye(3),
+        "icaact": activations,
+    }
+    with_trial = dict(eeg)
+    with_trial["icaact"] = activations[:, :, None]
+
+    np.testing.assert_array_equal(eeg_rpsd(eeg, nfreqs=8), eeg_rpsd(with_trial, nfreqs=8))
+    np.testing.assert_array_equal(eeg_autocorr_welch(eeg), eeg_autocorr_welch(with_trial))
+    np.testing.assert_array_equal(eeg_autocorr_fftw(eeg), eeg_autocorr_fftw(with_trial))
 
 
 if __name__ == '__main__':

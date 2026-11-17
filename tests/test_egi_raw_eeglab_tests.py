@@ -160,7 +160,7 @@ def test_pop_readegi_builds_an_epoched_dataset_with_events_and_categories(tmp_pa
     assert eeg["xmax"] == pytest.approx(3 / 250)
     np.testing.assert_allclose(eeg["times"], [0, 4, 8, 12])
     assert [event["type"] for event in eeg["event"]] == ["stim", "stim"]
-    assert [event["latency"] for event in eeg["event"]] == [3, 7]
+    assert [event["latency"] for event in eeg["event"]] == [2, 6]
     assert [event["epoch"] for event in eeg["event"]] == [1, 2]
     assert [event["category"] for event in eeg["event"]] == ["Eyes open", "Eyes closed"]
     assert [event["urevent"] for event in eeg["event"]] == [0, 1]
@@ -187,7 +187,7 @@ def test_pop_readsegegi_joins_the_numbered_continuous_series_with_valid_metadata
     assert eeg["trials"] == 1
     assert eeg["xmax"] == pytest.approx(8 / 250)
     assert [event["type"] for event in eeg["event"]] == ["stim", "stim"]
-    assert [event["latency"] for event in eeg["event"]] == [3, 7]
+    assert [event["latency"] for event in eeg["event"]] == [2, 6]
     assert "TEST_001.RAW" in eeg["comments"]
     assert "TEST_002.RAW" in eeg["comments"]
     assert command == f"EEG = pop_readsegegi('{second.as_posix()}');"
@@ -238,7 +238,7 @@ def test_readegi_supports_every_continuous_sample_encoding(tmp_path: Path, versi
 
     assert header["version"] == version
     np.testing.assert_allclose(actual, values, rtol=1e-6)
-    assert event_data.shape == (0, 3)
+    assert event_data.shape == (0, 0)
     assert categories.size == 0
 
 
@@ -286,14 +286,112 @@ def test_pop_readegi_creates_time_locking_events_when_segment_event_channels_are
     assert [event["category"] for event in eeg["event"]] == ["Eyes closed", "Eyes open"]
 
 
-def test_pop_readegi_places_leading_edges_on_the_first_nonzero_sample(tmp_path: Path) -> None:
+def test_pop_readegi_places_leading_edges_on_the_sample_before_the_new_level(tmp_path: Path) -> None:
     filename = tmp_path / "leading-edge.raw"
     events = np.array([[4, 0, 0, 7, 0]], dtype=float)
     _write_egi_raw(filename, 2, np.ones((2, 5)), events=events, event_codes=("stim",))
 
     eeg = pop_readegi(filename, fileloc="")
 
-    assert [event["latency"] for event in eeg["event"]] == [1, 4]
+    assert [event["type"] for event in eeg["event"]] == ["stim"]
+    assert [event["latency"] for event in eeg["event"]] == [3]
+
+
+def test_pop_readegi_turns_every_epoc_pause_into_a_boundary(tmp_path: Path) -> None:
+    single = tmp_path / "one-pause.raw"
+    one_pause = np.zeros((1, 60))
+    one_pause[0, 10] = 1
+    _write_egi_raw(single, 2, np.ones((2, 60)), events=one_pause, event_codes=("epoc",))
+
+    one = pop_readegi(single, fileloc="")
+
+    assert [(event["type"], event["latency"]) for event in one["event"]] == [("boundary", 10)]
+    assert one["data"].shape == (2, 60)
+    assert one["trials"] == 1
+    assert one["pnts"] == 60
+
+    double = tmp_path / "two-pauses.raw"
+    two_pauses = np.zeros((1, 60))
+    two_pauses[0, [10, 30]] = 1
+    _write_egi_raw(double, 2, np.ones((2, 60)), events=two_pauses, event_codes=("epoc",))
+
+    both = pop_readegi(double, fileloc="")
+
+    assert [(event["type"], event["latency"]) for event in both["event"]] == [("boundary", 10), ("boundary", 30)]
+    assert both["data"].shape == (2, 60)
+    assert both["trials"] == 1
+    assert both["pnts"] == 60
+
+
+def test_pop_readegi_splits_epoc_and_tim0_when_the_length_divides(tmp_path: Path) -> None:
+    signals = np.arange(120, dtype=float).reshape(2, 60)
+    events = np.zeros((3, 60))
+    events[0, 8] = 1
+    events[1, [20, 40]] = 1
+    events[2, [5, 25, 45]] = 1
+    filename = tmp_path / "epochs.raw"
+    _write_egi_raw(filename, 2, signals, events=events, event_codes=("stim", "epoc", "tim0"))
+
+    eeg = pop_readegi(filename, fileloc="")
+
+    assert eeg["data"].shape == (2, 20, 3)
+    assert eeg["trials"] == 3
+    assert eeg["pnts"] == 20
+    np.testing.assert_array_equal(eeg["data"][:, :, 0], signals[:, 0:20])
+    np.testing.assert_array_equal(eeg["data"][:, :, 1], signals[:, 20:40])
+    np.testing.assert_array_equal(eeg["data"][:, :, 2], signals[:, 40:60])
+    assert [(event["type"], event["latency"], event["epoch"]) for event in eeg["event"]] == [
+        ("tim0", 5, 1),
+        ("stim", 8, 1),
+        ("tim0", 25, 2),
+        ("tim0", 45, 3),
+    ]
+
+
+def test_pop_readegi_keeps_uneven_epoc_pauses_continuous_when_the_length_divides(tmp_path: Path) -> None:
+    signals = np.arange(120, dtype=float).reshape(2, 60)
+    events = np.zeros((2, 60))
+    events[0, [10, 30]] = 1
+    events[1, 5] = 1
+    filename = tmp_path / "uneven.raw"
+    _write_egi_raw(filename, 2, signals, events=events, event_codes=("epoc", "tim0"))
+
+    eeg = pop_readegi(filename, fileloc="")
+
+    assert eeg["data"].shape == (2, 60)
+    assert eeg["trials"] == 1
+    assert eeg["pnts"] == 60
+    np.testing.assert_array_equal(eeg["data"], signals)
+    assert [(event["type"], event["latency"]) for event in eeg["event"]] == [
+        ("tim0", 5),
+        ("epoc", 10),
+        ("epoc", 30),
+    ]
+    assert all("epoch" not in event for event in eeg["event"])
+
+
+def test_pop_readegi_keeps_epoc_and_tim0_continuous_when_the_length_does_not_divide(tmp_path: Path) -> None:
+    signals = np.arange(122, dtype=float).reshape(2, 61)
+    events = np.zeros((2, 61))
+    events[0, [20, 40]] = 1
+    events[1, [5, 25, 45]] = 1
+    filename = tmp_path / "odd.raw"
+    _write_egi_raw(filename, 2, signals, events=events, event_codes=("epoc", "tim0"))
+
+    eeg = pop_readegi(filename, fileloc="")
+
+    assert eeg["data"].shape == (2, 61)
+    assert eeg["trials"] == 1
+    assert eeg["pnts"] == 61
+    np.testing.assert_array_equal(eeg["data"], signals)
+    assert [(event["type"], event["latency"]) for event in eeg["event"]] == [
+        ("tim0", 5),
+        ("epoc", 20),
+        ("tim0", 25),
+        ("epoc", 40),
+        ("tim0", 45),
+    ]
+    assert all("epoch" not in event for event in eeg["event"])
 
 
 def test_pop_readegi_removes_an_empty_trailing_reference_channel(tmp_path: Path) -> None:

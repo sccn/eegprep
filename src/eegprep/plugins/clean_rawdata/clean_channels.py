@@ -51,9 +51,10 @@ def clean_channels(
       num_samples: Number of samples generated for a RANSAC reconstruction. This is the
         number of samples to generate in the random sampling consensus process. The larger
         this value, the more robust but also slower the processing will be.
-      subset_size: Subset size. This is the size of the channel subsets to use
-        for robust reconstruction,  as a number or fraction of the total number
-        of channels.
+      subset_size: Subset size as a fraction of the channel count.
+        ``round(subset_size * nbchan)`` channels are drawn, including when
+        ``subset_size`` is greater than or equal to 1. A count larger than
+        the number of channels raises ``ValueError``.
 
     Returns
     -------
@@ -66,10 +67,11 @@ def clean_channels(
     if chanlocs is None or len(chanlocs) == 0:
         raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
 
-    if subset_size >= 1:
-        subset_size = int(subset_size)
-    else:
-        subset_size = int(round_mat(C * subset_size))
+    subset_size = int(round_mat(C * float(subset_size)))
+    # randsample in clean_channels.m indexes the channel pool. A request
+    # longer than that pool has no in-range index.
+    if subset_size > C:
+        raise ValueError(f"subset_size rounds to {subset_size} channels, which is more than the {C} channels available")
     if max_broken_time < 1:
         max_broken_time = S * max_broken_time
     else:

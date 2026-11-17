@@ -1,16 +1,32 @@
-"""Non-browser rejection mark manager."""
+"""Calculate, inspect, and combine epoch rejection marks."""
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc._rejection import copy_eeg
+from eegprep.functions.popfunc._eegplot_rejection import DEFAULT_REJECTION_COLORS, open_epoched_rejection_browser
+from eegprep.functions.popfunc._rejection import copy_eeg, parse_numeric_sequence, rejection_data
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
+from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
+from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
+from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
+from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
+from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
+
+
+_METHODS = {
+    "thresh": (pop_eegthresh, "rejthresh", "threshtrial"),
+    "const": (pop_rejtrend, "rejconst", "consttrial"),
+    "ent": (pop_jointprob, "rejjp", "enttrial"),
+    "kurt": (pop_rejkurt, "rejkurt", "kurttrial"),
+    "freq": (pop_rejspec, "rejfreq", "freqtrial"),
+}
 
 
 def pop_rejmenu(
@@ -21,15 +37,16 @@ def pop_rejmenu(
     renderer: Any | None = None,
     return_com: bool = False,
 ):
-    """Open a compact rejection menu that combines stored non-browser marks."""
+    """Calculate and review data or ICA epoch marks before combining them."""
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
         gui = True
     source = EEG
+    commands: list[str] = []
     if gui:
         source = copy_eeg(EEG)
-        result = inputgui(pop_rejmenu_dialog_spec(source, icacomp), renderer=renderer)
+        result = inputgui(pop_rejmenu_dialog_spec(source, icacomp, commands=commands), renderer=renderer)
         if result is None:
             return (EEG, "") if return_com else EEG
         flags = [
@@ -40,14 +57,19 @@ def pop_rejmenu(
         flags = [1, 1, 1, 1, 1, 1, 1]
         reject = 0
     out, command = eeg_rejsuperpose(source, icacomp, *flags, return_com=True)
+    commands.append(command)
     if reject and np.asarray((out.get("reject") or {}).get("rejglobal", [])).any():
         out, reject_command = pop_rejepoch(out, out["reject"]["rejglobal"], 0, return_com=True)
-        command = f"{command} {reject_command}"
-    return (out, command) if return_com else out
+        commands.append(reject_command)
+    return (out, " ".join(commands)) if return_com else out
 
 
-def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> DialogSpec:
-    """Return the EEGPrep non-browser rejection menu spec."""
+def pop_rejmenu_dialog_spec(
+    EEG: dict[str, Any], icacomp: int | bool = 1, *, commands: list[str] | None = None
+) -> DialogSpec:
+    """Build a rejection menu operating on EEG and recording accepted actions."""
+    if commands is None:
+        commands = []
     is_data = int(bool(icacomp))
     prefix = "" if is_data else "ica"
     reject = EEG.get("reject") or {}
@@ -63,6 +85,49 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
     geometry: list[tuple[float, ...]] = []
     controls: list[ControlSpec] = []
 
+    def action_button(label: str, method: str, mode: str) -> ControlSpec:
+        tag = f"{mode}_{method}"
+        return ControlSpec(
+            "pushbutton",
+            label,
+            tag=tag,
+            callback=CallbackSpec(
+                "run_dialog_action",
+                params={
+                    "button": tag,
+                    "function": "pop_rejmenu",
+                    "action": partial(_run_method, EEG, is_data, method, mode, commands),
+                },
+            ),
+        )
+
+    def help_button(method: str) -> ControlSpec:
+        tag = f"help_{method}"
+        return ControlSpec(
+            "pushbutton",
+            "HELP",
+            tag=tag,
+            callback=CallbackSpec(
+                "show_help",
+                params={"button": tag, "function": _METHODS[method][0].__name__},
+            ),
+        )
+
+    def color_button(tag: str, family: str) -> ControlSpec:
+        return ControlSpec(
+            "pushbutton",
+            tag=tag,
+            callback=CallbackSpec(
+                "select_color",
+                params={
+                    "button": tag,
+                    "eeg": EEG,
+                    "field": f"rej{family}col",
+                    "default": DEFAULT_REJECTION_COLORS[family],
+                },
+            ),
+        )
+
     def add_row(weights: tuple[float, ...], *row_controls: ControlSpec) -> None:
         geometry.append(weights)
         controls.extend(row_controls)
@@ -71,10 +136,11 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         add_row((1,), ControlSpec("spacer"))
 
     def section(title_text: str, swatch_tag: str) -> None:
+        family = {"buttrend": "const", "butspec": "freq"}.get(swatch_tag, swatch_tag[3:])
         add_row(
             (0.9, 0.18, 1.95),
             ControlSpec("text", title_text, font_weight="bold"),
-            ControlSpec("pushbutton", tag=swatch_tag, enabled=False),
+            color_button(swatch_tag, family),
             ControlSpec("spacer"),
         )
 
@@ -85,8 +151,12 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
                 "button": button,
                 "eeg": EEG,
                 "icacomp": 1 if is_data else 0,
-                "count_tags": ("mantrial",),
-                "count_fields": {"mantrial": prefix + "rejmanual"},
+                "count_tags": ("mantrial", *[item[2] for item in _METHODS.values()]),
+                "count_fields": {
+                    "mantrial": prefix + "rejmanual",
+                    **{count_tag: prefix + field for _function, field, count_tag in _METHODS.values()},
+                },
+                "commands": commands,
             },
             matlab_callback="pop_eegplot(EEG, icacomp, rejstatus, 0)",
         )
@@ -132,17 +202,17 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         )
         add_row(
             (1.0, 0.2, 1.0, 1.0),
-            ControlSpec("pushbutton", "Calc / Plot", enabled=False),
+            action_button("Calc / Plot", edit_prefix, "scroll"),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            ControlSpec("pushbutton", "HELP", enabled=False),
+            help_button(edit_prefix),
         )
         spacer_row()
 
     add_row(
         (0.9, 0.18, 0.15, 0.62, 0.62, 0.52),
         ControlSpec("text", "Mark trials by appearance", font_weight="bold"),
-        ControlSpec("pushbutton", tag="butmanual", enabled=False),
+        color_button("butmanual", "manual"),
         ControlSpec("spacer"),
         ControlSpec("pushbutton", activity, tag="scrollmanual", enabled=True, callback=scroll_callback("scrollmanual")),
         ControlSpec("text", "Marked trials"),
@@ -168,10 +238,10 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
     )
     add_row(
         (1.0, 0.2, 1.0, 1.0),
-        ControlSpec("pushbutton", "Calc / Plot", enabled=False),
+        action_button("Calc / Plot", "const", "scroll"),
         ControlSpec("spacer"),
         ControlSpec("spacer"),
-        ControlSpec("pushbutton", "HELP", enabled=False),
+        help_button("const"),
     )
     spacer_row()
 
@@ -205,16 +275,10 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         )
         add_row(
             (0.8, 0.8, 0.8, 0.8),
-            ControlSpec("pushbutton", "Calculate", enabled=False),
-            ControlSpec(
-                "pushbutton",
-                activity,
-                tag=f"scroll{edit_prefix}",
-                enabled=True,
-                callback=scroll_callback(f"scroll{edit_prefix}"),
-            ),
-            ControlSpec("pushbutton", "PLOT", enabled=False),
-            ControlSpec("pushbutton", "HELP", enabled=False),
+            action_button("Calculate", edit_prefix, "calculate"),
+            action_button(activity, edit_prefix, "scroll"),
+            action_button("PLOT", edit_prefix, "plot"),
+            help_button(edit_prefix),
         )
         spacer_row()
 
@@ -259,14 +323,14 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         function_name="pop_rejmenu",
         eeglab_source="functions/adminfunc/pop_rejmenu.m",
         help_text="pophelp('pop_rejmenu')",
-        size=(1000, 1160),
+        size=(1073, 994),
         geometry=tuple(geometry),
         controls=tuple(controls),
         ok_label="Close (keep marks)",
         cancel_label="Cancel",
         button_size=(168, 22),
         content_margins=(32, 30, 32, 24),
-        row_spacing=12,
+        row_spacing=3,
         extra_stylesheet="""
             QDialog#pop_rejmenu QPushButton {
                 min-width: 145px;
@@ -283,6 +347,74 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
             }
         """,
     )
+
+
+def _run_method(EEG, icacomp, method, mode, commands, values, update):
+    function, kind, _count_tag = _METHODS[method]
+    prefix = "" if icacomp else "ica"
+
+    def numbers(tag):
+        try:
+            result = parse_numeric_sequence(values[tag], dtype=float)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"pop_rejmenu: {tag} must contain numbers. Enter a number, space-separated values, "
+                "or a range such as 1:3."
+            ) from exc
+        if not result:
+            raise ValueError(f"pop_rejmenu: {tag} is empty. Enter a numeric value before calculating.")
+        return result
+
+    options: dict[str, Any] = {"elecrange": numbers(f"{method}elec"), "gui": False, "return_com": True}
+    if method == "freq":
+        options.update(
+            threshold=np.column_stack(np.broadcast_arrays(numbers("freqneg"), numbers("freqpos"))),
+            freqlimits=np.column_stack(np.broadcast_arrays(numbers("freqstart"), numbers("freqend"))),
+            eegplotreject=0,
+        )
+    else:
+        options["reject"] = 0
+        if method == "thresh":
+            options.update(
+                negthresh=numbers("threshneg"),
+                posthresh=numbers("threshpos"),
+                starttime=np.asarray(numbers("threshstart")) / 1000,
+                endtime=np.asarray(numbers("threshend")) / 1000,
+            )
+        elif method == "const":
+            options.update(winsize=int(EEG["pnts"]), minslope=numbers("constpnts")[0], minstd=numbers("conststd")[0])
+        else:
+            options.update(locthresh=numbers(f"{method}loc"), globthresh=numbers(f"{method}glob"))
+
+    def store(output, command):
+        EEG.clear()
+        EEG.update(output)
+        if command:
+            commands.append(command)
+        update({tag: str(_count(EEG["reject"].get(prefix + field))) for _function, field, tag in _METHODS.values()})
+
+    try:
+        output, command = function(EEG, icacomp, **options)
+    except ValueError as exc:
+        raise ValueError(
+            f"pop_rejmenu / {function.__name__}: {exc}. Check the {method} channel/component range "
+            "and limits, then calculate again."
+        ) from exc
+    store(output, command)
+    if mode in {"plot", "scroll"}:
+        EEG["reject"]["disprej"] = [family for family in DEFAULT_REJECTION_COLORS if values.get(family)]
+        data, _row_count = rejection_data(EEG, icacomp)
+        open_epoched_rejection_browser(
+            EEG,
+            data=data,
+            icacomp=icacomp,
+            elecrange=[int(value) for value in options["elecrange"]],
+            kind=kind,
+            superpose=int(values["rejstatus"]) - 1,
+            reject=0,
+            command="",
+            command_callback=store,
+        )
 
 
 def _count(value: Any) -> int:

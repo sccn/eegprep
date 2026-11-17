@@ -6,6 +6,8 @@ Remove baseline means from continuous or epoched EEG data.
 channel. For continuous data, EEGPrep treats boundary events as data
 discontinuities and removes means separately inside each continuous segment.
 For epoched data, the selected baseline is removed separately from each epoch.
+An empty dataset, including a zero-epoch result from epoching that selected no
+events, is returned unchanged and a warning is logged.
 
 ## Common usage
 

@@ -23,7 +23,7 @@ from matplotlib.figure import Figure
 import numpy as np
 import pytest
 
-from eegprep.functions.sigprocfunc.envtopo import _resolve_subcomps, envtopo
+from eegprep.functions.sigprocfunc.envtopo import _limcontrib_frames, _resolve_subcomps, envtopo
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
 from tests.fixtures import create_test_eeg_with_ica
@@ -149,3 +149,9 @@ def test_resolve_subcomps_empty_vs_zero():
     candidates = np.array([0, 1])  # 1-based compnums 1,2 of 4 components
     assert _resolve_subcomps(0, 4, candidates).size == 0
     np.testing.assert_array_equal(_resolve_subcomps([], 4, candidates), np.array([2, 3]))
+
+
+def test_limcontrib_half_frame_rounds_away_from_zero():
+    times = np.linspace(0.0, 1000.0, 11)
+    lim1, _lim2 = _limcontrib_frames([250.0, 500.0], times, 11)
+    assert lim1 == 3

@@ -32,6 +32,8 @@ in EEGLAB:
 - The GUI exposes the same load-or-recompute workflow used by EEGLAB, including
   Manual coregistration for editing the Talairach transform against the selected
   head mesh and reference electrode file.
+- Component maps use the jet colormap and a separate absmax color scale on
+  each map. Channel maps keep the turbo colormap and one shared scale.
 
 EEGPrep packages the standard EEGLAB head meshes needed for this workflow, so it
 does not depend on an EEGLAB checkout at runtime.

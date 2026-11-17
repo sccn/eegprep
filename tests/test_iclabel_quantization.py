@@ -20,6 +20,7 @@ from tools.iclabel.quantize_iclabel_onnx import (
     MAX_PROBABILITY_ABS_DIFF,
     MIN_KEEP_REJECT_AGREEMENT,
     MIN_TOP1_AGREEMENT,
+    PACKAGED_FLOAT32_MODEL,
     PACKAGED_MODEL,
     compare_predictions,
     evaluate_model,
@@ -30,6 +31,7 @@ from tools.iclabel.quantize_iclabel_onnx import (
     main,
     network_inputs_from_features,
     report_mismatches,
+    run_network,
 )
 
 
@@ -238,6 +240,89 @@ def test_production_runtime_passes_the_frozen_gate():
     )
 
 
+def test_production_runtime_reproduces_the_frozen_float32_teacher():
+    pytest.importorskip("onnxruntime")
+    _, features, teacher = _frozen_inputs()
+
+    probabilities = postprocess_network_output(run_iclabel_net(*prepare_network_inputs(features)))
+
+    # The native default is the float32 network the teacher was frozen from, so unlike the 8-bit
+    # file it matches to float32 noise on every one of the 217 components, not just inside the gate.
+    np.testing.assert_allclose(probabilities, teacher, rtol=1e-4, atol=1e-5)
+
+
+def test_native_backend_runs_the_full_precision_file_and_not_the_int8_file():
+    pytest.importorskip("onnxruntime")
+    _, features, _ = _frozen_inputs()
+
+    native = run_iclabel_net(*prepare_network_inputs(features))
+
+    np.testing.assert_array_equal(native, run_network(PACKAGED_FLOAT32_MODEL, features))
+    assert not np.array_equal(native, run_network(PACKAGED_MODEL, features))
+
+
+def test_packaged_full_precision_model_matches_torch_on_the_evaluation_components():
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("onnxruntime")
+    from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
+
+    _, features, _ = _frozen_inputs()
+    inputs = prepare_network_inputs(features)
+    model = ICLabelNet(str(_NET_ICL_MAT))
+    model.eval()
+    with torch.no_grad():
+        reference = model(*(torch.from_numpy(np.ascontiguousarray(array)) for array in inputs)).numpy()
+
+    packaged = run_iclabel_net(*inputs)
+
+    # Measured on the 217 evaluation components with ONNX Runtime 1.32.0 and PyTorch 2.12.1: the raw
+    # network outputs differ by at most 2.1e-06 and the averaged probabilities by at most 1.2e-06
+    # (mean 7.6e-08), four orders of magnitude inside the 0.015 gate that the 8-bit file only just
+    # meets with 0.01346.
+    np.testing.assert_allclose(packaged, reference, rtol=1e-4, atol=1e-5)
+    metrics = compare_predictions(postprocess_network_output(reference), postprocess_network_output(packaged))
+    assert metrics["top1_agreement"] == 1.0
+    assert metrics["keep_reject_agreement"] == 1.0
+    assert metrics["max_probability_abs_diff"] < 1e-5
+
+
+def test_int8_file_is_quantized_and_the_native_file_is_not():
+    onnx = pytest.importorskip("onnx")
+
+    def operators(path):
+        return {node.op_type for node in onnx.load(path).graph.node}
+
+    assert "DequantizeLinear" not in operators(PACKAGED_FLOAT32_MODEL)
+    assert "DequantizeLinear" in operators(PACKAGED_MODEL)
+    assert PACKAGED_MODEL.stat().st_size * 3 < PACKAGED_FLOAT32_MODEL.stat().st_size
+
+
+def test_quantizing_the_packaged_float32_model_reproduces_the_packaged_int8_model(tmp_path):
+    pytest.importorskip("onnx")
+    pytest.importorskip("onnxruntime")
+    report_path = tmp_path / "parity_report.json"
+
+    main(
+        [
+            "--float32-artifact",
+            str(PACKAGED_FLOAT32_MODEL),
+            "--output",
+            str(tmp_path / "iclabel_int8.onnx"),
+            "--report",
+            str(report_path),
+            "--require-float32-close-to",
+            str(PACKAGED_FLOAT32_MODEL),
+            "--require-identical-to",
+            str(PACKAGED_MODEL),
+            "--require-matching-report",
+            str(DEFAULT_REPORT),
+        ]
+    )
+
+    assert json.loads(report_path.read_text(encoding="utf-8"))["gate_pass"] is True
+    assert (tmp_path / "iclabel_int8.onnx").read_bytes() == PACKAGED_MODEL.read_bytes()
+
+
 def test_evaluate_model_reproduces_the_committed_report_for_the_packaged_model():
     pytest.importorskip("onnxruntime")
     committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
@@ -286,7 +371,7 @@ def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, 
     import onnx
 
     report_path = tmp_path / "parity_report.json"
-    output = tmp_path / "iclabel.onnx"
+    output = tmp_path / "iclabel_int8.onnx"
 
     main(
         [
@@ -296,6 +381,8 @@ def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, 
             str(output),
             "--report",
             str(report_path),
+            "--require-float32-close-to",
+            str(PACKAGED_FLOAT32_MODEL),
             "--require-identical-to",
             str(PACKAGED_MODEL),
             "--require-matching-report",
@@ -308,6 +395,30 @@ def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, 
     tensor_types = {value.type.tensor_type.elem_type for value in (*model.graph.input, *model.graph.output)}
     assert tensor_types == {onnx.TensorProto.FLOAT}
     assert {"DequantizeLinear", "Softmax"} <= {node.op_type for node in model.graph.node}
+
+
+def test_regeneration_fails_without_a_report_when_the_float32_export_differs_from_the_packaged_one(
+    float32_export, tmp_path
+):
+    # The 8-bit file moves probabilities by up to 0.0135, far beyond float32 noise.
+    report_path = tmp_path / "parity_report.json"
+
+    with pytest.raises(SystemExit, match="differs from"):
+        main(
+            [
+                "--float32-artifact",
+                str(float32_export),
+                "--output",
+                str(tmp_path / "iclabel_int8.onnx"),
+                "--report",
+                str(report_path),
+                "--require-float32-close-to",
+                str(PACKAGED_MODEL),
+            ]
+        )
+
+    assert not report_path.exists()
+    assert not (tmp_path / "iclabel_int8.onnx").exists()
 
 
 def test_regeneration_fails_without_a_report_when_the_required_model_differs(float32_export, tmp_path):

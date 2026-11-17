@@ -458,7 +458,7 @@ def test_readlocs_and_writelocs_round_trip_locs_and_ced(tmp_path: Path) -> None:
     reloaded = readlocs(ced_file)
 
     assert [loc["labels"] for loc in loaded] == ["Fz", "Cz"]
-    assert loaded[0]["X"] == pytest.approx(np.sqrt(0.5))
+    assert loaded[0]["X"] == pytest.approx(85 * np.sqrt(0.5))
     assert [loc["labels"] for loc in reloaded] == ["Fz", "Cz"]
     assert "return_com" not in write_command
     _assert_parseable(read_command)
@@ -641,3 +641,24 @@ def test_readegilocs_uses_packaged_egi_montages_for_upstream_channel_counts() ->
         )
         assert len(out["chaninfo"]["nodatchans"]) == expected_nondata
         assert out["chanlocs"][0]["labels"] == "E1"
+
+
+def test_readlocs_tutorial_polar_units_and_repeated_tab_label(tmp_path):
+    path = tmp_path / "eeglab_chan32.locs"
+    path.write_text("1\t 0\t 0.50669\t FPz\n2\t 23\t 0.71\t \tEOG1\n")
+    locs = readlocs(path)
+    assert [loc["labels"] for loc in locs] == ["FPz", "EOG1"]
+    np.testing.assert_allclose(
+        [locs[0]["X"], locs[0]["Y"], locs[0]["Z"]],
+        [85 * np.cos(0.00669 * np.pi), 0, -85 * np.sin(0.00669 * np.pi)],
+        atol=1e-12,
+    )
+
+
+def test_readlocs_detects_besa_elp_with_count_header(tmp_path):
+    path = tmp_path / "standard-10-5-cap385.elp"
+    path.write_text("2\nEEG Fp1 -92.698 -72.074 85\nEEG Fp2 92.698 72.074 85\n")
+    locs = readlocs(path)
+    assert [loc["labels"] for loc in locs] == ["Fp1", "Fp2"]
+    assert locs[0]["theta"] == pytest.approx(-17.926)
+    assert locs[0]["X"] == pytest.approx(85 * np.cos(np.deg2rad(2.698)) * np.cos(np.deg2rad(17.926)))

@@ -34,5 +34,6 @@ renderer-level construction without showing or executing the dialog.
    eegprep.plugin_menu
    eegprep.plugin_status
    eegprep.pophelp
+   eegprep.questdlg2
    eegprep.select_multiple_datasets
    eegprep.supergui

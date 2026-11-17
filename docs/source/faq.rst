@@ -28,6 +28,15 @@ Published releases can also be installed with pip:
 
     pip install eegprep
 
+``uv add eegprep`` installs this package with NumPy, SciPy, Matplotlib,
+psutil, and pyedflib, so cleaning, plotting, and EDF export need no brackets. The separate ``eegprep-lean`` reader is a different distribution.
+``pip install "eegprep[full]"`` adds Octave, MNE, PyBIDS, and Picard, which
+are the ``eeglab``, ``mne``, ``pybids``, and ``picard`` extras, and restores
+the previous complete install. ``eegprep.help()`` lists public names and the
+extra each one needs. A missing extra raises ``ImportError`` naming the
+function and the install command, and says what to do instead when another
+path does not need that library.
+
 For development installation from source:
 
 .. code-block:: bash
@@ -69,9 +78,10 @@ Or create a fresh uv environment:
 Does EEGPrep support GPU acceleration?
 --------------------------------------
 
-No. EEGPrep computes on the CPU. The ``use_gpu`` argument of ``clean_asr`` exists for
-EEGLAB compatibility and is ignored, and ICLabel runs on Open Neural Network Exchange (ONNX) Runtime's CPU provider.
-PyTorch is not needed to run EEGPrep.
+EEGPrep computes on the CPU by default. pAMICA (``pop_runica(EEG, icatype="pamica")``, from the
+``pamica`` extra) is the one decomposition built on PyTorch, and its ``device`` argument selects a GPU that PyTorch supports.
+The ``use_gpu`` argument of ``clean_asr`` exists for EEGLAB compatibility and is ignored, and ICLabel runs on
+Open Neural Network Exchange (ONNX) Runtime's CPU provider. PyTorch is not needed for ICLabel.
 
 Usage FAQ
 =========

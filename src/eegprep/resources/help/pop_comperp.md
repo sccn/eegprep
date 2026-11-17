@@ -14,9 +14,8 @@ Supported options include dataset selection, channel/component subset, `mode`
 display toggles for added, subtracted, and difference averages, standard
 deviation traces, and per-dataset ERP traces.
 
-Standard-deviation traces follow EEGLAB `pop_comperp` semantics: the spread is
-computed across the selected datasets at each channel/time point, then displayed
-as a compact channel-averaged upper/lower trace in EEGPrep's Python plot.
+Each channel or component is its own panel. Average, standard-deviation, and
+per-dataset traces share that panel, and the legend uses the same colors.
 
 When `alpha` is supplied, EEGPrep runs deterministic t-tests across datasets
 and highlights significant time regions in the plot. A paired t-test is used

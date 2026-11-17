@@ -7,13 +7,18 @@ import json
 import math
 from pathlib import Path
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import mne
 import numpy as np
 import scipy.io
 
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    import mne
+
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
+from eegprep.functions.popfunc._matlab_fields import matlab_index
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -44,12 +49,19 @@ def ur_indices_to_zero_based(EEG: dict[str, Any]) -> None:
     chanlocs = EEG.get('chanlocs')
     if chanlocs is not None and len(chanlocs) > 0 and 'urchan' in chanlocs[0]:
         for chanloc in chanlocs:
-            chanloc['urchan'] = chanloc['urchan'] - 1
+            chanloc['urchan'] = _zero_based_index(chanloc['urchan'])
     events = EEG.get('event')
     if events is not None and len(events) > 0 and 'urevent' in events[0]:
         for event in events:
             if 'urevent' in event and event['urevent'] is not None:
-                event['urevent'] = event['urevent'] - 1
+                event['urevent'] = _zero_based_index(event['urevent'])
+
+
+def _zero_based_index(value):
+    index = matlab_index(value)
+    if index is None:
+        return value - 1
+    return index - 1
 
 
 def infer_dataformat(filename: str | Path | None, dataformat: str | None = None) -> str:
@@ -126,17 +138,19 @@ def eeg_from_data(
     filename: str = "",
     filepath: str = "",
 ) -> dict[str, Any]:
-    """Build a checked EEGLAB-like EEG dict from channel-major data."""
+    """Build a checked EEGLAB-like EEG dict from channel-major data.
+
+    When ``nbchan`` matches the column count, the array is transposed so rows
+    are channels. A row count that differs from ``nbchan`` is kept, including
+    an extra non-EEG channel.
+    """
     array = np.asarray(data)
     if array.ndim == 1:
         array = array[np.newaxis, :]
     if array.ndim not in {2, 3}:
         raise ValueError("EEG data must be 1-D, 2-D, or 3-D")
-    if nbchan and array.shape[0] != int(nbchan):
-        if array.ndim == 2 and array.shape[1] == int(nbchan):
-            array = array.T
-        else:
-            raise ValueError("nbchan does not match imported data")
+    if nbchan and array.ndim == 2 and array.shape[0] != int(nbchan) and array.shape[1] == int(nbchan):
+        array = array.T
     if not nbchan and array.ndim == 2 and array.shape[0] > array.shape[1]:
         raise ValueError(
             "Cannot determine channel-major orientation for a 2-D array with more "
@@ -249,6 +263,7 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
         data,
         srate=float(raw.info["sfreq"]),
         setname=setname,
+        nbchan=len(raw.ch_names),
         chanlocs=[{"labels": name, "type": "EEG"} for name in raw.ch_names],
         filename=Path(filename).name if filename else "",
         filepath=str(Path(filename).parent) if filename else "",
@@ -268,6 +283,7 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
 
 def eeg_to_mne_raw(eeg: dict[str, Any]) -> mne.io.RawArray:
     """Convert a continuous EEGPrep EEG dict to MNE RawArray."""
+    mne = import_optional_dependency("mne", feature="eeg_to_mne_raw")
     data = np.asarray(eeg["data"])
     if data.ndim == 3:
         data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))

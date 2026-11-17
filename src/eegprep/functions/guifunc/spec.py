@@ -9,10 +9,31 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
+
+
+def field_text(value: Any) -> str:
+    """Render MATLAB field text as stripped, nonempty lines for a dialog."""
+    if value is None:
+        return ""
+    if isinstance(value, np.ndarray):
+        if value.ndim == 2 and value.dtype.kind in "US":
+            value = ["".join(str(part) for part in row) for row in value]
+        else:
+            value = value.tolist()
+    if isinstance(value, (list, tuple)):
+        return "\n".join(text for part in value if (text := field_text(part)))
+    return str(value).strip()
+
 
 @dataclass(frozen=True)
 class CallbackSpec:
-    """Declarative callback metadata for a GUI control."""
+    """Declarative callback metadata for a GUI control.
+
+    ``run_dialog_action`` calls ``params['action'](values, update)`` with the
+    tagged form values and an ``update({tag: value})`` callback. Actions can
+    refresh the form immediately or after a child window accepts changes.
+    """
 
     name: str
     params: dict[str, Any] = field(default_factory=dict)
@@ -56,6 +77,10 @@ class DialogSpec:
     row_spacing: int = 4
     geomvert: tuple[float, ...] | None = None
     scrollable: bool = False
+    # Size every control by its geometry weight alone, as EEGLAB's supergui does,
+    # instead of by its content; column_spacing is the gap between controls in a row.
+    weighted_columns: bool = False
+    column_spacing: int = 4
 
 
 def controls_by_tag(spec: DialogSpec) -> dict[str, ControlSpec]:

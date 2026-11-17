@@ -2,9 +2,10 @@
 
 `pop_eventinfo` attaches BIDS event metadata to an EEG or STUDY dictionary.
 
-The File > BIDS tools menu prompts for `key=value` lines and stores the values
-under `target["etc"]["bids"]["event"]`. The function returns the updated
-target and a history command.
+File > BIDS tools opens a dialog for the `onset`, `duration`, `sample`,
+`value`, `trial_type`, `stim_file`, and `response_time` descriptions. Keyword
+arguments skip the dialog. Values are stored under `target["etc"]["bids"]["event"]`.
+The function returns the updated target and a history command.
 
 Usage:
 

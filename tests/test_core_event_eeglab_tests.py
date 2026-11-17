@@ -22,7 +22,9 @@ from eegprep import (
     eeg_mergechan,
     eeg_mergelocs,
     eeg_timeinterp,
+    getchanlist,
 )
+from eegprep.functions.popfunc.eeg_getepochevent import event_type_text
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
@@ -54,25 +56,70 @@ def test_reference_chaninds_uses_original_epoched_recording(eeglab_backend, eegl
         eeglab_backend("eeg_chaninds", eeg, np.array([selection], dtype=object))
 
 
+def _event_rows(events):
+    """Event records as dicts, whether the backend returned a list or a struct array.
+
+    A MATLAB 1-by-1 struct arrives as one dict, not a length-1 list or array.
+    """
+    if events is None or (isinstance(events, np.ndarray) and events.size == 0):
+        return []
+    if isinstance(events, dict):
+        return [events]
+    if isinstance(events, list):
+        return events
+    if isinstance(events, np.ndarray) and events.dtype.names:
+        return [{name: record[name] for name in events.dtype.names} for record in events.reshape(-1)]
+    raise AssertionError(f"unexpected event container {type(events)!r}")
+
+
+def _event_text(value):
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1)[0]
+    return str(value)
+
+
+def _event_float(value):
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1)[0]
+    return float(value)
+
+
+def test_event_rows_accepts_a_matlab_singleton_struct():
+    rows = _event_rows({"type": "boundary", "latency": np.array([[1.5]]), "duration": np.array([[2.0]])})
+    assert [_event_text(row["type"]) for row in rows] == ["boundary"]
+    assert [_event_float(row["latency"]) for row in rows] == [1.5]
+    assert [_event_float(row["duration"]) for row in rows] == [2.0]
+
+
 @eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_test_eeg_eegrej")
-def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_backend, eeglab_suite_root):
+def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_backend):
     data = np.arange(1, 16, dtype=float).reshape(3, 5)
     eeg = eeglab_backend("eeg_emptyset")
     eeg.update(nbchan=3.0, pnts=4.0, trials=1.0, srate=1.0, xmin=0.0, xmax=3.0, data=data)
     result = eeglab_backend("eeg_eegrej", eeg, np.empty((0, 0)))
     assert_matlab_near(result["data"], data)
-    assert_matlab_near(result["event"], np.empty((0, 0)))
+    assert _event_rows(result["event"]) == []
     # The source deliberately includes both consistent and inconsistent pnts metadata.
     for pnts in (5.0, 4.0):
         eeg["pnts"] = pnts
         result = eeglab_backend("eeg_eegrej", eeg, np.array([[2.0, 3.0]]))
         assert_matlab_near(result["data"], data[:, [0, 3, 4]])
-        assert set(result["event"]) == {"type", "duration", "latency"}
-        assert result["event"]["type"] == "boundary"
-        assert_matlab_near(result["event"]["duration"], [[2.0]])
-        assert_matlab_near(result["event"]["latency"], [[1.5]])
-    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
-    eeglab_backend("eeg_eegrej", eeg, np.array([[223.0, 572.0], [1.0, 140.0]]))
+        rows = _event_rows(result["event"])
+        assert [_event_text(row["type"]) for row in rows] == ["boundary"]
+        assert [_event_float(row["duration"]) for row in rows] == [2.0]
+        assert [_event_float(row["latency"]) for row in rows] == [1.5]
+    sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    eeg = eeglab_backend("pop_loadset", str(sample))
+    recorded = eeglab_backend("eeg_eegrej", eeg, np.array([[223.0, 572.0], [1.0, 140.0]]))
+    # [1, 140] and [223, 572] are 1-based inclusive. Each boundary is beg-1,
+    # minus samples removed earlier, plus 0.5. Durations are the inclusive spans.
+    rows = _event_rows(recorded["event"])
+    boundaries = [row for row in rows if _event_text(row["type"]).lower() == "boundary"]
+    assert [_event_text(row["type"]) for row in boundaries] == ["boundary", "boundary"]
+    assert [_event_float(row["latency"]) for row in boundaries] == [0.5, 82.5]
+    assert [_event_float(row["duration"]) for row in boundaries] == [140.0, 350.0]
 
 
 @eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_testcase_eegrej")
@@ -83,7 +130,7 @@ def test_reference_eegrej_boundary_events_follow_original_regression(eeglab_back
     cases = (
         ([999.0, 1000.0, 2000.0, 2001.0], [1000.0, 2000.0], ["mrk1", "boundary", "mrk4"], [999.0, 999.5, 1000.0]),
         ([1.0, 1000.0, 1001.0], [1.0, 1000.0], ["boundary", "mrk3"], [0.5, 1.0]),
-        ([8999.0, 9000.0, 10000.0], [9000.0, 10000.0], ["mrk1", "boundary"], None),
+        ([8999.0, 9000.0, 10000.0], [9000.0, 10000.0], ["mrk1", "boundary"], [8999.0, 8999.5]),
     )
     for latencies, interval, expected_types, expected_latencies in cases:
         eeg["event"] = np.array(
@@ -91,11 +138,10 @@ def test_reference_eegrej_boundary_events_follow_original_regression(eeglab_back
             dtype=[("type", object), ("latency", object)],
         )
         result = eeglab_backend("eeg_eegrej", eeg, np.array([interval]))
-        events = result["event"]
-        assert events.shape == (1, len(expected_types))
-        assert events["type"][0].tolist() == expected_types
+        rows = _event_rows(result["event"])
+        assert [_event_text(row["type"]) for row in rows] == expected_types
         if expected_latencies is not None:
-            np.testing.assert_array_equal([latency.item() for latency in events["latency"][0]], expected_latencies)
+            np.testing.assert_array_equal([_event_float(row["latency"]) for row in rows], expected_latencies)
 
 
 @eeglab_test("unittesting_popfunc/eeg_timeinterp/popfunc_eeg_timeinterp_wrapperTest.m", "test_test_eeg_timeinterp")
@@ -530,13 +576,13 @@ def test_eeg_amplitudearea_current_suite_epoched_cases():
     data[0] = [[1, 1, 2, 2], [1, 1, 2, 2], [1, 1, 2, 2]]
     data[1] = [[2, 2, 2, 2], [1, 1, 1, 1], [1, 1, 1, 1]]
     eeg = {"data": data, "times": np.array([0, 1000, 2000]), "xmin": 0, "xmax": 2}
-    channels, amplitude = eeg_amplitudearea(eeg, [0, 1], 1, 0, 3)
-    np.testing.assert_array_equal(channels, [0, 1])
+    channels, amplitude = eeg_amplitudearea(eeg, [1, 2], 1, 0, 3)
+    np.testing.assert_array_equal(channels, [1, 2])
     np.testing.assert_allclose(amplitude, [1.5, 1.9985], atol=1e-12)
 
     data[0] = [[1, 4, 13, 16], [2, 5, 14, 17], [3, 6, 15, 18]]
     data[1] = [[7, 10, 19, 22], [8, 11, 20, 23], [9, 12, 21, 24]]
-    _, second_amplitude = eeg_amplitudearea(eeg, [0, 1], 1, 0, 3)
+    _, second_amplitude = eeg_amplitudearea(eeg, [1, 2], 1, 0, 3)
     assert np.all(np.isfinite(second_amplitude))
     assert second_amplitude[1] > second_amplitude[0]
 
@@ -546,8 +592,12 @@ def test_eeg_amplitudearea_current_suite_epoched_cases():
         "xmin": 0,
         "xmax": 0.002,
     }
-    _, truncated_interval = eeg_amplitudearea(linear, [0], 1, 0, 1.5)
+    _, truncated_interval = eeg_amplitudearea(linear, [1], 1, 0, 1.5)
     np.testing.assert_allclose(truncated_interval, [0.75], atol=1e-12)
+    with pytest.raises(ValueError, match="1-based"):
+        eeg_amplitudearea(eeg, [0, 2], 1, 0, 3)
+    with pytest.raises(ValueError, match="1-based"):
+        eeg_amplitudearea(eeg, [1, 3], 1, 0, 3)
 
 
 def test_eeg_chaninds_current_suite_label_forms():
@@ -639,6 +689,75 @@ def test_eeg_eventtypes_current_suite_counts_and_order():
     assert types == ["square", "triangle", "point", "not really a triangle", "circle"]
     assert counts == [3, 2, 1, 1, 1]
     assert eeg_eventtypes({"event": [{"type": 1.0}, {"type": 1}, {"type": 2.5}]}) == (["1", "2.5"], [2, 1])
+
+
+@pytest.mark.parametrize("stored", [2.0, 2, np.uint16(2), np.float64(2.0)])
+@pytest.mark.parametrize("requested", ["2", "2.0", 2, 2.0, [" 2"], np.int64(2)])
+def test_eeg_getepochevent_matches_numeric_event_types_by_value(stored, requested):
+    eeg = _epoched_event_eeg()
+    for event in eeg["event"]:
+        event["type"] = stored if event["type"] == "rt" else 1.0
+    values, _all_values = eeg_getepochevent(eeg, "type", requested, "fieldname", "urevent")
+    np.testing.assert_allclose(values, [np.nan, 2, 4], equal_nan=True)
+
+
+def test_eeg_getepochevent_matches_text_event_types_exactly():
+    eeg = _epoched_event_eeg()
+    for event in eeg["event"]:
+        event["type"] = "2" if event["type"] == "rt" else "S  1"
+    values, _all_values = eeg_getepochevent(eeg, "type", [2.0], "fieldname", "urevent")
+    np.testing.assert_allclose(values, [np.nan, 2, 4], equal_nan=True)
+    values, _all_values = eeg_getepochevent(eeg, "type", "2.0", "fieldname", "urevent")
+    assert np.all(np.isnan(values))
+    spaced, _all_values = eeg_getepochevent(eeg, "type", "S  1", "fieldname", "urevent")
+    np.testing.assert_allclose(spaced, [0, 1, 3])
+
+
+def test_eeg_getepochevent_needs_an_epoch_on_every_event_once_one_has_it():
+    eeg = _epoched_event_eeg()
+    del eeg["event"][2]["epoch"]
+    with pytest.raises(ValueError, match="event 3 has no 'epoch' field, while other events have one"):
+        eeg_getepochevent(eeg, "type", "rt", "fieldname", "urevent")
+    continuous = _epoched_event_eeg(include_event_epochs=False)
+    continuous["trials"] = 1
+    values, all_values = eeg_getepochevent(continuous, "type", "rt", "fieldname", "urevent")
+    np.testing.assert_array_equal(values, [4])
+    assert all_values == [[2, 4]]
+
+
+@pytest.mark.parametrize(
+    ("value", "text"), [(2.0, "2"), (np.int64(0), "0"), (2.5, "2.5"), (-1.0, "-1"), ("2.0", "2.0"), (True, "True")]
+)
+def test_event_type_text_drops_only_a_zero_fraction(value, text):
+    assert event_type_text(value) == text
+
+
+@pytest.mark.parametrize(
+    ("stored", "requested", "matches"),
+    [(2.5, 2.5, True), (2.0, 2.5, False), (2.5, "2", False), (0, "0", True), (0.0, "x", False)],
+)
+def test_eeg_getepochevent_compares_fractional_and_zero_types_by_value(stored, requested, matches):
+    eeg = _epoched_event_eeg()
+    for event in eeg["event"]:
+        event["type"] = stored if event["type"] == "rt" else 7
+    values, _all_values = eeg_getepochevent(eeg, "type", requested, "fieldname", "urevent")
+    assert bool(np.any(~np.isnan(values))) is matches
+
+
+def test_eeg_getepochevent_text_does_not_match_numeric_event_types():
+    eeg = _epoched_event_eeg()
+    for event in eeg["event"]:
+        event["type"] = 2.0
+    values, _all_values = eeg_getepochevent(eeg, "type", "rt", "fieldname", "urevent")
+    assert np.all(np.isnan(values))
+
+
+@pytest.mark.parametrize("epoch", [np.nan, None, 0, 4, 1.5, [], np.array([4]), np.array([])])
+def test_eeg_getepochevent_names_the_event_with_an_invalid_epoch(epoch):
+    eeg = _epoched_event_eeg()
+    eeg["event"][2]["epoch"] = epoch
+    with pytest.raises(ValueError, match=r"event 3 has epoch .*, outside 1\.\.3"):
+        eeg_getepochevent(eeg, "type", "rt", "fieldname", "urevent")
 
 
 def test_eeg_getepochevent_current_suite_empty_time_window():
@@ -754,6 +873,19 @@ def test_reference_urlatency_missing_duration(eeglab_backend):
         [[("boundary", 1.5), ("boundary", 5.5), ("boundary", 9.5)]], dtype=[("type", object), ("latency", object)]
     )
     assert_matlab_near(eeglab_backend("eeg_urlatency", events, 9.0), [[np.nan]])
+
+
+def test_getchanlist_returns_one_based_first_and_last_channels():
+    locations = [
+        {"labels": "Fp1", "type": "EEG"},
+        {"labels": "EOG", "type": "EOG"},
+        {"labels": "Cz", "type": "eeg"},
+    ]
+    assert getchanlist(locations) == [1, 2, 3]
+    assert getchanlist(locations, "eog") == [2]
+    assert getchanlist(locations, ["EEG"]) == [1, 3]
+    assert getchanlist(locations, "missing") == []
+    assert getchanlist([]) == []
 
 
 @eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_cell")

@@ -98,7 +98,6 @@ class QtDialogRenderer:
     _validate_pop_reref_dialog: Any
     _validate_pop_interp_dialog: Any
     _callback_channels: Any
-    _validate_channel_text: Any
     _parse_channel_text: Any
     _parse_numeric_text: Any
     _widget_number: Any
@@ -114,6 +113,8 @@ class QtDialogRenderer:
     _plot_fir_response: Any
     _sync_numeric: Any
     _select_event_types: Any
+    _select_event_field: Any
+    _mirror_text: Any
     _select_channels: Any
     _navigate_event: Any
     _navigate_channel: Any
@@ -175,6 +176,7 @@ class QtDialogRenderer:
         initial_values = initial_values or {}
         widgets: dict[str, Any] = {}
         index = 0
+        most_columns = max((len(self._row_weights(row)) for row in spec.geometry), default=1)
         for row_index, row_geometry in enumerate(spec.geometry):
             weights = self._row_weights(row_geometry)
             row_container = qt_widgets.QWidget()
@@ -182,7 +184,7 @@ class QtDialogRenderer:
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(4)
+            row_layout.setSpacing(spec.column_spacing)
             added_visible_widget = False
             for weight in weights:
                 if index >= len(spec.controls):
@@ -191,6 +193,12 @@ class QtDialogRenderer:
                 widget = self._build_widget(qt_widgets, control, initial_values)
                 if control.tag:
                     widgets[control.tag] = widget
+                if spec.weighted_columns:
+                    widget.setSizePolicy(qt_widgets.QSizePolicy.Ignored, widget.sizePolicy().verticalPolicy())
+                    row_layout.addWidget(widget, _supergui_stretch(weight, sum(weights), most_columns))
+                    added_visible_widget = added_visible_widget or control.style.lower() != "spacer"
+                    index += 1
+                    continue
                 stretch = max(1, round(float(weight) * 100))
                 if control.style.lower() == "spacer":
                     row_layout.addStretch(stretch)
@@ -230,9 +238,12 @@ class QtDialogRenderer:
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
         elif style == "textarea":
-            widget = QtWidgets.QTextEdit("" if value is None else str(value))
+            widget = QtWidgets.QTextEdit()
+            widget.setPlainText("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
+            if value is not None:
+                widget.setProperty(_VALUE_PROPERTY, value)
         elif style == "checkbox":
             widget = QtWidgets.QCheckBox(control.string)
             widget.setChecked(bool(value))
@@ -281,6 +292,21 @@ class QtDialogRenderer:
         widget.setEnabled(control.enabled)
         return widget
 
+    def _bind_index_navigation(self, widgets: dict[str, Any], params: Mapping[str, Any], index_tag: str) -> None:
+        source = widgets.get(params["source"])
+        if source is None:
+            return
+
+        def navigate(*_args, params=params, index_tag=index_tag):
+            _navigate_indexed_form(widgets, params, index_tag=index_tag)
+
+        if hasattr(source, "clicked"):
+            source.clicked.connect(navigate)
+        if hasattr(source, "editingFinished"):
+            setattr(source, _DISPLAYED_INDEX_ATTR, 1)
+            source._eegprep_index_nav = (params, index_tag)
+            source.editingFinished.connect(navigate)
+
     def _connect_callback(self, callback: CallbackSpec | None, widgets: dict[str, Any]) -> None:
         if callback is None:
             return
@@ -298,7 +324,15 @@ class QtDialogRenderer:
         elif callback.name == "select_event_types":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
-            button.clicked.connect(lambda: self._select_event_types(button, target, params))
+            button.clicked.connect(lambda: self._select_event_types(button, target, params, widgets))
+        elif callback.name == "select_event_field":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_event_field(button, target, params, widgets))
+        elif callback.name == "mirror_text":
+            source = widgets[params["source"]]
+            target = widgets[params["target"]]
+            source.editingFinished.connect(lambda: self._mirror_text(source, target))
         elif callback.name == "select_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -311,6 +345,17 @@ class QtDialogRenderer:
             targets = [widgets[tag] for tag in params["targets"] if tag in widgets]
             source.toggled.connect(lambda checked: self._set_enabled(targets, checked))
             self._set_enabled(targets, source.isChecked())
+        elif callback.name == "toggle_checked_text":
+            source = widgets[params["source"]]
+            target = widgets[params["target"]]
+            checked_text = str(params["checked"])
+            unchecked_text = str(params["unchecked"])
+
+            def apply_text(checked: bool, target: Any = target) -> None:
+                target.setText(checked_text if checked else unchecked_text)
+
+            source.toggled.connect(apply_text)
+            apply_text(bool(source.isChecked()))
         elif callback.name == "toggle_index_enabled":
             source = widgets[params["source"]]
             targets = [widgets[tag] for tag in params["targets"] if tag in widgets]
@@ -352,6 +397,15 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._open_rejection_browser(source, widgets, params))
+        elif callback.name == "run_dialog_action":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: _run_dialog_action(source, widgets, params))
+        elif callback.name == "show_help":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: pophelp(params["function"], parent=source))
+        elif callback.name == "select_color":
+            source = widgets[params["button"]]
+            source.clicked.connect(lambda: _select_color(source, params))
         elif callback.name == "set_value":
             source = widgets.get(params["source"])
             target = widgets.get(params["target"])
@@ -386,13 +440,9 @@ class QtDialogRenderer:
             if source is not None:
                 source.clicked.connect(lambda: self._plot_fir_response(source, widgets, params))
         elif callback.name == "navigate_event":
-            source = widgets.get(params["source"])
-            if source is not None:
-                source.clicked.connect(lambda: self._navigate_event(widgets, params))
+            self._bind_index_navigation(widgets, params, "eventnum_tag")
         elif callback.name == "navigate_channel":
-            source = widgets.get(params["source"])
-            if source is not None:
-                source.clicked.connect(lambda: self._navigate_channel(widgets, params))
+            self._bind_index_navigation(widgets, params, "channel_tag")
         elif callback.name == "clear_widgets":
             source = widgets.get(params["button"])
             if source is not None:
@@ -727,6 +777,17 @@ def _row_weights(row_geometry: Any) -> list[float]:
     return [1.0] * max(1, int(row_geometry))
 
 
+def _supergui_stretch(weight: float, row_total: float, most_columns: int) -> int:
+    """A control's share of its row as EEGLAB's supergui sizes it.
+
+    supergui gives each control its weight's share of the row minus 1.5 times
+    the normalized spacing (0.1 divided by the most controls in any row); with
+    the spec's column_spacing as the pixel gap this reproduces its widths.
+    """
+    spacing = 0.1 / most_columns
+    return max(1, round((weight / row_total - 1.5 * spacing) * 10000))
+
+
 def _row_stretch(spec: DialogSpec, row_index: int) -> int:
     if spec.geomvert is None:
         return 0
@@ -814,6 +875,7 @@ def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
 
 
 def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
+    _commit_index_navigation(widgets)
     message = _validation_message(spec, widgets)
     if message:
         _qt_core, qt_widgets = _require_qt()
@@ -886,27 +948,20 @@ def _validate_pop_reref_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str
             try:
                 float(huber_text)
             except ValueError:
-                return f"could not convert string to float: '{huber_text}'"
+                return "pop_reref: Huber threshold must be numeric. Enter a positive number."
 
-    channel_labels = _callback_channels(spec, "refbr")
-    if _widget_checked(widgets.get("rerefstr")):
-        ref_text = _widget_text(widgets.get("reref")).strip()
-        if not ref_text:
-            return "Aborting: you must enter one or more reference channels"
-        message = _validate_channel_text(ref_text, channel_labels, "Channel")
-        if message:
-            return message
-
-    exclude_text = _widget_text(widgets.get("exclude")).strip()
-    if exclude_text:
-        message = _validate_channel_text(exclude_text, channel_labels, "Channel")
-        if message:
-            return message
-
-    refloc_text = _widget_text(widgets.get("refloc")).strip()
-    if refloc_text:
-        refloc_labels = _callback_channels(spec, "refloc_button")
-        return _validate_channel_text(refloc_text, refloc_labels, "Reference location")
+    if _widget_checked(widgets.get("rerefstr")) and not _widget_text(widgets.get("reref")).strip():
+        return "pop_reref: no reference channel was entered. Enter a channel label or a 1-based channel number."
+    for tag, picker in (("reref", "refbr"), ("exclude", "refbr"), ("refloc", "refloc_button")):
+        if tag == "reref" and not _widget_checked(widgets.get("rerefstr")):
+            continue
+        labels = _callback_channels(spec, picker)
+        for value in _parse_channel_text(_widget_text(widgets.get(tag))):
+            if _is_int_text(value):
+                if not 1 <= int(value) <= len(labels):
+                    return f"pop_reref: {tag} channel index {value} is outside 1..{len(labels)}. Enter a channel number in that range."
+            elif value.lower() not in [label.lower() for label in labels]:
+                return f"pop_reref: {tag} channel '{value}' was not found. Enter a listed channel label or a number in 1..{len(labels)}."
     return None
 
 
@@ -941,20 +996,6 @@ def _callback_channels(spec: DialogSpec, tag: str) -> tuple[str, ...]:
         if control.tag == tag and control.callback is not None:
             return tuple(str(value) for value in control.callback.params.get("channels", ()))
     return ()
-
-
-def _validate_channel_text(text: str, labels: tuple[str, ...], label: str) -> str | None:
-    values = _parse_channel_text(text)
-    lower_labels = [value.lower() for value in labels]
-    for value in values:
-        if _is_int_text(value):
-            index = int(value)
-            if index < 0 or index >= len(labels):
-                return f"{label} index out of range"
-            continue
-        if value.lower() not in lower_labels:
-            return f"{label} '{value}' not found"
-    return None
 
 
 def _parse_channel_text(text: str) -> list[str]:
@@ -1097,7 +1138,12 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
     fcutoff = _widget_vector(widgets.get(params.get("fcutoff", "")))
     ftrans = _widget_number(widgets.get(params.get("ftrans", "")))
     if not fcutoff or ftrans is None:
-        qt_widgets.QMessageBox.warning(button, "Warning", "Cutoff frequencies and transition width are required")
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_firpm",
+            "pop_firpm: cutoff frequencies and transition width are missing. "
+            "Enter both in Hz, then click Estimate again.",
+        )
         return
     srate = _widget_number(widgets.get(params.get("srate", "")))
     if srate is None:
@@ -1105,9 +1151,16 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
     ftype = _combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
     try:
         edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype, srate)
-        order, wtpass, wtstop = pop_firpmord(edges, amplitudes, _firpm_default_devs(amplitudes), srate)
+        order, wtpass, wtstop = pop_firpmord(edges, amplitudes, fs=srate, gui=True)
     except ValueError as exc:
-        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_firpmord",
+            f"pop_firpmord: {exc} Enter numeric passband ripple and "
+            "stopband attenuation in dB, and check the cutoff and transition values in Hz.",
+        )
+        return
+    if order is None:
         return
     for tag, value in (
         (params.get("forder"), order),
@@ -1164,12 +1217,23 @@ def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
     target.setText(f"{value:g}")
 
 
-def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+def _select_event_types(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+    """Pick event types: one at a time (appended), or several in a ``pop_chansel`` list."""
     event_types = [str(value) for value in params.get("event_types", ())]
+    _qt_core, qt_widgets = _require_qt()
+    if params.get("selectionmode") == "multiple":
+        if not event_types:
+            qt_widgets.QMessageBox.critical(button, "Error", str(params.get("no_types_message", "No event types")))
+        else:
+            # As in EEGLAB, the list opens without a preselection and replaces the typed types.
+            _chanlist, selected, _labels = pop_chansel(event_types, parent=button)
+            if selected:
+                target.setText(selected)
+        _remind_if_empty(button, widgets, params)
+        return
     if not event_types:
         return
     current = target.text().strip()
-    _qt_core, qt_widgets = _require_qt()
     value, accepted = qt_widgets.QInputDialog.getItem(
         button,
         "Select event type",
@@ -1182,6 +1246,34 @@ def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> 
         target.setText((current + " " + value).strip())
 
 
+def _select_event_field(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+    """EEGLAB's event-field list (``listdlg2``, single selection)."""
+    fields = [str(value) for value in params.get("fields", ())]
+    _qt_core, qt_widgets = _require_qt()
+    if not fields:
+        qt_widgets.QMessageBox.critical(button, "Error", "No events")
+    else:
+        positions, accepted, _text = listdlg2(
+            promptstring="Select fields", liststring=fields, selectionmode="single", parent=button
+        )
+        if accepted and positions:
+            target.setText(fields[positions[0] - 1])
+    _remind_if_empty(button, widgets, params)
+
+
+def _remind_if_empty(button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    other = widgets.get(params.get("reminder_source", ""))
+    if other is not None and params.get("reminder") and not other.text().strip():
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "Warning", str(params["reminder"]))
+
+
+def _mirror_text(source: Any, target: Any) -> None:
+    """Copy ``source`` into ``target`` when both are filled (EEGLAB's phase and coherence frequencies)."""
+    if source.text().strip() and target.text().strip():
+        target.setText(source.text())
+
+
 def _navigate_event(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
     _navigate_indexed_form(widgets, params, index_tag="eventnum_tag")
 
@@ -1190,23 +1282,71 @@ def _navigate_channel(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> 
     _navigate_indexed_form(widgets, params, index_tag="channel_tag")
 
 
+_DISPLAYED_INDEX_ATTR = "_eegprep_displayed_index"
+
+
+def _commit_index_navigation(widgets: Mapping[str, Any]) -> None:
+    for widget in widgets.values():
+        stored = getattr(widget, "_eegprep_index_nav", None)
+        if stored is None:
+            continue
+        params, index_tag = stored
+        _navigate_indexed_form(widgets, params, index_tag=index_tag)
+
+
 def _navigate_indexed_form(widgets: Mapping[str, Any], params: Mapping[str, Any], *, index_tag: str) -> None:
     index_widget = widgets.get(params[index_tag])
-    if index_widget is None:
+    displays = params["field_displays"]
+    if index_widget is None or not displays:
         return
-    max_index = max(1, int(params["max_index"]))
+    max_index = min(max(1, int(params["max_index"])), len(displays))
+    displayed = int(getattr(index_widget, _DISPLAYED_INDEX_ATTR, 1))
     try:
         current = int(float(_widget_text(index_widget) or "1"))
-    except ValueError:
-        current = 1
-    new_index = max(1, min(max_index, current + int(params["delta"])))
-    index_widget.setText(str(new_index))
-    display = params["field_displays"][new_index - 1]
+    except (TypeError, ValueError):
+        index_widget.setText(str(displayed))
+        return
+    delta = int(params["delta"])
+    # pop_editeventvals.m:153-160, pop_editeventvals.m:571
+    target = current if delta == 0 else current + delta
+    target = max(1, min(max_index, target))
+    if target == displayed:
+        if _widget_text(index_widget) != str(target):
+            index_widget.setText(str(target))
+        return
+    _store_displayed_fields(widgets, displays[displayed - 1])
+    setattr(index_widget, _DISPLAYED_INDEX_ATTR, target)
+    index_widget.setText(str(target))
+    display = displays[target - 1]
     for tag, value in display.items():
-        target = widgets.get(tag)
-        if target is None:
+        field = widgets.get(tag)
+        if field is None:
             continue
-        _set_widget_display_value(target, value)
+        _set_widget_display_value(field, value)
+
+
+def _store_displayed_fields(widgets: Mapping[str, Any], display: Mapping[str, Any]) -> None:
+    if not isinstance(display, dict):
+        return
+    for tag, previous in list(display.items()):
+        widget = widgets.get(tag)
+        if widget is None:
+            continue
+        value = _read_widget(widget)
+        if _same_displayed_value(previous, value):
+            continue
+        display[tag] = value
+
+
+def _same_displayed_value(previous: Any, value: Any) -> bool:
+    if isinstance(previous, bool) or isinstance(value, bool):
+        return isinstance(previous, bool) and isinstance(value, bool) and previous == value
+    if isinstance(previous, (int, float)) and not isinstance(previous, bool):
+        try:
+            return float(value) == float(previous)
+        except (TypeError, ValueError):
+            return False
+    return str(previous) == str(value)
 
 
 def _set_widget_display_value(widget: Any, value: Any) -> None:
@@ -1224,7 +1364,7 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
         chanlist, value, _allchanstr = pop_chansel(
             channels,
             withindex="on",
-            select=target.text().strip(),
+            select=target.text().strip() if params.get("preselect", True) else None,
             selectionmode=str(params.get("selectionmode", "multiple")),
             parent=button,
         )
@@ -1254,7 +1394,14 @@ def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: M
     file_filter = str(params.get("filter", "All files (*)"))
     kwargs = file_dialog_kwargs(qt_widgets)
 
-    if params.get("mode") == "save":
+    if params.get("mode") == "directory":
+        filename = qt_widgets.QFileDialog.getExistingDirectory(
+            button,
+            caption,
+            "",
+            **file_dialog_kwargs(qt_widgets, directories=True),
+        )
+    elif params.get("mode") == "save":
         filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter, **kwargs)
     else:
         filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter, **kwargs)
@@ -1295,6 +1442,33 @@ def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
         qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
 
 
+def _run_dialog_action(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    def update(values: Mapping[str, Any]) -> None:
+        for tag, value in values.items():
+            _set_widget_display_value(widgets[tag], value)
+            if tag == params.get("index_tag"):
+                setattr(widgets[tag], _DISPLAYED_INDEX_ATTR, int(value))
+
+    try:
+        params["action"]({tag: _read_widget(widget) for tag, widget in widgets.items()}, update)
+    except ValueError as exc:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(parent, params["function"], str(exc))
+
+
+def _select_color(parent: Any, params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    dialog = qt_widgets.QColorDialog(parent)
+    color = dialog.currentColor()
+    color.setRgbF(*params["eeg"].get("reject", {}).get(params["field"], params["default"]))
+    dialog.setCurrentColor(color)
+    if dialog.exec() != qt_widgets.QDialog.Accepted:
+        return
+    color = dialog.currentColor()
+    params["eeg"].setdefault("reject", {})[params["field"]] = [color.redF(), color.greenF(), color.blueF()]
+    parent.setStyleSheet(f"background-color: {color.name()};")
+
+
 def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
     eeg = params.get("eeg")
     if not isinstance(eeg, dict):
@@ -1307,6 +1481,8 @@ def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Map
         def accept(eeg_out: dict[str, Any], _command: str) -> None:
             eeg.clear()
             eeg.update(eeg_out)
+            if _command and "commands" in params:
+                params["commands"].append(_command)
             for tag in params.get("count_tags", ()):
                 widget = widgets.get(tag)
                 field = params.get("count_fields", {}).get(tag)
@@ -1428,6 +1604,9 @@ def _edit_text(parent: Any, target: Any, params: Mapping[str, Any]) -> None:
     )
     if accepted:
         target.setProperty(_VALUE_PROPERTY, str(value))
+        if params.get("label_first_line"):
+            target.setText(str(value).split("\n", 1)[0])
+            target.setToolTip(str(value))
 
 
 def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
@@ -1687,10 +1866,6 @@ def _firpm_order_shape(
     return edges.tolist(), desired_by_type[ftype]
 
 
-def _firpm_default_devs(amplitudes: list[float]) -> list[float]:
-    return [0.01 if value == 1 else 0.001 for value in amplitudes]
-
-
 _QT_RENDERER_STATIC_HELPERS = (
     "_QDialog",
     "_apply_eeglab_style",
@@ -1706,7 +1881,6 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_validate_pop_reref_dialog",
     "_validate_pop_interp_dialog",
     "_callback_channels",
-    "_validate_channel_text",
     "_parse_channel_text",
     "_parse_numeric_text",
     "_widget_number",
@@ -1722,6 +1896,8 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_plot_fir_response",
     "_sync_numeric",
     "_select_event_types",
+    "_select_event_field",
+    "_mirror_text",
     "_select_channels",
     "_navigate_event",
     "_navigate_channel",

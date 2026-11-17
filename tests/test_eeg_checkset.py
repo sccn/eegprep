@@ -5,6 +5,7 @@ This module tests the eeg_checkset function that validates and normalizes
 EEG data structures, ensuring required fields exist and have correct types.
 """
 
+import math
 import unittest
 import sys
 import numpy as np
@@ -39,6 +40,95 @@ class TestEegChecksetTypeConversion(DebuggableTestCase):
         self.assertEqual(result['xmax'], 3.996)
         self.assertIsInstance(result['xmax'], float)
 
+    def test_epoch_latency_half_ulp_rounds_away_from_zero(self):
+        eeg = {
+            'data': np.zeros((1, 2, 2)),
+            'nbchan': 1,
+            'pnts': 2,
+            'trials': 2,
+            'srate': 1000.0,
+            'xmin': 0.5e-11,
+            'xmax': 0.5e-11 + 0.001,
+            'event': [{'type': 'stim', 'latency': 1.0, 'epoch': 1}],
+        }
+        result = eeg_checkset(eeg)
+        self.assertEqual(result['epoch'][0]['eventlatency'], [1e-8])
+
+    def test_xmax_half_frame_uses_matlab_rounding(self):
+        """100.5 frames snaps. Python round(100.5) is 100 and would keep 0.995 s."""
+        eeg = {
+            'data': np.zeros((1, 100)),
+            'nbchan': 1,
+            'pnts': 100,
+            'trials': 1,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.995,
+        }
+        result = eeg_checkset(eeg)
+        self.assertAlmostEqual(result['xmax'], 0.99)
+
+    def test_mixed_event_types_use_num2str(self):
+        """65.0 next to a boundary becomes '65', the same text as num2str(65)."""
+        eeg = create_minimal_eeg()
+        eeg['event'] = [
+            {'type': 65.0, 'latency': 10.0},
+            {'type': 'boundary', 'latency': 40.0, 'duration': 1.0},
+        ]
+        result = eeg_checkset(eeg)
+        self.assertEqual([event['type'] for event in result['event']], ['65', 'boundary'])
+
+    def test_numeric_event_types_stay_numeric(self):
+        eeg = create_minimal_eeg()
+        eeg['event'] = [{'type': 65.0, 'latency': 10.0}, {'type': 2, 'latency': 20.0}]
+        result = eeg_checkset(eeg)
+        self.assertEqual([event['type'] for event in result['event']], [65.0, 2])
+
+    def test_num2str_precision(self):
+        cases = (
+            (math.pi, '3.1416'),
+            (1234.5678, '1234.5678'),
+            (0.5, '0.5'),
+            (1e20, '1e+20'),
+        )
+        for number, text in cases:
+            with self.subTest(number=number):
+                eeg = create_minimal_eeg()
+                eeg['event'] = [
+                    {'type': number, 'latency': 2.0},
+                    {'type': 'boundary', 'latency': 4.0, 'duration': 1.0},
+                ]
+                result = eeg_checkset(eeg)
+                self.assertEqual(result['event'][0]['type'], text)
+
+    def test_eventconsistency_checks_past_the_first_100_events(self):
+        eeg = create_minimal_eeg()
+        eeg['event'] = [{'type': index + 1, 'latency': float(index + 1)} for index in range(100)]
+        eeg['event'].append({'type': 'boundary', 'latency': 200.0, 'duration': 1.0})
+        full = eeg_checkset(
+            {
+                'data': eeg['data'],
+                'srate': eeg['srate'],
+                'xmin': 0.0,
+                'xmax': eeg['xmax'],
+                'event': [dict(event) for event in eeg['event']],
+            }
+        )
+        self.assertEqual(full['event'][0]['type'], 1)
+        self.assertEqual(full['event'][-1]['type'], 'boundary')
+        consistent = eeg_checkset(
+            {
+                'data': eeg['data'],
+                'srate': eeg['srate'],
+                'xmin': 0.0,
+                'xmax': eeg['xmax'],
+                'event': [dict(event) for event in eeg['event']],
+            },
+            'eventconsistency',
+        )
+        self.assertEqual(consistent['event'][0]['type'], '1')
+        self.assertEqual(consistent['event'][-1]['type'], 'boundary')
+
 
 class TestEegChecksetDataSqueezing(DebuggableTestCase):
     """Test 3D data squeezing behavior."""
@@ -53,6 +143,56 @@ class TestEegChecksetDataSqueezing(DebuggableTestCase):
         # Should be squeezed to 2D
         self.assertEqual(result['data'].ndim, 2)
         self.assertEqual(result['data'].shape, (32, 1000))
+
+    def test_continuous_icaact_drops_trailing_trial_axis(self):
+        data = np.arange(8, dtype=np.float64).reshape(1, 8)
+        eeg = {
+            'data': data,
+            'nbchan': 1,
+            'pnts': 8,
+            'trials': 1,
+            'srate': 128.0,
+            'xmin': 0.0,
+            'xmax': 7 / 128,
+            'icaweights': np.array([[0.5]]),
+            'icasphere': np.array([[1.0]]),
+            'icawinv': np.array([[2.0]]),
+            'icachansind': np.array([0]),
+            'icaact': np.array([]),
+        }
+
+        result = eeg_checkset(eeg)
+
+        self.assertEqual(result['icaact'].shape, (1, 8))
+
+    def test_icaact_product_uses_the_data_dtype(self):
+        weights = np.array([[0.25, -0.5, 0.125, 0.125]], dtype=np.float64)
+        sphere = np.eye(4, dtype=np.float64)
+        data = np.arange(1, 33, dtype=np.float32).reshape(4, 8)
+        eeg = {
+            'data': data,
+            'nbchan': 4,
+            'pnts': 8,
+            'trials': 1,
+            'srate': 128.0,
+            'xmin': 0.0,
+            'xmax': 7 / 128,
+            'icaweights': weights,
+            'icasphere': sphere,
+            'icawinv': np.linalg.pinv(weights @ sphere),
+            'icachansind': np.arange(4),
+            'icaact': np.array([]),
+        }
+
+        result = eeg_checkset(eeg)
+
+        flat = np.asfortranarray(np.asarray(result['data']).reshape(result['data'].shape[0], -1, order='F'))
+        unmixing = np.asfortranarray(np.asarray(result['icaweights'])) @ np.asfortranarray(
+            np.asarray(result['icasphere'])
+        )
+        expected = np.asfortranarray(unmixing, dtype=np.float32) @ flat
+        self.assertEqual(result['icaact'].dtype, np.float32)
+        np.testing.assert_array_equal(result['icaact'], expected)
 
     def test_single_trial_clears_epoch_and_event_epoch_field(self):
         """Like eeg_checkset.m, trials == 1 drops the epoch struct and event.epoch."""

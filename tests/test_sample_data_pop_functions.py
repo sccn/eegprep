@@ -136,8 +136,16 @@ def test_pop_fileio_current_suite_channel_sample_and_trial_ranges():
     all_selected = pop_fileio(path, channels="1:32", samples=[1, 384])
     selected, command = pop_fileio(path, channels="1:16", trials=[2, 50], return_com=True)
 
+    positional = pop_fileio(
+        path,
+        "channels",
+        np.arange(1, 17, dtype=float)[None, :],
+        "trials",
+        np.array([[2.0, 50.0]]),
+    )
     np.testing.assert_array_equal(all_selected["data"], full["data"])
     np.testing.assert_array_equal(selected["data"], full["data"][:16, :, 1:50])
+    np.testing.assert_array_equal(positional["data"], selected["data"])
     assert selected["data"].shape == (16, 384, 49)
     assert selected["nbchan"] == 16
     assert selected["trials"] == 49
@@ -255,7 +263,7 @@ def test_pop_chanevent_adds_edges_from_sample_channel_without_deleting_channel(s
 def test_pop_interp_reconstructs_selected_sample_channel_without_runtime_warnings(sample_eeg):
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)
-        interpolated = pop_interp(sample_eeg, [0], "spherical")
+        interpolated = pop_interp(sample_eeg, [1], "spherical")
 
     assert interpolated["data"].shape == sample_eeg["data"].shape
     assert np.isfinite(interpolated["data"]).all()
@@ -407,7 +415,7 @@ def test_pop_runica_one_step_returns_finite_sample_decomposition(sample_eeg_with
     assert sample_eeg_with_ica["icaweights"].shape == (32, 32)
     assert sample_eeg_with_ica["icasphere"].shape == (32, 32)
     assert sample_eeg_with_ica["icawinv"].shape == (32, 32)
-    assert sample_eeg_with_ica["icaact"].shape == (32, 30504, 1)
+    assert sample_eeg_with_ica["icaact"].shape == (32, 30504)
     assert np.isfinite(sample_eeg_with_ica["icaweights"]).all()
     assert np.isfinite(sample_eeg_with_ica["icasphere"]).all()
     assert np.isfinite(sample_eeg_with_ica["icawinv"]).all()
@@ -424,6 +432,15 @@ def test_pop_subcomp_removes_requested_sample_component(sample_eeg_with_ica):
     assert out["icawinv"].shape == (32, 31)
     assert np.isfinite(out["data"]).all()
     assert command == "EEG = pop_subcomp(EEG, [1], 0);"
+
+
+def test_pop_subcomp_empty_component_list_tolerates_an_empty_reject_array(sample_eeg_with_ica):
+    eeg = copy.deepcopy(sample_eeg_with_ica)
+    eeg["reject"] = np.array([])
+
+    out = pop_subcomp(eeg, [], gui=False)
+
+    np.testing.assert_allclose(out["data"], sample_eeg_with_ica["data"])
 
 
 def test_pop_icflag_flags_sample_components_with_iclabel_probabilities(sample_eeg_with_ica):
@@ -471,8 +488,8 @@ def test_pop_expica_exports_sample_ica_matrices(sample_eeg_with_ica, tmp_path):
         weights_command = pop_expica(sample_eeg_with_ica, weights_file)
         inverse_command = pop_expica(sample_eeg_with_ica, inverse_file, "inv")
 
-    exported_weights = np.loadtxt(weights_file, delimiter="\t")
-    exported_inverse = np.loadtxt(inverse_file, delimiter="\t")
+    exported_weights = np.loadtxt(weights_file)
+    exported_inverse = np.loadtxt(inverse_file)
     np.testing.assert_allclose(
         exported_weights,
         finite_matmul(sample_eeg_with_ica["icaweights"], sample_eeg_with_ica["icasphere"]),
@@ -533,11 +550,14 @@ def test_pop_expevents_writes_all_sample_events(tmp_path, sample_eeg):
     command = pop_expevents(sample_eeg, output_file)
 
     lines = output_file.read_text(encoding="utf-8").splitlines()
-    assert lines[0] == "latency\tposition\ttype\turevent"
+    header = lines[0].split("\t")
+    assert header[0] == "number"
+    assert "urevent" in header
     assert len(lines) == len(sample_eeg["event"]) + 1
     assert "square" in lines[1]
     # Exported urevent is 1-based like EEGLAB; in memory it is 0-based.
-    exported_urevents = [int(line.split("\t")[3]) for line in lines[1:]]
+    urevent_index = header.index("urevent")
+    exported_urevents = [int(float(line.split("\t")[urevent_index])) for line in lines[1:]]
     assert exported_urevents == [int(event["urevent"]) + 1 for event in sample_eeg["event"]]
     assert exported_urevents[0] == 1
     assert "pop_expevents" in command
@@ -570,14 +590,20 @@ def test_pop_importevent_replaces_sample_events_from_table(tmp_path, sample_eeg)
     assert "pop_importevent" in command
 
 
-def test_pop_importerplab_imports_sample_event_table(tmp_path, sample_eeg):
+def test_pop_importerplab_maps_sample_events(tmp_path, sample_eeg):
+    sample_eeg['event'] = [dict(event, type=index + 1) for index, event in enumerate(sample_eeg['event'])]
     event_file = tmp_path / "erplab_events.txt"
-    event_file.write_text("12 erpstim\n", encoding="utf-8")
+    codes = sorted({float(event['type']) for event in sample_eeg['event']})
+    event_file.write_text('\n'.join(f'{code} "Event {code}" {index}' for index, code in enumerate(codes, 1)))
+    bin_file = tmp_path / 'bins.txt'
+    bin_file.write_text('b1 = (1) label First\n')
 
-    imported, command = pop_importerplab(sample_eeg, event_file, return_com=True)
+    imported, command = pop_importerplab(sample_eeg, event_file, bin_file, return_com=True)
 
-    assert imported["event"][0]["type"] == "erpstim"
-    assert imported["event"][0]["latency"] == 12
+    assert len(imported['event']) == len(sample_eeg['event'])
+    assert imported["event"][0]["type"] == sample_eeg['event'][0]['type']
+    assert imported["event"][0]["latency"] == sample_eeg['event'][0]['latency']
+    assert imported['event'][0]['newtype'] == f"Event {float(sample_eeg['event'][0]['type'])}"
     assert "pop_importerplab" in command
 
 
@@ -598,7 +624,7 @@ def test_pop_importepoch_updates_sample_epoch_metadata(tmp_path, sample_eeg):
     rows = ["condition"] + [f"square_{index}" for index in range(1, int(epoched["trials"]) + 1)]
     epoch_file.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
-    imported, command = pop_importepoch(epoched, epoch_file, return_com=True)
+    imported, command = pop_importepoch(epoched, epoch_file, ['condition'], headerlines=1, return_com=True)
 
     assert len(imported["epoch"]) == epoched["trials"]
     assert imported["epoch"][0]["condition"] == "square_1"
@@ -624,6 +650,9 @@ def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
         )
         loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
         np.testing.assert_array_equal(loaded["data"], source["data"])
+        assert loaded["setname"] == source["setname"]
+        assert len(loaded["event"]) == len(source["event"])
+        assert np.issubdtype(np.asarray(loaded["icachansind"]).dtype, np.integer)
         assert np.asarray(loaded["datfile"]).size == 0
 
     saved = pop_saveset(
@@ -639,6 +668,9 @@ def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
     )
     loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
     np.testing.assert_array_equal(loaded["data"], source["data"])
+    assert loaded["setname"] == source["setname"]
+    assert len(loaded["event"]) == len(source["event"])
+    assert np.issubdtype(np.asarray(loaded["icachansind"]).dtype, np.integer)
     assert loaded["datfile"] == "twofiles.fdt"
     assert (tmp_path / "twofiles.fdt").exists()
 
@@ -822,7 +854,7 @@ def test_eeg_store_retrieve_newset_and_delset_use_sample_dataset_indices(sample_
     assert retrieved["data"].shape == sample_eeg["data"].shape
     assert retrieved_set == 1
     assert newset_command == (
-        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'Stored sample', 'overwrite', 'on');"
+        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'setname', 'Stored sample', 'overwrite', 'on', 'gui', 'off');"
     )
     assert alleeg == []
     assert del_command == "ALLEEG = pop_delset( ALLEEG, [1] );"
@@ -840,7 +872,7 @@ def test_pop_editoptions_and_bids_metadata_helpers_are_history_recording(sample_
     assert eeg["etc"]["bids"]["task"]["TaskName"] == "sample-task"
     assert eeg["etc"]["bids"]["participant"]["participant_id"] == "sub-01"
     assert eeg["etc"]["bids"]["event"]["trial_type"] == "square"
-    assert edit_command == "LASTCOM = pop_editoptions();"
+    assert edit_command == "pop_editoptions('option_allmenus', 1);"
     assert "pop_taskinfo" in task_command
     assert "pop_participantinfo" in participant_command
     assert "pop_eventinfo" in event_command

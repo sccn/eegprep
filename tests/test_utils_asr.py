@@ -1,18 +1,15 @@
-import sys
+import copy
+import hashlib
 import unittest
-import numpy as np
-from unittest.mock import patch
+from pathlib import Path
 
+import numpy as np
+
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
-from eegprep.plugins.clean_rawdata.asr_process import (
-    DEFAULT_MAX_MEM_MB,
-    MAX_BLOCKS,
-    asr_process,
-    plan_blocks,
-    plan_warnings,
-)
-from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
+from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
 
 class TestAsrCalibrate(unittest.TestCase):
@@ -265,6 +262,22 @@ class TestAsrCalibrate(unittest.TestCase):
                 np.testing.assert_allclose(state['B'], ref_b, rtol=1e-8, atol=1e-9)
                 np.testing.assert_allclose(state['A'], ref_a, rtol=1e-8, atol=1e-9)
 
+    def test_calibration_does_not_mutate_input(self):
+        """Non-finite samples stay in the caller's array, including a non-contiguous view."""
+        base = np.random.default_rng(5).normal(size=(4, 900))
+        base[0, 10] = np.nan
+        base[1, 11] = np.inf
+        base[2, 12] = -np.inf
+        view = base[:, :800]
+        original = view.copy()
+
+        asr_calibrate(view, 128.0, cutoff=5.0)
+
+        np.testing.assert_array_equal(view, original)
+        self.assertTrue(np.isnan(base[0, 10]))
+        self.assertTrue(np.isposinf(base[1, 11]))
+        self.assertTrue(np.isneginf(base[2, 12]))
+
 
 class TestAsrProcess(unittest.TestCase):
     """Test the asr_process function."""
@@ -283,117 +296,6 @@ class TestAsrProcess(unittest.TestCase):
         # Add some artifacts to specific channels/times
         self.test_data[2, 100:150] += np.random.randn(50) * 2.0  # Large artifacts
 
-    def test_default_max_mem_works_without_psutil(self):
-        """max_mem=None must resolve to the fixed default without importing psutil.
-
-        psutil has no WebAssembly build, so this path must not import it (e.g. under
-        Pyodide). Block the real import (rather than mocking asr_process's logic) to prove
-        no code path reaches for psutil.
-        """
-        with patch.dict(sys.modules, {'psutil': None}):
-            cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state, max_mem=None)
-
-        self.assertEqual(cleaned_data.shape, self.test_data.shape)
-        self.assertTrue(np.all(np.isfinite(cleaned_data)))
-
-    def test_default_max_mem_equals_explicit_default(self):
-        """max_mem=None is exactly the documented default budget, not merely a plausible one."""
-        default_out, default_state = asr_process(self.test_data.copy(), self.srate, self.state)
-        explicit_out, explicit_state = asr_process(
-            self.test_data.copy(), self.srate, self.state, max_mem=DEFAULT_MAX_MEM_MB
-        )
-
-        np.testing.assert_array_equal(default_out, explicit_out)
-        np.testing.assert_array_equal(default_state['carry'], explicit_state['carry'])
-        np.testing.assert_array_equal(default_state['last_R'], explicit_state['last_R'])
-
-    def test_explicit_max_mem_forces_blocks(self):
-        """A small but sufficient explicit budget splits the work into blocks and still cleans."""
-        large_data = np.random.randn(self.n_channels, 5000) * 0.5
-
-        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as log:
-            cleaned_data, _ = asr_process(large_data, self.srate, self.state, max_mem=10)
-
-        self.assertTrue(any('blocks' in msg for msg in log.output))
-        self.assertEqual(cleaned_data.shape, large_data.shape)
-        self.assertTrue(np.all(np.isfinite(cleaned_data)))
-
-    def test_explicit_budget_below_fixed_overhead_raises_with_remedy(self):
-        """An explicit budget the fixed overhead cannot fit in must fail, naming the minimum and the fix."""
-        with self.assertRaises(RuntimeError) as cm:
-            asr_process(self.test_data, self.srate, self.state, max_mem=0.001)
-
-        message = str(cm.exception)
-        self.assertIn('Not enough memory', message)
-        self.assertIn('max_mem=0.001', message)
-        self.assertIn(f'{self.n_channels} channels', message)
-        self.assertIn('max_mem=None', message)
-        # The remedy names each caller's own argument and recommends headroom beyond the bare minimum.
-        self.assertIn('MaxMem', message)
-        self.assertIn('maxmem', message)
-        self.assertIn('twice', message)
-
-    def test_unusable_max_mem_values_raise_value_error(self):
-        """Zero, negative, infinite and NaN budgets are mistakes, not an out-of-memory condition."""
-        for bad in (0, -5, float('inf'), float('nan')):
-            with self.subTest(max_mem=bad):
-                with self.assertRaisesRegex(ValueError, 'max_mem must be a finite, positive'):
-                    asr_process(self.test_data, self.srate, self.state, max_mem=bad)
-
-    def test_default_budget_scales_with_channels_and_sampling_rate(self):
-        """The default budget must cover the fixed overhead of high-density, high-rate data.
-
-        128 channels at 1000 Hz and 256 channels at 512 Hz both need more than the 64 MB base
-        budget for the lookahead overhead (C * C * P * 8 * 3 bytes), which used to raise
-        'Not enough memory' even though EEGLAB's asr_process.m falls back to a larger budget.
-        """
-        for n_channels, srate in ((128, 1000.0), (256, 512.0)):
-            with self.subTest(channels=n_channels, srate=srate):
-                rng = np.random.default_rng(n_channels)
-                state = asr_calibrate(rng.standard_normal((n_channels, int(3 * srate))), srate)
-                chunk = rng.standard_normal((n_channels, int(srate)))
-                lookahead_samples = int(round(0.25 * srate))
-                overhead_mb = n_channels * n_channels * lookahead_samples * 8 * 3 / 1024**2
-                self.assertGreater(overhead_mb, DEFAULT_MAX_MEM_MB)
-
-                with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as logs:
-                    cleaned, _ = asr_process(chunk.copy(), srate, state)
-
-                self.assertEqual(cleaned.shape, chunk.shape)
-                self.assertTrue(np.all(np.isfinite(cleaned)))
-                # The default is exactly twice the overhead: a clamp to the 64 MB base budget would not
-                # raise but would change the block layout and so the output.
-                explicit, _ = asr_process(chunk.copy(), srate, state, max_mem=2 * overhead_mb)
-                np.testing.assert_array_equal(cleaned, explicit)
-                # Raising the budget is a warning (INFO is invisible by default), naming cause and remedy.
-                raised = [record for record in logs.records if record.getMessage().startswith('ASR default memory')]
-                self.assertEqual([record.levelname for record in raised], ['WARNING'])
-                message = raised[0].getMessage()
-                self.assertIn(f'raised from {DEFAULT_MAX_MEM_MB} to {2 * overhead_mb:.0f} MB', message)
-                self.assertIn(f'{n_channels} channels', message)
-                self.assertIn(f'{lookahead_samples} lookahead samples', message)
-                self.assertIn('MaxMem', message)
-                self.assertIn('maxmem', message)
-
-    def test_plain_default_budget_logs_no_warning(self):
-        """Nothing is raised and the blocks are comfortable, so there is nothing to warn about."""
-        with self.assertNoLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING'):
-            asr_process(self.test_data.copy(), self.srate, self.state)
-
-    def test_blocks_shorter_than_the_lookahead_warn_with_an_explicit_budget(self):
-        """A budget that passes the overhead check but leaves blocks shorter than the lookahead warns."""
-        lookahead_samples = int(round(0.5 / 2 * self.srate))
-        overhead_mb = self.n_channels * self.n_channels * lookahead_samples * 8 * 3 / 1024**2
-        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as logs:
-            cleaned, _ = asr_process(self.test_data.copy(), self.srate, self.state, max_mem=1.2 * overhead_mb)
-
-        self.assertEqual(cleaned.shape, self.test_data.shape)
-        self.assertEqual([record.levelname for record in logs.records], ['WARNING'])
-        message = logs.records[0].getMessage()
-        self.assertIn(f'shorter than the lookahead ({lookahead_samples} samples)', message)
-        self.assertIn('runtime grows', message)
-        self.assertIn('Pass a larger max_mem', message)
-
     def test_rank_deficient_covariance_produces_sane_output(self):
         """Process genuinely rank-deficient data (singular covariance).
 
@@ -411,84 +313,113 @@ class TestAsrProcess(unittest.TestCase):
         self.assertEqual(cleaned_data.shape, degenerate.shape)
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
 
+    def test_process_does_not_mutate_input(self):
+        """NaNs in the chunk stay put. Processing zeros them on its own buffer."""
+        chunk = self.test_data.copy()
+        chunk[0, 3] = np.nan
+        chunk[1, 4] = np.inf
+        original = chunk.copy()
 
-class TestBlockPlan(unittest.TestCase):
-    """The pure planning step: budget, block count and memory estimates for given sizes, with no data."""
+        cleaned, _state = asr_process(chunk, self.srate, self.state)
 
-    def test_comfortable_default_needs_no_raise_and_no_warning(self):
-        plan = plan_blocks(C=8, S=1000, P=50, step_size=32)
+        np.testing.assert_array_equal(chunk, original)
+        self.assertEqual(cleaned.shape, original.shape)
+        self.assertTrue(np.isfinite(cleaned).all())
 
-        self.assertEqual(plan.budget_mb, DEFAULT_MAX_MEM_MB)
-        self.assertFalse(plan.budget_raised)
-        self.assertFalse(plan.capped)
-        self.assertEqual(plan.splits, 1)
-        self.assertEqual(plan_warnings(plan, 8, 1000, 50), [])
+    def test_final_sample_is_reconstructed_when_length_mod_step_is_one(self):
+        """Every chunk sample is updated, including when ``n % step == 1``.
 
-    def test_raised_default_for_128_channels_at_1000_hz(self):
-        """128 channels, 250 lookahead samples, 10 s: twice the 93.75 MB overhead, in 108 blocks."""
-        plan = plan_blocks(C=128, S=10000, P=250, step_size=32)
+        Thresholds are zero and ``max_dims`` admits every component, so the
+        reconstruction is the zero matrix. A one-sample raised cosine has
+        weight 1, and the shaping filter is identity, so each sample is exactly
+        0. Length 289 with step 32 is the issue 523 processing chunk.
+        """
+        for length, step in ((288, 32), (289, 32), (290, 32)):
+            with self.subTest(length=length, step=step):
+                data = np.ones((2, length))
+                data[1, :] = -3.0
+                cleaned, _state = asr_process(
+                    data,
+                    128.0,
+                    _zero_reconstruction_state(2),
+                    window_len=0.5,
+                    lookahead=0.0,
+                    step_size=step,
+                    max_dims=1.0,
+                    max_mem=64,
+                )
+                np.testing.assert_allclose(cleaned, 0.0, rtol=0.0, atol=0.0)
 
-        self.assertTrue(plan.budget_raised)
-        self.assertEqual(plan.budget_mb, 187.5)
-        self.assertEqual(plan.overhead_mb, 93.75)
-        self.assertEqual(plan.splits, 108)
-        self.assertAlmostEqual(plan.block_samples, 10000 / 108)
-        self.assertLessEqual(plan.peak_mb, plan.budget_mb)
-        self.assertFalse(plan.capped)
-        (message,) = plan_warnings(plan, 128, 10000, 250)
-        for expected in (
-            'raised from 64 to 188 MB',
-            '93.8 MB',
-            '128 channels',
-            '250 lookahead samples',
-            '108 blocks',
-            'peak memory about 187 MB',
-            'refreshed per block',
-            'shorter than the lookahead',
-            'MaxMem',
-            'availableRAM_GB',
-            'maxmem',
-        ):
-            self.assertIn(expected, message)
 
-    def test_explicit_budgets_just_above_the_overhead_give_many_tiny_blocks(self):
-        """Measured block counts for 128 channels, 1000 Hz, 10 s: 94 MB hits the cap, 100 MB gives 1610 blocks."""
-        at_cap = plan_blocks(C=128, S=10000, P=250, step_size=32, max_mem=94)
-        above = plan_blocks(C=128, S=10000, P=250, step_size=32, max_mem=100)
+class TestIssue523FinalSample(unittest.TestCase):
+    """The nightly crop whose processing length mod the ASR step is 1."""
 
-        self.assertEqual((at_cap.splits, at_cap.capped), (MAX_BLOCKS, True))
-        self.assertEqual((above.splits, above.capped), (1610, False))
-        self.assertFalse(above.budget_raised)
-        (message,) = plan_warnings(above, 128, 10000, 250)
-        self.assertIn('shorter than the lookahead (250 samples)', message)
-        self.assertIn('runtime grows', message)
+    def test_pop_clean_rawdata_corrects_the_final_sample(self):
+        """Channel 8's last sample moves by the reported oracle gap.
 
-    def test_block_cap_makes_memory_exceed_the_budget_on_long_recordings(self):
-        """One hour of 128 channels at 1000 Hz cannot fit 187.5 MB in 10000 blocks: about 456 MB at peak."""
-        plan = plan_blocks(C=128, S=3_600_000, P=250, step_size=32)
+        The crop is 29 channels by 257 samples at 128 Hz, starting at sample
+        497 of ``eeglab_data.set``. Burst repair uses cutoff 5 and calibrates
+        on the whole crop. The processor sees 289 samples with a step of 32.
+        Flat index 2312 is channel 8, sample 256. Before the terminal update
+        that sample stayed equal to the input, and the oracle differed there
+        by 13.609652976396248. The fuzzer's ``clean_asr`` rule is
+        ``abs == 0`` and ``rel == 1e-6``.
+        """
+        raw = _issue_523_crop()
+        digest = hashlib.sha256(np.ascontiguousarray(raw["data"], dtype=np.float64).tobytes()).hexdigest()
+        self.assertEqual(digest, "a626caa305d69ec2a3a7362aa93b817eb91055e100c9755540a19e96e88ecc41")
+        cleaned = pop_clean_rawdata(
+            raw,
+            gui=False,
+            FlatlineCriterion="off",
+            Highpass="off",
+            ChannelCriterion="off",
+            LineNoiseCriterion="off",
+            WindowCriterion="off",
+            BurstCriterion=5.0,
+            BurstCriterionRefMaxBadChns="off",
+            BurstRejection="off",
+        )
+        diff = np.abs(np.asarray(cleaned["data"], dtype=np.float64) - raw["data"])
+        self.assertEqual(int(np.argmax(diff)), 2312)
+        np.testing.assert_allclose(diff.ravel()[2312], 13.609652976396248, rtol=1e-6, atol=0.0)
 
-        self.assertEqual(plan.splits, MAX_BLOCKS)
-        self.assertTrue(plan.capped)
-        self.assertEqual(plan.block_samples, 360)
-        self.assertAlmostEqual(plan.peak_mb, 456, delta=1)
-        self.assertGreater(plan.peak_mb, 2 * plan.budget_mb)
-        raised_message, capped_message = plan_warnings(plan, 128, 3_600_000, 250)
-        self.assertIn('raised from 64 to 188 MB', raised_message)
-        self.assertNotIn('shorter than the lookahead', raised_message)
-        for expected in (
-            'limited to 10000 blocks',
-            'exceed the 188 MB budget',
-            'about 456 MB in all',
-            'clean the recording in segments',
-            'maxmem',
-        ):
-            self.assertIn(expected, capped_message)
 
-    def test_unusable_budgets_are_rejected_by_the_planner(self):
-        with self.assertRaisesRegex(ValueError, 'finite, positive'):
-            plan_blocks(C=8, S=1000, P=50, step_size=32, max_mem=float('nan'))
-        with self.assertRaisesRegex(RuntimeError, 'Not enough memory'):
-            plan_blocks(C=128, S=1000, P=250, step_size=32, max_mem=50)
+def _zero_reconstruction_state(n_channels: int) -> dict:
+    return {
+        "M": np.eye(n_channels),
+        "T": np.zeros((n_channels, n_channels)),
+        "B": np.array([1.0]),
+        "A": np.array([1.0]),
+        "sos": None,
+        "iir_state": np.zeros((n_channels, 0)),
+        "compatibility": "max",
+        "carry": None,
+        "cov": None,
+        "last_R": None,
+        "last_trivial": True,
+    }
+
+
+def _issue_523_crop() -> dict:
+    path = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    eeg = pop_loadset(str(path))
+    sample_index = np.arange(497, 497 + 257)
+    data = np.array(np.asarray(eeg["data"])[np.ix_(list(range(29)), sample_index)], dtype=np.float64, copy=True)
+    cropped = copy.deepcopy(eeg)
+    cropped["data"] = data
+    cropped["chanlocs"] = np.array([copy.deepcopy(eeg["chanlocs"][index]) for index in range(29)], dtype=object)
+    cropped["nbchan"] = 29
+    cropped["pnts"] = 257
+    cropped["trials"] = 1
+    cropped["srate"] = float(eeg["srate"])
+    cropped["xmin"] = 0.0
+    cropped["xmax"] = 256 / cropped["srate"]
+    cropped["times"] = np.linspace(0.0, cropped["xmax"] * 1000.0, 257)
+    cropped["event"] = np.array([], dtype=object)
+    cropped["urevent"] = np.array([], dtype=object)
+    cropped["epoch"] = np.array([])
+    return cropped
 
 
 class TestCleanAsrNoMutation(unittest.TestCase):
@@ -527,47 +458,6 @@ class TestCleanAsrNoMutation(unittest.TestCase):
         # Output is a distinct object with distinct data.
         self.assertIsNot(EEG_out, EEG_in)
         self.assertIsNot(EEG_out['data'], EEG_in['data'])
-
-
-class TestCleanAsrDefaultMemory(unittest.TestCase):
-    """clean_asr and clean_artifacts must run at high channel counts with their default memory budget."""
-
-    @staticmethod
-    def _eeg(n_channels, srate, seconds):
-        rng = np.random.default_rng(n_channels)
-        data = rng.standard_normal((n_channels, int(seconds * srate)))
-        return {'data': data, 'srate': srate, 'nbchan': n_channels, 'pnts': data.shape[1], 'etc': {}}
-
-    def test_clean_asr_default_budget_at_128_channels_1000_hz(self):
-        EEG = self._eeg(128, 1000.0, 3)
-
-        cleaned = clean_asr(EEG, ref_maxbadchannels='off')
-
-        self.assertEqual(cleaned['data'].shape, EEG['data'].shape)
-        self.assertTrue(np.all(np.isfinite(cleaned['data'])))
-
-    def test_clean_artifacts_default_budget_at_128_channels_1000_hz(self):
-        """Burst repair alone, so the test exercises only the MaxMem default flowing into ASR."""
-        EEG = self._eeg(128, 1000.0, 3)
-
-        cleaned, _, _, _ = clean_artifacts(
-            EEG,
-            ChannelCriterion='off',
-            LineNoiseCriterion='off',
-            FlatlineCriterion='off',
-            Highpass='off',
-            WindowCriterion='off',
-            BurstCriterionRefMaxBadChns='off',
-        )
-
-        self.assertEqual(cleaned['data'].shape, EEG['data'].shape)
-        self.assertTrue(np.all(np.isfinite(cleaned['data'])))
-
-    def test_clean_asr_explicit_tiny_budget_still_raises(self):
-        EEG = self._eeg(8, 250.0, 6)
-
-        with self.assertRaisesRegex(RuntimeError, 'Not enough memory'):
-            clean_asr(EEG, ref_maxbadchannels='off', maxmem=0.001)
 
 
 if __name__ == '__main__':

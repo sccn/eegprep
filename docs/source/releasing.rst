@@ -14,10 +14,36 @@ The version lives in one place
 
 ``src/eegprep/__init__.py``::
 
-    __version__ = "0.3.0"
+    __version__ = "0.5.0"
 
 ``pyproject.toml`` declares ``dynamic = ["version"]`` and reads that attribute, so
-there is no version string to edit in ``pyproject.toml``.
+there is no version string to edit in the eegprep ``pyproject.toml``.
+
+``eegprep-lean`` carries the same version in two places, and both must equal
+``__version__``: ``packages/eegprep-lean/src/eegprep_lean/__init__.py`` and
+``version`` in ``packages/eegprep-lean/pyproject.toml``. The joint release
+below exits before it builds if those three strings differ.
+
+Both packages
+=============
+
+``scripts/release_packages.py`` builds eegprep and eegprep-lean with that one
+version. With no flags it builds both and does not upload::
+
+    python scripts/release_packages.py
+
+``--publish`` checks that both packages have built artifacts and that
+``UV_PUBLISH_TOKEN`` is set, then uploads eegprep-lean and eegprep in that
+order. It does not upload eegprep unless lean can be uploaded too. Lean has
+no trusted publisher, so a GitHub Actions token is not enough for this
+command. ``--check`` compares the versions and does not build. A ``v*`` tag
+in ``GITHUB_REF``, or ``RELEASE_TAG``, must name the same version.
+
+``.github/workflows/synced-release.yml`` runs the script without ``--publish``.
+That job builds and verifies. It does not upload. ``release.yml`` still
+publishes the eegprep project when a ``v*`` tag is pushed. Uploading
+``eegprep-lean`` needs a trusted publisher for that project, which is not
+configured; ``lean-wheel.yml`` builds the lean wheel and does not publish it.
 
 Release from your machine
 =========================
@@ -35,7 +61,7 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git commit -am "release: 0.3.0"
+   git commit -am "release: 0.5.0"
    git checkout master && git merge --no-ff develop && git push origin master
 
 .. tip::
@@ -49,8 +75,8 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git tag -a v0.3.0 -m "Release version 0.3.0"
-   git push origin v0.3.0
+   git tag -a v0.5.0 -m "Release version 0.5.0"
+   git push origin v0.5.0
 
 **4. Watch it.** Nothing reaches PyPI unless every check passes:
 
@@ -73,8 +99,8 @@ What the workflow does
    test suite with ``EEGPREP_SKIP_MATLAB=1``.
 2. **build** — ``uv build``, then checks that the tag matches ``__version__``, that
    the vendored EEGLAB checkout is absent from both artifacts, that the wheel and
-   sdist contain the packaged ICLabel network (and no source ``netICL.mat``), and
-   that the packaged network's SHA-256 equals ``packaged_model.sha256`` in
+   sdist contain both packaged ICLabel networks (and no source ``netICL.mat``), and
+   that the packaged 8-bit network's SHA-256 equals ``packaged_model.sha256`` in
    ``tools/iclabel/parity_report.json`` and that the report's ``gate_pass`` is
    true. It also runs ``twine check --strict`` and installs both artifacts with
    the ICLabel extra for runtime classification and the ASR filter smoke test.
@@ -94,32 +120,37 @@ What the workflow does
 Regenerating the ICLabel network
 ================================
 
-``src/eegprep/plugins/ICLabel/iclabel.onnx`` is built from the EEGLAB weights in
-``netICL.mat``. Rebuild it only when the weights or the quantization change; a
-normal release reuses the committed file. The sequence is:
+Two network files are built from the EEGLAB weights in ``netICL.mat``:
+``src/eegprep/plugins/ICLabel/iclabel.onnx``, the full-precision (float32)
+network that every native run loads, and ``iclabel_int8.onnx`` next to it, the
+8-bit network the browser loads. Rebuild them only when the weights or the
+quantization change; a normal release reuses the committed files. The sequence is:
 
 1. Install the developer tools with the ``torch`` extra (very large, and not part
    of ``eegprep[all]``) and the ``iclabel`` extra.
 2. Export the full-precision (float32) network from ``netICL.mat``; it is written
-   under ``build/iclabel/`` and is never committed.
+   under ``build/iclabel/`` first.
 3. Quantize its weights to 8-bit integers. The script compares the result with the
    frozen reference probabilities in ``tools/iclabel/`` and exits with an error,
    without writing a report, when it fails an acceptance criterion.
-4. Copy the passing network to ``src/eegprep/plugins/ICLabel/iclabel.onnx``.
-5. Commit the new ``iclabel.onnx`` together with the updated
+4. Copy the float32 export to ``src/eegprep/plugins/ICLabel/iclabel.onnx`` and the
+   passing 8-bit network to ``src/eegprep/plugins/ICLabel/iclabel_int8.onnx``.
+5. Commit both networks together with the updated
    ``tools/iclabel/parity_report.json``, so the report's ``packaged_model.sha256``
-   matches the packaged file.
+   matches the packaged 8-bit file.
 
 The exact commands are in the docstring of ``tools/iclabel/quantize_iclabel_onnx.py``.
 If ``netICL.mat`` itself changes, first refreeze the reference probabilities as
 that docstring describes.
 
-Continuous integration repeats steps 2 and 3 on every change and requires the
-regenerated network to produce network outputs identical to the committed one on
-the evaluation components; it does not compare bytes, because a fresh PyTorch export
-need not be byte-identical across PyTorch versions. The build job above fails the
-release when the packaged network and the report disagree or the report records a
-failed criterion. After a rebuild, update the measured agreement shown to users
+Continuous integration repeats steps 2 and 3 on every change. It requires the
+regenerated float32 network to match the committed ``iclabel.onnx`` to 1e-5 on the
+evaluation components and the regenerated 8-bit network to produce network outputs
+identical to the committed ``iclabel_int8.onnx``; it does not compare bytes, because a
+fresh PyTorch export need not be byte-identical across PyTorch versions. The build job
+above fails the release when a packaged network differs from its source file, or the
+packaged 8-bit network and the report disagree, or the report records a failed
+criterion. After a rebuild, update the measured agreement shown to users
 (:ref:`iclabel_measured_agreement`) from the new report.
 
 If a tag was pushed at a bad commit
@@ -130,8 +161,8 @@ nothing; once a version is on PyPI it can never be replaced.
 
 .. code-block:: bash
 
-   git push origin :refs/tags/v0.3.0     # delete the remote tag
-   git tag -f v0.3.0 && git push origin v0.3.0
+   git push origin :refs/tags/v0.5.0     # delete the remote tag
+   git tag -f v0.5.0 && git push origin v0.5.0
 
 Docker image
 ============

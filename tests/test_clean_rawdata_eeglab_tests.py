@@ -235,6 +235,13 @@ def test_reference_clean_rawdata_final_rejection(eeglab_backend, eeglab_suite_ro
     )
 
 
+def test_assert_matlab_equal_accepts_lists_of_empty_arrays():
+    empty = np.empty((0,))
+    assert_matlab_equal([empty], [np.empty((0,))])
+    with pytest.raises(AssertionError):
+        assert_matlab_equal([empty], [np.array([1.0])])
+
+
 def test_python_regression_clean_rawdata_final_window_rejection_is_deterministic_and_removes_bad_windows():
     eeg = _continuous_eeg()
     eeg["data"][:5, 1600:2200] += 35 * np.random.default_rng(1).standard_normal((5, 600))

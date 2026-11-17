@@ -1,14 +1,61 @@
-"""Small BIDS tool helpers for EEGPrep GUI File menu actions."""
+"""BIDS metadata editors and a file-level dataset check."""
 
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
-from eegprep.functions.popfunc._file_io import write_json
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
+
+_TASK_FIELDS = (
+    ("Name", "Dataset name"),
+    ("TaskName", "Task name (no space)"),
+    ("README", "README"),
+    ("TaskDescription", "Participant task description"),
+    ("Instructions", "Participant instructions"),
+    ("Authors", "Authors"),
+    ("ReferencesAndLinks", "References and links"),
+    ("CogAtlasID", "Task-relevant Cognitive Atlas term"),
+    ("CogPOID", "Task-relevant CogPO term"),
+    ("InstitutionName", "Institution"),
+    ("InstitutionalDepartmentName", "Department"),
+    ("InstitutionAddress", "Institution location"),
+    ("CapManufacturer", "Cap manufacturer"),
+    ("CapManufacturersModelName", "Cap model"),
+    ("EEGReference", "EEG reference location"),
+    ("EEGGround", "EEG ground electrode location"),
+    ("EEGPlacementScheme", "EEG montage system (10-20, 10-10, custom)"),
+    ("Manufacturer", "EEG amplifier maker"),
+    ("ManufacturersModelName", "EEG amplifier model"),
+    ("DeviceSerialNumber", "EEG amplifier serial #"),
+    ("SoftwareVersions", "EEG acquisition software version"),
+    ("HardwareFilters", "Hardware filters"),
+    ("SoftwareFilters", "Software filters"),
+)
+_PARTICIPANT_FIELDS = (
+    ("participant_id", "Subject code"),
+    ("Gender", "Gender"),
+    ("Age", "Age"),
+    ("Group", "Group"),
+    ("HeadCircumference", "Head circumference"),
+    ("SubjectArtefactDescription", "Subject artefact description"),
+)
+_EVENT_FIELDS = (
+    ("onset", "onset"),
+    ("duration", "duration"),
+    ("sample", "sample"),
+    ("value", "value"),
+    ("trial_type", "trial_type"),
+    ("stim_file", "stim_file"),
+    ("response_time", "response_time"),
+)
 
 
 def bids_exporter(EEG: dict[str, Any] | list[dict[str, Any]], output_dir: str | Path) -> tuple[str, str]:
@@ -16,40 +63,330 @@ def bids_exporter(EEG: dict[str, Any] | list[dict[str, Any]], output_dir: str | 
     return pop_exportbids(EEG, output_dir, return_com=True)
 
 
-def pop_taskinfo(target: dict[str, Any], **metadata: Any) -> tuple[dict[str, Any], str]:
-    """Attach BIDS task metadata to an EEG or STUDY dict."""
+def pop_taskinfo(
+    target: dict[str, Any],
+    *,
+    gui: bool = False,
+    renderer: Any = None,
+    **metadata: Any,
+) -> tuple[dict[str, Any], str]:
+    """Attach BIDS task metadata to an EEG or STUDY dict.
+
+    ``gui=True`` opens the field dialog from ``pop_taskinfo.m``. Keyword
+    arguments still update ``etc.bids.task`` without a dialog.
+    """
+    if gui or renderer is not None:
+        collected = _dialog_metadata(pop_taskinfo_dialog_spec(), renderer, _task_initial(target))
+        if collected is None:
+            return target, ""
+        metadata = {**metadata, **collected}
     return _update_bids_metadata(target, "task", metadata, "pop_taskinfo")
 
 
-def pop_participantinfo(target: dict[str, Any], **metadata: Any) -> tuple[dict[str, Any], str]:
+def pop_participantinfo(
+    target: dict[str, Any],
+    *,
+    gui: bool = False,
+    renderer: Any = None,
+    **metadata: Any,
+) -> tuple[dict[str, Any], str]:
     """Attach BIDS participant metadata to an EEG or STUDY dict."""
+    if gui or renderer is not None:
+        collected = _dialog_metadata(pop_participantinfo_dialog_spec(), renderer, _participant_initial(target))
+        if collected is None:
+            return target, ""
+        if not str(collected.get("participant_id") or "").strip():
+            raise ValueError(
+                "pop_participantinfo: No subject ID found. Fill in Subject code (participant_id), then press Ok."
+            )
+        metadata = {**metadata, **collected}
     return _update_bids_metadata(target, "participant", metadata, "pop_participantinfo")
 
 
-def pop_eventinfo(target: dict[str, Any], **metadata: Any) -> tuple[dict[str, Any], str]:
+def pop_eventinfo(
+    target: dict[str, Any],
+    *,
+    gui: bool = False,
+    renderer: Any = None,
+    **metadata: Any,
+) -> tuple[dict[str, Any], str]:
     """Attach BIDS event metadata to an EEG or STUDY dict."""
+    if gui or renderer is not None:
+        collected = _dialog_metadata(pop_eventinfo_dialog_spec(), renderer, _section(target, "event"))
+        if collected is None:
+            return target, ""
+        metadata = {**metadata, **collected}
     return _update_bids_metadata(target, "event", metadata, "pop_eventinfo")
 
 
-def validate_bids(root: str | Path) -> dict[str, list[str]]:
-    """Return a lightweight validation report for a BIDS EEG folder."""
+def pop_taskinfo_dialog_spec() -> DialogSpec:
+    """Return the task and EEG acquisition fields from ``pop_taskinfo.m``."""
+    controls = [ControlSpec("text", "BIDS task information", font_weight="bold")]
+    for tag, label in _TASK_FIELDS:
+        controls.extend((ControlSpec("text", label), ControlSpec("edit", tag=tag)))
+    controls.extend(
+        (
+            ControlSpec("text", "Line frequency (Hz)"),
+            ControlSpec("popupmenu", "Select|50|60", tag="PowerLineFrequency", value=1),
+        )
+    )
+    return DialogSpec(
+        title="BIDS task information -- pop_taskinfo()",
+        function_name="pop_taskinfo",
+        eeglab_source="plugins/EEG-BIDS/pop_taskinfo.m",
+        geometry=tuple([1] + [[1, 2]] * (len(_TASK_FIELDS) + 1)),
+        controls=tuple(controls),
+        scrollable=True,
+    )
+
+
+def pop_participantinfo_dialog_spec() -> DialogSpec:
+    """Return the participant columns from ``pop_participantinfo.m`` line 160."""
+    controls = [ControlSpec("text", "Participant information", font_weight="bold")]
+    for tag, label in _PARTICIPANT_FIELDS:
+        controls.extend((ControlSpec("text", label), ControlSpec("edit", tag=tag)))
+    return DialogSpec(
+        title="Edit BIDS participant info - pop_participantinfo",
+        function_name="pop_participantinfo",
+        eeglab_source="plugins/EEG-BIDS/pop_participantinfo.m",
+        geometry=tuple([1] + [[1, 2]] * len(_PARTICIPANT_FIELDS)),
+        controls=tuple(controls),
+    )
+
+
+def pop_eventinfo_dialog_spec() -> DialogSpec:
+    """Return the event fields from ``pop_eventinfo.m`` line 59."""
+    controls = [ControlSpec("text", "BIDS information for EEG.event fields", font_weight="bold")]
+    for tag, label in _EVENT_FIELDS:
+        controls.extend((ControlSpec("text", label), ControlSpec("edit", tag=tag)))
+    return DialogSpec(
+        title="Edit BIDS event info - pop_eventinfo",
+        function_name="pop_eventinfo",
+        eeglab_source="plugins/EEG-BIDS/pop_eventinfo.m",
+        geometry=tuple([1] + [[1, 2]] * len(_EVENT_FIELDS)),
+        controls=tuple(controls),
+    )
+
+
+_VALIDATOR_NOTE = (
+    "validate_bids: this was a sidecar check only. The official bids-validator was not found on PATH. "
+    "Install it with `npm install -g bids-validator` or `deno install -A jsr:@bids/validator`, "
+    "then run validate_bids again."
+)
+
+
+def validate_bids(root: str | Path) -> dict[str, list[str] | str | None]:
+    """Check BIDS sidecars, then the official bids-validator when it is installed.
+
+    ``pop_validatebids.m`` runs the bids-validator plugin. This function runs
+    ``bids-validator`` or ``npx --no-install bids-validator`` when that command
+    is on PATH, and ``deno run -A jsr:@bids/validator`` when ``deno`` is on PATH.
+    It does not write a report file into the dataset. ``note`` tells the GUI
+    when only the sidecar check ran.
+    """
     path = Path(root)
-    errors = []
-    warnings = []
+    errors: list[str] = []
+    warnings: list[str] = []
     if not path.exists():
-        errors.append(f"BIDS path does not exist: {path}")
+        errors.append(
+            f"validate_bids: BIDS path does not exist: {path}. Pass the folder that contains dataset_description.json."
+        )
+        return {"errors": errors, "warnings": warnings, "note": _VALIDATOR_NOTE}
     if not (path / "dataset_description.json").exists():
-        warnings.append("dataset_description.json is missing")
+        errors.append(
+            f"validate_bids: dataset_description.json is missing from {path}. "
+            "Export the folder with pop_exportbids, which writes that file."
+        )
+    if not (path / "README").exists():
+        errors.append(
+            f"validate_bids: README is missing from {path}. "
+            "Export the folder with pop_exportbids, which writes README, *_eeg.json, and *_electrodes.tsv."
+        )
     try:
         files = bids_list_eeg_files(str(path))
     except Exception as exc:
-        errors.append(str(exc))
+        errors.append(f"validate_bids: could not list EEG files in {path}. {exc}")
         files = []
     if not files:
-        warnings.append("No supported EEG files were found")
-    report = {"errors": errors, "warnings": warnings}
-    write_json(path / "eegprep_bids_validation.json", report) if path.exists() else None
-    return report
+        errors.append(
+            f"validate_bids: no supported EEG files were found in {path}. "
+            "Export a .set, .edf, .bdf, or BrainVision file with pop_exportbids."
+        )
+    eeg_json = list(path.rglob("*_eeg.json"))
+    electrodes = list(path.rglob("*_electrodes.tsv"))
+    if files and not eeg_json:
+        errors.append(
+            f"validate_bids: no *_eeg.json sidecar in {path}. "
+            "Re-export with pop_exportbids so each recording has an eeg.json file."
+        )
+    if files and not electrodes:
+        errors.append(
+            f"validate_bids: no *_electrodes.tsv file in {path}. "
+            "Re-export with pop_exportbids so each recording has an electrodes.tsv file."
+        )
+    coordsystems = list(path.rglob("*_coordsystem.json")) + list(path.glob("coordsystem.json"))
+    if electrodes and not coordsystems:
+        errors.append(
+            f"validate_bids: electrodes.tsv is present in {path} but no *_coordsystem.json was found. "
+            "Re-export with pop_exportbids, which writes the coordinate-system sidecar beside electrodes.tsv."
+        )
+    note = _run_official_validator(path, errors, warnings)
+    return {"errors": errors, "warnings": warnings, "note": note}
+
+
+def _validator_command() -> list[str] | None:
+    validator = shutil.which("bids-validator")
+    if validator:
+        return [validator]
+    npx = shutil.which("npx")
+    if npx:
+        return [npx, "--no-install", "bids-validator"]
+    deno = shutil.which("deno")
+    if deno:
+        return [deno, "run", "-A", "jsr:@bids/validator"]
+    return None
+
+
+def _run_official_validator(path: Path, errors: list[str], warnings: list[str]) -> str | None:
+    command = _validator_command()
+    if command is None:
+        return _VALIDATOR_NOTE
+    try:
+        completed = subprocess.run(
+            [*command, "--json", str(path)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return _VALIDATOR_NOTE
+    stdout = completed.stdout or ""
+    stderr = completed.stderr or ""
+    if _validator_unavailable(completed.returncode, stdout, stderr):
+        return _VALIDATOR_NOTE
+    payload = _validator_payload(stdout)
+    if payload is None:
+        if completed.returncode != 0:
+            detail = (stderr or stdout).strip().splitlines()
+            message = detail[0] if detail else f"exit {completed.returncode}"
+            errors.append(f"validate_bids: bids-validator failed. {message}")
+        return None
+    issues = payload.get("issues", payload)
+    if not isinstance(issues, dict):
+        return None
+    for issue in issues.get("errors") or []:
+        errors.append(f"validate_bids: {_issue_text(issue)}")
+    for issue in issues.get("warnings") or []:
+        warnings.append(f"validate_bids: {_issue_text(issue)}")
+    return None
+
+
+def _validator_unavailable(code: int, stdout: str, stderr: str) -> bool:
+    if stdout.strip().startswith("{"):
+        return False
+    text = f"{stdout}\n{stderr}".lower()
+    missing = (
+        "not found",
+        "not recognized",
+        "npm err",
+        "could not determine executable",
+        "cannot find module",
+        "err_module_not_found",
+        "error: could not find",
+    )
+    return code != 0 and any(marker in text for marker in missing)
+
+
+def _validator_payload(stdout: str) -> dict[str, Any] | None:
+    start = stdout.find("{")
+    if start < 0:
+        return None
+    try:
+        payload = json.loads(stdout[start:])
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _issue_text(issue: Any) -> str:
+    if isinstance(issue, str):
+        return issue
+    if isinstance(issue, dict):
+        reason = issue.get("reason") or issue.get("key") or issue.get("code") or "bids-validator issue"
+        return str(reason)
+    return str(issue)
+
+
+def _dialog_metadata(spec: DialogSpec, renderer: Any, initial: dict[str, Any]) -> dict[str, Any] | None:
+    result = inputgui(spec, initial_values=initial or None, renderer=renderer)
+    if result is None:
+        return None
+    metadata: dict[str, Any] = {}
+    for key, value in result.items():
+        if key == "PowerLineFrequency":
+            choice = int(value or 1)
+            if choice == 2:
+                metadata[key] = "50"
+            elif choice == 3:
+                metadata[key] = "60"
+            continue
+        text = str(value or "").strip()
+        if text:
+            metadata[key] = text
+    return metadata
+
+
+def _task_initial(target: dict[str, Any]) -> dict[str, Any]:
+    stored = dict(_section(target, "task"))
+    frequency = str(stored.get("PowerLineFrequency") or "")
+    if frequency == "50":
+        stored["PowerLineFrequency"] = 2
+    elif frequency == "60":
+        stored["PowerLineFrequency"] = 3
+    else:
+        stored.pop("PowerLineFrequency", None)
+    return stored
+
+
+def _participant_initial(target: dict[str, Any]) -> dict[str, Any]:
+    stored = dict(_section(target, "participant"))
+    if not stored.get("participant_id"):
+        subject = _subject_text(target.get("subject"))
+        if subject:
+            stored["participant_id"] = subject
+    return stored
+
+
+def _subject_text(subject: Any) -> str:
+    for _ in range(5):
+        if isinstance(subject, str) or subject is None:
+            break
+        shape = getattr(subject, "shape", None)
+        if shape == ():
+            subject = subject.item()
+            break
+        if isinstance(subject, (list, tuple)) or shape is not None:
+            if len(subject) == 0:
+                return ""
+            subject = subject[0]
+            continue
+        break
+    text = "" if subject is None else str(subject).strip()
+    if not text:
+        return ""
+    return text if text.startswith("sub-") else f"sub-{text}"
+
+
+def _section(target: dict[str, Any], name: str) -> dict[str, Any]:
+    etc = target.get("etc")
+    if not isinstance(etc, dict):
+        return {}
+    bids = etc.get("bids")
+    if not isinstance(bids, dict):
+        return {}
+    section = bids.get(name)
+    return dict(section) if isinstance(section, dict) else {}
 
 
 def _update_bids_metadata(

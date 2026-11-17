@@ -34,23 +34,33 @@ def file_dialog_kwargs(
     *,
     native_file_dialogs: bool | None = None,
     directories: bool = False,
+    confirm_overwrite: bool = True,
 ) -> dict[str, Any]:
     """Return Qt file-dialog flags after resolving explicit and global policy.
 
     An explicit function argument wins, followed by the current GUI dispatch
     override and then ``EEG_OPTIONS["option_native_dialogs"]``.
+    ``confirm_overwrite=False`` sets ``DontConfirmOverwrite``.
     """
     if _use_native_file_dialogs(native_file_dialogs):
-        return {}
-
-    options = _qt_enum_value(qt_widgets.QFileDialog, "Option", "DontUseNativeDialog")
-    if directories:
-        show_dirs = _qt_enum_value(qt_widgets.QFileDialog, "Option", "ShowDirsOnly")
-        if options is None:
-            options = show_dirs
-        elif show_dirs is not None:
-            options = options | show_dirs
-    return {"options": options} if options is not None else {}
+        kwargs: dict[str, Any] = {}
+    else:
+        options = _qt_enum_value(qt_widgets.QFileDialog, "Option", "DontUseNativeDialog")
+        if directories:
+            show_dirs = _qt_enum_value(qt_widgets.QFileDialog, "Option", "ShowDirsOnly")
+            if options is None:
+                options = show_dirs
+            elif show_dirs is not None:
+                options = options | show_dirs
+        kwargs = {"options": options} if options is not None else {}
+    if confirm_overwrite:
+        return kwargs
+    dont_confirm = _qt_enum_value(qt_widgets.QFileDialog, "Option", "DontConfirmOverwrite")
+    if dont_confirm is None:
+        return kwargs
+    current = kwargs.get("options")
+    kwargs["options"] = dont_confirm if current is None else current | dont_confirm
+    return kwargs
 
 
 def _use_native_file_dialogs(explicit: bool | None) -> bool:

@@ -12,12 +12,15 @@ import unittest
 
 import numpy as np
 
+from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.ICLabel import iclabel_net_onnx
 
 
 SAMPLE_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
 SAMPLE_ICA_DATASET_PATH = SAMPLE_DATASET_PATH.parent / "eeglab_data_with_ica_tmp.set"
+
+DROPPED_NULL_RECONSTRUCTION_GAP = 0.5
 
 
 def matlab_engine_available():
@@ -246,3 +249,37 @@ def gate_iclabel_backend(monkeypatch):
     backend = GatedIclabelBackend()
     monkeypatch.setattr(iclabel_net_onnx, "_run_iclabel_net_async", backend)
     return backend
+
+
+def create_erpimage_epochs(trials=6):
+    """32-point trials (six by default) at 100 Hz with 'stim' and 'rt' events and per-event fields."""
+    eeg = create_test_eeg(n_channels=3, n_samples=32, srate=100.0, n_trials=trials)
+    rng = np.random.default_rng(3)
+    eeg["data"] = rng.normal(size=(3, 32, trials))
+    eeg["xmin"], eeg["xmax"] = -0.1, 0.21
+    eeg["times"] = np.linspace(eeg["xmin"] * 1000, eeg["xmax"] * 1000, eeg["pnts"])
+    rt = np.resize([120.0, 60.0, 180.0, 30.0, 150.0, 90.0], trials).tolist()
+    events = []
+    for trial in range(trials):
+        offset = trial * 32
+        events.append({"type": "stim", "latency": offset + 11, "epoch": trial + 1, "code": "x", "rt": np.nan})
+        events.append(
+            {
+                "type": "rt",
+                "latency": offset + 11 + rt[trial] / 10,
+                "epoch": trial + 1,
+                "code": "cab"[trial % 3],
+                "rt": rt[trial],
+            }
+        )
+    eeg["event"] = events
+    eeg["chanlocs"] = [
+        {"labels": label, "theta": theta, "radius": 0.3} for label, theta in (("A", -40.0), ("B", 0.0), ("C", 40.0))
+    ]
+    return eeg
+
+
+def opened_dialog_values(spec, initial_values=None):
+    """Values of a dialog accepted as it opens: control defaults, then its initial values."""
+    defaults = {tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"}
+    return {**defaults, **(initial_values or {})}

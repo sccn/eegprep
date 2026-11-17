@@ -210,3 +210,26 @@ def test_current_pop_importevent_option_cases(
     assert all(event["position"] in {1, 2} for event in imported)
     assert all(event["init_index"] in range(1, 101) for event in imported)
     assert all(output["urevent"][event["urevent"]]["type"] == event["type"] for event in events)
+
+
+def test_pop_importevent_history_handles_array_fields_and_nan_options(tmp_path: Path):
+    event_file = _write_event_table(tmp_path / "events.txt", "\t")
+
+    output, command = pop_importevent(
+        _continuous_eeg(),
+        event=event_file,
+        fields=np.array([["latency", "type", "position"]], dtype=object),
+        skipline=1,
+        append="no",
+        timeunit=math.nan,
+        align=np.float32(math.nan),
+        return_com=True,
+    )
+
+    assert len(output["event"]) == 100
+    assert output["event"][0]["latency"] == 1
+    assert output["event"][-1]["latency"] == 100
+    assert "'fields', ['latency' 'type' 'position']" in command
+    assert "'timeunit', float('nan')" in command
+    assert "'align', float('nan')" in command
+    assert output["history"] == command

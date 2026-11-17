@@ -7,11 +7,10 @@ WORKTREE_TMP=$(mktemp -d "${TMPDIR:-/tmp}/eegprep-pyodide.XXXXXX")
 trap 'rm -rf "$WORKTREE_TMP"' EXIT
 
 usage() {
-  echo "Usage: run_pyodide.sh --wheel PATH --script PATH [--docopt-wheel PATH] [--sample-data-dir PATH] [--output PATH] [--iclabel-web] -- [script args...]" >&2
+  echo "Usage: run_pyodide.sh --wheel PATH --script PATH [--sample-data-dir PATH] [--output PATH] [--iclabel-web] -- [script args...]" >&2
 }
 
 WHEEL_PATH=""
-DOCOPT_WHEEL_PATH=""
 SCRIPT_PATH=""
 SAMPLE_DATA_DIR=""
 OUTPUT_PATH=""
@@ -21,10 +20,6 @@ while (($# > 0)); do
   case "$1" in
     --wheel)
       WHEEL_PATH=${2:-}
-      shift 2
-      ;;
-    --docopt-wheel)
-      DOCOPT_WHEEL_PATH=${2:-}
       shift 2
       ;;
     --script)
@@ -74,16 +69,6 @@ if ! command -v node >/dev/null 2>&1; then
   exit 2
 fi
 
-if [[ -z "$DOCOPT_WHEEL_PATH" ]]; then
-  DOCOPT_DIR="$WORKTREE_TMP/docopt"
-  uv run --no-sync python "$REPO_ROOT/tools/pyodide/prepare_docopt_wheel.py" --output-dir "$DOCOPT_DIR"
-  DOCOPT_WHEEL_PATH=$(find "$DOCOPT_DIR" -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)
-fi
-if [[ ! -f "$DOCOPT_WHEEL_PATH" ]]; then
-  echo "docopt wheel path must name an existing file" >&2
-  exit 2
-fi
-
 JS_PREFIX="$WORKTREE_TMP/js"
 mkdir -p "$JS_PREFIX"
 cp "$REPO_ROOT/tools/pyodide/package.json" "$JS_PREFIX/package.json"
@@ -95,17 +80,16 @@ NODE_ARGS=(
   "$SCRIPT_DIR/run_pyodide.mjs"
   --pyodide-module "$PYODIDE_MODULE"
   --wheel "$WHEEL_PATH"
-  --docopt-wheel "$DOCOPT_WHEEL_PATH"
   --script "$SCRIPT_PATH"
 )
 if [[ "$ICLABEL_WEB" == true ]]; then
-  ICLABEL_MODEL_PATH="$WORKTREE_TMP/iclabel.onnx"
+  ICLABEL_MODEL_PATH="$WORKTREE_TMP/iclabel_int8.onnx"
   uv run --no-sync python - "$WHEEL_PATH" "$ICLABEL_MODEL_PATH" <<'PY'
 import sys
 import zipfile
 
 wheel_path, output_path = sys.argv[1:]
-model_name = "eegprep/plugins/ICLabel/iclabel.onnx"
+model_name = "eegprep/plugins/ICLabel/iclabel_int8.onnx"
 with zipfile.ZipFile(wheel_path) as wheel:
     try:
         model = wheel.read(model_name)

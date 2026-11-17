@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 
 
-# Both runtimes execute the same packaged int8 weights in float32 arithmetic, so only
+# Both runtimes execute the same packaged iclabel_int8.onnx weights in float32 arithmetic, so only
 # small numerical differences are expected.
 RTOL = 1e-4
 ATOL = 1e-5

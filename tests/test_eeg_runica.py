@@ -39,7 +39,8 @@ def test_eeg_runica_flattens_and_reshapes_epoched_data_like_eeglab(monkeypatch):
     out = eeg_runica(eeg, extended=1, maxsteps=1)
 
     np.testing.assert_array_equal(captured["data"], _eeglab_flattened(eeg["data"]))
-    np.testing.assert_array_equal(out["icaact"], eeg["data"])
+    scaling = np.sqrt(np.mean(np.eye(2) ** 2, axis=0))
+    np.testing.assert_allclose(out["icaact"], eeg["data"] * scaling[:, None, None])
     np.testing.assert_array_equal(out["icachansind"], np.array([0, 1]))
 
 

@@ -19,19 +19,10 @@ from tools.pyodide import benchmark, compare_iclabel
 from tools.pyodide.compare_benchmarks import compare_reports
 from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_reports
 from tools.pyodide.iclabel_parity import run_parity
-from tools.pyodide.prepare_docopt_wheel import verify_sha256
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODEL_SHA256 = "a" * 64
 SUBPROCESS_TIMEOUT_SECONDS = 60
-
-
-def test_docopt_hash_check_rejects_modified_sdist(tmp_path):
-    archive = tmp_path / "docopt-0.6.2.tar.gz"
-    archive.write_bytes(b"locked sdist payload")
-
-    with pytest.raises(ValueError, match="SHA-256 mismatch"):
-        verify_sha256(archive, "0" * 64)
 
 
 def test_benchmark_failure_records_the_full_traceback():
@@ -234,7 +225,7 @@ def test_load_iclabel_report_rejects_invalid_reports(tmp_path, overrides, messag
 def test_native_parity_report_feeds_the_comparison(tmp_path, capsys):
     pytest.importorskip("onnxruntime")
     native = run_parity("native", REPO_ROOT / "sample_data")
-    packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
+    packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
 
     assert native["model_sha256"] == hashlib.sha256(packaged_model.read_bytes()).hexdigest()
     assert native["shape"] == [32, 7]
@@ -347,7 +338,6 @@ def test_browser_backend_rejects_a_wrong_sized_bridge_result(monkeypatch):
     [
         ("numpy", "ok", True, None),
         ("mne", "ok", False, "mne-1.10.0-py3-none-any.whl"),
-        ("docopt", "ok", False, None),
         ("no-wasm-build", "FAIL", False, None),
     ],
 )
@@ -377,12 +367,11 @@ def test_pinned_pyodide_version_agrees_across_the_harness():
     assert set(re.findall(r"Pyodide (\d+\.\d+\.\d+)", runtime_text)) == {version}
 
 
-def test_harness_holds_mne_at_the_declared_floor():
-    dependencies = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
-    (floor,) = [item.removeprefix("mne>=") for item in dependencies if item.startswith("mne>=")]
+def test_harness_installs_the_picard_extra_requirement_from_pyproject():
+    (picard,) = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]["picard"]
     runner = (REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs").read_text()
 
-    assert re.search(r"MICROPIP_CONSTRAINTS = \[[^\]]*\"mne==" + re.escape(floor) + r"\"", runner)
+    assert f'PICARD_REQUIREMENT = "{picard}"' in runner
 
 
 def test_harness_pins_threadpoolctl_at_the_uv_lock_version():

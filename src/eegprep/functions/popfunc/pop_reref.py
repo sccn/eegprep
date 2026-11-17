@@ -50,8 +50,8 @@ def pop_reref(
 ):
     """Convert an EEG dataset to average or common-reference data.
 
-    Numeric channel indices are 0-based to match existing EEGPrep channel
-    selection APIs. String channel labels are resolved case-insensitively
+    Numeric channel indices are 1-based, matching EEGLAB. String channel labels
+    are resolved case-insensitively
     against ``EEG["chanlocs"]``. Calling ``pop_reref(EEG)`` launches the GUI;
     pass ``ref=[]`` or ``ref=None`` for command-line average reference. A NaN
     stays on a channel only when that channel's sample or its reference is NaN.
@@ -59,7 +59,7 @@ def pop_reref(
     Args:
         EEG: EEG dictionary, or a list of EEG dictionaries.
         ref: ``None``/``[]`` for average reference, or reference channel label
-            or 0-based index/index sequence for common reference.
+            or 1-based index/index sequence for common reference.
         *args: EEGLAB-style key/value options.
         gui: Force or suppress the GUI entrypoint.
         renderer: Optional GUI renderer for tests.
@@ -360,14 +360,27 @@ def _resolve_channels(EEG: dict, channels: Any) -> list[int]:
         if isinstance(value, str) and not _is_int_text(value):
             matches = [idx for idx, label in enumerate(labels) if label == value.strip().lower()]
             if not matches:
-                raise ValueError(f"Channel '{value}' not found")
+                raise ValueError(
+                    f"pop_reref: channel '{value}' was not found. Use a label from EEG['chanlocs'] or a number in 1..{nchan}."
+                )
             indices.extend(matches)
             continue
-        index = int(value)
-        if index < 0 or index >= nchan:
-            raise ValueError("Channel index out of range")
-        indices.append(index)
+        indices.append(_channel_index(value, nchan))
     return sorted(set(indices))
+
+
+def _channel_index(value: Any, length: int) -> int:
+    number = float(value)
+    if not np.isfinite(number) or not number.is_integer():
+        raise ValueError(
+            f"pop_reref: channel indices must be whole numbers in 1..{length}. Use channel 1 for the first channel."
+        )
+    index = int(number)
+    if index < 1 or index > length:
+        raise ValueError(
+            f"pop_reref: channel index {index} is outside 1..{length}. Use channel 1 for the first channel."
+        )
+    return index - 1
 
 
 def _normalise_channel_values(channels: Any) -> list[Any]:
@@ -375,8 +388,8 @@ def _normalise_channel_values(channels: Any) -> list[Any]:
         channels = channels.tolist()
     if isinstance(channels, (int, np.integer)):
         return [int(channels)]
-    if isinstance(channels, float) and channels.is_integer():
-        return [int(channels)]
+    if isinstance(channels, (float, np.floating)):
+        return [channels]
     if isinstance(channels, (str, bytes)):
         text = channels.decode("utf-8") if isinstance(channels, bytes) else channels
         text = text.strip()
@@ -515,13 +528,12 @@ def _resolve_locs_from_identifiers(
         if isinstance(value, str) and not _is_int_text(value):
             matches = [idx for idx, loc_label in enumerate(labels) if loc_label == value.lower()]
             if not matches:
-                raise ValueError(f"{label.capitalize()} '{value}' not found")
+                raise ValueError(
+                    f"pop_reref: {label} '{value}' was not found. Use a listed label or a number in 1..{len(locs)}."
+                )
             out.extend(copy.deepcopy(locs[idx]) for idx in matches)
         else:
-            index = int(value)
-            if index < 0 or index >= len(locs):
-                raise ValueError(f"{label.capitalize()} index out of range")
-            out.append(copy.deepcopy(locs[index]))
+            out.append(copy.deepcopy(locs[_channel_index(value, len(locs))]))
     return [loc for loc in out if _has_xyz(loc) or label == "reference location"]
 
 
@@ -694,23 +706,10 @@ def _parse_gui_channel_text(text: str) -> list[int | str]:
 
 
 def _gui_reflocs(EEG: dict, text: str) -> list[dict[str, Any]]:
-    requested = _parse_gui_channel_text(text)
     locs = _reference_nodatchans(EEG)
     if not locs:
-        raise ValueError("There are no Reference channel defined, add it using the channel location editor")
-    labels = [str(loc.get("labels", "")).lower() for loc in locs]
-    out = []
-    for value in requested:
-        if isinstance(value, int):
-            if value < 0 or value >= len(locs):
-                raise ValueError("Reference location index out of range")
-            out.append(locs[value])
-        else:
-            matches = [idx for idx, label in enumerate(labels) if label == str(value).lower()]
-            if not matches:
-                raise ValueError(f"Reference location '{value}' not found")
-            out.extend(locs[idx] for idx in matches)
-    return out
+        raise ValueError("pop_reref: no reference locations exist. Add one using Edit > Channel locations.")
+    return _resolve_locs_from_identifiers(locs, text, "reference location")
 
 
 def _reference_nodatchans(EEG: dict) -> list[dict[str, Any]]:
@@ -720,10 +719,10 @@ def _reference_nodatchans(EEG: dict) -> list[dict[str, Any]]:
 
 def _current_reference(EEG: dict) -> str:
     chanlocs = _chanlocs_as_list(EEG.get("chanlocs", []))
-    refs = [str(chan.get("ref", "")) for chan in chanlocs if "ref" in chan]
-    refs = [ref if ref else "unknown" for ref in refs]
+    refs = ["unknown" if _is_empty(chan["ref"]) else str(chan["ref"]) for chan in chanlocs if "ref" in chan]
     if not refs:
-        return str(EEG.get("ref", "unknown") or "unknown")
+        ref = EEG.get("ref")
+        return "unknown" if _is_empty(ref) else str(ref)
     return max(set(refs), key=refs.count)
 
 
@@ -745,12 +744,12 @@ def _format_channel_history_value(channels: Any) -> str:
         if _is_empty(channels):
             return "[]"
         if _is_int_text(channels):
-            return _format_history_number(int(channels) + 1)
+            return _format_history_number(int(channels))
         return _format_reref_history_value([channels])
     if isinstance(channels, (int, np.integer)):
-        return _format_history_number(int(channels) + 1)
+        return _format_history_number(int(channels))
     if isinstance(channels, (float, np.floating)) and float(channels).is_integer():
-        return _format_history_number(int(channels) + 1)
+        return _format_history_number(int(channels))
     if isinstance(channels, dict):
         return _format_history_struct([channels])
     if isinstance(channels, (list, tuple)):
@@ -760,8 +759,8 @@ def _format_channel_history_value(channels: Any) -> str:
         if all(isinstance(item, dict) for item in values):
             return _format_history_struct(values)
         if all(_is_channel_number(item) for item in values):
-            shifted = [int(item) + 1 for item in values]
-            return "[" + " ".join(_format_history_number(item) for item in shifted) + "]"
+            numbers = [int(item) for item in values]
+            return "[" + " ".join(_format_history_number(item) for item in numbers) + "]"
         if any(isinstance(item, str) for item in values):
             return "{" + ",".join(_format_reref_history_value(item) for item in values) + "}"
     return _format_reref_history_value(channels)

@@ -11,6 +11,7 @@ from .gauss2d import gauss2d
 from .gauss3d import gauss3d
 from .hungarian import hungarian
 from .laplac2d import laplac2d
+from .linspace import linspace
 from .mapcorr import mapcorr
 from .matcorr import matcorr
 from .matperm import matperm
@@ -35,6 +36,7 @@ __all__ = [
     "gauss3d",
     "hungarian",
     "laplac2d",
+    "linspace",
     "mapcorr",
     "matcorr",
     "matperm",

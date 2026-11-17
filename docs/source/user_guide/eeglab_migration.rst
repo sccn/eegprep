@@ -32,6 +32,43 @@ What Carries Over
 What Changes
 ============
 
+``pop_select`` and ``pop_selectevent`` preserve the input data precision.
+Selecting imported BDF data in float64 does not round it to float32. Embedded
+``.set`` save precision is a separate serialization policy; two-file ``.fdt``
+storage uses float32. Release-readiness F50's embedded-save policy is assigned
+to stream S1, outside the selection fixes.
+
+Event selection accepts numeric codes and their textual spelling, such as
+``255`` and ``'255'``. For a dataset with numeric event types, its history
+records numeric criteria, avoiding EEGLAB's silent mismatch with a string cell
+selector. Numeric-looking string event types remain strings. When cropping
+introduces a text ``boundary`` event, event consistency can convert all types
+to strings, as in EEGLAB.
+
+Epoch cropping with ``pop_select`` includes both endpoints, as its time and
+point range documentation specifies. EEGLAB ``pop_select.m`` calls ``epoch``
+with an upper-exclusive window and drops the final sample. For the tutorial
+``eeglab_data_epochs_ica.set``, selecting epochs ``[1, 3, 5, 7, 9]`` and time
+``[-0.5, 0.5]`` therefore retains 129 points and 8 events in EEGPrep, with
+``xmax=0.5``. The recorded EEGLAB 8ac485f6 result is 128 points and 8 events,
+with ``xmax=0.4921875``. EEGPrep retains each event only if its position within
+its original epoch is inside the crop, then recalculates its concatenated
+latency using the new epoch length.
+
+``pop_selectevent`` emits a warning when no events match the selection, with
+instructions to check type names/codes and field ranges. Continuous data can
+still be returned with no events (or only retained boundary events). EEGLAB
+can return this empty selection silently; EEGPrep deliberately reports it.
+
+The data and ICA rejection menus calculate marks, open scrolling data for
+inspection, and retain the calculation commands when you choose **Close (keep
+marks)**. The probability and kurtosis **PLOT** buttons calculate marks and open
+the same scrolling rejection browser as **Scroll Data** or **Scroll Acts.**,
+where you can inspect and change epoch marks interactively. EEGLAB's **PLOT**
+opens the interactive ``rejstatepoch`` viewer, which has not been ported to
+EEGPrep. Edit thresholds in the rejection menu and calculate again to change
+the limits. Cancelling the menu discards its changes.
+
 .. list-table::
    :header-rows: 1
 
@@ -42,6 +79,16 @@ What Changes
    * - User-facing selectors
      - Keep channel, component, dataset, and epoch numbers one-based in GUI
        dialogs and command strings unless a function documents otherwise.
+   * - ``pop_select`` channel arguments
+     - Python ``channel``, ``nochannel``, and ``rmchannel`` use zero-based
+       indices from ``0`` through ``EEG['nbchan'] - 1``. Subtract 1 from
+       EEGLAB channel numbers before passing them to Python, or use labels
+       such as ``channel=['Cz', 'Pz']``. The GUI uses one-based numbers
+       from ``1`` through ``EEG['nbchan']``. After cropping channels, use
+       the current dataset's channel count. Python range errors report
+       the invalid indices, current count, and both valid ranges. GUI
+       errors preserve the entered channel numbers and give the valid
+       one-based range.
    * - Globals
      - EEGPrep functions take explicit inputs. The shared console namespace is
        session state, not a hidden global dependency.
@@ -109,6 +156,9 @@ EEGPrep intentionally keeps both conventions visible:
 
 * Python arrays are zero-based: ``EEG["data"][0, :]`` is the first channel.
 * GUI channel/component/dataset selectors are one-based.
+* ``abspeak``, ``matcorr``, ``mapcorr``, ``matperm``, ``hungarian``,
+  ``getchanlist``, ``shuffle``, and ``eeg_amplitudearea`` use 1-based indices,
+  including ``shuffle``'s dimension. Subtract 1 before indexing a NumPy array.
 * Event ``latency`` fields are sample positions in the EEGLAB-facing event
   model.
 * ``icachansind`` is normalized after loading so internal indexing is
@@ -120,8 +170,10 @@ MATLAB Structure Transport
 When passing lists of dictionaries through the MATLAB bridge, numeric and text
 values in the same field retain their individual types regardless of record
 order. For example, ``42.0`` remains a MATLAB double when another record holds
-``"boundary"``; it does not become ``"42.0"``. EEGLAB's ``eeg_checkset`` may
-subsequently normalize mixed event types to strings as part of event validation.
+``"boundary"``; it does not become ``"42.0"``. ``eeg_checkset`` then converts
+that mix with the same rules as ``num2str`` (``eeg_checkset.m`` lines
+1235-1242): ``65.0`` next to ``boundary`` becomes ``'65'``. A list that is
+entirely numeric stays numeric.
 
 Known Differences from EEGLAB
 =============================
@@ -133,17 +185,269 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 
    * - Topic
      - What EEGPrep does
+   * - Empty ``etc``
+     - ``eeg_checkset`` stores a missing or empty ``etc`` as ``{}`` and leaves
+       ``eeglabvers`` unset. EEGLAB ``eeg_emptyset.m`` line 83 sets ``etc`` to
+       ``[]``. ``eeg_checkset.m`` lines 1297-1298 then assign
+       ``EEG.etc.eeglabvers``, and ``eeg_checkset(eeg_emptyset)`` on EEGLAB
+       ``d0963be9`` returns a struct. That field records the EEGLAB release
+       that last checked the dataset. EEGPrep has no EEGLAB release to record.
+       A saved empty dictionary is an empty array, which EEGLAB stamps when it
+       opens the file. An ``eeglabvers`` value already present is kept.
+       ``test_empty_etc_round_trip_is_a_dict`` locks the empty dictionary.
+   * - Channel-coordinate validation
+     - ``pop_chanedit`` rejects non-numeric or non-finite coordinates with
+       an error naming the field; blank values remain allowed. EEGLAB pins
+       ``8ac485f6`` and ``d0963be9`` share the same ``pop_chanedit.m`` logic
+       and line ranges: ``str2num`` followed by ``reformat``/``eval`` without
+       rejecting non-numeric text (lines 681-685 and 1119-1124).
+   * - Channel-coordinate transforms
+     - ``pop_chanedit`` accepts only numeric assignments supported by its
+       restricted syntax-tree parser, such as ``X=-Y`` or
+       ``TMP=X; X=-Y; Y=TMP``. Imports, attributes, function calls, and indexed
+       assignments raise ``ValueError`` without changing the input locations.
+       Constants must be finite numbers; integer literals are limited to
+       ±2**53. Powers require literal exponents from -12 to 12, so ``X=Y**2``
+       works while power towers and variable exponents are rejected before
+       evaluation. EEGLAB pins ``8ac485f6`` and ``d0963be9`` share unrestricted
+       ``eval`` of the transform string, with the same logic and line ranges
+       (``pop_chanedit.m`` lines 599-643).
+   * - Channel-location count mismatch
+     - ``pop_chanedit`` raises ``ValueError`` when the number of data-channel
+       locations differs from the data's channel count, leaving the input
+       unchanged. Use ``pop_select`` to remove data channels, or mark added
+       reference locations as non-data channels. EEGLAB pins ``8ac485f6`` and
+       ``d0963be9`` share the same logic and line ranges: a count differing
+       from the original ``nbchan`` causes edits to be ignored with a console
+       warning (``pop_chanedit.m`` lines 1095-1110); GUI **Ok** also warns about
+       the mismatch (lines 485-492).
+   * - BIDS TSV bytes
+     - TSV sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed.
+       A file that is not valid UTF-8 is decoded as Latin-1, so ``0xB5`` stays
+       µ and ``0x80`` stays U+0080. On MATLAB R2025b with
+       ``DefaultCharacterSet`` UTF-8, EEGLAB ``loadtxt`` maps both bytes to
+       U+FFFD and leaves the BOM as U+FEFF on the first header. A Windows-1252
+       MATLAB session maps ``0x80`` to the euro sign.
+   * - BIDS JSON bytes
+     - JSON sidecars must be UTF-8. A leading UTF-8 BOM is removed and the
+       file is accepted. Bytes that are not UTF-8 raise
+       ``UnicodeDecodeError``. EEGLAB ``bids_loadfile`` reads a Latin-1 JSON
+       file and replaces the undecodable byte, so the bytes for ``café``
+       become ``caf`` followed by U+FFFD. The same reader errors when the
+       file starts with a UTF-8 BOM.
+   * - STUDY ``pop_clust`` algorithm ``kmeans``
+     - EEGLAB calls ``kmeans(data, k, 'replicates', 10, 'emptyaction', 'drop')``.
+       Cluster numbers follow MATLAB's random stream and are not reproduced.
+       EEGPrep uses a seeded NumPy initialization and Lloyd updates.
+   * - STUDY clustering dialog
+     - EEGLAB's dialog calls ``kmeans_st(real(clustdata), clus_num, 150)``
+       with random restarts. The command-line path calls ``kmeanscluster()``.
+       EEGPrep's dialog uses the ``kmeanscluster`` route.
    * - ASR calibration on a short recording
      - ``clean_asr`` still removes high-power calibration windows when
        ``fit_eeg_distribution`` does not return a positive scale. The scale is
        then the median and MAD of each channel's window RMS. EEGLAB's fit
        errors once only a few windows are available, and ``clean_asr`` then
        calibrates on every sample.
+   * - ASR on a very short recording
+     - With calibration reference selection off, ``clean_asr`` still returns
+       cleaned data when only two or three RMS windows are available.
+       EEGLAB's calibration fit indexes a zero window width and errors
+       (``asr_calibrate.m`` lines 392-395, the same index as
+       ``fit_eeg_distribution.m`` lines 112-115). ``pop_clean_rawdata``
+       catches that error and returns the recording unchanged
+       (``clean_artifacts.m`` lines 270-275). EEGPrep skips the
+       non-positive widths and still removes bursts. The 21-channel,
+       89-sample recording at 128 Hz has two windows, and eleven of those
+       widths round to zero.
+   * - ASR reference selection leaving three RMS windows
+     - Automatic reference selection can leave three RMS windows.
+       ``asr_calibrate.m`` lines 392-395 then index a zero fit width, and
+       ``clean_artifacts.m`` lines 270-275 catch the error and return the
+       recording unchanged (#582). EEGPrep skips non-positive widths and
+       still calibrates on that reference.
+   * - One-channel ``clean_windows`` sort
+     - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
+       One channel is one row, so MATLAB sorts that row across time and the
+       fit then fails (#583). EEGPrep sorts across channels, so the loud
+       window stays at its time index. When that selection is shorter than
+       one 0.5 s RMS window, ``clean_asr`` raises ``ASRCalibrationError``
+       with the sample counts. A correct ``sort(wz, 1)`` reaches that same
+       short-reference error; MATLAB's sort reaches the fit instead.
+   * - One ASR calibration window
+     - ``clean_asr`` raises ``ASRCalibrationError`` when fewer than two
+       calibration RMS windows are available, and when the calibration is
+       shorter than one window. The calibration is the reference
+       ``clean_windows`` kept, so a longer recording is not substituted
+       when that reference is shorter than one 0.5 s RMS window
+       (``asr_calibrate.m`` line 191). The error names the window count or the
+       sample counts. EEGLAB's ``asr_calibrate`` asks for different
+       ``BurstCriterionRefTolerances`` (``asr_calibrate.m`` lines 189-204).
+       ``pop_clean_rawdata`` warns and skips the burst stage. A requested
+       window-removal stage still runs. EEGLAB wraps the Euclidean
+       ``clean_asr`` call in ``try``/``catch`` (``clean_artifacts.m`` lines
+       270-275) and ``return`` leaves before window removal (line 318) and
+       before the rounded sampling rate is restored (line 311). Riemannian
+       calibration raises the same error, and ``pop_clean_rawdata`` skips
+       that burst stage too. EEGLAB's Riemannian call is outside the
+       ``try``/``catch`` (lines 267-268).
+   * - ASR at a low sampling rate
+     - ``clean_asr`` raises an error naming the sampling rate when the default
+       spectral breakpoints are not monotonic. ``pop_clean_rawdata`` warns and
+       leaves the recording unchanged. EEGLAB's ``clean_asr`` reports that
+       ``yulewalk`` was not found, and ``clean_artifacts`` prints that message
+       and returns the recording.
    * - NaNs during re-referencing
      - ``pop_reref`` leaves a NaN on a channel only when that sample or the
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
-       at that time.
+       at that time. ``test_pop_reref_keeps_a_nan_on_its_channel`` locks the
+       EEGPrep result.
+   * - Repeated ``pop_select`` trials
+     - With ``sorttrial='off'``, a repeated trial is kept at its first
+       position. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``.
+       EEGLAB ``pop_select.m`` lines 282-286 call ``unique_bc``
+       (``unique(..., 'legacy')``), which keeps the last copy, so the same
+       input becomes ``[4, 3, 2, 1, 5]``.
+       ``test_sorttrial_off_keeps_the_first_copy_of_a_duplicate`` locks the
+       EEGPrep order.
+   * - Baseline across a boundary
+     - On continuous data with a boundary event, ``pop_rmbase`` subtracts
+       each segment's mean of the requested samples. When ``pointrange``
+       starts after sample 1, EEGLAB shifts the segment indices by that
+       offset and removes the mean of the shifted span (``pop_rmbase.m``
+       lines 183-196). EEGPrep writes only the listed baseline samples
+       inside each original segment (``pop_rmbase.py`` lines 230-231).
+       ``test_pop_rmbase_continuous_boundary_pointrange_can_span_boundary``
+       locks the EEGPrep result. EEGLAB uses ``nan_mean`` and boundary
+       segments only on continuous data whose first event type is text
+       (``pop_rmbase.m`` lines 176-198, ``rmbase.m`` lines 108-110).
+       Otherwise (a numeric first type, no events, or epoched data) it uses
+       plain ``mean()`` at ``pop_rmbase.m`` line 202, so one baseline NaN
+       turns the channel NaN and boundaries are ignored. EEGPrep always
+       ignores NaN and always respects boundaries.
+   * - BDF ``bdfeventmode``
+     - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
+       ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,
+       so the brackets are ignored and EEGLAB always decodes mode 4.
+   * - BDF ``blockrange`` event types
+     - ``pop_biosig`` keeps each trigger code on the latency of its own edge
+       when ``blockrange`` starts after an earlier event.
+       ``biosig2eeglabevent`` writes the latency on ``event(count)`` and the
+       type on ``event(index)``. After events before the window are skipped,
+       ``count`` and ``index`` diverge, so a kept event receives another
+       event's type or an empty type that EEGLAB returns as NaN. The
+       latencies match.
+   * - BDF window shorter than the channel count
+     - ``pop_biosig`` keeps a short window channel-major. One second of
+       ``jo1_3.bdf`` is 256 channels by 256 samples after ``Status`` is
+       removed, at 256 Hz, from sample ``start * srate`` inclusive through
+       ``stop * srate`` exclusive. ``biosig2eeglab.m`` lines 72-74 transpose
+       ``sread`` output only when ``abs(dat.NS - size(DAT,1)) > 1``. ``sopen``
+       has already removed ``Status``, so that window is 256 by 256 while
+       ``NS`` is still 257. EEGLAB leaves the matrix sample-major: the
+       returned data is the transpose, and ``nbchan``, ``pnts``, the rate,
+       ``xmin``, ``xmax``, and the channel labels still match. The ``[3, 4]``
+       window keeps trigger 34 at sample 96. The ``[0, 1]`` window has no
+       events.
+   * - BDF trigger codes
+     - ``pop_biosig`` stores the integer Status code, including codes above
+       255. With no ``blockrange``, EEGLAB's ``importannot`` (default on)
+       maps codes above 255 through BioSig ``eventcodes.txt``, so ``0x105``
+       becomes ``artifact:Failing Electrode``. ``eeg_checkset`` then stores
+       every event type as a string.
+   * - BioSemi Status channel
+     - ``pop_biosig`` removes ``Status`` only when ``rmeventchan`` is
+       ``on``. ``rmeventchan="off"`` keeps the channel both when triggers are
+       imported and when ``importevent="off"``. ``importevent="off"`` leaves
+       the events already stored by the file reader. EEGLAB's ``sopen``
+       deletes the Status column from ``ReRefMx`` (``sopen.m`` lines
+       1037-1038) for every BDF file before the samples are read, so the
+       returned data never contains ``Status``.
+   * - BDF event modes 3 and 5
+     - ``pop_biosig`` keeps each trigger code on the rising or falling edge
+       that produced it. ``bdf2biosig_events.m`` lines 88-89 and 104-105 build
+       ``POS`` in time order and ``TYP`` as all rises followed by all falls,
+       so those two arrays no longer correspond.
+   * - EGI ``epoc`` pauses
+     - ``pop_readegi`` renames every ``epoc`` event to ``boundary`` when no
+       ``tim0`` event is present. EEGLAB's ``for index = indepoc`` walks a
+       column vector once. A single pause is renamed. Two or more pauses make
+       ``EEG.event(index).type`` fail, the surrounding ``try`` discards the
+       error, and every pause stays ``epoc``.
+   * - EGI ``epoc`` with ``tim0``
+     - ``pop_readegi`` reshapes a continuous recording when both codes are
+       present, the sample count divides evenly by the number of ``epoc``
+       events plus one, and the ``epoc`` latencies are exactly ``k * pnts``
+       for ``k = 1 .. n``. That latency is the last sample of epoch ``k``.
+       The ``epoc`` events are then removed; the pauses become the trial
+       boundaries, and the other events stay. If the pauses are spaced
+       differently, or the length does not divide, the recording stays
+       continuous and every event stays. EEGLAB deletes ``EEG.event(1)``
+       with the channel-loop index and sets ``trials`` to that epoch count.
+       ``eeg_checkset`` then sees two-dimensional data and sets ``trials``
+       back to 1, so the samples stay continuous and only the first event
+       is removed. When the length does not divide evenly, EEGLAB leaves
+       the events in place.
+   * - Epoched event sort
+     - ``eeg_checkset(..., 'eventconsistency')`` sorts by epoch, then by
+       latency. EEGLAB asks ``pop_editeventvals`` to sort on epoch and then
+       latency, but that function takes the epoch order from the unsorted
+       events and applies it to the latency-sorted list. Events A (epoch 2,
+       latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
+       and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
+       out Z, Y, X here and X, Z, Y in EEGLAB.
+   * - Continuous rejection with ``trials`` 0
+     - ``eeg_eegrej`` sets ``trials`` from the data shape before checking
+       events, so a stored 0 does not delete events past sample 1.
+       ``eeg_checkset.m`` lines 440-449 remove latencies above
+       ``pnts*trials+1`` while ``trials`` is still that stored value.
+       Lines 821-826 then set ``trials`` from ``size(data,3)``, which is 1
+       for a continuous recording. EEGLAB has already dropped the events.
+   * - Numeric boundary types
+     - Consecutive equal-latency boundaries are merged whether ``type`` is
+       the string ``boundary`` or the number ``-99`` with
+       ``option_boundary99`` on. EEGLAB skips that merge when the first
+       event type is numeric, so two ``-99`` boundaries with durations 1
+       and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.
+   * - Quoted channel-selection text
+     - ``pop_chansel`` keeps an empty quoted token as an empty label, and
+       it removes leading and trailing braces. ``'', Cz`` selects an
+       empty label and ``Cz``. ``{Cz, Fp1}`` selects ``Cz`` and ``Fp1``.
+       EEGLAB ``parsetxt`` treats quotes, spaces, and commas as delimiters
+       and drops empty pieces (``parsetxt.m``). That scan keeps ``Cz``
+       from ``'', Cz``, and it keeps ``{Cz`` and ``Fp1}`` from
+       ``{Cz, Fp1}``.
+       ``test_pop_chansel_keeps_an_empty_quoted_token`` and
+       ``test_pop_chansel_reads_a_brace_wrapped_channel_list`` lock the
+       EEGPrep selections.
+   * - Spectrum frequency range
+     - ``spectopo`` requires ``freqrange`` as ``[lo hi]`` with
+       ``0 <= lo < hi <= Nyquist`` and names the function in the error.
+       EEGLAB ``spectopo.m`` line 183 rejects the same input inside
+       ``finputcheck`` with a message that does not name the frequency bounds.
+   * - Identical dataset comparison
+     - ``pop_envtopo`` on two identical datasets plots the near-zero
+       difference. EEGLAB can raise an axes-limit error on that difference.
+   * - Component-envelope dataset indices
+     - ``pop_envtopo`` records ``EEG([i j])`` when the dialog or an explicit
+       ``subindices`` value names that pair in ``ALLEEG``. A two-dataset list
+       with no indices is recorded as ``pop_envtopo(EEG, ...)``. Replaying
+       ``EEG([3 1])`` keeps ``[3 1]``. EEGLAB ``pop_envtopo.m`` lines 170-174
+       write ``EEG([subindices])`` only after the dialog creates
+       ``subindices``. A scripted two-dataset call leaves that history line
+       unset, so the returned command does not name the datasets.
+   * - Component head-plot color scale
+     - Component ``pop_headplot`` maps use per-map ``absmax`` limits and the
+       ``jet`` colormap. EEGLAB ``pop_headplot.m`` lines 424-439 fix component
+       ``maplimits`` at ``[-1 1]``. ``icadefs.m`` selects ``turbo`` when
+       MATLAB is newer than 20.01 and ``jet`` otherwise. Per-map ``absmax``
+       keeps small component weights visible.
+   * - Head-plot history assignment
+     - EEGLAB prefixes ``EEG =`` when a spline file is computed because
+       ``pop_headplot`` returns the dataset. EEGPrep writes the spline file
+       onto the dataset during the call and returns the figures, so the
+       history command does not assign over ``EEG``.
 
 Plugin Migration
 ================

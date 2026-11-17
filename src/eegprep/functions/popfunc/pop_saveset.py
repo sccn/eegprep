@@ -96,6 +96,13 @@ def _matlab_empty_or_copy(EEG, key):
     return value
 
 
+def _urevent_for_disk(value):
+    """Shift a 0-based urevent, leaving None and empty values empty."""
+    if value is None or (isinstance(value, (list, tuple, np.ndarray)) and np.size(value) == 0):
+        return default_empty
+    return value + 1
+
+
 def _one_based(value):
     """Shift 0-based index value(s) to MATLAB 1-based; accepts a scalar, list, or array."""
     if isinstance(value, (list, np.ndarray)):
@@ -364,7 +371,11 @@ def _serialize_chaninfo(chaninfo):
     out = {}
     for k, v in chaninfo.items():
         if k in ('removedchans', 'nodatchans'):
-            if isinstance(v, (list, np.ndarray)) and len(v) > 0:
+            if isinstance(v, np.ndarray):
+                nonempty = v.size > 0
+            else:
+                nonempty = isinstance(v, list) and len(v) > 0
+            if nonempty:
                 first = v[0] if isinstance(v, list) else v.flat[0]
                 if isinstance(first, dict):
                     out[k] = _chanlocs_to_struct_array(v)
@@ -380,13 +391,20 @@ def _serialize_chaninfo(chaninfo):
 def pop_saveset(EEG, file_name=None, *args, **kwargs):
     """Save EEG data to file.
 
+    The file stores ``icaact`` as ``[]``. The dataset returned in memory keeps
+    its activations; ``pop_loadset`` recomputes them. An event ``urevent`` is
+    stored one-based only when that event has one. ``None`` and ``[]`` are
+    written empty, the same as a missing field.
+
     Parameters
     ----------
     EEG : dict
         EEG data.
     file_name : str, optional
         File name. EEGLAB-style ``filename``/``filepath``/``savemode`` keyword
-        arguments are also accepted.
+        arguments are also accepted. Any extension is stored as ``.set``.
+        ``savemode="resave"`` requires an existing ``.set`` filename and will
+        not replace a raw source file.
     """
     file_path, savemode = _save_target(EEG, file_name, args, kwargs)
     file_name = os.fspath(file_path)
@@ -416,7 +434,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'times': EEG['times'],
         'data': mat_data,
         'datfile': datfile_name if save_two_files else '',
-        'icaact': _matlab_empty_if_missing(EEG, 'icaact'),
+        'icaact': default_empty,
         'icawinv': _matlab_empty_if_missing(EEG, 'icawinv'),
         'icasphere': _matlab_empty_if_missing(EEG, 'icasphere'),
         'icaweights': _matlab_empty_if_missing(EEG, 'icaweights'),
@@ -455,10 +473,21 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         for i in range(len(eeglab_dict['chanlocs'])):
             eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1
 
-    # check if EEG['event'][i]['urevent'] is 0-based
-    if len(eeglab_dict['event']) > 0 and 'urevent' in eeglab_dict['event'][0]:
-        for i in range(len(eeglab_dict['event'])):
-            eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
+    # urevent is 0-based in memory. MATLAB event structs share one field set
+    # (eeg_checkset.m assigns event(index).urevent). A Python event list does
+    # not, and ``'urevent' in record`` on a structured record checks values.
+    events = eeglab_dict['event']
+    if isinstance(events, np.ndarray) and events.dtype.names:
+        if events.size and 'urevent' in events.dtype.names:
+            events = np.array(events, copy=True)
+            eeglab_dict['event'] = events
+            flat = events.ravel()
+            for index in range(flat.size):
+                flat[index]['urevent'] = _urevent_for_disk(flat[index]['urevent'])
+    else:
+        for event in events:
+            if isinstance(event, dict) and 'urevent' in event:
+                event['urevent'] = _urevent_for_disk(event['urevent'])
 
     # epoch.event / epoch.eventurevent index EEG.event / EEG.urevent: 0-based in memory
     for ep in eeglab_dict['epoch']:
@@ -495,22 +524,32 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     for key in eeglab_dict:
         eeglab_dict[key] = _matlab_double(eeglab_dict[key])
 
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    if save_two_files:
-        write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
-
     try:
-        scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
-    except ValueError as e:
-        if '31 characters' in str(e):
-            scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
-        else:
-            # the file is likely partial and thus invalid -- delete
-            if os.path.exists(file_name):
-                os.remove(file_name)
-            raise
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if save_two_files:
+            write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
+        try:
+            scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+        except ValueError as e:
+            if '31 characters' in str(e):
+                scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
+            else:
+                # the file is likely partial and thus invalid -- delete
+                if os.path.exists(file_name):
+                    os.remove(file_name)
+                raise
+    except OSError as exc:
+        if os.path.isfile(file_name):
+            os.remove(file_name)
+        raise ValueError(
+            f"pop_saveset could not write {file_name} ({exc}). "
+            "Choose a .set file in a folder you can write to with File > Save current dataset as."
+        ) from exc
+    if not os.path.isfile(file_name):
+        raise ValueError(
+            f"pop_saveset did not create {file_name}. Choose a writable .set path with File > Save current dataset as."
+        )
     EEG['filename'] = save_name
     EEG['filepath'] = save_dir
     EEG['datfile'] = datfile_name if save_two_files else ''
@@ -540,15 +579,25 @@ def _save_target(EEG, file_name, args, kwargs):
     filepath = options.get('filepath')
     if savemode == 'resave' and filename in {None, ''}:
         target = dataset_set_path(EEG)
-        if target is None:
-            raise ValueError("savemode='resave' requires EEG filename/filepath metadata")
+        if target is None or target.suffix.lower() != '.set':
+            shown = os.fspath(target) if target is not None else '(none)'
+            raise ValueError(
+                "pop_saveset cannot resave this dataset because it has no .set filename "
+                f"(current filename is {shown}). Save it with File > Save current dataset as "
+                "and choose a .set file."
+            )
         return target, savemode
     if filename in {None, ''}:
         raise ValueError("file_name argument is required")
     path = Path(os.fspath(filename))
     if filepath not in {None, ''} and not path.is_absolute():
         path = Path(os.fspath(filepath)) / path.name
-    return path, savemode
+    return _as_set_path(path), savemode
+
+
+def _as_set_path(path: Path) -> Path:
+    # pop_saveset.m:126-127
+    return path.with_suffix('.set')
 
 
 def _save_two_files(EEG, savemode):
@@ -557,7 +606,7 @@ def _save_two_files(EEG, savemode):
     if savemode == 'twofiles':
         return True
     datfile = dataset_datfile_path(EEG)
-    return bool(datfile and savemode == 'resave') or savetwofiles_enabled()
+    return bool(datfile) or savetwofiles_enabled()
 
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).

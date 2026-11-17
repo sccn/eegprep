@@ -7,6 +7,9 @@ from numpy.fft import fft
 def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     """Compute relative power spectral density for ICA components.
 
+    EEGLAB computes this in single precision when the activations are single.
+    EEGPrep multiplies and transforms in float64.
+
     Parameters
     ----------
     EEG : dict
@@ -57,8 +60,13 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     subset = rng.permutation(n_seg)[: int(n_seg * pct_data / 100)]
 
     psdmed = np.zeros((ncomp, nfreqs))
+    activations = np.asarray(EEG['icaact'])
     for it in range(ncomp):
-        temp = np.reshape(EEG['icaact'][it, index, :], (1, index.shape[0], index.shape[1] * EEG['trials']))
+        if activations.ndim == 2:
+            selected = activations[it, index]
+        else:
+            selected = activations[it, index, :]
+        temp = np.reshape(selected, (1, index.shape[0], index.shape[1] * EEG['trials']))
         temp = temp[:, :, subset] * window[:, np.newaxis]
         temp = fft(temp, int(n_points), axis=1)
         temp = np.abs(temp) ** 2

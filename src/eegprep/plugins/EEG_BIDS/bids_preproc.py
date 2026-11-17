@@ -1,5 +1,7 @@
 """Module for BIDS preprocessing of EEG."""
 
+from __future__ import annotations
+
 import os
 import hashlib
 import json
@@ -9,9 +11,14 @@ import multiprocessing
 import time
 from time import time as now
 import logging
-from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
+from typing import TYPE_CHECKING, Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
+
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    from bids import BIDSLayout
 
 from ...functions.adminfunc.git import get_git_commit_id
 from ...functions.miscfunc.misc import (
@@ -22,6 +29,7 @@ from ...functions.miscfunc.misc import (
     num_jobs_from_reservation,
 )
 from .bids import layout_for_fpath, root_for_fpath
+from .sidecar import read_bids_json
 from .coords import chanloc_has_coords
 
 # EpochBaseline is seconds; pop_rmbase timerange uses EEG["times"] milliseconds.
@@ -48,7 +56,6 @@ all_stages = [
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
-    from bids import BIDSLayout
     from bids.layout.models import BIDSJSONFile
 
     layout: BIDSLayout = layout_for_fpath(root)
@@ -165,7 +172,7 @@ def bids_preproc(
     NumSamples: int = 50,
     NoLocsChannelCriterion: float = 0.45,
     NoLocsChannelCriterionExcluded: float = 0.1,
-    MaxMem: Optional[int] = None,
+    MaxMem: int = 64,
     Distance: str = 'euclidian',
     # Misc cleaning config
     Channels: Optional[Sequence[str]] = None,
@@ -338,9 +345,8 @@ def bids_preproc(
     NoLocsChannelCriterionExcluded : float
         Fraction of channels excluded when assessing correlation in nolocs cleaning.
         Default 0.1.
-    MaxMem : int or None
-        Maximum memory in MB for ASR processing. Default None, a 64 MB budget that ASR raises
-        automatically for many channels at a high sampling rate. See ``clean_artifacts``.
+    MaxMem : int
+        Maximum memory in MB for ASR processing. Default 64.
     Distance : str
         Distance metric for ASR processing ('euclidian'). Default 'euclidian'.
     Channels : Sequence[str] or None
@@ -404,6 +410,7 @@ def bids_preproc(
         Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
         specified) or a single EEG object (if a single file was specified), otherwise None.
     """
+    import_optional_dependency("bids", feature="bids_preproc")
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
     from eegprep import (
@@ -1056,8 +1063,7 @@ def bids_preproc(
                 # rewrite/update the _eeg.json file
                 fpath_eeg = gen_derived_fpath(fn, outputdir=OutputDir, suffix='eeg', extension='.json')
                 if os.path.exists(fpath_eeg):
-                    with open(fpath_eeg, 'r') as fp:
-                        content = json.load(fp)
+                    content = read_bids_json(fpath_eeg)
                 else:
                     content = {}
 
@@ -1188,8 +1194,7 @@ def bids_preproc(
         dataset_desc_path = os.path.join(root, 'dataset_description.json')
         if os.path.exists(dataset_desc_path):
             logger.info(f"Updating derived dataset_description.json from {dataset_desc_path}")
-            with open(dataset_desc_path, 'r') as f:
-                desc = json.load(f)
+            desc = read_bids_json(dataset_desc_path)
             if not isinstance(desc, dict):
                 raise ValueError(f"Expected {dataset_desc_path} to contain a JSON object")
         else:

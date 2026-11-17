@@ -247,6 +247,11 @@ created cluster's algorithm provenance. Infinite ``outliers`` keeps the plain
 k-means path. In both cases command history remains pasteable in
 ``eegprep-console``.
 
+``algorithm="kmeanscluster"`` numbers ``Cls k`` from the ``k``-th
+preclustering row. ``algorithm="kmeans"`` numbers ``Cls k`` from centroid
+``k`` of the lowest-SSE seeded start. The same ``random_state`` reproduces
+the ``kmeans`` numbering.
+
 DIPFIT Source Localization
 ==========================
 

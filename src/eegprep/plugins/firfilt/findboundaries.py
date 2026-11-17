@@ -18,7 +18,7 @@ def findboundaries(event: Any) -> np.ndarray:
         for index in boundary_event_indices(events):
             record = events[index]
             try:
-                boundaries.append(int(np.fix(float(record.get("latency")) + 0.5)))
+                boundaries.append(int(np.trunc(float(record.get("latency")) + 0.5)))
             except (TypeError, ValueError):
                 continue
     unique = sorted(set(boundaries))

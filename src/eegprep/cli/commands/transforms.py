@@ -263,11 +263,11 @@ def _rereference(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResu
                 "rereference --method channels requires --channels.",
                 suggestion="Pass channel labels or EEGLAB-facing 1-based channel indices.",
             )
-        ref = channel_tokens(args.channels, numeric_base=1, output_base=0)
+        ref = channel_tokens(args.channels, numeric_base=1, output_base=1)
 
     kwargs: dict[str, Any] = {"refica": args.refica}
     if args.exclude:
-        kwargs["exclude"] = channel_tokens(args.exclude, numeric_base=1, output_base=0)
+        kwargs["exclude"] = channel_tokens(args.exclude, numeric_base=1, output_base=1)
     if args.keep_ref:
         kwargs["keepref"] = "on"
     if args.huber is not None:

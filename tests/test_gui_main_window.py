@@ -6,6 +6,8 @@ import logging
 import os
 import sys
 import textwrap
+import tempfile
+from pathlib import Path
 import unittest
 import warnings
 from unittest import mock
@@ -22,6 +24,7 @@ from eegprep.functions.guifunc.long_task import LongTaskHandle
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc import menu_actions as menu_actions_module
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.popfunc._pop_utils import format_history_value
 from tests.fixtures import gate_iclabel_backend, load_sample_ica_eeg
 
 
@@ -342,7 +345,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertEqual(
             echoed,
-            ["CURRENTSTUDY = 0;[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', 2);"],
+            ["CURRENTSTUDY = 0;[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 2, 'retrieve', 2, 'study', 1);"],
         )
         self.assertEqual(session.CURRENTSTUDY, 0)
         self.assertEqual(session.CURRENTSET, [2])
@@ -452,7 +455,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertTrue(actions["pop_eegplot:data"].isEnabled())
         self.assertTrue(actions["pop_eegplot:channels"].isEnabled())
-        self.assertFalse(actions["pop_eegplot:components"].isEnabled())
+        self.assertTrue(actions["pop_eegplot:components"].isEnabled())
         self.assertFalse(actions["pop_eegplot:reject_data"].isEnabled())
         self.assertFalse(actions["pop_eegplot:reject_ica"].isEnabled())
         window.window.close()
@@ -567,6 +570,249 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual([item["saved"] for item in session.EEG], ["yes", "yes"])
         self.assertEqual([item["saved"] for item in session.ALLEEG], ["yes", "yes"])
 
+    def test_resave_of_imported_raw_file_prompts_and_does_not_overwrite_source(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = Path(tmp) / "recording.vhdr"
+            raw.write_bytes(b"raw-header")
+            eeg = _demo_eeg()
+            eeg["filename"] = raw.name
+            eeg["filepath"] = str(raw.parent)
+            eeg["saved"] = "no"
+            session.store_current(eeg, new=True)
+            destination = raw.with_suffix(".set")
+            suggestions = []
+
+            class QFileDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, directory, _filter, **_kwargs):
+                    suggestions.append(directory)
+                    return str(destination), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(session)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset:resave")
+
+            self.assertEqual(suggestions, [str(destination)])
+            self.assertEqual(raw.read_bytes(), b"raw-header")
+            self.assertTrue(destination.is_file())
+            self.assertEqual(session.EEG["filename"], "recording.set")
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertNotIn("savemode", session.LASTCOM)
+            self.assertIn(
+                f"'filename', {format_history_value(destination.name)}, 'filepath', {format_history_value(str(destination.parent))}",
+                session.LASTCOM,
+            )
+
+    def test_save_as_creates_missing_folder_and_failed_save_is_not_recorded(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        eeg = _demo_eeg()
+        eeg["saved"] = "no"
+        session.store_current(eeg, new=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "nodir" / "x.set"
+
+            class QFileDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **_kwargs):
+                    return str(destination), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(session)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertTrue(destination.is_file())
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertEqual(session.EEG["filename"], "x.set")
+            self.assertIn(
+                f"'filename', {format_history_value(destination.name)}, 'filepath', {format_history_value(str(destination.parent))}",
+                session.LASTCOM,
+            )
+
+            blocker = Path(tmp) / "notdir"
+            blocker.write_text("x", encoding="utf-8")
+            blocked = blocker / "x.set"
+
+            class BlockedDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **_kwargs):
+                    return str(blocked), ""
+
+            blocked_widgets = type("FakeQtWidgets", (), {"QFileDialog": BlockedDialog})
+            before = session.LASTCOM
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=blocked_widgets):
+                with self.assertRaises(ValueError) as caught:
+                    dispatcher.dispatch("pop_saveset")
+            self.assertIn("pop_saveset", str(caught.exception))
+            self.assertIn(str(blocked), str(caught.exception))
+            self.assertEqual(session.LASTCOM, before)
+            self.assertEqual(session.EEG["filename"], "x.set")
+            self.assertTrue(destination.is_file())
+            self.assertFalse(blocked.exists())
+
+    def test_save_as_confirms_the_set_file_that_will_be_written(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        eeg = _demo_eeg()
+        eeg["saved"] = "no"
+        session.store_current(eeg, new=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            typed = folder / "test.edf"
+            written = folder / "test.set"
+            typed.write_bytes(b"edf-bytes")
+            dialog_options = []
+            prompts = []
+
+            class DialogOption:
+                DontConfirmOverwrite = 8
+
+            class QMessageBox:
+                class StandardButton:
+                    Yes = 1
+                    No = 2
+
+                answer = StandardButton.No
+
+                @staticmethod
+                def question(_parent, title, text, buttons, default):
+                    prompts.append((title, text, buttons, default))
+                    return QMessageBox.answer
+
+            class QFileDialog:
+                Option = DialogOption
+
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **kwargs):
+                    dialog_options.append(kwargs.get("options"))
+                    return str(typed), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QMessageBox": QMessageBox})
+            dispatcher = MenuActionDispatcher(session, native_file_dialogs=True)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+
+            self.assertEqual(dialog_options, [DialogOption.DontConfirmOverwrite])
+            self.assertEqual(prompts, [])
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertTrue(written.is_file())
+            self.assertEqual(session.EEG["filename"], "test.set")
+            self.assertEqual(session.EEG["saved"], "yes")
+            original = written.read_bytes()
+
+            session.EEG["saved"] = "no"
+            session.EEG["setname"] = "replaced"
+            before = session.LASTCOM
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertEqual(len(prompts), 1)
+            self.assertIn(str(written), prompts[0][1])
+            self.assertNotIn("test.edf", prompts[0][1])
+            self.assertEqual(prompts[0][3], QMessageBox.StandardButton.No)
+            self.assertEqual(written.read_bytes(), original)
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertEqual(session.LASTCOM, before)
+            self.assertEqual(session.EEG["saved"], "no")
+
+            QMessageBox.answer = QMessageBox.StandardButton.Yes
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertIn(str(written), prompts[-1][1])
+            self.assertNotEqual(written.read_bytes(), original)
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertIn(
+                f"'filename', {format_history_value(written.name)}, 'filepath', {format_history_value(str(written.parent))}",
+                session.LASTCOM,
+            )
+
+    def test_delete_dataset_asks_for_confirmation_and_can_cancel(self):
+        session = EEGPrepSession()
+        for name in ("first", "second"):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            session.store_current(eeg, new=True)
+        session.retrieve(2)
+        dispatcher = MenuActionDispatcher(session)
+
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=[]) as dialog:
+            dispatcher.dispatch("pop_delset")
+        dialog.assert_called_once()
+        prompts, title, _lines, defaults, funcname = dialog.call_args.args
+        self.assertEqual(prompts, ["Dataset(s) to delete:"])
+        self.assertEqual(title, "Delete dataset -- pop_delset()")
+        self.assertEqual(defaults, ["2"])
+        self.assertEqual(funcname, "pop_delset")
+        self.assertEqual([item["setname"] for item in session.ALLEEG], ["first", "second"])
+        self.assertEqual(session.LASTCOM, "")
+
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=["1"]):
+            dispatcher.dispatch("pop_delset")
+        self.assertEqual(session.ALLEEG[0], {})
+        self.assertEqual(session.ALLEEG[1]["setname"], "second")
+        self.assertIn("pop_delset", session.LASTCOM)
+        self.assertIn("[1]", session.LASTCOM)
+
+    def test_delete_dataset_refuses_the_only_loaded_dataset(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        warnings = []
+        dispatcher._warn = lambda _parent, message: warnings.append(message)
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2") as dialog:
+            dispatcher.dispatch("pop_delset")
+        dialog.assert_not_called()
+        self.assertEqual(len(session.ALLEEG), 1)
+        self.assertIn("pop_delset", warnings[0])
+        self.assertIn("Clear study / Clear all", warnings[0])
+
+    def test_delete_dataset_rejects_a_number_that_is_not_loaded(self):
+        session = EEGPrepSession()
+        for _name in ("first", "second"):
+            session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=["9"]):
+            with self.assertRaises(ValueError) as caught:
+                dispatcher.dispatch("pop_delset")
+        self.assertIn("pop_delset", str(caught.exception))
+        self.assertIn("9", str(caught.exception))
+        self.assertEqual(len(session.ALLEEG), 2)
+
+    def test_delete_dataset_dialog_has_help_cancel_and_ok(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        try:
+            from eegprep.functions.guifunc import qt as qt_module
+            from eegprep.functions.guifunc.inputdlg2 import inputdlg2_dialog_spec
+        except ImportError:
+            self.skipTest("PySide6 Qt libraries unavailable in this environment")
+        if qt_module.QtWidgets is None:
+            self.skipTest("PySide6 Qt libraries unavailable in this environment")
+        spec = inputdlg2_dialog_spec(
+            ["Dataset(s) to delete:"],
+            "Delete dataset -- pop_delset()",
+            1,
+            ["2"],
+            "pop_delset",
+        )
+        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec)
+        try:
+            self.assertEqual(dialog.windowTitle(), "Delete dataset -- pop_delset()")
+            self.assertEqual(widgets["answer0"].text(), "2")
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "help"))
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "cancel"))
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "ok"))
+        finally:
+            dialog.close()
+
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         newset_actions = {
             "pop_clean_rawdata",
@@ -624,7 +870,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
                     self.assertEqual(session.ALLCOM[-2], f"EEG = {action}(EEG);")
                     self.assertEqual(
                         session.ALLCOM[-1],
-                        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
+                        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'overwrite', 'on', 'gui', 'off');",
                     )
                     self.assertIn(f"EEG = {action}(EEG);", session.EEG["history"])
                 else:
@@ -704,7 +950,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         newset.assert_called_once()
         self.assertEqual(newset.call_args.args[:3], ([session.ALLEEG[0]], processed, 1))
-        self.assertEqual(newset.call_args.args[3:], ("gui", "on", "overwrite", "off"))
+        self.assertEqual(newset.call_args.kwargs, {"gui": "on", "overwrite": "off"})
         self.assertEqual(len(session.ALLEEG), 2)
         self.assertEqual(session.CURRENTSET, [2])
         self.assertEqual(session.EEG["setname"], "resampled")
@@ -724,7 +970,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dict(original_alleeg[0], setname="first resampled"),
             dict(original_alleeg[1], setname="second resampled"),
         ]
-        newset_command = "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');"
+        newset_command = "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, [1 2], 'study', 0);"
 
         with (
             mock.patch(
@@ -736,11 +982,11 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 return_value=(processed, processed, [1, 2], newset_command),
             ) as newset,
         ):
-            dispatcher.dispatch("pop_resample", parent=object())
+            dispatcher.dispatch("pop_resample", parent=None)
 
         newset.assert_called_once()
         self.assertEqual(newset.call_args.args[:3], (original_alleeg, processed, [1, 2]))
-        self.assertEqual(newset.call_args.args[3:], ("gui", "off", "overwrite", "on"))
+        self.assertEqual(newset.call_args.kwargs, {"study": 0})
         self.assertEqual(session.CURRENTSET, [1, 2])
         self.assertEqual(session.ALLEEG[0]["setname"], "first resampled")
         self.assertEqual(session.ALLEEG[1]["setname"], "second resampled")
@@ -833,10 +1079,10 @@ class MenuActionDispatcherTests(unittest.TestCase):
         ):
             dispatcher.dispatch("pop_fileio_brainvision")
 
-        loadbv.assert_called_once_with("/tmp/recording.vhdr", return_com=True)
+        loadbv.assert_called_once_with("/tmp/recording.vhdr", gui=True, return_com=True)
         self.assertEqual(session.EEG["setname"], "brainvision")
         self.assertEqual(session.CURRENTSET, [1])
-        self.assertEqual(session.ALLCOM[-1], command)
+        self.assertEqual(session.ALLCOM[-2:], [command, "[ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG, 0);"])
 
     def test_preferences_dialog_updates_menu_and_file_dialog_options(self):
         pytest.importorskip("PySide6")
@@ -852,19 +1098,24 @@ class MenuActionDispatcherTests(unittest.TestCase):
         dispatcher = MenuActionDispatcher(session)
 
         def accept_with_both_options(dialog):
-            checkboxes = {checkbox.text(): checkbox for checkbox in dialog.findChildren(QtWidgets.QCheckBox)}
+            checkboxes = {checkbox.objectName(): checkbox for checkbox in dialog.findChildren(QtWidgets.QCheckBox)}
             self.assertEqual(
-                set(checkboxes),
-                {"Show advanced legacy menu items?", "Use Native OS Dialogs"},
+                set(checkboxes) & {"option_allmenus", "option_native_dialogs"},
+                {"option_allmenus", "option_native_dialogs"},
             )
-            for checkbox in checkboxes.values():
-                checkbox.setChecked(True)
+            for key in ("option_allmenus", "option_native_dialogs"):
+                checkboxes[key].setChecked(True)
             return QtWidgets.QDialog.Accepted
 
         try:
             EEG_OPTIONS["option_allmenus"] = 0
             EEG_OPTIONS["option_native_dialogs"] = 0
             with (
+                tempfile.TemporaryDirectory() as directory,
+                mock.patch(
+                    "eegprep.functions.adminfunc.pop_editoptions.eegprep_options_path",
+                    return_value=Path(directory) / "options.json",
+                ),
                 mock.patch(
                     "eegprep.functions.guifunc.menu_actions._require_qt_widgets",
                     return_value=QtWidgets,
@@ -876,7 +1127,8 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
             self.assertEqual(EEG_OPTIONS["option_allmenus"], 1)
             self.assertEqual(EEG_OPTIONS["option_native_dialogs"], 1)
-            self.assertEqual(session.ALLCOM, ["LASTCOM = pop_editoptions();"])
+            self.assertIn("'option_allmenus', 1", session.LASTCOM)
+            self.assertNotIn("option_native_dialogs", session.LASTCOM)
         finally:
             EEG_OPTIONS.clear()
             EEG_OPTIONS.update(original_options)
@@ -1076,6 +1328,74 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
         window.window.close()
 
+    @pytest.mark.modal_dialogs
+    def test_cancel_rejection_dialog_keeps_menus_history_and_dataset(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtCore import QTimer
+        from PySide6.QtWidgets import QPushButton
+
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        action_ids = (
+            "pop_eegthresh:ica",
+            "pop_eegthresh:data",
+            "pop_rejtrend:ica",
+            "pop_jointprob:ica",
+            "pop_rejkurt:ica",
+            "pop_rejspec:ica",
+            "pop_rejmenu:ica",
+        )
+        for action_id in action_ids:
+            with self.subTest(action_id=action_id):
+                session = EEGPrepSession()
+                eeg = _demo_eeg(epoched=True, ica=True)
+                session.store_current(eeg, command="")
+                session.ALLCOM.clear()
+                trials = int(eeg["trials"])
+                data = np.array(eeg["data"], copy=True)
+                window = build_main_window(session, all_menus=True, include_plugins=False)
+                try:
+                    window.show()
+                    window.app.processEvents()
+                    before = _top_menu_state(window)
+                    self.assertEqual(
+                        [item[0] for item in before],
+                        ["File", "Edit", "Tools", "Plot", "Study", "Datasets", "Help"],
+                    )
+
+                    window.open_menu("Tools")
+                    action = _find_menu_action(window.window.menuBar(), action_id)
+                    self.assertIsNotNone(action, f"menu action {action_id} is missing")
+
+                    def cancel(app=window.app):
+                        dialog = app.activeModalWidget()
+                        button = dialog.findChild(QPushButton, "cancel") if dialog is not None else None
+                        if button is None:
+                            QTimer.singleShot(0, cancel)
+                            return
+                        # Dialog construction allocates enough to collect the menu
+                        # wrappers Qt created while the popup was open.
+                        gc.collect()
+                        button.click()
+
+                    QTimer.singleShot(0, cancel)
+                    action.trigger()
+                    window.app.processEvents()
+
+                    self.assertEqual(
+                        _top_menu_state(window),
+                        before,
+                        f"cancelling {action_id} changed the main menu bar",
+                    )
+                    self.assertEqual(list(session.ALLCOM), [], f"cancelling {action_id} wrote history")
+                    current = session.current_eeg()
+                    self.assertEqual(int(current["trials"]), trials)
+                    self.assertTrue(np.array_equal(current["data"], data))
+                finally:
+                    window.window.close()
+                    window.app.processEvents()
+
 
 ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
 _MODAL_POLL_MS = 10
@@ -1108,7 +1428,10 @@ def _iclabel_action(window):
 
 
 class _ModalAnswers:
-    """Answer modal dialogs from inside their Qt event loop and record each dialog's text."""
+    """Answer the ICLabel version dialog from inside its Qt event loop and record its title.
+
+    The warnings the main window raises are answered by ``qt_dialogs``, which records them.
+    """
 
     def __init__(self):
         self.texts = []
@@ -1129,7 +1452,7 @@ class _ModalAnswers:
                 if polls < _MODAL_POLL_LIMIT:
                     QtCore.QTimer.singleShot(_MODAL_POLL_MS, answer)
                 return
-            self.texts.append(dialog.text() if isinstance(dialog, QtWidgets.QMessageBox) else dialog.windowTitle())
+            self.texts.append(dialog.windowTitle())
             if accept:
                 dialog.accept()
             else:
@@ -1139,33 +1462,25 @@ class _ModalAnswers:
 
 
 @pytest.fixture
-def modal_answers(qt_widgets):
+def modal_answers(qt_widgets, qt_dialogs):
     answers = _ModalAnswers()
     yield answers
     # Stop polling so an unanswered request cannot close a later test's dialog.
     answers.active = False
 
 
-def _answer_iclabel_dialog_and_next_warning(modal_answers):
-    """Accept the ICLabel version dialog and queue an answer for the next warning.
-
-    The dispatcher reports action errors in a modal warning, so answering it
-    lets an ICLabel failure before inference fail the test instead of hanging.
-    """
-    modal_answers.answer_next()
-    modal_answers.answer_next()
-
-
 def _pending_tasks():
     return asyncio.all_tasks() - {asyncio.current_task()}
 
 
-def test_gui_main_window_runs_async_iclabel_menu_action_on_the_running_loop(emscripten_iclabel_window, modal_answers):
+def test_gui_main_window_runs_async_iclabel_menu_action_on_the_running_loop(
+    emscripten_iclabel_window, modal_answers, qt_dialogs
+):
     window = emscripten_iclabel_window
     session = window.session
 
     async def scenario():
-        _answer_iclabel_dialog_and_next_warning(modal_answers)
+        modal_answers.answer_next()
         _iclabel_action(window).trigger()
         assert session.ALLCOM == []
         (task,) = _pending_tasks()
@@ -1174,12 +1489,15 @@ def test_gui_main_window_runs_async_iclabel_menu_action_on_the_running_loop(emsc
     asyncio.run(scenario())
 
     assert modal_answers.texts == ["ICLabel"]
+    assert qt_dialogs.messages == []
     assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
     assert session.CURRENTSET == [1]
     assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
 
 
-def test_gui_main_window_warns_when_async_menu_action_has_no_event_loop(emscripten_iclabel_window, modal_answers):
+def test_gui_main_window_warns_when_async_menu_action_has_no_event_loop(
+    emscripten_iclabel_window, modal_answers, qt_dialogs
+):
     window = emscripten_iclabel_window
     session = window.session
 
@@ -1189,7 +1507,8 @@ def test_gui_main_window_warns_when_async_menu_action_has_no_event_loop(emscript
         _iclabel_action(window).trigger()
         gc.collect()
 
-    assert modal_answers.texts == [
+    assert modal_answers.texts == []
+    assert [text for _title, text in qt_dialogs.messages] == [
         "Cannot run pop_iclabel: it waits for an asynchronous backend, and no asyncio event loop is running."
     ]
     assert not [warning for warning in caught if "was never awaited" in str(warning.message)]
@@ -1197,13 +1516,15 @@ def test_gui_main_window_warns_when_async_menu_action_has_no_event_loop(emscript
     assert "ic_classification" not in session.EEG["etc"]
 
 
-def test_gui_main_window_shows_stale_iclabel_result_warning(emscripten_iclabel_window, modal_answers, monkeypatch):
+def test_gui_main_window_shows_stale_iclabel_result_warning(
+    emscripten_iclabel_window, modal_answers, qt_dialogs, monkeypatch
+):
     window = emscripten_iclabel_window
     session = window.session
     backend = gate_iclabel_backend(monkeypatch)
 
     async def scenario():
-        _answer_iclabel_dialog_and_next_warning(modal_answers)
+        modal_answers.answer_next()
         _iclabel_action(window).trigger()
         (task,) = _pending_tasks()
         await backend.wait_started(task)
@@ -1213,22 +1534,23 @@ def test_gui_main_window_shows_stale_iclabel_result_warning(emscripten_iclabel_w
 
     asyncio.run(scenario())
 
-    assert modal_answers.texts[0] == "ICLabel"
-    assert modal_answers.texts[1].startswith("ICLabel result discarded because the selected dataset was modified")
+    assert modal_answers.texts == ["ICLabel"]
+    (stale_message,) = [text for _title, text in qt_dialogs.messages]
+    assert "ICLabel result discarded because the selected dataset was modified" in stale_message
     assert session.ALLCOM == []
     assert session.EEG["setname"] == "edited during inference"
     assert "ic_classification" not in session.EEG["etc"]
 
 
 def test_gui_main_window_cancelled_async_menu_action_changes_nothing(
-    emscripten_iclabel_window, modal_answers, monkeypatch, caplog
+    emscripten_iclabel_window, modal_answers, qt_dialogs, monkeypatch, caplog
 ):
     window = emscripten_iclabel_window
     session = window.session
     backend = gate_iclabel_backend(monkeypatch)
 
     async def scenario():
-        _answer_iclabel_dialog_and_next_warning(modal_answers)
+        modal_answers.answer_next()
         _iclabel_action(window).trigger()
         (task,) = _pending_tasks()
         await backend.wait_started(task)
@@ -1241,6 +1563,7 @@ def test_gui_main_window_cancelled_async_menu_action_changes_nothing(
 
     assert task.cancelled()
     assert not caplog.records
+    assert qt_dialogs.messages == []
     assert session.ALLCOM == []
     assert "ic_classification" not in session.EEG["etc"]
 
@@ -1269,3 +1592,28 @@ def test_gui_main_window_logs_async_menu_failure_that_escapes_the_dispatcher(
     (record,) = [record for record in caplog.records if record.name == "eegprep.functions.guifunc.main_window"]
     assert record.getMessage() == "Asynchronous EEGPrep GUI menu action failed: gui action listener failed"
     assert session.ALLCOM == []
+
+
+def _top_menu_state(window):
+    menubar = window.window.menuBar()
+    return [
+        (
+            action.text(),
+            action.isEnabled(),
+            menubar.actionGeometry(action).x(),
+            menubar.actionGeometry(action).width(),
+        )
+        for action in menubar.actions()
+    ]
+
+
+def _find_menu_action(menu, action_id):
+    for action in menu.actions():
+        if action.data() == action_id:
+            return action
+        child = action.menu()
+        if child is not None:
+            found = _find_menu_action(child, action_id)
+            if found is not None:
+                return found
+    return None

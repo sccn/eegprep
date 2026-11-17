@@ -20,7 +20,9 @@ from eegprep.functions.sigprocfunc.timtopo import timtopo
 
 def pop_timtopo(
     EEG: dict[str, Any] | None = None,
+    timerange: Any = None,
     plottimes: Any = None,
+    plottitle: Any = None,
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
@@ -30,12 +32,14 @@ def pop_timtopo(
 ):
     """Plot channel ERP traces and scalp maps at selected latencies.
 
-    Pass ``plot='off'`` to build and return the figure without opening a window.
+    Positional arguments follow EEGLAB: time range, scalp-map latencies, then
+    the plot title. Pass ``plot='off'`` to build and return the figure without
+    opening a window.
     """
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
-        gui = plottimes is None and not kwargs
+        gui = timerange is None and plottimes is None and plottitle is None and not args and not kwargs
     if gui:
         result = _run_gui(EEG, renderer=renderer)
         if result is None:
@@ -43,20 +47,42 @@ def pop_timtopo(
         plottimes = result["plottimes"]
         kwargs.update(result["options"])
     command_kwargs = dict(kwargs)
-    data, times = data_time_slice(EEG, kwargs.pop("timerange", None))
+    if timerange is None:
+        timerange = command_kwargs.pop("timerange", None)
+    else:
+        command_kwargs.pop("timerange", None)
+    if plottitle is None:
+        plot_title = str(command_kwargs.pop("title", EEG.get("setname") or "Channel ERPs"))
+    else:
+        command_kwargs.pop("title", None)
+        plot_title = str(plottitle)
+    winsize_value = command_kwargs.pop("winsize", None)
+    data, times = data_time_slice(EEG, timerange)
     erp = np.nanmean(data, axis=2)
-    winsize = _first_float(kwargs.pop("winsize", None), default=0.0)
-    topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
+    winsize = _first_float(winsize_value, default=0.0)
+    topoplot_options = parse_plot_options_text(command_kwargs.pop("options", ""))
     figure = timtopo(
         erp,
         EEG.get("chanlocs", []),
         times=times,
         plottimes=numeric_vector(plottimes).tolist(),
         winsize=winsize,
-        title=str(kwargs.pop("title", EEG.get("setname") or "Channel ERPs")),
+        title=plot_title,
         topoplot_options=topoplot_options,
     )
-    command = history_command("pop_timtopo", plottimes, **command_kwargs)
+    history_range = timerange
+    if history_range is None or history_range == []:
+        history_range = [float(times[0]), float(times[-1])] if len(times) else []
+    if winsize:
+        command_kwargs["winsize"] = winsize_value
+    command = history_command(
+        "pop_timtopo",
+        history_range,
+        numeric_vector(plottimes).tolist(),
+        plot_title,
+        leading_figure=True,
+        **command_kwargs,
+    )
     show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 

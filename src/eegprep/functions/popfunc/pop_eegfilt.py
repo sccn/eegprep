@@ -26,7 +26,14 @@ def pop_eegfilt(
     renderer: Any | None = None,
     return_com: bool = False,
 ):
-    """Filter EEG data through the legacy ``pop_eegfilt`` interface."""
+    """Filter EEG data through the legacy ``pop_eegfilt`` interface.
+
+    Continuous data with a boundary event keeps the dtype of ``EEG.data``.
+    Every other result is float64. The filter runs in float64. EEGLAB
+    eegfilt.m:209-210 runs filter/filtfilt on single-precision input in single
+    precision (falling back to double only on error, :213-215), so its result
+    differs from this one by single-precision rounding.
+    """
     if EEG is None:
         raise ValueError("Pop_eegfilt() error: cannot filter an empty dataset")
     if gui is None:

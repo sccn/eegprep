@@ -48,7 +48,17 @@ selection:
    EEG, com = pop_select(EEG, channel=[1, 2, 3, 4, 5], return_com=True)
 
 GUI path: ``Edit > Select data``. Channel/component values in GUI dialogs are
-EEGLAB-facing one-based values.
+EEGLAB-facing one-based values. ``pop_select`` then checks event consistency:
+a leading boundary whose duration is less than one sample is removed, a leading
+boundary latency in (0, 1) is set to 0.5, events with an epoch number outside
+the dataset are removed, and the remaining events are sorted by epoch, then
+latency. Once any event has a duration, an empty or missing duration on
+another event is 0. A NaN duration is kept. Consecutive boundary-list entries
+that share a latency, taken in event order before that sort, chain their
+durations into the last entry of the run. A later boundary at the same latency
+stays separate when a different latency stands between the two entries.
+Boundary latencies 20, 20, 30, and 20 with durations 4, 1, 8, and 2 sort to
+latency 20 duration 5, latency 20 duration 2, and latency 30 duration 8.
 
 Filter
 ======
@@ -71,6 +81,14 @@ GUI path: ``Tools > Filter the data``. The wrapper uses bundled FIRFilt-style
 Hamming-window defaults, respects continuous-data boundary events, clears stale
 ICA activations, and returns a replayable history command. ``minphase=True``
 converts the FIR to minimum phase with the real cepstrum before causal filtering.
+``usefftfilt=True`` filters each segment by overlap-add, so a missing sample
+stays inside the FFT block that contains it. Each applied design is appended
+to ``EEG["etc"]["eegfiltnew"]``: sampling rate, 1-based channels, phase,
+passband edges, -6 dB cutoffs, order, transition width, ``revfilt``, and the
+coefficients. A missing passband edge is NaN. A highpass is stored as the
+reversed lowpass that was designed. Design the same FIR without
+filtering by calling ``design_eegfiltnew``. The history command still records
+the options you requested.
 
 Use FIRFilt helpers for custom filter design:
 
@@ -133,47 +151,111 @@ should use the first value or call ``pop_clean_rawdata``.
 Sampling Rates
 ==============
 
-ASR calibration designs its spectral-shaping filter for whatever sampling rate
-the dataset has, so no resampling is required beforehand. Clinical and
-consumer amplifier rates that are not round numbers, such as 258 Hz, work
-directly.
+ASR calibration designs its spectral-shaping filter for the dataset's sampling
+rate, so ordinary clinical rates, including non-integer rates such as 258 Hz,
+need no resampling first. A rate whose default frequency breakpoints are not
+monotonic, such as 32 Hz, cannot be calibrated. ``clean_asr`` raises an error
+that names the rate. ``clean_artifacts`` and ``pop_clean_rawdata`` warn and
+leave that recording unchanged.
 
-ASR Memory Budget and Blocks
-============================
+A calibration shorter than one 0.5 s RMS window, or one that yields fewer than
+two such windows, cannot set thresholds either. The calibration is the
+reference section, so a longer recording still raises when that section is
+shorter than one window. ``clean_asr`` raises
+``ASRCalibrationError`` and names the sample or window counts. ``clean_artifacts``
+and ``pop_clean_rawdata`` warn, leave the burst stage unchanged, and still run
+window removal when it was requested. On a 44-sample recording at 128 Hz the
+burst stage needs 64 samples, so with the other stages off the samples stay
+identical, including NaNs. EEGLAB prints the calibration error and returns
+before window removal.
 
-ASR processes the data in blocks so that memory use stays within a budget. The
-budget is ``MaxMem`` in ``clean_artifacts`` and ``bids_preproc``, ``maxmem`` in
-``clean_asr``, and ``max_mem`` in ``asr_process``. Leave it unset, as EEGPrep does by
-default, to get 64 MB, or twice the fixed lookahead memory when that is larger
-(128 channels at 1000 Hz need 187.5 MB, 256 channels at 512 Hz need 384 MB).
-``availableRAM_GB`` in ``clean_artifacts`` sets ``MaxMem`` from the RAM you can spare.
-
-The reconstruction matrix is refreshed block by block, so the block layout can
-change the output, materially for some data. EEGPrep logs a warning when
-processing goes beyond the plain default:
-
-- the default budget was raised above 64 MB, with the block count, the block
-  length and the expected peak memory;
-- the limit of 10000 blocks makes memory use exceed the budget, which happens on
-  long recordings with many channels (about 456 MB at peak for one hour of 128
-  channels at 1000 Hz, against a 187.5 MB budget); give a larger budget or clean
-  the recording in segments;
-- the blocks are shorter than the lookahead, so results can differ materially and
-  the run is slower; this applies to an explicit budget as well.
-
-A larger budget gives larger blocks and silences these warnings. A budget below
-the fixed lookahead memory raises ``RuntimeError`` with the smallest workable
-value and about twice that is recommended, and a zero, negative, infinite, or NaN
-budget raises ``ValueError``.
+Two or three 0.5 s RMS windows still calibrate. EEGLAB's fit indexes a rounded
+width of 0 and ``clean_artifacts`` returns the recording unchanged. EEGPrep
+skips those non-positive widths and still removes bursts. A 21-channel,
+89-sample recording at 128 Hz has two such windows.
 
 Riemannian ASR Notes
 ====================
 
-EEGPrep supports the Riemannian ASR calibration variant through
-``clean_asr(EEG, useriemannian="calib")`` and
-``clean_artifacts(EEG, Distance="Riemannian")``. Full Riemannian ASR
-processing is not ported, so direct full-process requests fail clearly instead
-of silently substituting MATLAB-only behavior.
+``clean_asr(EEG, useriemannian=True)`` and
+``clean_artifacts(EEG, Distance="Riemannian")`` run Riemannian ASR.
+Calibration takes the geometric median of block covariances and sets
+component thresholds from the nonlinear eigenspace of the mixing matrix.
+Processing uses one sample covariance per chunk. A later chunk averages that
+covariance with the previous chunk along the affine-invariant geodesic.
+
+``clean_asr(EEG, useriemannian="calib")`` keeps the smaller variant: a
+Riemannian covariance during calibration, then the Euclidean ASR processor.
+Passing an unknown ``useriemannian`` value raises ``ValueError``.
+
+Calibration does not change non-finite samples in the recording it receives.
+``clean_asr`` reflects the end of that original recording to build lookahead.
+Processing prepends its carry, then replaces non-finite samples, including
+those reflected samples, with 0.
+
+A Riemannian calibration shorter than one 0.1 s RMS window, or one with
+fewer than two such windows, raises ``ASRCalibrationError``. The message
+names ``asr_calibrate_r``, the sample counts, and the choice to record more
+data or set ``BurstCriterion`` off. ``pop_clean_rawdata`` warns and leaves
+the burst stage unchanged. EEGLAB does not catch that call.
+
+Save and Reapply the ASR State
+==============================
+
+``clean_asr`` can hand back the calibration it used, so the same cleaning can
+be repeated later or recorded beside a result:
+
+.. code-block:: python
+
+   import json
+
+   from eegprep import clean_asr
+   from eegprep.plugins.clean_rawdata.asr_state import state_from_json, state_to_json
+
+   cleaned, state = clean_asr(EEG, return_state=True)
+   with open("asr_state.json", "w") as handle:
+       json.dump(state_to_json(state), handle)
+
+   with open("asr_state.json") as handle:
+       state = state_from_json(json.load(handle))
+   again = clean_asr(EEG, state=state)  # again["data"] equals cleaned["data"]
+
+The state is the calibration as ``asr_calibrate`` (or ``asr_calibrate_r`` for
+full Riemannian ASR) returned it, plus the sampling rate, the channel labels in
+data order, and the processing arguments (``cutoff``, ``window_len``,
+``step_size``, ``max_dims``, ``useriemannian``, ``maxmem``). The JSON text
+holds every array as float64 and every number in its shortest exact form, so
+reading it back loses nothing. A 32-channel state is about 48 kB.
+
+Reapplying skips reference selection and calibration and processes with the
+recorded arguments. A ``cutoff``, ``window_len``, ``step_size``, ``max_dims``,
+``ref_*``, ``useriemannian``, or ``maxmem`` passed beside ``state`` must be that
+argument's default or the value the state records (``useriemannian=False`` and
+``"off"`` both mean Euclidean); any other value raises ``ValueError``. A state
+is checked as a stored document is, whether it comes from ``return_state`` or
+from a dictionary you built, and a malformed one raises ``ValueError`` naming
+the key. A whole-number ``step_size`` such as ``32.0`` is recorded as an
+integer, and a fractional one raises when a state is requested.
+
+A state whose sampling rate or channel labels differ from the EEG's raises
+``ValueError``, because a state from another montage would mix the wrong
+channels. A state recorded from an EEG without ``chanlocs`` has no labels. It
+fits only an EEG without labels, and a labeled state is refused for an EEG
+without them.
+
+``maxmem`` fixes how many blocks processing uses, in every variant, and the
+block count changes the cleaned data. Processing reserves
+``channels * channels * lookahead_samples * 24`` bytes before it sizes its
+blocks. When ``maxmem`` is ``None`` or smaller than that, ``asr_process``
+replaces it with half of the free memory, and the output then differs between
+runs and machines. The default of 64 MB is too small for 128 channels at 1 kHz
+and for 256 channels at 512 Hz. ``clean_asr`` emits a ``UserWarning`` that names
+the overhead and the smallest sufficient ``maxmem`` when a state is requested or
+supplied with such a budget; it never raises.
+
+Identical output after reapplying holds on one platform and numerical library
+stack. Another BLAS or LAPACK build can differ in the last bits of the float
+arithmetic.
 
 Review Rejected Segments
 ========================
@@ -203,6 +285,9 @@ appropriate:
 
 GUI path: ``Tools > Change sampling rate``. Continuous data with boundary
 events is resampled by segment. Event latencies and the time vector are updated.
+A missing sample stays missing where the anti-aliasing filter reaches it,
+including the exact-zero delay pads in MATLAB's resampler. Outputs no tap
+reaches stay finite.
 
 Re-Reference and Interpolate
 ============================
@@ -221,14 +306,15 @@ Interpolate known bad channels after channel removal or rejection:
 
    from eegprep import pop_interp
 
-   EEG, com = pop_interp(EEG, [0, 4, 9], return_com=True)
+   EEG, com = pop_interp(EEG, [1, 5, 10], return_com=True)
 
 Use ``Tools > Re-reference the data`` and ``Tools > Interpolate electrodes``
 from the GUI.
 
-The programmatic ``bad_elec`` list for ``pop_interp`` uses Python zero-based
-indices when integers are supplied. GUI channel selection remains one-based and
-label-driven.
+``bad_elec`` integers are 1-based: channel 1 is the first channel. A ``t_range``
+of ``[start, end]`` seconds is inclusive on ``EEG.times``. An empty dialog time
+field interpolates the whole recording. A scripted range is honoured.
+Pinned EEGLAB ``pop_interp.m`` line 61 discards that fourth argument.
 
 Run ICA and ICLabel
 ===================
@@ -270,8 +356,12 @@ wrappers for the common EEGLAB plotting workflows:
 
 ``pop_newtimef`` plots one channel or component at a time. Set ``typeproc=1`` for
 a channel and ``typeproc=0`` for an ICA component; ``num`` is the 1-based channel
-or component index. ``tlimits`` is the epoch window in milliseconds and ``cycles``
-selects the decomposition: ``[0]`` uses a short-time FFT, while ``[n]`` (optionally
+or component index. ``tlimits`` is the epoch window in milliseconds. The sample
+window uses EEGLAB rounding and the decomposition uses those requested limits.
+``pop_newtimef`` includes the end sample. ``pop_newcrossf`` includes it too;
+pinned ``pop_newcrossf.m`` line 189 drops that sample.
+``pop_newcrossf`` without a frequency range stops at 50 Hz.
+``cycles`` selects the decomposition: ``[0]`` uses a short-time FFT, while ``[n]`` (optionally
 ``[n factor]``) uses an ``n``-cycle Morlet wavelet that narrows toward higher
 frequencies. Called with no index, ``pop_newtimef`` opens a dialog to collect
 these values; the ``Plot`` menu exposes the same dialog under *Channel
@@ -328,24 +418,23 @@ Two-condition comparisons (contrasting two datasets in a single figure) are not
 yet part of the standalone wrapper.
 
 Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
-``pop_newtimef`` and ``pop_newcrossf`` implementations. ERP-image workflows use
-``pop_erpimage`` for channel or component images:
+``pop_newtimef`` and ``pop_newcrossf`` implementations.
+ERP-image workflows use ``pop_erpimage`` for channel or component images of epoched data
+(see `Epoch and Baseline`_ below), with EEGLAB's arguments:
 
 .. code-block:: python
 
    from eegprep import pop_erpimage
 
-   image, com = pop_erpimage(EEG, typeplot=1, index=1, return_com=True)
+   # Channel Cz of epoched data, sorted by reaction-time latency, smoothed over 10 trials.
+   result, com = pop_erpimage(EEG, 1, "Cz", None, "", 10, 1, ["rt"], None, "latency", return_com=True)
 
-Channel ERP images use a symmetric color axis, a solid line marking time zero on
-both the image and the ERP trace, and a small scalp map at the upper left with
-the plotted channel marked, matching EEGLAB's ERP-image layout.
+``pop_erpimage`` draws the ERP trace, a colorbar and a scalp map by default,
+and accepts every :func:`~eegprep.erpimage` option, such as phase sorting or inter-trial coherence.
+See :ref:`gui_tutorials` for the dialog.
 
 GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
-returns replayable Python history commands for these wrappers. Some MATLAB-only
-``pop_erpimage`` event-alignment and advanced renormalization options are not
-standalone EEGPrep features; those requests raise explicit errors instead of
-silently substituting a different analysis.
+returns replayable Python history commands for these wrappers.
 
 Epoch and Baseline
 ==================

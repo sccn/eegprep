@@ -4,6 +4,7 @@ Data Loading and Saving
 =======================
 
 Readers and writers for EEG datasets, channel locations, and MNE interchange.
+``getchanlist`` returns 1-based channel numbers.
 
 .. autosummary::
    :toctree: generated/
@@ -81,7 +82,16 @@ are supported. Voltage data is normalized to microvolts while the original
 unit and resolution remain in each channel's ``bvunit`` and ``bvresolution``
 fields. Use ``metadata=True`` to inspect dimensions, channels, and events
 without loading samples. Uniform marker-based or fixed-time segments are
-returned as trials rather than a flattened continuous array.
+returned as trials rather than a flattened continuous array. BIDS import uses
+this same reader for ``.vhdr`` files.
+
+``pop_fileio_brainvision_mat`` reads a BrainVision Analyzer MATLAB export.
+The file has one variable per channel plus ``Channels``, ``SampleRate``,
+``t`` (milliseconds), ``SegmentCount``, and ``Markers``. A segmented channel
+matrix is segments by time. A marker with an empty ``Description`` is not an
+event, matching bva-io ``pop_loadbva.m`` lines 112-113. A MATLAB v7.3 file,
+or a ``.mat`` that is not this export, raises an error instead of returning
+a guessed array. This reader does not need the ``mne`` extra.
 
 ``read_erpss`` reads uncompressed and delta-compressed ERPSS ``.RAW`` and
 ``.RDF`` recordings without a compiled MEX extension. It preserves channel

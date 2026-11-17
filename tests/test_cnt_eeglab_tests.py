@@ -1,7 +1,7 @@
 """Executable ports of the current EEGLAB CNT loader wrappers.
 
-Upstream suite: sccn/eeglab_tests@ff605546f3f70868916fb8d49c007472b3257b50
-EEGLAB tree: sccn/eeglab@8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba
+Upstream suite: sccn/eeglab_tests@fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9
+EEGLAB tree: sccn/eeglab@d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4
 CNT implementation: sccn/neuroscanio@5915f10abac2db12f07876b9cf994371973f6c49
 
 The two upstream recordings are 14 MB and 27 MB Git LFS objects. These tests
@@ -180,8 +180,9 @@ def test_current_pop_loadcnt_wrapper_cases(
     assert case1["nbchan"] == case4["nbchan"] == 2
     assert case1["srate"] == case4["srate"] == 1
     assert [channel["labels"] for channel in case1["chanlocs"]] == ["E1", "E2"]
-    assert [event["type"] for event in case1["event"]] == [7, "boundary", 8]
-    assert [event["type"] for event in case8["event"]] == [7, "keyboard4", "keypad3", "boundary", 8]
+    # pop_loadcnt.m:222 -> eeg_checkset.m:395-400 num2str's a numeric type beside text.
+    assert [event["type"] for event in case1["event"]] == ["7", "boundary", "8"]
+    assert [event["type"] for event in case8["event"]] == ["7", "keyboard4", "keypad3", "boundary", "8"]
     assert [event["latency"] for event in case8["event"]] == [1, 11, 21, 31, 1101]
     assert [event["urevent"] for event in case8["event"]] == list(range(5))
     assert "'keystroke', 'on'" in command

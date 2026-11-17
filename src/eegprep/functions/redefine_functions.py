@@ -52,6 +52,7 @@ def decodechan(*args, **kwargs):
 
 def eeg2mne(*args, **kwargs):
     """Wrap eeg_eeg2mne."""
+    kwargs.setdefault("feature", "eeg2mne")
     return eeg_eeg2mne(*args, **kwargs)
 
 
@@ -77,6 +78,7 @@ def lat2point(*args, **kwargs):
 
 def mne2eeg(*args, **kwargs):
     """Wrap eeg_mne2eeg."""
+    kwargs.setdefault("feature", "mne2eeg")
     return eeg_mne2eeg(*args, **kwargs)
 
 
@@ -92,6 +94,7 @@ def options(*args, **kwargs):
 
 def picard(*args, **kwargs):
     """Wrap eeg_picard."""
+    kwargs.setdefault("feature", "picard")
     return eeg_picard(*args, **kwargs)
 
 
@@ -117,6 +120,7 @@ def reref(*args, **kwargs):
 
 def resample(*args, **kwargs):
     """Wrap pop_resample."""
+    kwargs.setdefault("feature", "resample")
     return pop_resample(*args, **kwargs)
 
 

@@ -10,4 +10,15 @@ biosig = dir(fullfile(eeglab_root, 'plugins', 'Biosig*', 'biosig', 't200_FileAcc
 for index = 1:numel(biosig)
     addpath(biosig(index).folder);
 end
+% eeglab('nogui') does not run eegplugin_dipfit, so standard_1005.elc stays
+% off the path and bids_chan_lookup drops the imported dataset.
+if ~exist('standard_mri.mat', 'file')
+    dipfitp = fileparts(which('dipfitdefs.m'));
+    if ~isempty(dipfitp)
+        addpath(fullfile(dipfitp, 'standard_BEM'));
+        addpath(fullfile(dipfitp, 'standard_BEM', 'elec'));
+        addpath(fullfile(dipfitp, 'standard_BEM', 'skin'));
+        addpath(fullfile(dipfitp, 'standard_BESA'));
+    end
+end
 end

@@ -11,7 +11,10 @@ from ._validation import real_array
 
 
 def hungarian(cost_matrix: Any) -> tuple[np.ndarray, float]:
-    """Return a zero-based column-to-row assignment and its total cost."""
+    """Return a 1-based column-to-row assignment and its total cost.
+
+    ``assignment[j]`` is the 1-based row assigned to column ``j + 1``.
+    """
     costs = real_array(cost_matrix, "cost_matrix")
     if costs.ndim != 2 or costs.shape[0] != costs.shape[1]:
         raise ValueError("cost matrix must be square")
@@ -22,7 +25,7 @@ def hungarian(cost_matrix: Any) -> tuple[np.ndarray, float]:
     except ValueError as error:
         raise ValueError("cost matrix has no finite complete assignment") from error
     assignment = np.empty(costs.shape[1], dtype=int)
-    assignment[columns] = rows
+    assignment[columns] = rows + 1
     return assignment, float(costs[rows, columns].sum())
 
 

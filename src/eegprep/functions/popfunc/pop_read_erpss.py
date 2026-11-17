@@ -32,6 +32,7 @@ def pop_read_erpss(
         data,
         srate=effective_srate,
         setname="ERPSS data",
+        nbchan=int(header["nchans"]),
         comments=f"Original file: {path}",
         chanlocs=[{"labels": label} for label in header["chanlabels"]],
         filename=path.name,

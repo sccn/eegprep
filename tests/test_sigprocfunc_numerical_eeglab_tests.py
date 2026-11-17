@@ -80,16 +80,37 @@ def test_python_regression_quantile_matches_midpoint_empirical_interpolation():
         quantile([1, 3], [0.5 + 0.1j])
 
 
-def test_python_regression_shuffle_returns_zero_based_permutation_and_exact_inverse_for_any_axis():
+def test_python_regression_shuffle_returns_one_based_permutation_and_exact_inverse_for_any_dimension():
     generator = np.random.default_rng(17)
-    for shape, axis in [((32, 100), 0), ((32, 100), 1), ((4, 8, 10), 1), ((4, 8, 10), 2)]:
+    for shape, dim in [((32, 100), 1), ((32, 100), 2), ((4, 8, 10), 2), ((4, 8, 10), 3)]:
         data = np.arange(np.prod(shape)).reshape(shape)
-        shuffled, permutation, inverse = shuffle(data, axis, rng=generator)
-        np.testing.assert_array_equal(shuffled, np.take(data, permutation, axis=axis))
-        np.testing.assert_array_equal(np.take(shuffled, inverse, axis=axis), data)
-        np.testing.assert_array_equal(permutation[inverse], np.arange(shape[axis]))
+        shuffled, permutation, inverse = shuffle(data, dim, rng=generator)
+        axis = dim - 1
+        positions = permutation - 1
+        inverse_positions = inverse - 1
+        assert permutation.min() == 1
+        assert permutation.max() == shape[axis]
+        np.testing.assert_array_equal(shuffled, np.take(data, positions, axis=axis))
+        np.testing.assert_array_equal(np.take(shuffled, inverse_positions, axis=axis), data)
+        np.testing.assert_array_equal(positions[inverse_positions], np.arange(shape[axis]))
+    row = np.arange(5).reshape(1, 5)
+    shuffled, permutation, _inverse = shuffle(row, rng=np.random.default_rng(1))
+    assert permutation.min() == 1 and permutation.max() == 5
+    np.testing.assert_array_equal(shuffled, row[:, permutation - 1])
+    column = np.arange(5).reshape(5, 1)
+    shuffled, permutation, _inverse = shuffle(column, rng=np.random.default_rng(1))
+    assert permutation.min() == 1 and permutation.max() == 5
+    np.testing.assert_array_equal(shuffled, column[permutation - 1])
+    leading = np.arange(5).reshape(1, 1, 1, 5)
+    shuffled, permutation, _inverse = shuffle(leading, rng=np.random.default_rng(1))
+    assert permutation.min() == 1 and permutation.max() == 5
+    np.testing.assert_array_equal(shuffled, np.take(leading, permutation - 1, axis=3))
     with pytest.raises(ValueError, match="integer"):
-        shuffle(np.ones((2, 2)), axis=0.5)
+        shuffle(np.ones((2, 2)), dim=0.5)
+    with pytest.raises(ValueError, match="out of range"):
+        shuffle(np.ones((2, 2)), dim=0)
+    with pytest.raises(ValueError, match="out of range"):
+        shuffle(np.ones((2, 2)), dim=3)
 
 
 @eeglab_test(_source("celltomat"), "test_pass_1d_num")

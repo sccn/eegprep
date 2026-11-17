@@ -4,11 +4,17 @@ from copy import deepcopy
 
 import numpy as np
 
-from eegprep.plugins.ICLabel.iclabel_net_onnx import IS_EMSCRIPTEN, run_iclabel_net, run_iclabel_net_async
+from eegprep.plugins.ICLabel.iclabel_net_onnx import (
+    IS_EMSCRIPTEN,
+    require_onnxruntime,
+    run_iclabel_net,
+    run_iclabel_net_async,
+)
 
 
 _SUPPORTED_ALGORITHMS = ('default', 'lite', 'beta')
 _SUPPORTED_ENGINES = (None, 'matlab', 'octave')
+_EEGLAB_RUNTIMES = {'matlab': 'MAT', 'octave': 'OCT'}
 _SYNC_UNAVAILABLE_MESSAGE = (
     'ICLabel synchronous entry points are unavailable under Emscripten; '
     'use await iclabel_async(...) or await pop_iclabel_async(...).'
@@ -19,10 +25,10 @@ _ENGINE_UNAVAILABLE_MESSAGE = (
 )
 
 
-def iclabel(EEG, algorithm='default', engine=None):
+def iclabel(EEG, algorithm='default', engine=None, *, feature='iclabel'):
     """Classify independent components with ICLabel.
 
-    With ``engine=None`` this runs the packaged int8 ICLabel network
+    With ``engine=None`` this runs the packaged full-precision ICLabel network
     (``iclabel.onnx``) through ONNX Runtime, which needs the ``iclabel`` extra
     (``pip install "eegprep[iclabel]"``). ``engine='matlab'`` or ``'octave'``
     instead calls ICLabel in an EEGLAB installation through that engine.
@@ -35,6 +41,8 @@ def iclabel(EEG, algorithm='default', engine=None):
             MATLAB or Octave engine.
         engine: ``None`` for the packaged network, or ``'matlab'`` or
             ``'octave'``.
+        feature: Name of the calling function, used in the message of a
+            missing-extra ``ImportError``.
 
     Returns:
         dict: A copy of ``EEG`` whose ``etc.ic_classification.ICLabel`` holds
@@ -51,18 +59,22 @@ def iclabel(EEG, algorithm='default', engine=None):
     """
     require_sync_backend(engine)
     algorithm = _validate_request(algorithm, engine)
+    if engine is None:
+        require_onnxruntime(feature)
     EEG = deepcopy(EEG)
     if engine is not None:
-        return _run_eeglab_engine(EEG, algorithm, engine)
+        from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
+        return _run_eeglab_engine(get_eeglab(runtime=_EEGLAB_RUNTIMES[engine], feature=feature), EEG, algorithm)
     return _attach_classification(EEG, run_iclabel_net(*_prepare_features(EEG)), algorithm)
 
 
-async def iclabel_async(EEG, algorithm='default', engine=None):
+async def iclabel_async(EEG, algorithm='default', engine=None, *, feature='iclabel_async'):
     """Classify independent components with ICLabel from asynchronous code.
 
     This is the ICLabel entry point under Emscripten (Pyodide): the packaged
-    network runs in the host's ONNX Runtime Web session, and this coroutine
-    awaits its Promise. The backend is chosen when
+    8-bit network (``iclabel_int8.onnx``) runs in the host's ONNX Runtime Web
+    session, and this coroutine awaits its Promise. The backend is chosen when
     :mod:`eegprep.plugins.ICLabel.iclabel_net_onnx` is first imported. On
     native platforms it returns exactly what :func:`iclabel` returns, but it
     runs synchronously inside the coroutine and does not yield to the event
@@ -75,6 +87,8 @@ async def iclabel_async(EEG, algorithm='default', engine=None):
             Only ``'default'`` ships with EEGPrep.
         engine: ``None`` for the packaged network, or ``'matlab'`` or
             ``'octave'`` on native platforms.
+        feature: Name of the calling function, used in the message of a
+            missing-extra ``ImportError``.
 
     Returns:
         dict: A copy of ``EEG`` with ``etc.ic_classification.ICLabel`` filled
@@ -89,9 +103,13 @@ async def iclabel_async(EEG, algorithm='default', engine=None):
             is not installed.
     """
     algorithm = _validate_request(algorithm, engine)
+    if engine is None and not IS_EMSCRIPTEN:
+        require_onnxruntime(feature)
     EEG = deepcopy(EEG)
     if engine is not None:
-        return _run_eeglab_engine(EEG, algorithm, engine)
+        from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
+        return _run_eeglab_engine(get_eeglab(runtime=_EEGLAB_RUNTIMES[engine], feature=feature), EEG, algorithm)
     return _attach_classification(EEG, await run_iclabel_net_async(*_prepare_features(EEG)), algorithm)
 
 
@@ -124,7 +142,7 @@ def _validate_request(algorithm, engine):
     if engine is None and algorithm != 'default':
         if IS_EMSCRIPTEN:
             raise NotImplementedError(
-                f"Only the default ICLabel network (iclabel.onnx) is available in the browser. The '{algorithm}' "
+                f"Only the default ICLabel network (iclabel_int8.onnx) is available in the browser. The '{algorithm}' "
                 "network needs MATLAB or Octave with an EEGLAB ICLabel checkout, which do not exist under Emscripten."
             )
         raise NotImplementedError(
@@ -135,10 +153,7 @@ def _validate_request(algorithm, engine):
     return algorithm
 
 
-def _run_eeglab_engine(EEG, algorithm, engine):
-    from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-
-    eeglab = get_eeglab(runtime='MAT' if engine == 'matlab' else 'OCT')
+def _run_eeglab_engine(eeglab, EEG, algorithm):
     if algorithm == 'default':
         return eeglab.iclabel(EEG)
     return eeglab.iclabel(EEG, algorithm)

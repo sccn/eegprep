@@ -36,49 +36,66 @@ def pop_envtopo(
     """Plot largest component ERP envelopes and component maps.
 
     Pass ``plot='off'`` to build and return the figure without opening a window.
+    ``subindices`` records that ``ALLEEG`` pair in history. When more than two
+    datasets are passed, it also selects the pair.
     """
     if EEG is None:
         return (None, "") if return_com else None
-    if isinstance(EEG, list):
-        if len(EEG) != 1:
-            raise ValueError(
-                "pop_envtopo accepts one dataset in EEGPrep; multi-dataset envelope comparison is not a "
-                "standalone runtime workflow."
-            )
-        dataset = EEG[0]
-    else:
-        dataset = EEG
+    datasets = list(EEG) if isinstance(EEG, list) else [EEG]
+    explicit_subindices = kwargs.pop("subindices", None)
     if gui is None:
-        gui = timerange is None and not kwargs
+        gui = timerange is None and explicit_subindices is None and not kwargs
+    subindices: tuple[int, int] | None = None
     if gui:
-        result = _run_gui(dataset, renderer=renderer)
+        compare_gui = len(datasets) > 1
+        result = _run_gui(datasets if compare_gui else datasets[0], renderer=renderer, compare=compare_gui)
         if result is None:
             return (None, "") if return_com else None
         timerange = result["timerange"]
         kwargs.update(result["options"])
+        if compare_gui:
+            subindices = result["subindices"]
+            datasets = [datasets[subindices[0] - 1], datasets[subindices[1] - 1]]
+    elif explicit_subindices is not None and len(datasets) > 1:
+        if len(datasets) > 2:
+            subindices = _parse_subindices(explicit_subindices, len(datasets))
+            datasets = [datasets[subindices[0] - 1], datasets[subindices[1] - 1]]
+        else:
+            subindices = _index_pair(explicit_subindices)
+    if len(datasets) > 2:
+        raise ValueError("pop_envtopo: Cannot process more than two datasets")
+    compare = len(datasets) > 1
+    if compare:
+        dataset = datasets[0]
+        other = datasets[1]
+    else:
+        dataset = datasets[0]
+        other = None
     command_kwargs = dict(kwargs)
-    data, times = data_time_slice(dataset, timerange)
-    icaweights = np.asarray(dataset.get("icaweights", []), dtype=float)
-    icasphere = np.asarray(dataset.get("icasphere", []), dtype=float)
-    if icaweights.size == 0 or icasphere.size == 0:
-        raise ValueError("pop_envtopo requires ICA weights")
-    icachansind = component_channel_indices(dataset, data.shape[0])
-    data = data[icachansind, :, :]
-    weights = finite_matmul(icaweights, icasphere)
-    if weights.shape[1] != data.shape[0]:
-        raise ValueError("ICA weights do not match EEG.icachansind channel count")
-    maps = component_maps(dataset)
-    chanlocs = _component_chanlocs(dataset, maps, icachansind)
+    prepared = _component_mean(dataset, timerange)
+    if other is not None:
+        other_prepared = _component_mean(other, timerange)
+        if not np.array_equal(prepared["weights"], other_prepared["weights"]):
+            raise ValueError("pop_envtopo: The ICA decomposition must be the same for the two datasets")
+        if prepared["mean"].shape != other_prepared["mean"].shape:
+            raise ValueError("pop_envtopo: the two datasets must have the same channels and time points")
+        data_mean = prepared["mean"] - other_prepared["mean"]
+    else:
+        data_mean = prepared["mean"]
+    times = prepared["times"]
     label_times = times if times.size else eeg_times_ms(dataset)
     topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
     compnums = kwargs.pop("compnums", None)
     if compnums is None:  # GUI supplies "components"; the console uses "compnums"
         compnums = kwargs.pop("components", None)
+    title = kwargs.pop("title", None)
+    if title is None or str(title).strip() == "":
+        title = _envtopo_title(dataset)
     result = envtopo(
-        np.nanmean(data, axis=2),
-        weights,
-        chanlocs=chanlocs,
-        icawinv=maps,
+        data_mean,
+        prepared["weights"],
+        chanlocs=prepared["chanlocs"],
+        icawinv=prepared["maps"],
         timerange=[float(label_times[0]), float(label_times[-1])],
         limcontrib=kwargs.pop("limcontrib", None),
         compnums=compnums,
@@ -88,30 +105,42 @@ def pop_envtopo(
         envmode=str(kwargs.pop("envmode", topoplot_options.pop("envmode", "avg"))),
         sumenv=str(kwargs.pop("sumenv", topoplot_options.pop("sumenv", "fill"))),
         vert=kwargs.pop("vert", None),
-        title=str(kwargs.pop("title", dataset.get("setname") or "Largest ERP components")),
+        title=str(title),
         topoplot_options=topoplot_options,
     )
-    command = history_command("pop_envtopo", timerange, **command_kwargs)
+    history_range = timerange
+    if history_range is None or history_range == []:
+        history_range = [float(label_times[0]), float(label_times[-1])] if label_times.size else []
+    eeg_name = "EEG" if subindices is None else f"EEG([{subindices[0]} {subindices[1]}])"
+    command = history_command("pop_envtopo", history_range, eeg_name=eeg_name, **command_kwargs)
     show_figures(result.figure, plot=plot)
     return (result.figure, command) if return_com else result.figure
 
 
-def pop_envtopo_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
+def pop_envtopo_dialog_spec(EEG: dict[str, Any] | list[dict[str, Any]], *, compare: bool = False) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_envtopo``."""
-    return DialogSpec(
-        title="Plot component and ERP envelopes -- pop_envtopo()",
-        controls=(
+    dataset = EEG[-1] if isinstance(EEG, list) else EEG
+    controls: list[ControlSpec] = []
+    if compare:
+        controls.extend(
+            [
+                ControlSpec("text", "Dataset indices to subtract (Ex: '1 2'-> 1-2)"),
+                ControlSpec("edit", tag="subindices", value="2 1"),
+            ]
+        )
+    controls.extend(
+        [
             ControlSpec("text", "Enter time range (in ms) to plot:"),
             ControlSpec(
                 "edit",
                 tag="timerange",
-                value=f"{float(EEG.get('xmin', 0)) * 1000:g} {float(EEG.get('xmax', 0)) * 1000:g}",
+                value=f"{float(dataset.get('xmin', 0)) * 1000:g} {float(dataset.get('xmax', 0)) * 1000:g}",
             ),
             ControlSpec("text", "Enter time range (in ms) to rank component contributions:"),
             ControlSpec(
                 "edit",
                 tag="limcontrib",
-                value=f"{float(EEG.get('xmin', 0)) * 1000:g} {float(EEG.get('xmax', 0)) * 1000:g}",
+                value=f"{float(dataset.get('xmin', 0)) * 1000:g} {float(dataset.get('xmax', 0)) * 1000:g}",
             ),
             ControlSpec("text", "Number of largest contributing components to plot (7):"),
             ControlSpec("edit", tag="compsplot", value="7"),
@@ -120,23 +149,29 @@ def pop_envtopo_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Component numbers to remove from data before plotting:"),
             ControlSpec("edit", tag="subcomps", value=""),
             ControlSpec("text", "Plot title:"),
-            ControlSpec("edit", tag="title", value=str(EEG.get("setname") or "Largest ERP components")),
+            ControlSpec("edit", tag="title", value=_envtopo_title(dataset)),
             ControlSpec("text", "Optional topoplot() and envtopo() arguments:"),
             ControlSpec("edit", tag="options", value="'electrodes', 'off'"),
-        ),
-        geometry=((2, 1), (2, 1), (2, 1), (2, 1), (2, 1), (2, 1), (2, 1)),
+        ]
+    )
+    return DialogSpec(
+        title="Plot component and ERP envelopes -- pop_envtopo()",
+        controls=tuple(controls),
+        geometry=tuple((2, 1) for _ in range(len(controls) // 2)),
         function_name="pop_envtopo",
         eeglab_source="functions/popfunc/pop_envtopo.m",
         help_text="pophelp('pop_envtopo')",
-        size=(825, 369),
+        size=(825, 369 if not compare else 420),
     )
 
 
-def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, Any] | None:
-    result = inputgui(pop_envtopo_dialog_spec(EEG), renderer=renderer)
+def _run_gui(
+    EEG: dict[str, Any] | list[dict[str, Any]], *, renderer: Any | None = None, compare: bool = False
+) -> dict[str, Any] | None:
+    result = inputgui(pop_envtopo_dialog_spec(EEG, compare=compare), renderer=renderer)
     if result is None:
         return None
-    return {
+    parsed: dict[str, Any] = {
         "timerange": numeric_vector(result.get("timerange", [])).tolist(),
         "options": {
             "components": numeric_vector(result.get("components", []), dtype=int).tolist(),
@@ -147,6 +182,52 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
             "title": str(result.get("title", "") or ""),
             "options": str(result.get("options", "") or ""),
         },
+    }
+    if compare:
+        count = len(EEG) if isinstance(EEG, list) else 1
+        parsed["subindices"] = _parse_subindices(result.get("subindices", ""), count)
+    return parsed
+
+
+def _envtopo_title(EEG: dict[str, Any]) -> str:
+    name = str(EEG.get("setname") or "").strip()
+    if name:
+        return f"Largest ERP components of {name}"
+    return "Largest ERP components"
+
+
+def _index_pair(value: Any) -> tuple[int, int]:
+    indices = numeric_vector(value, dtype=int)
+    if indices.size < 2 or np.any(indices < 1):
+        raise ValueError("pop_envtopo: enter two dataset indices to subtract, for example 2 1")
+    return int(indices[0]), int(indices[1])
+
+
+def _parse_subindices(value: Any, count: int) -> tuple[int, int]:
+    first, second = _index_pair(value)
+    if first > count or second > count:
+        raise ValueError(f"pop_envtopo: dataset indices must be within 1..{count}")
+    return first, second
+
+
+def _component_mean(EEG: dict[str, Any], timerange: Any) -> dict[str, Any]:
+    data, times = data_time_slice(EEG, timerange)
+    icaweights = np.asarray(EEG.get("icaweights", []), dtype=float)
+    icasphere = np.asarray(EEG.get("icasphere", []), dtype=float)
+    if icaweights.size == 0 or icasphere.size == 0:
+        raise ValueError("pop_envtopo requires ICA weights")
+    icachansind = component_channel_indices(EEG, data.shape[0])
+    data = data[icachansind, :, :]
+    weights = finite_matmul(icaweights, icasphere)
+    if weights.shape[1] != data.shape[0]:
+        raise ValueError("ICA weights do not match EEG.icachansind channel count")
+    maps = component_maps(EEG)
+    return {
+        "mean": np.nanmean(data, axis=2),
+        "times": times,
+        "weights": weights,
+        "maps": maps,
+        "chanlocs": _component_chanlocs(EEG, maps, icachansind),
     }
 
 

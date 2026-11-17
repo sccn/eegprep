@@ -43,7 +43,7 @@ def pop_newset(
     retrieve = options.get("retrieve")
     if retrieve is not None and retrieve != []:
         current, alleeg, current_set = eeg_retrieve(alleeg, retrieve)
-        command = _history_command({"retrieve": retrieve})
+        command = _history_command(CURRENTSET, {key: options[key] for key in ("retrieve", "study") if key in options})
         return alleeg, current, current_set, command
 
     if is_on(options.get("gui", False)) and isinstance(EEG, dict):
@@ -65,7 +65,12 @@ def pop_newset(
     if saved_new and isinstance(current, dict) and isinstance(current_set, int):
         current["saved"] = "yes"
         alleeg[current_set - 1]["saved"] = "yes"
-    command = _history_command(_command_options(options, store_index))
+    if isinstance(EEG, list):
+        command_options = {"study": options.get("study", 0)}
+    else:
+        command_options = _command_options(options)
+        command_options["gui"] = "off"
+    command = _history_command(CURRENTSET, command_options)
     return alleeg, current, current_set, command
 
 
@@ -148,10 +153,12 @@ def _run_gui(
         return None
     overwrite = _gui_choice_is_overwrite(result.get("overwrite"))
     gui_options = {
-        "setname": str(result.get("setname") or "").strip(),
         "overwrite": "on" if overwrite else "off",
         "gui": "off",
     }
+    setname = str(result.get("setname") or "").strip()
+    if setname != EEG.get("setname", ""):
+        gui_options["setname"] = setname
     comments = result.get("comments")
     edited_comments = result.get("editdescription")
     if comments is None and isinstance(edited_comments, str):
@@ -237,23 +244,21 @@ def _dataset_filename(EEG: dict[str, Any]) -> str | None:
     return str(Path(filepath) / filename) if filepath else filename
 
 
-def _command_options(options: dict[str, Any], store_index: Any) -> dict[str, Any]:
+def _command_options(options: dict[str, Any]) -> dict[str, Any]:
     command_options = {}
     for key in ("setname", "comments", "overwrite", "saveold", "savenew", "study"):
         if key in options and _has_value(options[key]):
             command_options[key] = options[key]
-    if store_index is not None and command_options.get("overwrite") == "off":
+    if command_options.get("overwrite") == "off":
         command_options.pop("overwrite", None)
     return command_options
 
 
-def _history_command(options: dict[str, Any]) -> str:
-    if not options:
-        return "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET);"
-    parts = []
+def _history_command(currentset: Any, options: dict[str, Any]) -> str:
+    parts = [format_history_value(0 if currentset is None else currentset)]
     for key, value in options.items():
         parts.extend([format_history_value(key), format_history_value(value, bool_style="onoff")])
-    return f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, {', '.join(parts)});"
+    return f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, {', '.join(parts)});"
 
 
 def _should_save(value: Any) -> bool:

@@ -51,6 +51,20 @@ def finite_matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
     return result
 
 
+def matlab_mtimes(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Column-major ``*`` with MATLAB's rule that a single operand yields single."""
+    left = np.asarray(left)
+    right = np.asarray(right)
+    dtype = _matlab_product_dtype(left.dtype, right.dtype)
+    return finite_matmul(np.asfortranarray(left, dtype=dtype), np.asfortranarray(right, dtype=dtype))
+
+
+def _matlab_product_dtype(left: np.dtype, right: np.dtype) -> np.dtype:
+    if left.kind == "f" and right.kind == "f" and min(left.itemsize, right.itemsize) <= 4:
+        return np.dtype(np.float32)
+    return np.result_type(left, right)
+
+
 def finite_pinv(matrix: np.ndarray, solver: Callable[[np.ndarray], np.ndarray] | None = None) -> np.ndarray:
     """Compute a pseudo-inverse, suppressing only warnings from finite results."""
     matrix = np.asarray(matrix)
@@ -161,6 +175,30 @@ def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Option
     return default
 
 
+def virtual_memory(purpose: str):
+    """Return psutil's system memory snapshot, importing psutil only when it is needed.
+
+    psutil is part of the base install everywhere except Pyodide, which has no psutil build.
+
+    Args:
+        purpose: What the memory reading is for, completing "psutil is required to ...".
+
+    Returns:
+        The named tuple of ``psutil.virtual_memory()``.
+
+    Raises:
+        ImportError: If psutil is not installed. The message gives ``purpose``.
+    """
+    try:
+        import psutil
+    except ImportError as exc:
+        raise ImportError(
+            f"psutil is required to {purpose}, and it could not be imported ({exc}). "
+            "It is part of the base eegprep install except under Pyodide, which has no psutil build."
+        ) from exc
+    return psutil.virtual_memory()
+
+
 def num_jobs_from_reservation(ReservePerJob: str) -> int:
     """Parse the job reservation string and calculate the number of jobs that can be run.
 
@@ -203,14 +241,7 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
     else:
         reserve, margin = ReservePerJob, '0%'
     if reserve.endswith('B'):
-        try:
-            import psutil
-        except ImportError as exc:
-            raise ImportError(
-                f"psutil is required to determine available system RAM ({exc}). "
-                'Install it with pip install "eegprep[sys]" (or uv pip install "eegprep[sys]").'
-            ) from exc
-        avail_amt = psutil.virtual_memory().available
+        avail_amt = virtual_memory('determine available system RAM').available
         unit = reserve[-2:].upper()
         multiplier = {'GB': 2**30, 'MB': 2**20, 'KB': 2**10, 'B': 1}[unit]
         reserve_amt = float(reserve[:-2]) * multiplier

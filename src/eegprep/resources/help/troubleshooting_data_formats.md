@@ -13,7 +13,8 @@ If import fails:
 - Use `pop_fileio` or the File-IO plugin menu items for EDF/BDF/GDF,
   BrainVision, MFF, CNT, and EEG formats.
 - Use `pop_importbids` for BIDS folders or supported BIDS EEG files.
-- Check that optional readers such as MNE and pyEDFlib are installed in the
-  environment used to launch EEGPrep.
+- Check that MNE is installed in the environment used to launch EEGPrep.
+  `pop_biosig` reads EDF, BDF, and GDF, including BIDS EDF and BDF files.
+  pyEDFlib is used when writing EDF or BDF.
 
 See also: POP_LOADSET, POP_IMPORTDATA, POP_FILEIO, POP_BIOSIG, POP_IMPORTBIDS

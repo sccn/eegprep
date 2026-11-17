@@ -3,9 +3,12 @@ from contextlib import redirect_stdout
 import io
 
 import numpy as np
+import pytest
 
 from eegprep.functions.guifunc.spec import controls_by_tag
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_select import pop_select, pop_select_dialog_spec
+from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 
 def _eeg():
@@ -50,6 +53,31 @@ def _epoched_eeg():
     eeg["xmax"] = 0.09
     eeg["epoch"] = [{}, {}, {}]
     return eeg
+
+
+def test_tutorial_dialog_disables_absent_channel_types():
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+
+    controls = controls_by_tag(pop_select_dialog_spec(eeg))
+
+    assert controls["chans_button"].enabled
+    assert not controls["chantype_button"].enabled
+    assert controls["chantype_button"].callback.params["channels"] == ()
+
+
+@pytest.mark.parametrize("empty_type", [None, "", "  ", [], np.empty((0, 0), dtype="U1"), np.array([" "])])
+def test_dialog_ignores_empty_channel_types(empty_type):
+    eeg = _eeg()
+    for chan in eeg["chanlocs"]:
+        chan["type"] = empty_type
+
+    controls = controls_by_tag(pop_select_dialog_spec(eeg))
+
+    assert not controls["chantype_button"].enabled
+    eeg["chanlocs"][0]["type"] = "EEG"
+    controls = controls_by_tag(pop_select_dialog_spec(eeg))
+    assert controls["chantype_button"].enabled
+    assert controls["chantype_button"].callback.params["channels"] == ("EEG",)
 
 
 class PopSelectGuiTests(unittest.TestCase):
@@ -110,6 +138,21 @@ class PopSelectGuiTests(unittest.TestCase):
 
         self.assertEqual([chan["labels"] for chan in out["chanlocs"]], ["Fz", "Cz", "HEOG"])
         self.assertEqual(com, "EEG = pop_select( EEG, 'channel', [1 2 3]);")
+
+    def test_gui_channel_range_error_preserves_one_based_number(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"chans": "33"}
+
+        eeg = create_test_eeg(n_channels=32, n_samples=10)
+        with self.assertRaises(ValueError) as exc:
+            pop_select(eeg, gui=True, renderer=Renderer())
+
+        self.assertEqual(
+            str(exc.exception),
+            "pop_select: channel numbers [33] are out of range for nbchan=32. "
+            "Use GUI/EEGLAB 1-based numbers 1..32, or pass channel labels.",
+        )
 
     def test_gui_result_accepts_matlab_colon_trial_range(self):
         class Renderer:

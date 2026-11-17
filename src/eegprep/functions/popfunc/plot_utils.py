@@ -7,9 +7,9 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.miscfunc.misc import finite_matmul
+from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value, parse_numeric_sequence
 
 # matplotlib's file-output backends cannot open a figure window.
 _NONINTERACTIVE_BACKENDS = frozenset({"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"})
@@ -28,7 +28,7 @@ def show_figures(figures: Any, *, plot: str | bool = "on") -> None:
     closed (unregistered from pyplot) so an interactive session cannot auto-display
     them; the caller keeps the returned Figure, which stays usable for ``savefig``.
     """
-    if not _plot_enabled(plot):
+    if not plot_enabled(plot):
         for figure in _as_figure_list(figures):
             plt.close(figure)
         return
@@ -193,6 +193,41 @@ def numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
     return np.asarray(parse_numeric_sequence(value, dtype=dtype), dtype=dtype)
 
 
+def dialog_msec(seconds: Any) -> str:
+    """Format a latency in seconds as whole milliseconds, matching MATLAB ``int2str``."""
+    return str(int(round_mat(float(seconds) * 1000.0)))
+
+
+def requested_tlimits(EEG: dict[str, Any], tlimits: Any) -> np.ndarray:
+    """Return requested time limits in milliseconds, or the epoch limits."""
+    bounds = numeric_vector(tlimits)
+    if bounds.size == 2:
+        return np.asarray([float(bounds[0]), float(bounds[1])], dtype=float)
+    return np.asarray(
+        [float(EEG.get("xmin", 0) or 0) * 1000.0, float(EEG.get("xmax", 0) or 0) * 1000.0],
+        dtype=float,
+    )
+
+
+def pointrange(EEG: dict[str, Any], tlimits: Any, function: str) -> slice:
+    """Return the inclusive sample slice for time limits in milliseconds."""
+    pnts = int(EEG.get("pnts") or np.asarray(EEG["data"]).shape[1])
+    bounds = numeric_vector(tlimits)
+    if bounds.size != 2:
+        return slice(0, pnts)
+    xmin = float(EEG.get("xmin", 0.0) or 0.0)
+    srate = float(EEG.get("srate", 1.0) or 1.0)
+    first = int(round_mat(max((float(bounds[0]) / 1000.0 - xmin) * srate, 1.0)))
+    last = int(round_mat(min((float(bounds[1]) / 1000.0 - xmin) * srate + 1.0, float(pnts))))
+    if last < first:
+        raise ValueError(
+            f"{function}: time limits [{float(bounds[0]):g} {float(bounds[1]):g}] ms contain no samples "
+            f"at {srate:g} Hz (xmin {xmin:g} s, {pnts} points). "
+            "Widen the limits so they cover at least one sample."
+        )
+    return slice(first - 1, last)
+
+
 def colon_sequence(token: str) -> list[float]:
     """Parse MATLAB ``start:stop`` or ``start:step:stop`` tokens."""
     return parse_numeric_sequence(token, dtype=float)
@@ -202,7 +237,7 @@ def python_literal(value: Any) -> str:
     """Return a pasteable Python literal for EEGPrep console history."""
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, (np.integer, np.floating)):
+    if isinstance(value, np.generic):
         value = value.item()
     if isinstance(value, float):
         if np.isnan(value):
@@ -217,6 +252,8 @@ def python_literal(value: Any) -> str:
         return "[" + ", ".join(python_literal(item) for item in value) + "]"
     if isinstance(value, tuple):
         return "(" + ", ".join(python_literal(item) for item in value) + ("," if len(value) == 1 else "") + ")"
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{python_literal(key)}: {python_literal(item)}" for key, item in value.items()) + "}"
     return repr(value)
 
 
@@ -253,17 +290,47 @@ def parse_plot_options_text(text: Any) -> dict[str, Any]:
     return options
 
 
-def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwargs: Any) -> str:
-    """Build a valid Python console command for a plotting pop function."""
+def history_command(
+    function_name: str,
+    *args: Any,
+    eeg_name: str = "EEG",
+    leading_figure: bool = False,
+    **kwargs: Any,
+) -> str:
+    """Build an EEGLAB history command for a plotting pop function.
+
+    Positional values and ``'key', value`` pairs use MATLAB literals. The
+    console converts that text back into a Python call. ``leading_figure``
+    prefixes ``figure;`` the way the EEGLAB plot menus do.
+    """
     pieces = [eeg_name]
-    pieces.extend(python_literal(arg) for arg in args)
-    pieces.extend(
-        f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_history_value(value)
-    )
-    return f"{function_name}({', '.join(pieces)})"
+    pieces.extend(format_history_value(arg) for arg in args)
+    for key, value in kwargs.items():
+        if _is_empty_history_value(value):
+            continue
+        pieces.append(f"{format_history_value(key)}, {_format_history_option(key, value)}")
+    command = f"{function_name}({', '.join(pieces)});"
+    if leading_figure:
+        command = f"figure; {command}"
+    return command
 
 
-def _plot_enabled(plot: str | bool) -> bool:
+def _format_history_option(key: str, value: Any) -> str:
+    if isinstance(value, (bool, np.bool_)):
+        value = int(value)
+    if key == "setup" and isinstance(value, dict):
+        parts = [format_history_value(str(value.get("splinefile", "")))]
+        for name in ("meshfile", "transform"):
+            item = value.get(name)
+            if item is None or item == "" or (isinstance(item, (list, tuple)) and not item):
+                continue
+            parts.append(format_history_value(name))
+            parts.append(format_history_value(item))
+        return "{" + " ".join(parts) + "}"
+    return format_history_value(value)
+
+
+def plot_enabled(plot: str | bool) -> bool:
     """Whether the ``plot`` flag requests a window: ``'on'/'off'`` or ``True/False``."""
     if isinstance(plot, bool):
         return plot

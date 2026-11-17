@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 from scipy import signal
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
@@ -307,7 +308,7 @@ def _output_times(
     ntimesout: Any,
     causal: str,
 ) -> tuple[np.ndarray, np.ndarray]:
-    timevect = np.linspace(float(tlimits[0]), float(tlimits[1]), int(frames))
+    timevect = linspace(float(tlimits[0]), float(tlimits[1]), int(frames))
     derived_srate = 1000.0 * (frames - 1) / max(float(tlimits[1]) - float(tlimits[0]), np.finfo(float).eps)
     srate = derived_srate if np.isfinite(derived_srate) and derived_srate > 0 else float(srate)
     explicit_times = _numeric_vector(timesout)
@@ -320,9 +321,9 @@ def _output_times(
             if ntimes <= 0:
                 raise ValueError("Not enough data points, reduce the window size or lowest frequency")
             if causal == "on":
-                wanted = np.linspace(float(tlimits[0]) + 2.0 * wintime, float(tlimits[1]), ntimes)
+                wanted = linspace(float(tlimits[0]) + 2.0 * wintime, float(tlimits[1]), ntimes)
             else:
-                wanted = np.linspace(float(tlimits[0]) + wintime, float(tlimits[1]) - wintime, ntimes)
+                wanted = linspace(float(tlimits[0]) + wintime, float(tlimits[1]) - wintime, ntimes)
             indices = _nearest_time_indices(wanted, srate, tlimits)
         else:
             step = max(1, -ntimes)
@@ -345,7 +346,7 @@ def _output_times(
         if wanted.size == 0:
             raise ValueError("No time points. Reduce time window or minimum frequency.")
         indices = _nearest_time_indices(wanted, srate, tlimits)
-    indices = np.unique(indices[(indices >= 0) & (indices < frames)])
+    indices = indices[(indices >= 0) & (indices < frames)]
     if indices.size == 0:
         raise ValueError("No valid time points for time-frequency decomposition")
     return timevect[indices], indices

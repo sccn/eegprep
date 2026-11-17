@@ -7,6 +7,8 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
+import numpy as np
+
 
 logger = logging.getLogger(__name__)
 _TITLE = re.compile(
@@ -16,19 +18,25 @@ _TITLE = re.compile(
 _VARIABLE = re.compile(r"^'?([A-Za-z][A-Za-z0-9_]*)'?\s+[-=]\s*(.*)$")
 
 
-def gethelpvar(filename: str | Path, variables: str | Sequence[str] | None = None) -> tuple[list[str], list[str]]:
-    """Return variable descriptions and all variable names from an M-file.
+def gethelpvar(filename: str | Path, variables: str | Sequence[str] | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """Return variable descriptions and names from an M-file help header.
+
+    Descriptions and names are 1-by-N rows, the same shape as EEGLAB's cell
+    outputs. With no ``variables`` argument, every documented description is
+    returned. Otherwise descriptions follow the requested order, and names
+    still list every documented variable. An unknown name has an empty
+    description.
 
     Args:
         filename: MATLAB source file whose leading help comments are parsed.
         variables: Optional name or ordered names whose descriptions should be
-            returned. Unknown names produce an empty description.
+            returned.
     """
     lines = Path(filename).read_text(encoding="utf-8").splitlines()
     help_lines = _leading_help_lines(lines)
     names, descriptions = _parse_variables(help_lines)
     if variables is None:
-        return descriptions, names
+        return _cell_row(descriptions), _cell_row(names)
     requested = [variables] if isinstance(variables, str) else list(variables)
     by_name = dict(zip(names, descriptions))
     selected: list[str] = []
@@ -36,7 +44,13 @@ def gethelpvar(filename: str | Path, variables: str | Sequence[str] | None = Non
         if name not in by_name:
             logger.warning("Variable '%s' not found in %s", name, filename)
         selected.append(by_name.get(name, ""))
-    return selected, names
+    return _cell_row(selected), _cell_row(names)
+
+
+def _cell_row(values: list[str]) -> np.ndarray:
+    row = np.empty((1, len(values)), dtype=object)
+    row[0, :] = values
+    return row
 
 
 def _leading_help_lines(lines: list[str]) -> list[str]:

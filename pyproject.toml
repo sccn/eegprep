@@ -36,13 +36,14 @@ dependencies = [
   # tests/test_browser_dependency_floors.py enforces the distinction.
   "h5py>=3.12.1",
   "matplotlib>=3.8.0",
-  "mne>=1.10.0",
-  "neo>=0.14.2",
   "numpy>=2.1.0",
   "packaging>=23.0",
-  "pybids>=0.4",
+  # psutil and pyedflib have no Pyodide build and no pure-Python wheel, so micropip cannot install
+  # them in a browser. The markers keep them in every other install and out of Pyodide;
+  # tests/test_browser_dependency_floors.py and tools/check_pyodide_base_resolution.py enforce this.
+  "psutil>=7.0.0; sys_platform != 'emscripten'",
+  "pyedflib>=0.1.42; sys_platform != 'emscripten'",
   "pyyaml>=6.0",
-  "python-picard>=0.8,<0.9",
   # 1.14.1 is what Pyodide 0.29.5 ships, so the floor cannot go above it without
   # making a browser install impossible. macOS needs more: scipy built before
   # 1.16.3 fails to dlopen on current macOS with a zero-fill section error.
@@ -52,10 +53,34 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Octave runtime for pop_resample, iclabel, the clean_channels RANSAC path, and eeglab_clean_artifacts.
+eeglab = [
+  "oct2py>=5.5.0",
+]
+# MNE conversion and EDF/BDF/GDF readers. Not used by the default cleaning or plotting path.
+mne = [
+  "mne>=1.10.0",
+  "defusedxml>=0.7.1",
+]
+# BIDS dataset import and bids_preproc.
+pybids = [
+  "pybids>=0.4",
+]
+# Picard ICA. The default runica path does not import it. Pulls in scikit-learn.
+picard = [
+  "python-picard>=0.8,<0.9",
+]
+full = [
+  "eegprep[eeglab]",
+  "eegprep[mne]",
+  "eegprep[pybids]",
+  "eegprep[picard]",
+]
 # Developer-only, and very large: regenerates the shipped iclabel.onnx from netICL.mat, together
 # with the iclabel extra (onnxruntime). tools/iclabel/export_iclabel_onnx.py needs torch and
 # onnx; tools/iclabel/quantize_iclabel_onnx.py needs onnx and documents the full sequence. Not
-# needed to run ICLabel, and deliberately left out of ``all``; the iclabel extra is the runtime.
+# needed to run ICLabel; the iclabel extra is the runtime. ``all`` still includes it, as it
+# includes pamica, which pulls torch in.
 # torch 2.4 is the first release whose torch.onnx.export accepts the dynamo=False argument the
 # export script passes: the keyword exists on torch.onnx.utils.export, which torch.onnx.export
 # re-exports, from 2.4.0 (it is absent from the signature in 2.3.1).
@@ -68,6 +93,10 @@ torch = [
 # 1.x), 1.19 added numpy 2 support, and 1.20 added the first cp313 wheels (requires-python is >=3.12).
 iclabel = [
   "onnxruntime>=1.20",
+]
+# pAMICA, the PyTorch AMICA engine behind pop_runica(icatype='pamica'). Pulls in torch.
+pamica = [
+  "pamica==0.4.0",
 ]
 gui = [
   "pyqtgraph>=0.13.7",
@@ -88,26 +117,17 @@ docs = [
   "sphinx-togglebutton>=0.3.0",
   "sphinxcontrib-spelling>=7.1.0"
 ]
-# EEGLAB/MATLAB parity helpers: the Octave runtime used by eegprep.functions.adminfunc.eeglabcompat.
-eeglab = [
-  "oct2py>=5.5.0",
-]
-# System RAM probing for memory reservations such as num_jobs_from_reservation("4GB").
-sys = [
-  "psutil>=7.0.0",
-]
-# EDF and BDF output of pop_writeeeg; GDF output and EDF/BDF input do not need it.
-edf = [
-  "pyedflib>=0.1.42",
-]
 all = [
   "eegprep[iclabel]",
+  "eegprep[torch]",
+  "eegprep[pamica]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
   "eegprep[eeglab]",
-  "eegprep[sys]",
-  "eegprep[edf]",
+  "eegprep[mne]",
+  "eegprep[pybids]",
+  "eegprep[picard]",
 ]
 
 [project.scripts]
@@ -121,11 +141,15 @@ dev = [
   # Keep `uv run eegprep-console --full` working from a fresh source checkout.
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
+  # Same packages as the eeglab, mne, pybids, picard, and iclabel extras, so the suite can
+  # exercise those paths without ``--all-extras``.
+  "mne>=1.10.0",
+  "defusedxml>=0.7.1",
+  "oct2py>=5.5.0",
+  "onnxruntime>=1.20",
+  "pybids>=0.4",
+  "python-picard>=0.8,<0.9",
   "pytest>=8.0",
-  # Same package as the ``edf`` extra: tests write EDF/BDF files through pop_writeeeg and build
-  # synthetic EDF fixtures. eegprep reads EDF through mne/neo and imports pyedflib only to write
-  # EDF and BDF.
-  "pyedflib>=0.1.42",
   "pytest-timeout>=2.4.0",
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
@@ -219,14 +243,20 @@ addopts = [
   "--strict-config",
   "--strict-markers",
 ]
+# Repository-wide limit per test. Use the thread method: the signal method cannot
+# interrupt a test blocked in Qt's event loop by a modal dialog.
+timeout = 300
+timeout_method = "thread"
 markers = [
   "slow: tests that are too slow for quick local iteration",
   "matlab: tests that require MATLAB or MATLAB Engine",
+  "matlab_oracle: unittest classes that call MATLAB directly and are deselected on the Python backend",
   "octave: tests that require Octave",
   "gui: tests that exercise GUI behavior",
   "visual: visual parity capture or comparison tests",
   "parity: numerical or behavioral parity tests against EEGLAB/MATLAB",
   "eeglab_contract: tests that dispatch through the explicit EEGLAB reference backend",
+  "modal_dialogs: tests that drive real modal Qt dialogs, for example with QTimer.singleShot",
 ]
 
 [tool.setuptools]

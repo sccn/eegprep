@@ -17,9 +17,9 @@ def eeg_amplitudearea(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return signed mean ERP amplitude within a millisecond window.
 
-    Channel identifiers are 0-based so the result of :func:`eeg_chaninds` can
-    be passed directly. ``resrate`` retains the original helper's
-    samples-per-millisecond interpretation.
+    Channel numbers are 1-based. ``resrate`` is samples per millisecond: the
+    window is resampled in steps of ``1/resrate`` along ``EEG.times``.
+    EEGLAB's help text describes ``resrate`` as hertz.
     """
     if wstart > wend:
         raise ValueError("wstart must not be greater than wend")
@@ -36,8 +36,8 @@ def eeg_amplitudearea(
     if wstart < times[0] or wend > times[-1]:
         raise ValueError("integration window must lie within EEG.times")
     channel_array = np.asarray(channels, dtype=int).ravel()
-    if np.any(channel_array < 0) or np.any(channel_array >= data.shape[0]):
-        raise ValueError("channels must be 0-based and within EEG.nbchan")
+    if np.any(channel_array < 1) or np.any(channel_array > data.shape[0]):
+        raise ValueError("channels must be 1-based and within EEG.nbchan")
 
     start_index = int(np.argmin(np.abs(times - wstart)))
     end_index = int(np.argmin(np.abs(times - wend)))
@@ -59,7 +59,8 @@ def eeg_amplitudearea(
     erp = np.mean(data, axis=2)
     amplitudes = np.empty(len(channel_array), dtype=float)
     for output_index, channel in enumerate(channel_array):
-        samples = CubicSpline(support_times, erp[channel, start_index : end_index + 1])(grid)
+        channel_position = int(channel) - 1
+        samples = CubicSpline(support_times, erp[channel_position, start_index : end_index + 1])(grid)
         area = 0.0
         for index in range(len(grid) - 1):
             width = min(grid[index + 1], wend) - grid[index]

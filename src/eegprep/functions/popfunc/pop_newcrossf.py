@@ -10,10 +10,13 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import (
     component_activations,
-    data_time_slice,
+    dialog_msec,
+    eeg_epoch_data,
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    pointrange,
+    requested_tlimits,
     show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
@@ -61,9 +64,9 @@ def pop_newcrossf(
         tlimits = [float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0]
     if cycles is None:
         cycles = [3, 0.5]
-    signal1, signal2, times = _selected_signals(EEG, typeproc, num1, num2, tlimits)
+    signal1, signal2, tlimits_ms = _selected_signals(EEG, typeproc, num1, num2, tlimits)
     result = newcrossf(
-        signal1, signal2, signal1.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options
+        signal1, signal2, signal1.shape[0], tlimits_ms, float(EEG.get("srate", 1) or 1), cycles, **options
     )
     command = history_command(
         "pop_newcrossf", typeproc, _first_index(num1), _first_index(num2), tlimits, cycles, **options
@@ -87,7 +90,7 @@ def pop_newcrossf_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dial
         ControlSpec(
             "edit",
             tag="tlimits",
-            value=f"{float(EEG.get('xmin', 0)) * 1000:g} {float(EEG.get('xmax', 0)) * 1000:g}",
+            value=f"{dialog_msec(EEG.get('xmin', 0))} {dialog_msec(EEG.get('xmax', 0))}",
         ),
         ControlSpec("spacer"),
         ControlSpec("text", "Wavelet cycles (0->FFT, see Help)", font_weight="bold"),
@@ -168,23 +171,25 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
 def _selected_signals(
     EEG: dict[str, Any], typeproc: int, num1: Any, num2: Any, tlimits: Any
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    data, times = data_time_slice(EEG, tlimits)
+    window = pointrange(EEG, tlimits, "pop_newcrossf")
+    requested = requested_tlimits(EEG, tlimits)
     first = int(_first_index(num1)) - 1
     second = int(_first_index(num2)) - 1
     if typeproc == 1:
-        if first < 0 or second < 0 or first >= data.shape[0] or second >= data.shape[0]:
-            raise ValueError(f"channel numbers must be 1-based and within 1..{data.shape[0]}")
-        return data[first, :, :], data[second, :, :], times
+        data = eeg_epoch_data(EEG)
+        nchan = data.shape[0]
+        if first < 0 or second < 0 or first >= nchan or second >= nchan:
+            raise ValueError(
+                f"pop_newcrossf: channel numbers must be from 1 to {nchan}. Channel 1 is the first channel."
+            )
+        return data[first, window, :], data[second, window, :], requested
     acts = component_activations(EEG)
-    full_times = np.linspace(float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0, acts.shape[1])
-    bounds = numeric_vector(tlimits)
-    if bounds.size == 2:
-        mask = (full_times >= bounds[0]) & (full_times <= bounds[1])
-        acts = acts[:, mask, :]
-        full_times = full_times[mask]
-    if first < 0 or second < 0 or first >= acts.shape[0] or second >= acts.shape[0]:
-        raise ValueError(f"component numbers must be 1-based and within 1..{acts.shape[0]}")
-    return acts[first, :, :], acts[second, :, :], full_times
+    ncomp = acts.shape[0]
+    if first < 0 or second < 0 or first >= ncomp or second >= ncomp:
+        raise ValueError(
+            f"pop_newcrossf: component numbers must be from 1 to {ncomp}. Component 1 is the first component."
+        )
+    return acts[first, window, :], acts[second, window, :], requested
 
 
 def _first_index(value: Any) -> int:
