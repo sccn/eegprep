@@ -1,11 +1,12 @@
 """Export the float32 ICLabel default network from ``netICL.mat`` to ONNX.
 
 Offline, developer-only tool and the first step of the regeneration sequence
-documented in ``tools/iclabel/quantize_iclabel_onnx.py``, which quantizes this
-float32 export into the packaged int8 ``iclabel.onnx``. The float32 export is
-not committed; by default it is written to the git-ignored
-``build/iclabel/iclabel_float32.onnx``. This script is not installed with the
-package.
+documented in ``tools/iclabel/quantize_iclabel_onnx.py``. The float32 export is
+the packaged ``src/eegprep/plugins/ICLabel/iclabel.onnx`` that the native
+backend loads, and the input that tool quantizes into the browser's
+``iclabel_int8.onnx``. By default it is written to the git-ignored
+``build/iclabel/iclabel_float32.onnx`` and copied into the package by hand. This
+script is not installed with the package.
 
 Provenance: the exported graph is ``ICLabelNet.forward`` (three convolutional
 branches over the topography image, PSD, and autocorrelation features,

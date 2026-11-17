@@ -7,7 +7,7 @@ canonical :class:`~eegprep.plugins.ICLabel.iclabel_net.ICLabelNet` definition
 so the parity harness exercises the same network as production ICLabel.
 
 ``netICL.mat`` is a repo dev asset, not a packaged runtime resource (the
-wheel ships ``iclabel.onnx`` instead), so it is resolved from the source
+wheel ships ``iclabel.onnx`` and ``iclabel_int8.onnx`` instead), so it is resolved from the source
 tree rather than through ``importlib.resources``.
 """
 

@@ -76,7 +76,7 @@
     "top1_agreement": 1.0
   },
   "packaged_model": {
-    "path": "src/eegprep/plugins/ICLabel/iclabel.onnx",
+    "path": "src/eegprep/plugins/ICLabel/iclabel_int8.onnx",
     "sha256": "8c0537d299e8776eef418d4a697547ad0b317902d656f69f64440169c564d8e3",
     "size_bytes": 2932897
   },

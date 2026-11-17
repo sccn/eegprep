@@ -34,8 +34,9 @@ Behavior:
 - If the dialog is canceled, `EEG` is returned unchanged and the command is empty.
 - Standalone Python needs the `iclabel` extra (`pip install "eegprep[iclabel]"`), which installs `onnxruntime`.
   Without it an `ImportError` names the extra. PyTorch is not needed.
-- The packaged network is an 8-bit weight-only quantization of the EEGLAB network. How closely its
-  probabilities match the full-precision network is reported in the user guide:
+- Native runs load the packaged full-precision network, `iclabel.onnx`, which matches the PyTorch
+  network of earlier releases to about 1e-6. The browser loads `iclabel_int8.onnx`, an 8-bit weight-only
+  quantization of it. How closely each file matches is reported in the user guide:
   https://sccn.github.io/eegprep/user_guide/ica_rejection.html#iclabel-measured-agreement
 - In Pyodide/Emscripten the synchronous `iclabel` and `pop_iclabel` raise `RuntimeError`.
   Use `await iclabel_async(EEG)` or `await pop_iclabel_async(EEG, 'default')`.

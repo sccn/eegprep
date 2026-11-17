@@ -73,8 +73,8 @@ async def iclabel_async(EEG, algorithm='default', engine=None, *, feature='iclab
     """Classify independent components with ICLabel from asynchronous code.
 
     This is the ICLabel entry point under Emscripten (Pyodide): the packaged
-    network runs in the host's ONNX Runtime Web session, and this coroutine
-    awaits its Promise. The backend is chosen when
+    8-bit network (``iclabel_int8.onnx``) runs in the host's ONNX Runtime Web
+    session, and this coroutine awaits its Promise. The backend is chosen when
     :mod:`eegprep.plugins.ICLabel.iclabel_net_onnx` is first imported. On
     native platforms it returns exactly what :func:`iclabel` returns, but it
     runs synchronously inside the coroutine and does not yield to the event
@@ -142,7 +142,7 @@ def _validate_request(algorithm, engine):
     if engine is None and algorithm != 'default':
         if IS_EMSCRIPTEN:
             raise NotImplementedError(
-                f"Only the default ICLabel network (iclabel.onnx) is available in the browser. The '{algorithm}' "
+                f"Only the default ICLabel network (iclabel_int8.onnx) is available in the browser. The '{algorithm}' "
                 "network needs MATLAB or Octave with an EEGLAB ICLabel checkout, which do not exist under Emscripten."
             )
         raise NotImplementedError(

@@ -83,13 +83,13 @@ NODE_ARGS=(
   --script "$SCRIPT_PATH"
 )
 if [[ "$ICLABEL_WEB" == true ]]; then
-  ICLABEL_MODEL_PATH="$WORKTREE_TMP/iclabel.onnx"
+  ICLABEL_MODEL_PATH="$WORKTREE_TMP/iclabel_int8.onnx"
   uv run --no-sync python - "$WHEEL_PATH" "$ICLABEL_MODEL_PATH" <<'PY'
 import sys
 import zipfile
 
 wheel_path, output_path = sys.argv[1:]
-model_name = "eegprep/plugins/ICLabel/iclabel.onnx"
+model_name = "eegprep/plugins/ICLabel/iclabel_int8.onnx"
 with zipfile.ZipFile(wheel_path) as wheel:
     try:
         model = wheel.read(model_name)

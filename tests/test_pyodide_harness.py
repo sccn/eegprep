@@ -225,7 +225,7 @@ def test_load_iclabel_report_rejects_invalid_reports(tmp_path, overrides, messag
 def test_native_parity_report_feeds_the_comparison(tmp_path, capsys):
     pytest.importorskip("onnxruntime")
     native = run_parity("native", REPO_ROOT / "sample_data")
-    packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
+    packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
 
     assert native["model_sha256"] == hashlib.sha256(packaged_model.read_bytes()).hexdigest()
     assert native["shape"] == [32, 7]

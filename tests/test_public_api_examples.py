@@ -130,10 +130,11 @@ def test_setuptools_package_data_covers_runtime_resources() -> None:
         "resources/headplot/mheadnew.xyz",
         "resources/montages/standard-10-5-342ch.locs",
         "plugins/ICLabel/iclabel.onnx",
+        "plugins/ICLabel/iclabel_int8.onnx",
     } <= packaged
     assert "eeglab/**" in excluded
     assert not any(path.startswith("eeglab/") for path in packaged)
-    # netICL.mat is only read to regenerate iclabel.onnx, so it must not ship.
+    # netICL.mat is only read to regenerate iclabel.onnx and iclabel_int8.onnx, so it must not ship.
     assert not any(path.endswith("netICL.mat") for path in packaged)
 
 

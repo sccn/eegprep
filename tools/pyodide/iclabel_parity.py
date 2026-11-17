@@ -1,4 +1,10 @@
-"""Run ICLabel on the checked-in ICA sample data for native/browser parity."""
+"""Run ICLabel on the checked-in ICA sample data for native/browser parity.
+
+The browser loads the 8-bit ``iclabel_int8.onnx`` and the native backend loads the full-precision
+``iclabel.onnx``. This script compares the browser with the native runtime on the same 8-bit
+weights, so the two reports differ only by the runtime. The distance between the two networks is
+the frozen quantization gate's (``tools/iclabel/quantize_iclabel_onnx.py``).
+"""
 
 from __future__ import annotations
 
@@ -20,11 +26,11 @@ SCHEMA_VERSION = 2
 DATASET_NAME = "eeglab_data_with_ica_tmp.set"
 CLASS_COUNT = 7
 MODEL_PACKAGE = "eegprep.plugins.ICLabel"
-MODEL_NAME = "iclabel.onnx"
+MODEL_NAME = "iclabel_int8.onnx"
 
 
 def packaged_model_sha256() -> str:
-    """Return the SHA-256 of the ``iclabel.onnx`` this installation classifies with.
+    """Return the SHA-256 of the ``iclabel_int8.onnx`` this installation classifies with.
 
     Native runs hash the working-tree file; the Pyodide run hashes the copy
     inside the installed wheel, which is also where ``run_pyodide.sh`` extracts
@@ -35,19 +41,30 @@ def packaged_model_sha256() -> str:
     return hashlib.sha256(model.read_bytes()).hexdigest()
 
 
+def _native_int8_classifications(eeg: dict) -> np.ndarray:
+    """Classify with the packaged 8-bit network in native onnxruntime, around the production network call."""
+    import onnxruntime
+
+    from eegprep import ICL_feature_extractor
+    from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
+    from eegprep.plugins.ICLabel.iclabel_net_onnx import INPUT_NAMES, OUTPUT_NAME
+
+    model = importlib.resources.files(MODEL_PACKAGE).joinpath(MODEL_NAME)
+    session = onnxruntime.InferenceSession(model.read_bytes(), providers=["CPUExecutionProvider"])
+    inputs = dict(zip(INPUT_NAMES, prepare_network_inputs(ICL_feature_extractor(eeg, True))))
+    (output,) = session.run([OUTPUT_NAME], inputs)
+    return postprocess_network_output(output)
+
+
 async def _classifications(eeg: dict, platform: str) -> np.ndarray:
     if platform == "native":
-        from eegprep.plugins.ICLabel.iclabel import iclabel
-
-        classified = iclabel(eeg)
+        classifications = _native_int8_classifications(eeg)
     else:
         from eegprep.plugins.ICLabel.iclabel import iclabel_async
 
         classified = await iclabel_async(eeg)
-    classifications = np.asarray(
-        classified["etc"]["ic_classification"]["ICLabel"]["classifications"],
-        dtype=np.float32,
-    )
+        classifications = classified["etc"]["ic_classification"]["ICLabel"]["classifications"]
+    classifications = np.asarray(classifications, dtype=np.float32)
     if classifications.ndim != 2 or classifications.shape[1] != CLASS_COUNT:
         raise ValueError(f"Unexpected ICLabel classification shape: {classifications.shape}")
     if not np.isfinite(classifications).all():
