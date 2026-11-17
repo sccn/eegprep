@@ -78,11 +78,11 @@ full = [
   "eegprep[pybids]",
   "eegprep[picard]",
 ]
-# Developer-only, and very large: regenerates the shipped iclabel.onnx from netICL.mat, together
-# with the iclabel extra (onnxruntime). tools/iclabel/export_iclabel_onnx.py needs torch and
-# onnx; tools/iclabel/quantize_iclabel_onnx.py needs onnx and documents the full sequence. Not
-# needed to run ICLabel; the iclabel extra is the runtime. ``all`` still includes it, as it
-# includes pamica, which pulls torch in.
+# Developer-only, and very large: regenerates the shipped iclabel.onnx from netICL.mat, and
+# onnxruntime comes from the iclabel extra or the dev group. tools/iclabel/export_iclabel_onnx.py
+# needs torch and onnx; tools/iclabel/quantize_iclabel_onnx.py needs onnx and documents the full
+# sequence. Not needed to run ICLabel; the iclabel extra is the runtime. ``all`` still includes it,
+# as it includes pamica, which pulls torch in.
 # torch 2.4 is the first release whose torch.onnx.export accepts the dynamo=False argument the
 # export script passes: the keyword exists on torch.onnx.utils.export, which torch.onnx.export
 # re-exports, from 2.4.0 (it is absent from the signature in 2.3.1).
