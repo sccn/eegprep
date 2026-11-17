@@ -151,6 +151,17 @@ def test_gui_async_iclabel_records_the_eeglab_form_in_the_dataset_history(sample
     assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
 
 
+def test_gui_async_dispatch_runs_other_actions_like_the_synchronous_dispatch(sample_ica_eeg):
+    session = _session(sample_ica_eeg, "first", "second")
+    assert session.CURRENTSET == [2]
+
+    result = asyncio.run(MenuActionDispatcher(session).dispatch_gui_async("retrieve_dataset:1", None))
+
+    assert result is None
+    assert session.CURRENTSET == [1]
+    assert session.ALLCOM[-1].startswith("[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 2, 'retrieve', 1,")
+
+
 def test_gui_async_iclabel_action_cancelled_dialog_changes_nothing(sample_ica_eeg):
     session = _session(sample_ica_eeg, "sample")
     token = session.dataset_state_token()

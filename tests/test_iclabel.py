@@ -431,6 +431,15 @@ class TestICLabelEngines(unittest.TestCase):
         # Max abs diff: 3.37e-06, Max rel diff: 4.25e-05
         self.assertTrue(np.allclose(res1, res2, rtol=1e-4, atol=1e-5), 'ICLabel results differ beyond tolerance')
 
+    def test_async_engine_matches_sync(self):
+        synchronous = iclabel(self.EEG, algorithm='default', engine='matlab')
+        asynchronous = asyncio.run(iclabel_module.iclabel_async(self.EEG, algorithm='default', engine='matlab'))
+
+        np.testing.assert_array_equal(
+            asynchronous['etc']['ic_classification']['ICLabel']['classifications'],
+            synchronous['etc']['ic_classification']['ICLabel']['classifications'],
+        )
+
 
 @unittest.skipUnless(has_optional_dependency('onnxruntime'), "install eegprep[iclabel] to run ICLabel runtime coverage")
 class TestICLabelRuntime(unittest.TestCase):

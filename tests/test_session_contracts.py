@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import scipy.sparse
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.adminfunc.eegh import eegh
@@ -359,3 +360,74 @@ def test_carry_current_history_handles_one_dataset_and_leaves_other_lengths_alon
     other = [dict(session.EEG, history="stale"), dict(session.EEG, history="stale")]
     session.carry_current_history(other)
     assert [dataset["history"] for dataset in other] == ["stale", "stale"]
+
+
+def _structured():
+    return np.zeros(4, dtype=[("a", "f8"), ("b", "i4")])
+
+
+def _edit_structured(array):
+    array["a"][1] = 5.0
+
+
+def _strided_structured():
+    return _structured().repeat(2)[::2]
+
+
+def _edit_strided_structured(array):
+    array["b"][1] = 7
+
+
+def _set_item(index, value):
+    def edit(array):
+        array[index] = value
+
+    return edit
+
+
+ARRAY_KINDS = {
+    "structured": (_structured, _edit_structured),
+    "unicode": (lambda: np.array(["ab", "cd", "ef"]), _set_item(1, "zz")),
+    "bytes": (lambda: np.array([b"ab", b"cd"]), _set_item(0, b"zz")),
+    "bool": (lambda: np.array([True, False, True]), _set_item(1, True)),
+    "datetime64": (
+        lambda: np.array(["2026-01-01", "2026-01-02"], dtype="datetime64[D]"),
+        _set_item(0, np.datetime64("2027-01-01")),
+    ),
+    "timedelta64": (lambda: np.array([1, 2], dtype="timedelta64[s]"), _set_item(1, np.timedelta64(9, "s"))),
+    "zero-dimensional": (lambda: np.array(3.0), _set_item((), 4.0)),
+    "byte-swapped": (lambda: np.arange(5, dtype=">f8"), _set_item(2, 9.0)),
+    "strided-structured": (_strided_structured, _edit_strided_structured),
+    "zero-size": (lambda: np.zeros((0, 3)), None),
+}
+
+
+@pytest.mark.parametrize(("make", "edit"), ARRAY_KINDS.values(), ids=ARRAY_KINDS.keys())
+def test_dataset_state_token_is_computed_for_unusual_array_dtypes(make, edit):
+    session = _session_with("selected")
+    session.EEG["etc"]["array"] = make()
+    token = session.dataset_state_token()
+
+    session.EEG["etc"]["array"] = make()
+    assert session.dataset_state_token() == token
+
+    if edit is None:
+        return
+    edit(session.EEG["etc"]["array"])
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_cannot_see_an_in_place_edit_of_a_sparse_matrix():
+    """Pin the documented limitation: a value that is not a container or an array is hashed by its ``repr``.
+
+    A SciPy sparse matrix keeps its ``repr`` when its entries change, so the token misses the edit.
+    The test exists to flag a change of that behavior, so that the documentation follows it.
+    """
+    session = _session_with("selected")
+    sparse = scipy.sparse.csr_matrix(np.array([[1.0, 0.0], [0.0, 2.0]]))
+    session.EEG["etc"]["sparse"] = sparse
+    token = session.dataset_state_token()
+
+    sparse.data[0] = 99.0
+
+    assert session.dataset_state_token() == token
