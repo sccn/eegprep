@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
@@ -25,6 +26,10 @@ _UNSET = object()
 # history or the dataset was marked saved in the meantime.
 _FRESHNESS_IGNORED_FIELDS = frozenset({"history", "saved"})
 _DIGEST_CHUNK_ELEMENTS = 1 << 20
+_AWAITED_POP_COMMAND = re.compile(
+    r"(?P<assignment>[^=;]+?)\s*=\s*await\s+(?P<function>pop_\w+?)_async\s*\((?P<arguments>.*)\)\s*;", re.DOTALL
+)
+_QUOTED_TEXT = re.compile(r"'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"")
 
 
 class DatasetStateToken(NamedTuple):
@@ -32,6 +37,23 @@ class DatasetStateToken(NamedTuple):
 
     currentset: tuple[int, ...]
     content_digest: bytes
+
+
+def eeglab_history_command(command: str) -> str:
+    """Return the form of ``command`` that MATLAB EEGLAB can replay from a dataset's history.
+
+    ``EEG = await pop_iclabel_async(EEG, 'default');`` becomes
+    ``EEG = pop_iclabel(EEG, 'default');``. The awaitable form exists only so that
+    ``eegprep-console`` can replay a command from ``ALLCOM``; a dataset's ``history``
+    travels with a saved ``.set`` file into MATLAB EEGLAB, which has no ``await`` and
+    no ``pop_*_async`` functions. Only a command that is exactly one such statement is
+    rewritten; anything else, including text that merely mentions ``await``, comes back
+    unchanged.
+    """
+    match = _AWAITED_POP_COMMAND.fullmatch(command.strip())
+    if match is None or ";" in _QUOTED_TEXT.sub("''", match["arguments"]):
+        return command
+    return f"{match['assignment']} = {match['function']}({match['arguments']});"
 
 
 def has_eeg_data(eeg: Any) -> bool:
@@ -596,6 +618,7 @@ class EEGPrepSession:
     def _append_current_dataset_history(self, command: str | None) -> None:
         if not command:
             return
+        command = eeglab_history_command(command)
         current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
         if len(current) > 1:
             eegh(command, current)

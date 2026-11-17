@@ -11,6 +11,7 @@ from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel, pop_iclabel_async
 from tests.fixtures import gate_iclabel_backend
 
 ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
+ICLABEL_EEGLAB_COMMAND = "EEG = pop_iclabel(EEG, 'default');"
 
 
 class _Renderer:
@@ -133,6 +134,20 @@ def test_gui_async_iclabel_action_stores_the_real_classification(sample_ica_eeg)
     assert session.EEG is session.ALLEEG[0]
     assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
     assert session.CURRENTSET == [1]
+
+
+def test_gui_async_iclabel_records_the_eeglab_form_in_the_dataset_history(sample_ica_eeg):
+    session = _session(sample_ica_eeg, "sample")
+
+    asyncio.run(
+        MenuActionDispatcher(session).dispatch_gui_async("pop_iclabel", None, renderer=_Renderer({"icversion": 1}))
+    )
+
+    # The dataset's history travels with a saved .set into MATLAB EEGLAB, which has no await.
+    for dataset in (session.EEG, session.ALLEEG[0]):
+        assert dataset["history"].splitlines()[-1] == ICLABEL_EEGLAB_COMMAND
+        assert "await" not in dataset["history"]
+    assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
 
 
 def test_gui_async_iclabel_action_cancelled_dialog_changes_nothing(sample_ica_eeg):

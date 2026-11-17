@@ -9,7 +9,9 @@ Usage:
 Inputs and results are the same as POP_ICLABEL: `EEG`, `icversion`, `gui`,
 `renderer`, `engine`, and `return_com`. The history command is
 `EEG = await pop_iclabel_async(EEG, 'default');`, and it replays in
-`eegprep-console` with `await`.
+`eegprep-console` with `await`. In the GUI and console session that form stays in `ALLCOM`,
+while the dataset's own history records `EEG = pop_iclabel(EEG, 'default');`, so a saved
+`.set` file replays in MATLAB EEGLAB, which has no `await`.
 
 Behavior:
 

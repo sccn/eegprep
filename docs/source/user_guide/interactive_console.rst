@@ -97,8 +97,8 @@ The browser-specific synchronous calls ``pop_iclabel`` and ``iclabel`` fail
 fast with an instruction to use their async counterparts. A browser host must
 set ``globalThis.eegprep_iclabel_web`` to the ONNX Runtime Web bridge (see
 :doc:`plugins` for its ``run(...)`` contract); placing Pyodide in a Web Worker is
-recommended for UI responsiveness. The async history command is recorded with
-``await`` and can be replayed with:
+recommended for UI responsiveness. The async history command is recorded in
+``ALLCOM`` with ``await`` and can be replayed with:
 
 .. code-block:: python
 
@@ -108,6 +108,9 @@ For an entry that has a top-level ``await``, ``eegh(n)`` returns an awaitable in
 so always replay such entries with ``await eegh(n)``.
 Like EEGLAB's ``eegh``, EEGPrep records a command only once when it is identical to the most recent history entry,
 so running ``EEG = await pop_iclabel_async(EEG, 'default');`` twice in a row, or replaying it with ``eegh(1)``, adds a single entry.
+``ALLCOM`` keeps the awaitable form for ``await eegh(n)``,
+but the dataset's own history records ``EEG = pop_iclabel(EEG, 'default');``,
+so a ``.set`` file saved from the browser replays in MATLAB EEGLAB, which has no ``await``.
 
 The result is stored only if the selected datasets are unchanged when classification finishes.
 If you select another dataset while it runs,

@@ -6,7 +6,7 @@ import pytest
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.adminfunc.storage import MemmapData
-from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.guifunc.session import EEGPrepSession, eeglab_history_command
 from eegprep.plugins.ICLabel.iclabel import iclabel
 from tests.fixtures import (
     create_test_eeg,
@@ -283,3 +283,50 @@ def test_console_currentset_assignment_rejects_invalid_indices(source, value):
             workspace.after_execute(source, success=True)
     finally:
         workspace.close()
+
+
+ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
+ICLABEL_EEGLAB_COMMAND = "EEG = pop_iclabel(EEG, 'default');"
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        (ICLABEL_ASYNC_COMMAND, ICLABEL_EEGLAB_COMMAND),
+        (f"  {ICLABEL_ASYNC_COMMAND}\n", ICLABEL_EEGLAB_COMMAND),
+        ("[EEG, com] = await pop_iclabel_async(EEG, 'default');", "[EEG, com] = pop_iclabel(EEG, 'default');"),
+        ("EEG = await pop_editset_async(EEG, 'setname', 'a;b');", "EEG = pop_editset(EEG, 'setname', 'a;b');"),
+        ("EEG = pop_editset(EEG, 'setname', 'await review');", None),
+        ("EEG = pop_editset(EEG, 'setname', 'x = await pop_a_async(EEG);');", None),
+        ("x = await foo_async(1);", None),
+        ("EEG = pop_reref( EEG, []);", None),
+        ("EEG = await pop_a_async(EEG); EEG = await pop_b_async(EEG);", None),
+        ("EEG = await pop_iclabel_async(EEG, 'default')", None),
+    ],
+    ids=(
+        "iclabel",
+        "surrounding-whitespace",
+        "two-outputs",
+        "semicolon-inside-a-string",
+        "await-inside-a-string",
+        "await-statement-inside-a-string",
+        "not-a-pop-function",
+        "synchronous",
+        "two-statements",
+        "no-terminating-semicolon",
+    ),
+)
+def test_eeglab_history_command_rewrites_only_one_awaited_pop_async_statement(command, expected):
+    assert eeglab_history_command(command) == (command if expected is None else expected)
+
+
+def test_dataset_history_records_the_eeglab_form_while_the_session_keeps_the_awaitable_one():
+    session = _session_with("selected")
+
+    session.store_current(session.EEG, command=ICLABEL_ASYNC_COMMAND)
+
+    # A saved .set carries the dataset history into MATLAB EEGLAB, which has no await.
+    assert session.EEG["history"].splitlines()[-1] == ICLABEL_EEGLAB_COMMAND
+    assert "await" not in session.EEG["history"]
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    assert session.LASTCOM == ICLABEL_ASYNC_COMMAND

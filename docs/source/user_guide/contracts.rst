@@ -79,6 +79,13 @@ commands that only display a value.
 When one command is applied to a multi-dataset selection, each selected EEG
 history records it with the ``% multiple datasets command:`` marker used by
 EEGLAB, while the session records the command once in ``ALLCOM``.
+A command that is one ``LHS = await pop_NAME_async(ARGS);`` statement,
+such as ``EEG = await pop_iclabel_async(EEG, 'default');``, stays in that awaitable form in
+``ALLCOM`` and ``LASTCOM`` so that ``await eegh(n)`` can replay it,
+but each dataset's own ``history`` receives the EEGLAB form, ``EEG = pop_iclabel(EEG, 'default');``,
+through ``eeglab_history_command`` in ``eegprep.functions.guifunc.session``.
+A saved ``.set`` file carries the dataset history into MATLAB EEGLAB, which has no ``await``.
+Any other command, including one that only mentions ``await`` inside a string, is recorded unchanged.
 
 EEGPrep does not emulate EEGLAB's one-dataset-in-memory ``option_storedisk``
 behavior. Saved non-current datasets are represented by explicit offloaded disk

@@ -28,6 +28,7 @@ Unreleased
 - Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
   It classifies through ONNX Runtime Web (the JavaScript build of the ONNX runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
   ``iclabel_async`` and ``pop_iclabel_async`` keep the native post-processing, the console history, and the GUI and console session synchronization.
+  ``ALLCOM`` keeps the ``await`` form of the command so that ``await eegh(n)`` replays it, but the dataset's own history records ``EEG = pop_iclabel(EEG, 'default');``, so a ``.set`` file saved from the browser replays in MATLAB EEGLAB.
   The synchronous ``iclabel`` and ``pop_iclabel`` raise ``RuntimeError`` there.
   Browser execution is checked against native classification for parity.
   The bridge also exposes the ``modelBytes`` it was created from, and every call compares their SHA-256 digest with the packaged ``iclabel_int8.onnx``, so a stale or wrong model raises ``RuntimeError`` instead of classifying silently; a bridge result with a NaN or infinite probability raises it too.
