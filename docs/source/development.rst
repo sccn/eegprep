@@ -62,7 +62,8 @@ locked dependency set. The development environment includes the GUI and
 ``eegprep-console`` runtime dependencies so ``uv run eegprep-console --full``
 works from a fresh checkout, and Open Neural Network Exchange (ONNX) Runtime (the ``iclabel`` extra) because the
 gallery examples and tests run ICLabel. Use ``uv run`` for commands so they
-execute inside this environment.
+execute inside this environment. On an Intel Mac the lock installs ONNX Runtime
+1.23.2, the last release with a macOS x86_64 wheel.
 
 Install Documentation Dependencies
 ----------------------------------
