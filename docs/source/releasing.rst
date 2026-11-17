@@ -143,8 +143,12 @@ quantization change; a normal release reuses the committed files. The sequence i
    full-precision file.
 
 The exact commands are in the docstring of ``tools/iclabel/quantize_iclabel_onnx.py``.
-If ``netICL.mat`` itself changes, first refreeze the reference probabilities as
-that docstring describes.
+The report records the float32 file given to the quantize step, so step 4 copies
+that same file. Replacing ``iclabel.onnx`` also means refreezing the reference
+probabilities, which are that file's outputs, and updating the SHA-256 in the
+``source`` field of ``tools/iclabel/evaluation_manifest.json``, as that docstring
+describes. If only the quantization changed, keep the committed ``iclabel.onnx``:
+skip the export (step 2) and the float32 copy (step 4), and quantize the committed file.
 
 Continuous integration repeats steps 2 and 3 on every change. It requires the
 regenerated float32 network to match the committed ``iclabel.onnx`` to 1e-5 on the
