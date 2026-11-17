@@ -175,7 +175,8 @@ The result holds ``classes``, ``classifications`` and ``version`` under
 ``EEG["etc"]["ic_classification"]["ICLabel"]``, as in EEGLAB, and also
 ``network``: the name of the packaged file that ran, ``iclabel.onnx`` natively
 and ``iclabel_int8.onnx`` in the browser. The two networks differ by up to
-0.01346 per probability, so a component near a ``pop_icflag`` threshold can be
+0.01346 per probability on the frozen evaluation set (the quantization gate
+allows 0.015), so a component near a ``pop_icflag`` threshold can be
 kept by one and rejected by the other, and ``network`` is the only record of
 which one classified. A saved ``.set`` file carries it. MATLAB EEGLAB ignores
 the field and neither writes nor clears it; with ``engine="matlab"`` or

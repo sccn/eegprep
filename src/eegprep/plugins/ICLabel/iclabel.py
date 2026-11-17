@@ -51,7 +51,7 @@ def iclabel(EEG, algorithm='default', engine=None, *, feature='iclabel'):
         ``version``. With ``engine=None`` it also holds ``network``, the name
         of the packaged file that ran (``iclabel.onnx``), because the
         full-precision and 8-bit networks differ by up to 0.01346 per
-        probability. MATLAB EEGLAB ignores ``network``; EEGPrep removes a stale
+        probability on the frozen evaluation set. MATLAB EEGLAB ignores ``network``; EEGPrep removes a stale
         one when EEGLAB's own network runs through ``engine='matlab'`` or
         ``'octave'``, and EEGLAB itself neither writes nor clears it.
 
