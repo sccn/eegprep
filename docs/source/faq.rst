@@ -78,9 +78,10 @@ Or create a fresh uv environment:
 Does EEGPrep support GPU acceleration?
 --------------------------------------
 
-No. EEGPrep computes on the CPU. The ``use_gpu`` argument of ``clean_asr`` exists for
-EEGLAB compatibility and is ignored, and ICLabel runs on Open Neural Network Exchange (ONNX) Runtime's CPU provider.
-PyTorch is not needed to run EEGPrep.
+EEGPrep computes on the CPU by default. pAMICA (``pop_runica(EEG, icatype="pamica")``, from the
+``pamica`` extra) is the one decomposition built on PyTorch, and its ``device`` argument selects a GPU that PyTorch supports.
+The ``use_gpu`` argument of ``clean_asr`` exists for EEGLAB compatibility and is ignored, and ICLabel runs on
+Open Neural Network Exchange (ONNX) Runtime's CPU provider. PyTorch is not needed for ICLabel.
 
 Usage FAQ
 =========

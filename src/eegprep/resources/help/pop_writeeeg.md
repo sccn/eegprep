@@ -24,7 +24,7 @@ GDF event types are uint16 codes, free-text labels receive file-local codes and
 raise a warning that reports the mapping. Use `pop_saveset` for EEGPrep/EEGLAB
 `.set` files and `pop_exportbids` for BIDS folder output.
 
-Writing EDF and BDF files needs the optional `pyedflib` package, installed with
-`pip install "eegprep[edf]"`; GDF output does not need it.
+Writing EDF and BDF files needs `pyedflib`, which every install includes except Pyodide
+(it has no `pyedflib` build); GDF output does not need it.
 
 See also: POP_SAVESET, POP_EXPORTBIDS
