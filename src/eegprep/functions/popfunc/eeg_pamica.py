@@ -227,18 +227,22 @@ def _exercise_blas():
 
 
 def _require_thread_count(torch, threads):
-    """Return ``threads`` when torch intra-op, BLAS, and OpenMP are all using that count."""
+    """Return ``threads`` when torch intra-op and every BLAS pool use that count.
+
+    ``torch.get_num_threads`` reads the OpenMP runtime PyTorch runs. Another
+    loaded OpenMP runtime can keep its own count, so it is not a second check.
+    """
     intra = int(torch.get_num_threads())
     mismatches = []
     if intra != threads:
         mismatches.append(f"torch intra-op is {intra}")
     for pool in threadpool_info():
-        if pool["user_api"] not in ("blas", "openmp"):
+        if pool["user_api"] != "blas":
             continue
         count = pool["num_threads"]
         if count is None or int(count) == threads:
             continue
-        mismatches.append(f"{pool['user_api']}/{pool['internal_api']} is {int(count)}")
+        mismatches.append(f"blas/{pool['internal_api']} is {int(count)}")
     if mismatches:
         raise RuntimeError(f"requested {threads} threads but " + "; ".join(mismatches))
     return threads
