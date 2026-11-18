@@ -273,5 +273,25 @@ def test_prior_mask_is_written_into_the_kept_indices(caplog):
     assert "overwritten" not in caplog.text
 
 
+def test_zero_variance_channel_is_the_highest_score():
+    """A channel whose window RMS values are all equal is +inf in every window.
+
+    Constant channels share that rank. The threshold applies to a finite score,
+    so the windows stay.
+    """
+    data = np.ones((3, 1536), dtype=np.float64)
+    data[2] = 0.0
+    _cleaned, mask, diag = clean_windows(
+        _eeg(data),
+        max_bad_channels=0,
+        zthresholds=(-3.5, 5.5),
+        return_diagnostics=True,
+    )
+    assert np.all(np.isposinf(diag["zscores"]))
+    assert not np.any(np.isnan(diag["zscores"]))
+    assert not diag["window_flags"].any()
+    assert mask.all()
+
+
 if __name__ == '__main__':
     unittest.main()

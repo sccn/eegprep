@@ -22,8 +22,7 @@ SHAPE = "the result shape does not follow the MATLAB row, column, or empty-array
 INDEX = "an EEGLAB index or dimension is 1-based"
 NAMEVALUE = "MATLAB name/value arguments are not accepted"
 OUTPUTS = "the function does not return the MATLAB output count"
-STUDY = "the sample STUDY fixture is not valid UTF-8"
-VALUES = "numeric or text values do not match the MATLAB result"
+STUDY = "the sample STUDY loads, but design values are still nested MATLAB cells"
 RMART = (
     "rmart.m:94 returns when rem(length(data), nchans) == 0, inverting the "
     "divisibility test, so the documented regression never runs; EEGPrep keeps "
@@ -248,32 +247,16 @@ PYTHON_BACKEND_XFAILS = {
         "importevent returns a list of event dicts rather than a MATLAB struct array",
         AttributeError,
     ),
-    "tests/test_study_params_eeglab_tests.py::test_reference_pop_dipparams[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
-    ),
-    "tests/test_study_params_eeglab_tests.py::test_reference_pop_erpimparams[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
-    ),
-    "tests/test_study_params_eeglab_tests.py::test_reference_pop_erpparams[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
-    ),
-    "tests/test_study_params_eeglab_tests.py::test_reference_pop_erspparams[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
-    ),
-    "tests/test_study_params_eeglab_tests.py::test_reference_pop_specparams[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
-    ),
-    "tests/test_study_params_eeglab_tests.py::test_reference_pop_statparams[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
-    ),
     "tests/test_study_workflows_eeglab_tests.py::test_reference_pop_clust[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
+        "the sample STUDY loads, but preclustdata is a numeric array used as a condition",
+        ValueError,
     ),
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_makedesign[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
+        STUDY, TypeError
     ),
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
-        STUDY, UnicodeDecodeError
+        "the sample STUDY loads, but design is a list rather than a MATLAB struct array",
+        AttributeError,
     ),
     "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(SHAPE, AssertionError),
 }

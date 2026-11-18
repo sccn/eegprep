@@ -291,6 +291,9 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``clean_artifacts.m`` lines 270-275 catch the error and return the
        recording unchanged (#582). EEGPrep skips non-positive widths and
        still calibrates on that reference.
+   * - All-zero channel after ASR
+     - EEGPrep returns exactly zero. MATLAB's ``sqrtm`` leaves a roundoff
+       residual on that channel (#643).
    * - One-channel ``clean_windows`` sort
      - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
        One channel is one row, so MATLAB sorts that row across time and the

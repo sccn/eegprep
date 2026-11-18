@@ -23,6 +23,18 @@ Unreleased
   ``pop_select`` channel indices stay 0-based. ``finputcheck`` still returns
   Python numbers rather than 1-by-1 arrays (#430).
 
+- ``pop_loadstudy`` reads an EEGLAB MATLAB ``.study`` file as well as
+  EEGPrep JSON. MATLAB ``char`` arrays are decoded as Latin-1. Dataset
+  paths stored under the previous study directory are rebased onto the
+  directory that contains the file, and ``option_storedisk`` selects a
+  header-only or full data load. The load calls ``std_checkfiles``, as
+  EEGLAB's ``pop_loadstudy.m`` does. A ``changrp.erpdata`` cell whose cells
+  have different lengths stays a cell. Measure arrays saved in the STUDY
+  stay in place; EEGLAB clears those in-memory copies because it reloads
+  them from separate files. ``eeg_getversion`` reports the installed
+  EEGPrep version. A source checkout of EEGLAB reports ``'dev'`` from the
+  copy embedded in ``eeg_getversion.m``; the numeric collapse is the same,
+  so ``11.3.2.4b`` is ``11.324``.
 - Time axes, frequency grids, and cycle grids that are returned or used to
   pick a sample follow MATLAB ``linspace`` (``start + i * (stop - start) / (n - 1)``,
   last sample equal to the stop, one sample equal to the stop) or the colon
@@ -41,6 +53,9 @@ Unreleased
   ``signalstat`` histogram centers, the blank scalp placeholder, and
   contour levels are unchanged: EEGLAB does not build them with
   ``linspace`` or a colon (#568).
+- ``clean_windows`` ranks a channel whose window RMS values are all equal as the highest score in every window, so the channel uses a high-amplitude bad-channel slot (#642).
+  On the 17-channel crop from sample 4097, with cutoff 3, ``ref_maxbadchannels`` 0.075, and a 1 s processing window, the calibration reference keeps 241 samples.
+  An all-zero channel stays exactly zero through ASR. MATLAB's ``sqrtm`` leaves a roundoff residual on that channel (#643).
 - A pAMICA fit runs at its ``threads`` argument for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools, then restores those counts.
   ``EEG["etc"]["pamica"]["threads"]`` stores that count when the pools actually used it, and replaying the record runs at the same count.
   The OpenMP check recognizes Torch's ``libiompstubs`` library by its filename. Any other OpenMP pool that is not at the requested count still raises.
