@@ -555,7 +555,7 @@
 <h1>clean_channels<a class="headerlink" href="#clean-channels" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.clean_channels">
-<span class="sig-name descname"><span class="pre">clean_channels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corr_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_len</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_broken_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.clean_channels" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">clean_channels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corr_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_len</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_broken_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5489</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_diagnostics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.clean_channels" title="Link to this definition">#</a></dt>
 <dd><p>Remove channels with problematic data from a continuous data set.</p>
 <p>This is an automated artifact rejection function which ensures that the data contains no channels
 that record only noise for extended periods of time. If channels with control signals are
@@ -586,18 +586,40 @@ this value, the more robust but also slower the processing will be.</p></li>
 <code class="docutils literal notranslate"><span class="pre">round(subset_size</span> <span class="pre">*</span> <span class="pre">nbchan)</span></code> channels are drawn, including when
 <code class="docutils literal notranslate"><span class="pre">subset_size</span></code> is greater than or equal to 1. A count larger than
 the number of channels raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Seed for the RANSAC subset draws. The default is 5489. Draws use
+<code class="docutils literal notranslate"><span class="pre">numpy.random.RandomState</span></code> in the same order as the fixed seed did.</p></li>
+<li><p><strong>return_diagnostics</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – When true, return <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">diagnostics)</span></code> instead of
+<code class="docutils literal notranslate"><span class="pre">EEG</span></code>. The dict holds the noise scores, noise z-scores, noise flags,
+RANSAC correlations, correlation flags, window offsets, criteria,
+<code class="docutils literal notranslate"><span class="pre">seed</span></code>, and any prior <code class="docutils literal notranslate"><span class="pre">clean_channel_mask</span></code>. Channel indices and
+sample offsets are 0-based positions in the input. Correlations cover
+<code class="docutils literal notranslate"><span class="pre">usable_channels</span></code> only. <code class="docutils literal notranslate"><span class="pre">usable_locations</span></code> and <code class="docutils literal notranslate"><span class="pre">projector</span></code> are
+the arguments and result of <code class="docutils literal notranslate"><span class="pre">calc_projector</span></code> for
+<code class="docutils literal notranslate"><span class="pre">RandomState(seed)</span></code>. <code class="docutils literal notranslate"><span class="pre">window_length</span></code> is the sample count of each
+window. <code class="docutils literal notranslate"><span class="pre">detected_channels</span></code> is the removal criterion and
+<code class="docutils literal notranslate"><span class="pre">removed_channels</span></code> is what this call deleted. More than 75% flagged
+raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. <code class="docutils literal notranslate"><span class="pre">clean_channel_mask</span></code> on the dataset is true
+for original channels that remain. It is left unchanged when nothing
+is removed.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>] | <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]]</p>
 </dd>
 </dl>
+<p>The input <code class="docutils literal notranslate"><span class="pre">data</span></code> array is replaced with float64. When nothing is
+removed, the same dataset object is returned and <code class="docutils literal notranslate"><span class="pre">etc</span></code> is unchanged.
+When channels are removed, the returned dataset is new. The caller’s
+channel count and <code class="docutils literal notranslate"><span class="pre">etc</span></code> stay as they were, while the caller’s samples
+are the float64 array written before that copy. Copy the dataset with
+<code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> first when the original recording must be preserved.</p>
 <p>Identical or collinear electrode positions raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.
 Planar or nearly planar positions, including a ring, warn and channel
 removal still runs. EEGLAB does not reject those layouts.</p>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
-<p>EEG : data set with bad channels removed</p>
+<p>EEG : data set with bad channels removed
+diagnostics : dict, only when <code class="docutils literal notranslate"><span class="pre">return_diagnostics</span></code> is true</p>
 </section>
 </dd></dl>
 

@@ -555,7 +555,7 @@
 <h1>clean_channels_nolocs<a class="headerlink" href="#clean-channels-nolocs" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.clean_channels_nolocs">
-<span class="sig-name descname"><span class="pre">clean_channels_nolocs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_corr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignored_quantile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_len</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_broken_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linenoise_aware</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.clean_channels_nolocs" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">clean_channels_nolocs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_corr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignored_quantile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_len</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_broken_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linenoise_aware</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_diagnostics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.clean_channels_nolocs" title="Link to this definition">#</a></dt>
 <dd><p>Remove channels with abnormal data from a continuous data set.</p>
 <p>This is an automated artifact rejection function which ensures that the data
 contains no channels that record only noise for extended periods of time. If
@@ -584,16 +584,39 @@ range: 0.1 (very aggressive) to 0.6 (very lax).</p></li>
 <li><p><strong>linenoise_aware</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Whether the operation should be performed in a line-noise
 aware manner. If enabled, the correlation measure will not be affected
 by the presence or absence of line noise (using a temporary notch filter).</p></li>
+<li><p><strong>return_diagnostics</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – When true, also return a dict of the correlations
+already computed. <code class="docutils literal notranslate"><span class="pre">sorted_absolute_correlations</span></code> has shape
+<code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">channels,</span> <span class="pre">windows)</span></code>: each column is that channel’s
+absolute pairwise correlations sorted ascending, including its
+self-correlation. <code class="docutils literal notranslate"><span class="pre">criteria['retained_correlation_rows']</span></code> are the
+rows compared with <code class="docutils literal notranslate"><span class="pre">min_corr</span></code> after the most-correlated fraction is
+dropped. <code class="docutils literal notranslate"><span class="pre">flagged</span></code> is true where every retained row is below
+<code class="docutils literal notranslate"><span class="pre">min_corr</span></code>. <code class="docutils literal notranslate"><span class="pre">window_length</span></code> is the sample count of each window.
+Channel indices and sample offsets are 0-based positions
+in the input. The returned boolean array is this detection result,
+including an all-true array when every channel is flagged and kept.
+<code class="docutils literal notranslate"><span class="pre">diagnostics['removed_channels']</span></code> is true only for channels deleted
+from the dataset. <code class="docutils literal notranslate"><span class="pre">removal_suppressed</span></code> explains that case.
+<code class="docutils literal notranslate"><span class="pre">clean_channel_mask</span></code> is true for original channels that remain and
+is left unchanged when nothing is removed.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.15)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>], <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.15)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>], <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.15)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>], <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]]</p>
 </dd>
 </dl>
+<p>The input <code class="docutils literal notranslate"><span class="pre">data</span></code> array is replaced with float64. When nothing is
+removed, the same dataset object is returned inside the tuple and <code class="docutils literal notranslate"><span class="pre">etc</span></code>
+is unchanged. When channels are removed, the returned dataset is new.
+The caller’s channel count and <code class="docutils literal notranslate"><span class="pre">etc</span></code> stay as they were, while the
+caller’s samples are the float64 array written before that copy. Copy
+the dataset with <code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> first when the original recording
+must be preserved.</p>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <p>EEG : data set with bad channels removed
-removed_channels : boolean array indicating which channels were removed</p>
+removed_channels : boolean array of channels that met the criterion
+diagnostics : dict, only when <code class="docutils literal notranslate"><span class="pre">return_diagnostics</span></code> is true</p>
 </section>
 </dd></dl>
 

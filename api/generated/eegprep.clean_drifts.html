@@ -573,6 +573,11 @@ transition as in (lo,hi)</p></li>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]</p>
 </dd>
 </dl>
+<p>The input dataset is modified and returned. <code class="docutils literal notranslate"><span class="pre">data</span></code> is replaced with
+float64 samples, and <code class="docutils literal notranslate"><span class="pre">etc['clean_drifts_kernel']</span></code> stores the filter
+coefficients. <code class="docutils literal notranslate"><span class="pre">etc</span></code> must already be a dict. Copy the dataset with
+<code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> before the call when the original recording must be
+preserved.</p>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <p>EEG : the filtered EEG data structure</p>

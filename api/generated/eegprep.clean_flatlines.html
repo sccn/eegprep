@@ -555,7 +555,7 @@
 <h1>clean_flatlines<a class="headerlink" href="#clean-flatlines" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.clean_flatlines">
-<span class="sig-name descname"><span class="pre">clean_flatlines</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_flatline_duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_allowed_jitter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.clean_flatlines" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">clean_flatlines</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_flatline_duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_allowed_jitter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20.0</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_diagnostics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.clean_flatlines" title="Link to this definition">#</a></dt>
 <dd><p>Remove (near-) flat-lined channels.</p>
 <p>This is an automated artifact rejection function which ensures that
 the data contains no flat-lined channels.</p>
@@ -568,12 +568,29 @@ If a channel has a longer flatline than this, it will be considered
 abnormal.</p></li>
 <li><p><strong>max_allowed_jitter</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – maximum tolerated jitter during flatlines. As a
 multiple of epsilon.</p></li>
+<li><p><strong>return_diagnostics</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – When true, return <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">diagnostics)</span></code> instead of
+<code class="docutils literal notranslate"><span class="pre">EEG</span></code>. <code class="docutils literal notranslate"><span class="pre">detected_channels</span></code> is true where a flat stretch exceeds
+the duration. <code class="docutils literal notranslate"><span class="pre">removed_channels</span></code> is true only for channels deleted
+from the dataset. When every channel is flagged, nothing is removed,
+<code class="docutils literal notranslate"><span class="pre">removal_suppressed</span></code> says why, and <code class="docutils literal notranslate"><span class="pre">clean_channel_mask</span></code> is left
+as it was. That mask is true for original channels that remain.
+Channel indices are 0-based positions in the input.</p></li>
 </ul>
 </dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>] | <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]]</p>
+</dd>
 </dl>
+<p>When no channel is removed, the same dataset object is returned and its
+samples and <code class="docutils literal notranslate"><span class="pre">etc</span></code> are unchanged. When some channels are removed, the
+returned dataset is new and the dataset that was passed in keeps its
+channel count, samples, and <code class="docutils literal notranslate"><span class="pre">etc</span></code>. Copy the dataset with
+<code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> before the call when the pre-call recording must be
+preserved.</p>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
-<p>EEG : the EEG data structure with flatlined channels removed.</p>
+<p>EEG : the EEG data structure with flatlined channels removed.
+diagnostics : dict, only when <code class="docutils literal notranslate"><span class="pre">return_diagnostics</span></code> is true</p>
 <div class="admonition-example admonition">
 <p class="admonition-title">Example</p>
 <p>EEG = clean_flatlines(EEG)</p>

@@ -561,7 +561,8 @@ steps to your data, task, and lab standards.</p>
 <section id="select-data-and-channels">
 <h2>Select Data and Channels<a class="headerlink" href="#select-data-and-channels" title="Link to this heading">#</a></h2>
 <p>Use <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> for user-facing channel, point, time, trial, and event
-selection:</p>
+selection. The input dataset is deep-copied and is not modified, and the
+returned samples keep the input dtype:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_select</span>
 
 <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_select</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -582,7 +583,9 @@ latency 20 duration 5, latency 20 duration 2, and latency 30 duration 8.</p>
 </section>
 <section id="filter">
 <h2>Filter<a class="headerlink" href="#filter" title="Link to this heading">#</a></h2>
-<p>The usual FIR filtering entry point is <code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code>:</p>
+<p>The usual FIR filtering entry point is <code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code>. The input dataset
+is left unchanged. Samples are filtered in float64 and restored to float32
+when the input samples were float32:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_eegfiltnew</span>
 
 <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span>
@@ -657,6 +660,14 @@ string:</p>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> returns four values. Scripts that only need the cleaned EEG
 should use the first value or call <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_drifts</span></code> and the channel cleaners can replace the samples of the
+dataset passed in, including a float32 array becoming float64. <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code>
+leaves that dataset unchanged and returns a copy. Copy with <code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code>
+before a call when the original recording must be preserved. The per-function
+behavior is in <a class="reference internal" href="plugins.html#cleaning-inputs"><span class="std std-ref">Copies, dtypes, and measured criteria</span></a>. <code class="docutils literal notranslate"><span class="pre">return_diagnostics=True</span></code> on
+<code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> returns the criteria those calls already compute.
+<code class="docutils literal notranslate"><span class="pre">clean_channels(...,</span> <span class="pre">seed=5489)</span></code> is the default RANSAC seed.</p>
 </section>
 <section id="sampling-rates">
 <h2>Sampling Rates<a class="headerlink" href="#sampling-rates" title="Link to this heading">#</a></h2>

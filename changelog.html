@@ -501,6 +501,19 @@ along the average-reference null direction. On the average-referenced
 tutorial recording, EEGLAB’s scaled <code class="docutils literal notranslate"><span class="pre">icawinv</span> <span class="pre">*</span> <span class="pre">icaweights</span> <span class="pre">*</span> <span class="pre">icasphere</span> <span class="pre">*</span> <span class="pre">data</span></code>
 leaves its own rank-31 projection by 5.7e-8; EEGPrep’s product stays
 within 5.4e-13 (#567).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code> return the noise scores, correlations, flags, window
+offsets, and z-scores they already compute when <code class="docutils literal notranslate"><span class="pre">return_diagnostics=True</span></code>.
+Default return values are unchanged. Channels that are flagged and then
+kept are reported separately, and that case does not write an all-false
+<code class="docutils literal notranslate"><span class="pre">clean_channel_mask</span></code> (#535).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> accepts <code class="docutils literal notranslate"><span class="pre">seed</span></code> (default 5489), draws RANSAC subsets
+from <code class="docutils literal notranslate"><span class="pre">numpy.random.RandomState</span></code> in the same order, and records the seed
+in the diagnostics (#540).</p></li>
+<li><p>The clean_rawdata guide and the cleaning, filtering, and selection
+docstrings record which calls replace float32 samples with float64, which
+return the same object, and which leave the input unchanged. Copy a
+dataset first when the original recording must be preserved (#541).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">reref</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> sum an average reference in float64 and cast
 once back to the input dtype, so a float32 recording stays float32 and the
 result does not depend on the BLAS kernel or thread count. On the

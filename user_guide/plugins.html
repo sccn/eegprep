@@ -635,6 +635,118 @@ correlation.</p>
 sample grid. A recording whose fit widths round to 1 or less raises
 <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, and <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> calibrates on the whole recording instead.
 Eleven to twenty-two windows still fit.</p>
+<section id="copies-dtypes-and-measured-criteria">
+<span id="cleaning-inputs"></span><h3>Copies, dtypes, and measured criteria<a class="headerlink" href="#copies-dtypes-and-measured-criteria" title="Link to this heading">#</a></h3>
+<p>Copy a dataset with <code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> before calling a function that
+replaces its samples when the original recording must be preserved.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 22.0%" />
+<col style="width: 28.0%" />
+<col style="width: 26.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Same object when nothing is removed</p></th>
+<th class="head"><p>Caller’s <code class="docutils literal notranslate"><span class="pre">data</span></code></p></th>
+<th class="head"><p>Caller’s <code class="docutils literal notranslate"><span class="pre">etc</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">clean_drifts</span></code></p></td>
+<td><p>yes</p></td>
+<td><p>replaced; float32 becomes float64</p></td>
+<td><p>gains <code class="docutils literal notranslate"><span class="pre">clean_drifts_kernel</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code></p></td>
+<td><p>yes</p></td>
+<td><p>unchanged</p></td>
+<td><p>unchanged</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code></p></td>
+<td><p>yes</p></td>
+<td><p>replaced; float32 becomes float64</p></td>
+<td><p>unchanged</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code></p></td>
+<td><p>yes, the dataset inside the returned pair</p></td>
+<td><p>replaced; float32 becomes float64</p></td>
+<td><p>unchanged</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code></p></td>
+<td><p>no; the result is always a new dataset</p></td>
+<td><p>unchanged</p></td>
+<td><p>unchanged</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code></p></td>
+<td><p>no</p></td>
+<td><p>unchanged</p></td>
+<td><p>unchanged</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pop_select</span></code></p></td>
+<td><p>no</p></td>
+<td><p>unchanged</p></td>
+<td><p>unchanged</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Removing one flat channel returns a new dataset. The dataset passed in keeps
+its channel count and its previous <code class="docutils literal notranslate"><span class="pre">etc</span></code>. The result stores
+<code class="docutils literal notranslate"><span class="pre">etc['clean_channel_mask']</span></code>, true for each original channel that remains.
+<code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> and <code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code> also return a new dataset
+when they delete channels. They replace the caller’s samples with float64
+before that copy, so the caller keeps the original channel count and its
+previous <code class="docutils literal notranslate"><span class="pre">etc</span></code> while holding those float64 samples.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> processes the copy in float64 and writes the returned
+samples in the input floating-point dtype. Its
+<code class="docutils literal notranslate"><span class="pre">etc['clean_sample_mask']</span></code> marks retained samples. <code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code>
+filters in float64 and restores float32 when the input samples were float32.
+<code class="docutils literal notranslate"><span class="pre">pop_select</span></code> keeps the input dtype. <code class="docutils literal notranslate"><span class="pre">clean_drifts</span></code> leaves the returned
+samples in float64. <code class="docutils literal notranslate"><span class="pre">etc</span></code> must already be a dict; <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code>
+provides one.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_channel_mask</span></code> records original channels that remain in the dataset.
+Pass <code class="docutils literal notranslate"><span class="pre">return_diagnostics=True</span></code> to <code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>,
+<code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code>, or <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> for the
+measurements already computed during that call. Omitting
+<code class="docutils literal notranslate"><span class="pre">return_diagnostics</span></code> keeps the current return value. Channel indices and
+sample offsets in the report are 0-based positions in the input array.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> reports noise scores, noise z-scores, noise flags, the
+correlation of each usable channel with its RANSAC estimate in each window,
+and those windows’ sample offsets. The RANSAC subsets come from
+<code class="docutils literal notranslate"><span class="pre">numpy.random.RandomState(seed)</span></code>. <code class="docutils literal notranslate"><span class="pre">seed</span></code> defaults to 5489, which is the
+value previously fixed in the function, and the draws stay in the same
+order. The report’s <code class="docutils literal notranslate"><span class="pre">seed</span></code> is the value used.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code> reports the sorted absolute pairwise correlations
+and the row indices kept after dropping the most-correlated fraction. A
+channel is flagged when every retained row is below <code class="docutils literal notranslate"><span class="pre">min_corr</span></code>. The
+boolean array returned beside the dataset is that detection result. It is
+all true when every channel is flagged and then kept.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> reports <code class="docutils literal notranslate"><span class="pre">window_offsets</span></code> and <code class="docutils literal notranslate"><span class="pre">window_length</span></code>, the sample
+count of each window, and the RMS z-score of each channel in each window.
+<code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> and <code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code> use that same
+<code class="docutils literal notranslate"><span class="pre">window_length</span></code>. <code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code> reports which channels exceeded the
+flat-line duration.</p>
+<p><code class="docutils literal notranslate"><span class="pre">detected_channels</span></code> is the criterion. <code class="docutils literal notranslate"><span class="pre">removed_channels</span></code> in the report is
+what the call deleted. When every channel is flagged and none is removed,
+<code class="docutils literal notranslate"><span class="pre">clean_channels_nolocs</span></code> and <code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code> set <code class="docutils literal notranslate"><span class="pre">removal_suppressed</span></code>
+to the reason and leave <code class="docutils literal notranslate"><span class="pre">clean_channel_mask</span></code> as it was, including staying
+absent. <code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when more than 75% of
+channels are flagged. A prior mask is returned as
+<code class="docutils literal notranslate"><span class="pre">prior_clean_channel_mask</span></code> or <code class="docutils literal notranslate"><span class="pre">prior_clean_sample_mask</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_channels</span>
+
+<span class="n">original</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
+<span class="n">cleaned</span><span class="p">,</span> <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">clean_channels</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">5489</span><span class="p">,</span> <span class="n">return_diagnostics</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">diagnostics</span><span class="p">[</span><span class="s2">&quot;noise_zscores&quot;</span><span class="p">]</span>
+<span class="n">diagnostics</span><span class="p">[</span><span class="s2">&quot;correlations&quot;</span><span class="p">]</span>
+<span class="n">diagnostics</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
 </section>
 <section id="firfilt">
 <h2>FIRFilt<a class="headerlink" href="#firfilt" title="Link to this heading">#</a></h2>
@@ -818,7 +930,10 @@ for catalog/trust policy.</p>
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bundled-plugin-inventory">Bundled Plugin Inventory</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#inspect-installed-plugin-metadata">Inspect Installed Plugin Metadata</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clean-rawdata-and-asr">clean_rawdata and ASR</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clean-rawdata-and-asr">clean_rawdata and ASR</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#copies-dtypes-and-measured-criteria">Copies, dtypes, and measured criteria</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#firfilt">FIRFilt</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#iclabel">ICLabel</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dipfit">DIPFIT</a></li>
