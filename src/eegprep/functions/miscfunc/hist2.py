@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 
+from .linspace import linspace
+
 
 def hist2(data1: Any, data2: Any, bins: Any = None, *, ax: Axes | None = None) -> Axes:
     """Plot two semi-transparent histograms on one Matplotlib axes.
@@ -66,7 +68,7 @@ def _even_centers(minimum: float, maximum: float, count: int) -> np.ndarray:
         span = max(abs(minimum), 1.0) * 0.5
         minimum -= span
         maximum += span
-    return np.linspace(minimum, maximum, count)
+    return linspace(minimum, maximum, count)
 
 
 def _bar_widths(centers: np.ndarray) -> np.ndarray:

@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.plot_utils import show_figures
 
 
@@ -229,7 +230,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     else:
         xmin, xmax, ymin, ymax = -intrad * squeezefac, intrad * squeezefac, -intrad * squeezefac, intrad * squeezefac
 
-    xi, yi = np.linspace(xmin, xmax, GRID_SCALE), np.linspace(ymin, ymax, GRID_SCALE)
+    xi, yi = linspace(xmin, xmax, GRID_SCALE), linspace(ymin, ymax, GRID_SCALE)
     yi, xi = np.meshgrid(yi, xi)
 
     if method == 'griddata':
@@ -271,8 +272,8 @@ def topoplot(datavector, chan_locs, **kwargs):
         # Contour lines
         if np.count_nonzero(np.isfinite(Zi)) > 1 and np.nanmin(Zi) < np.nanmax(Zi):
             grid_x, grid_y = np.meshgrid(
-                np.linspace(screen_extent[0], screen_extent[1], Zi.shape[1]),
-                np.linspace(screen_extent[2], screen_extent[3], Zi.shape[0]),
+                linspace(screen_extent[0], screen_extent[1], Zi.shape[1]),
+                linspace(screen_extent[2], screen_extent[3], Zi.shape[0]),
             )
             levels = _contour_levels(np.nanmin(Zi), np.nanmax(Zi), int(kwargs.get('numcontour', 6)))
             ax.contour(
@@ -291,7 +292,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         markersize = kwargs.get('markersize', 6)
         if str(ELECTRODES).lower() == 'on':
             ax.scatter(screen_x, screen_y, c='k', s=markersize, zorder=5)
-        theta_c = np.linspace(0, 2 * np.pi, 100)
+        theta_c = linspace(0, 2 * np.pi, 100)
         # white ring hides the jagged color edge at rmax
         ax.plot(
             np.cos(theta_c) * (rmax * 0.99), np.sin(theta_c) * (rmax * 0.99), color='white', linewidth=2.5, zorder=3
@@ -473,7 +474,7 @@ def _draw_ears(ax, scale=1.0):
 
 
 def _draw_head(ax):
-    theta_c = np.linspace(0, 2 * np.pi, 100)
+    theta_c = linspace(0, 2 * np.pi, 100)
     rmax = 0.5
     ax.plot(np.cos(theta_c) * rmax, np.sin(theta_c) * rmax, 'k', linewidth=_HEAD_LINEWIDTH, zorder=4)
     nose_w = 0.08

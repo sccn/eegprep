@@ -20,6 +20,7 @@ from typing import Any
 import numpy as np
 from scipy.optimize import minimize
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_channel_indices, component_maps, numeric_vector
 from eegprep.plugins.dipfit._coordinates import apply_transform, traditionaldipfit
@@ -359,9 +360,9 @@ def default_scan_axes(head_radius: float) -> tuple[np.ndarray, np.ndarray, np.nd
     """
     radius = float(np.floor(float(head_radius)))
     return (
-        np.linspace(-radius, radius, DEFAULT_GRID_X_COUNT),
-        np.linspace(-radius, radius, DEFAULT_GRID_Y_COUNT),
-        np.linspace(0.0, radius, DEFAULT_GRID_Z_COUNT),
+        linspace(-radius, radius, DEFAULT_GRID_X_COUNT),
+        linspace(-radius, radius, DEFAULT_GRID_Y_COUNT),
+        linspace(0.0, radius, DEFAULT_GRID_Z_COUNT),
     )
 
 
@@ -375,7 +376,7 @@ def parse_grid_values(value: Any, *, default: np.ndarray) -> np.ndarray:
             start = float(match.group(1))
             stop = float(match.group(2))
             count = int(float(match.group(3)))
-            return np.linspace(start, stop, count)
+            return linspace(start, stop, count)
     values = numeric_vector(value, dtype=float)
     if values.size == 0:
         return np.asarray(default, dtype=float)

@@ -10,11 +10,13 @@ from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
 
+from ...functions.miscfunc.linspace import linspace
+from ...functions.miscfunc.matlab_colon import matlab_colon
 from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 from .private.masks import mask_to_intervals
 from .private.stats import fit_eeg_distribution
-from .private.windows import matlab_colon, matlab_window_offsets
+from .private.windows import matlab_window_offsets
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,10 @@ def clean_windows(
     of clean EEG power in that channel. When the generalized-Gaussian fit does
     not return a positive scale, that estimate is the median and MAD of the
     window RMS values, and windows outside the thresholds are still removed.
-    The fit's width grid is ``round(n * (max_width:-step:min_width))``. A
+    A channel whose window RMS values are all equal has scale 0 and is the
+    highest score in every window, so it uses a high-amplitude bad-channel
+    slot. The fit's width
+    grid is ``round(n * (max_width:-step:min_width))``. A
     rounded width of 1 or less raises ``ValueError``, which is the MATLAB
     indexing error in that loop. Eleven to twenty-two windows still fit.
 
@@ -183,6 +188,9 @@ def clean_windows(
         # Gather samples for all windows using broadcasting (W, N)
         indices = offsets[:, None] + wnd[None, :]
         rms = np.sqrt(np.sum(Xsq[indices], axis=1) / N)
+        if rms.size and np.all(rms == rms.flat[0]):
+            wz[c, :] = np.inf
+            continue
         mu, sig = _window_rms_mu_sigma(
             rms,
             min_clean_fraction=min_clean_fraction,
@@ -203,7 +211,9 @@ def clean_windows(
         # upper threshold – check the (max_bad_channels+1)-th largest value
         idx_hi = C - max_bad_channels - 1  # zero-based index
         idx_hi = max(min(idx_hi, C - 1), 0)
-        remove_mask |= swz[idx_hi, :] > zmax
+        highest = swz[idx_hi, :]
+        # +inf is a zero-variance channel. It holds this rank, and the threshold applies to a finite score.
+        remove_mask |= np.isfinite(highest) & (highest > zmax)
     if zmin < 0:
         # lower threshold – check the (max_bad_channels+1)-th smallest value
         idx_lo = max_bad_channels
@@ -235,7 +245,7 @@ def clean_windows(
     if int(round_mat(srate * (xmax - xmin) + 1)) != pnts:
         EEG['xmax'] = (pnts - 1) / srate + xmin
         if np.asarray(EEG.get('times', [])).size != pnts:
-            EEG['times'] = np.linspace(xmin * 1000.0, float(EEG['xmax']) * 1000.0, pnts)
+            EEG['times'] = linspace(xmin * 1000.0, float(EEG['xmax']) * 1000.0, pnts)
     EEG['data'] = np.asarray(EEG['data'], dtype=output_dtype)
 
     if 'etc' not in EEG:

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import dimpulse
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.plugins.firfilt.fir_filterdcpadded import is_linear_phase_fir
 
 
@@ -99,7 +100,7 @@ def _response_data(b: Any, a: Any, nfft: int, fs: float, direction: str) -> dict
         x = np.arange(-group_delay, group_delay + 1)
     nfft = max(2 ** int(np.ceil(np.log2(n))), nfft)
     z = np.fft.fft(impulse, nfft)[: nfft // 2 + 1]
-    freq = np.linspace(0, fs / 2, nfft // 2 + 1)
+    freq = linspace(0, fs / 2, nfft // 2 + 1)
     phase = np.unwrap(np.angle(z))
     if is_zerophase:
         delay = -freq / fs * ((n - 1) / 2) * 2 * np.pi

@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.timefreqfunc.dftfilt3 import symmetric_hanning
 
 
@@ -30,7 +31,7 @@ def dftfilt2(
         winlenint = int(np.floor(winlen))
         if winlenint % 2 == 1:
             winlenint += 1
-        winval = np.linspace(winlenint / 2.0, -winlenint / 2.0, winlenint + 1)
+        winval = linspace(winlenint / 2.0, -winlenint / 2.0, winlenint + 1)
         if str(kind).lower() == "sinus":
             wavelet = np.exp(2j * np.pi * float(freq) * winval / float(srate)) * symmetric_hanning(winval.size)
         else:
@@ -59,8 +60,8 @@ def _cycle_values(cycles: Any, freqs: np.ndarray, *, cycleinc: str) -> np.ndarra
         if str(cycleinc).lower() == "log":
             if np.any(values <= 0):
                 raise ValueError("log cycle interpolation requires positive cycles")
-            return np.exp(np.linspace(np.log(values[0]), np.log(values[1]), freqs.size))
-        return np.linspace(values[0], values[1], freqs.size)
+            return np.exp(linspace(np.log(values[0]), np.log(values[1]), freqs.size))
+        return linspace(values[0], values[1], freqs.size)
     return values.astype(float)
 
 

@@ -17,6 +17,7 @@ import numpy as np
 import scipy.io
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_loadset import _is_hdf5_file
@@ -147,7 +148,7 @@ def _load_brainvision_analyzer_mat(path: Path) -> dict[str, Any]:
             "srate": srate,
             "xmin": xmin,
             "xmax": xmax,
-            "times": np.linspace(xmin * 1000.0, xmax * 1000.0, pnts),
+            "times": linspace(xmin * 1000.0, xmax * 1000.0, pnts),
             "data": data,
             "chanlocs": chanlocs,
             "event": events,

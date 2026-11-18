@@ -50,6 +50,7 @@ from tests.fuzz.harness import (
     suspend_option_single,
     thaw_params,
     tolerance_for,
+    _flat_nullspace_roundoff_is_known,
     _InputObserver,
     _caught_evidence,
     _seen_input,
@@ -2207,3 +2208,65 @@ def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
     assert result.functions["pop_reref"]["divergences"] >= 2
     assert len(result.divergences) == 1
     assert result.divergences[0].signature == "pop_reref|numeric|data"
+
+
+def _flat_case(channels, start, length, flat_channel, params) -> tuple[FuzzCase, dict]:
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(channels, start, length, 1, -1, 0, 0, flat_channel=flat_channel),
+        freeze_params(params),
+    )
+    return case, materialize_eeg(case)
+
+
+def test_flat_channel_roundoff_is_not_a_divergence():
+    case, eeg = _flat_case(
+        tuple(range(17, 32)),
+        324,
+        564,
+        11,
+        {"entry": "clean_rawdata", "cutoff": 10.0, "ref_maxbadchannels": 0.2, "window_len": 1.0},
+    )
+    produced = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
+    assert np.all(produced[11] == 0.0)
+    residual = produced.copy()
+    residual[11, 0] = 5.787370582766016e-12
+
+    def oracle(_case, _dataset):
+        return residual
+
+    accepted = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(oracle), load_tolerances())
+    assert accepted.diverged is False
+    assert "#643" in accepted.detail
+    assert "#642" not in accepted.detail
+
+    def also_real(_case, _dataset):
+        data = residual.copy()
+        data[6, 541] += 1.0
+        return data
+
+    rejected = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(also_real), load_tolerances())
+    assert rejected.diverged is True
+
+    def large_flat(_case, _dataset):
+        data = produced.copy()
+        data[11, 0] = 1.0
+        return data
+
+    written = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(large_flat), load_tolerances())
+    assert written.diverged is True
+    assert "#643" not in written.detail
+
+    tolerance = Tolerance(0.0, 1e-6)
+    zero = SideResult(True, produced, 128.0, None, None)
+    noisy = SideResult(True, residual, 128.0, None, None)
+    assert _flat_nullspace_roundoff_is_known(case, eeg, zero, noisy, tolerance)
+    assert not _flat_nullspace_roundoff_is_known(case, eeg, noisy, zero, tolerance)
+    bumped = residual.copy()
+    bumped[0, 0] += 1.0
+    assert not _flat_nullspace_roundoff_is_known(
+        case, eeg, zero, SideResult(True, bumped, 128.0, None, None), tolerance
+    )
+    loud = produced.copy()
+    loud[11, 0] = 1.0
+    assert not _flat_nullspace_roundoff_is_known(case, eeg, zero, SideResult(True, loud, 128.0, None, None), tolerance)

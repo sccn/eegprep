@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
+
 
 @dataclass(frozen=True)
 class FDRResult:
@@ -52,7 +54,7 @@ def fdr(pvals: Any, q: float | None = None, fdr_type: str = "parametric") -> FDR
 
     if q is None:
         threshold = np.ones(values.shape, dtype=float)
-        thresholds = np.exp(np.linspace(np.log(0.1), np.log(0.000001), 1000))
+        thresholds = np.exp(linspace(np.log(0.1), np.log(0.000001), 1000))
         for current in thresholds:
             current_result = fdr(values, float(current), fdr_type=fdr_type)
             threshold[current_result.mask] = current

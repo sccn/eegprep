@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
@@ -246,7 +247,7 @@ def _pop_epoch_one(
     output["xmax"] = float(tmptime[1])
     output["pnts"] = int(epochdat.shape[1])
     output["trials"] = int(epochdat.shape[2])
-    output["times"] = np.linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"])
+    output["times"] = linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"])
     output["icaact"] = np.array([])
     output["event"] = _epoch_events(
         sorted_events,

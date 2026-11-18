@@ -8,6 +8,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import show_figures
 from eegprep.functions.sigprocfunc.readlocs import readlocs
@@ -40,7 +41,7 @@ def gradmap(maps: Any, locations: Any, draw: bool | int = False) -> tuple[np.nda
         raise ValueError("at least three distinct electrode positions are required")
 
     grid_scale = 2 * values.shape[0] + 5
-    axis = np.linspace(-0.5, 0.5, grid_scale)
+    axis = linspace(-0.5, 0.5, grid_scale)
     grid_x, grid_y = np.meshgrid(axis, axis)
     nearest_x = np.abs(axis[:, np.newaxis] - x).argmin(axis=0)
     nearest_y = np.abs(axis[:, np.newaxis] - y).argmin(axis=0)

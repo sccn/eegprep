@@ -10,6 +10,7 @@ import os
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.misc import matlab_mtimes, round_mat
 
 logger = logging.getLogger(__name__)
@@ -597,7 +598,7 @@ def eeg_checkset(EEG, *checks, load_data=True):
             EEG['xmax'] = (EEG['pnts'] - 1) / EEG['srate'] + EEG['xmin']
             logger.info('eeg_checkset: xmax adjusted to match pnts, xmin, and srate')
         if EEG['pnts'] > 0:
-            EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'])
+            EEG['times'] = linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'])
 
     expected_types = {
         'setname': str,

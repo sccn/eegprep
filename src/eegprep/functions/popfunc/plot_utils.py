@@ -7,6 +7,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value, parse_numeric_sequence
@@ -75,7 +76,7 @@ def eeg_times_ms(EEG: dict[str, Any]) -> np.ndarray:
         return times
     xmin = float(EEG.get("xmin", 0) or 0)
     xmax = float(EEG.get("xmax", xmin) or xmin)
-    return np.linspace(xmin * 1000.0, xmax * 1000.0, pnts)
+    return linspace(xmin * 1000.0, xmax * 1000.0, pnts)
 
 
 def data_time_slice(EEG: dict[str, Any], timerange: Any = None) -> tuple[np.ndarray, np.ndarray]:
