@@ -148,6 +148,29 @@ def test_eeg_store_handles_multiple_eeg_inputs_with_one_based_indices():
     assert [eeg["setname"] for eeg in alleeg] == ["first", "second"]
 
 
+def test_eeg_store_accepts_whole_number_index():
+    alleeg, checked, index = eeg_store([], _eeg(name="third"), 3.0)
+
+    assert index == 3
+    assert len(alleeg) == 3
+    assert checked["setname"] == "third"
+    assert alleeg[2]["setname"] == "third"
+    assert alleeg[0] == {}
+    assert alleeg[1] == {}
+
+
+def test_eeg_store_uses_array_index_for_single_struct_dataset():
+    dataset = _eeg(name="third")
+    row = np.array([[tuple(dataset.values())]], dtype=[(field, object) for field in dataset])
+
+    alleeg, checked, index = eeg_store([], row, np.array([[3.0]]))
+
+    assert index == 3
+    assert len(alleeg) == 3
+    assert checked["setname"] == "third"
+    assert alleeg[2]["setname"] == "third"
+
+
 def test_eeg_store_replaces_existing_one_based_slot():
     existing = [_eeg(name="first", saved="yes"), _eeg(name="second", saved="yes")]
 

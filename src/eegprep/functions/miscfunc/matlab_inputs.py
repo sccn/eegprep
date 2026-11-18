@@ -163,8 +163,6 @@ def as_dataset_list(value: Any) -> list[Any]:
             if items and all(isinstance(item, dict) for item in items):
                 return items
         return list(value)
-    if isinstance(value, (list, tuple)):
-        return list(value)
     return list(value)
 
 
