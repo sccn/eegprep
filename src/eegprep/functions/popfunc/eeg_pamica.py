@@ -226,18 +226,29 @@ def _exercise_blas():
     scipy.linalg.svd(matrix, full_matrices=False)
 
 
+def _openmp_library_filename(lib):
+    return str(lib.filepath).replace("\\", "/").rsplit("/", 1)[-1]
+
+
+def _openmp_library_is_stub(lib):
+    """Return whether ``lib`` is Torch's ``libiompstubs`` library.
+
+    That file exports the OpenMP entry points and the getter stays at 1.
+    """
+    return "libiompstubs" in _openmp_library_filename(lib).lower()
+
+
 def _openmp_setter_changes_count(lib, count):
     """Return whether ``omp_set_num_threads`` changes the count ``lib`` reports.
 
-    Torch ships ``libiompstubs5md.dll`` beside ``libiomp5md.dll``. The stub
-    exports the OpenMP entry points and its getter stays at 1, so threadpoolctl
-    lists it as a pool. The real runtime follows the requested count in both
-    directions.
+    The count from before the probe is restored when the getter raises.
     """
     probe = 1 if count != 1 else 2
     lib.set_num_threads(probe)
-    reported = lib.get_num_threads()
-    lib.set_num_threads(count)
+    try:
+        reported = lib.get_num_threads()
+    finally:
+        lib.set_num_threads(count)
     return reported is not None and int(reported) != count
 
 
@@ -256,10 +267,10 @@ def _require_thread_count(torch, threads):
         mismatches.append(f"blas/{pool['internal_api']} is {int(count)}")
     for lib in ThreadpoolController().select(user_api="openmp").lib_controllers:
         count = lib.get_num_threads()
-        if count is None or int(count) == threads or not _openmp_setter_changes_count(lib, int(count)):
+        if count is None or int(count) == threads or _openmp_library_is_stub(lib):
             continue
-        filename = str(lib.filepath).replace("\\", "/").rsplit("/", 1)[-1]
-        mismatches.append(f"openmp/{filename} is {int(count)}")
+        _openmp_setter_changes_count(lib, int(count))
+        mismatches.append(f"openmp/{_openmp_library_filename(lib)} is {int(count)}")
     if mismatches:
         raise RuntimeError(f"requested {threads} threads but " + "; ".join(mismatches))
     return threads
