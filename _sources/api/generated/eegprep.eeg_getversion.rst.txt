@@ -1,0 +1,6 @@
+﻿eeg\_getversion
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_getversion

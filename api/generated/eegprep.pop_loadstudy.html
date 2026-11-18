@@ -650,20 +650,38 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_loadstudy">
 <span class="sig-name descname"><span class="pre">pop_loadstudy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_datasets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_com</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_loadstudy" title="Link to this definition">#</a></dt>
-<dd><p>Load a STUDY JSON file saved by <code class="docutils literal notranslate"><span class="pre">pop_savestudy</span></code>.</p>
+<dd><p>Load a STUDY saved by EEGPrep or by EEGLAB.</p>
+<p>EEGPrep writes a JSON <code class="docutils literal notranslate"><span class="pre">.study</span></code> file. EEGLAB writes a MATLAB file whose
+variable is <code class="docutils literal notranslate"><span class="pre">STUDY</span></code>. MATLAB <code class="docutils literal notranslate"><span class="pre">char</span></code> arrays are <code class="docutils literal notranslate"><span class="pre">uint16</span></code> code points
+and are decoded as Latin-1, so bytes <code class="docutils literal notranslate"><span class="pre">0x80</span></code>–<code class="docutils literal notranslate"><span class="pre">0xFF</span></code> stay the characters
+EEGLAB stored. UTF-8 and UTF-16 text stored with MATLAB’s Unicode types
+keeps that encoding.</p>
+<p>When the STUDY directory has moved, a dataset path inside the saved study
+directory is rebased onto the new directory. Other dataset locations are
+tried beside the STUDY file and under the dataset’s own parent folder
+names. The study directory itself is not shortened. <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code>
+selects header-only or full data loading. An empty <code class="docutils literal notranslate"><span class="pre">changrp</span></code> is left
+empty. The load calls <code class="docutils literal notranslate"><span class="pre">std_checkfiles</span></code>, as EEGLAB does. A measure cell
+whose cells differ in length, such as <code class="docutils literal notranslate"><span class="pre">changrp.erpdata</span></code>, is left as a
+cell. Measure arrays saved in the STUDY stay in place. EEGLAB clears
+those in-memory copies on load because it reads them back from separate
+files.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a><em> | </em><em>None</em>) – STUDY file name or path.</p></li>
+<li><p><strong>filepath</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a><em> | </em><em>None</em>) – Directory used when <code class="docutils literal notranslate"><span class="pre">filename</span></code> is not absolute.</p></li>
+<li><p><strong>load_datasets</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – When false, return the STUDY without opening datasets.</p></li>
+<li><p><strong>return_com</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Also return the history command.</p></li>
 <li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
-<li><p><strong>filepath</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>load_datasets</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>)</p></li>
-<li><p><strong>return_com</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>)</p></li>
 <li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a></p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(STUDY,</span> <span class="pre">ALLEEG)</span></code> or <code class="docutils literal notranslate"><span class="pre">(STUDY,</span> <span class="pre">ALLEEG,</span> <span class="pre">command)</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a></p>
 </dd>
 </dl>
 </dd></dl>

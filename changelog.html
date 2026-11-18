@@ -491,6 +491,18 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_loadstudy</span></code> reads an EEGLAB MATLAB <code class="docutils literal notranslate"><span class="pre">.study</span></code> file as well as
+EEGPrep JSON. MATLAB <code class="docutils literal notranslate"><span class="pre">char</span></code> arrays are decoded as Latin-1. Dataset
+paths stored under the previous study directory are rebased onto the
+directory that contains the file, and <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code> selects a
+header-only or full data load. The load calls <code class="docutils literal notranslate"><span class="pre">std_checkfiles</span></code>, as
+EEGLAB’s <code class="docutils literal notranslate"><span class="pre">pop_loadstudy.m</span></code> does. A <code class="docutils literal notranslate"><span class="pre">changrp.erpdata</span></code> cell whose cells
+have different lengths stays a cell. Measure arrays saved in the STUDY
+stay in place; EEGLAB clears those in-memory copies because it reloads
+them from separate files. <code class="docutils literal notranslate"><span class="pre">eeg_getversion</span></code> reports the installed
+EEGPrep version. A source checkout of EEGLAB reports <code class="docutils literal notranslate"><span class="pre">'dev'</span></code> from the
+copy embedded in <code class="docutils literal notranslate"><span class="pre">eeg_getversion.m</span></code>; the numeric collapse is the same,
+so <code class="docutils literal notranslate"><span class="pre">11.3.2.4b</span></code> is <code class="docutils literal notranslate"><span class="pre">11.324</span></code>.</p></li>
 <li><p>Time axes, frequency grids, and cycle grids that are returned or used to
 pick a sample follow MATLAB <code class="docutils literal notranslate"><span class="pre">linspace</span></code> (<code class="docutils literal notranslate"><span class="pre">start</span> <span class="pre">+</span> <span class="pre">i</span> <span class="pre">*</span> <span class="pre">(stop</span> <span class="pre">-</span> <span class="pre">start)</span> <span class="pre">/</span> <span class="pre">(n</span> <span class="pre">-</span> <span class="pre">1)</span></code>,
 last sample equal to the stop, one sample equal to the stop) or the colon

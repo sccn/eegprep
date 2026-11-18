@@ -593,6 +593,11 @@
 <dt class="sig sig-object py" id="eegprep.std_checkfiles">
 <span class="sig-name descname"><span class="pre">std_checkfiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">STUDY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLEEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_report</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.std_checkfiles" title="Link to this definition">#</a></dt>
 <dd><p>Check loaded STUDY data and cached measures for standalone EEGPrep.</p>
+<p>EEGLAB’s <code class="docutils literal notranslate"><span class="pre">std_checkfiles.m</span></code> returns immediately, so the call from
+<code class="docutils literal notranslate"><span class="pre">pop_loadstudy.m</span></code> does not inspect measures. EEGPrep does check them.
+A measure stored as a cell, such as <code class="docutils literal notranslate"><span class="pre">changrp.erpdata</span></code> with cells of
+different lengths, stays a cell. MATLAB does not stack those cells into
+one numeric array, and neither does this check.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

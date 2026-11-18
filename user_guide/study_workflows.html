@@ -592,7 +592,9 @@ metadata and shapes.</p>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Load and save EEGPrep <code class="docutils literal notranslate"><span class="pre">.study</span></code> files:</p>
+<p>Load and save <code class="docutils literal notranslate"><span class="pre">.study</span></code> files. EEGPrep writes JSON. <code class="docutils literal notranslate"><span class="pre">pop_loadstudy</span></code> also
+reads an EEGLAB MATLAB STUDY, decoding its character arrays as Latin-1, and
+rebases dataset paths when the STUDY directory has moved:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadstudy</span><span class="p">,</span> <span class="n">pop_savestudy</span>
 
 <span class="n">STUDY</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_savestudy</span><span class="p">(</span><span class="n">STUDY</span><span class="p">,</span> <span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;analysis.study&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
