@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from eegprep.functions.miscfunc.ieee754 import _O_THRESHOLD, _U_THRESHOLD, _exp_scalar, exp
+from eegprep.functions.miscfunc.ieee754 import _O_THRESHOLD, _U_THRESHOLD, _exp_scalar, cos, exp, sin
 
 
 def _bits(values: np.ndarray) -> np.ndarray:
@@ -78,3 +78,16 @@ def test_vector_exp_matches_the_scalar_reference():
     got_near = exp(near_zero)
     expected_near = np.array([_exp_scalar(value) for value in near_zero], dtype=np.float64)
     np.testing.assert_array_equal(_bits(got_near), _bits(expected_near))
+
+
+def test_sin_and_cos_match_fdlibm_bits():
+    assert sin(np.float64(-0.0)).view(np.uint64) == np.uint64(1 << 63)
+    assert cos(0.0).view(np.uint64) == np.float64(1.0).view(np.uint64)
+    angle = np.float64.fromhex("-0x1.acee9f37bebd6p-1")
+    pair = np.array([np.float64(0.1), angle])
+    assert cos(pair)[0].hex() == "0x1.fd712f9a817c0p-1"
+    assert sin(pair)[1].hex() == "-0x1.7c7d7a833bec2p-1"
+    assert float(cos(np.float64.fromhex("-0x1.47559eae3f79dp+26"))).hex() == "-0x1.af4718c2d6a84p-7"
+    assert np.isnan(sin(np.inf))
+    assert np.isnan(cos(np.nan))
+    assert sin(np.array([], dtype=np.float64)).shape == (0,)
