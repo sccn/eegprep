@@ -1,8 +1,8 @@
-"""Inside/outside tests for spherical source compartments.
+"""Inside/outside tests for DIPFIT source compartments.
 
-Port of the concentric-sphere branch of FieldTrip ``ft_inside_headmodel``
-(fieldtrip-20250523). A dipole is inside when it is strictly inside the
-innermost sphere.
+Port of FieldTrip ``ft_inside_headmodel`` (fieldtrip-20250523). A spherical
+dipole is inside when it is strictly inside the innermost sphere. A
+boundary-element dipole is inside the brain mesh.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.plugins.dipfit.fieldtrip.geometry import ft_inside_headmodel as bem_inside_headmodel
 from eegprep.plugins.dipfit.forward.ft_headmodeltype import (
     BEM_HEADMODELS,
     SPHERICAL_HEADMODELS,
@@ -32,12 +33,10 @@ def ft_inside_headmodel(dippos: np.ndarray, headmodel: dict[str, Any]) -> np.nda
     if positions.ndim == 1:
         positions = positions.reshape(1, 3)
     positions = positions[:, :3]
-    kind = ft_headmodeltype(headmodel)
+    kind = ft_headmodeltype(headmodel).lower()
+    if kind in BEM_HEADMODELS:
+        return bem_inside_headmodel(positions, headmodel)
     if kind not in SPHERICAL_HEADMODELS:
-        if kind in BEM_HEADMODELS:
-            raise NotImplementedError(
-                f"{kind} inside-compartment tests are not implemented; the FieldTrip BEM forward model owns that branch"
-            )
         raise ValueError(f"unsupported volume conductor model for inside detection: {kind}")
     radii = np.asarray(headmodel["r"], dtype=float).ravel()
     source = int(np.argmin(radii))

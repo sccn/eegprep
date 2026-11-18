@@ -1,10 +1,9 @@
 """EEG leadfield dispatch for DIPFIT head models.
 
-Port of the concentric-sphere branch of FieldTrip ``ft_compute_leadfield``
-(fieldtrip-20250523), including the origin shift, the 1/2/3-shell padding
-onto ``eeg_leadfield4``, and the average reference applied when the sensor
-array has no montage. BEM types raise ``NotImplementedError`` so the
-boundary-element port can fill the same dispatch.
+Port of FieldTrip ``ft_compute_leadfield`` (fieldtrip-20250523). Concentric
+spheres use the origin shift, the 1/2/3-shell padding onto ``eeg_leadfield4``,
+and an average reference when the sensor array has no montage. Boundary-element
+models use ``eeg_leadfieldb``.
 """
 
 from __future__ import annotations
@@ -13,6 +12,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.plugins.dipfit.fieldtrip.bem import eeg_leadfieldb
 from eegprep.plugins.dipfit.forward.eeg_leadfield1 import eeg_leadfield1
 from eegprep.plugins.dipfit.forward.eeg_leadfield4 import eeg_leadfield4, eeg_leadfield4_prepare
 from eegprep.plugins.dipfit.forward.ft_headmodeltype import (
@@ -42,9 +42,14 @@ def ft_compute_leadfield(
         Array of shape ``(n_electrodes, 3 * n_dipoles)``.
     """
     model = normalize_headmodel(headmodel) if "r" in headmodel else dict(headmodel)
-    kind = ft_headmodeltype(model)
+    kind = ft_headmodeltype(model).lower()
     if kind in BEM_HEADMODELS:
-        raise NotImplementedError(f"{kind} EEG leadfields are not implemented; add that branch in ft_compute_leadfield")
+        electrodes = _electrode_positions(sens)
+        leadfield = eeg_leadfieldb(_dipole_rows(dippos), electrodes, model)
+        montage = sens.get("tra") if isinstance(sens, dict) else None
+        if montage is not None:
+            return np.asarray(montage, dtype=float) @ leadfield
+        return leadfield - np.mean(leadfield, axis=0, keepdims=True)
     if kind not in SPHERICAL_HEADMODELS:
         raise ValueError(f"unsupported volume conductor model for EEG: {kind}")
     positions = _dipole_rows(dippos)

@@ -2,16 +2,18 @@
 
 ``standardBESA`` uses the four-shell concentric-sphere EEG leadfield from
 FieldTrip (``eeg_leadfield4`` via ``ft_compute_leadfield``), with the radii
-and conductivities stored in ``standard_BESA.mat``. Grid search and nonlinear
-refinement follow ``ft_dipolefitting``: a 24 by 24 by 12 scan inside the brain
-shell, then Nelder-Mead with FieldTrip's ``fminsearch`` limits. MNI and BEM
-settings keep the infinite-medium kernel until the boundary-element model is
-ported through the same dispatch.
+and conductivities stored in ``standard_BESA.mat``. Its grid search and
+nonlinear refinement follow ``ft_dipolefitting``: a 24 by 24 by 12 scan inside
+the brain shell, then Nelder-Mead with FieldTrip's ``fminsearch`` limits.
+A boundary-element volume uses ``eeg_leadfieldb``, the same grid restricted to
+the brain mesh, and SciPy BFGS. eLORETA and creation of a new BEM system
+matrix are not part of this path.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import re
 from typing import Any
 
@@ -21,6 +23,7 @@ from scipy.optimize import minimize
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_channel_indices, component_maps, numeric_vector
 from eegprep.plugins.dipfit._coordinates import apply_transform, traditionaldipfit
+from eegprep.plugins.dipfit.fieldtrip.bem import BEM_TYPES, load_bem_headmodel
 from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
 from eegprep.plugins.dipfit.forward.ft_headmodeltype import SPHERICAL_HEADMODELS, ft_headmodeltype, normalize_headmodel
 from eegprep.plugins.dipfit.forward.ft_inside_headmodel import ft_inside_headmodel
@@ -38,8 +41,15 @@ from eegprep.plugins.dipfit._utils import (
 )
 
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_HEAD_RADIUS_MM = 85.0
 MIN_DIPOLE_ELECTRODE_DISTANCE_MM = 1e-3
+_BESA_TEMPLATE_NAME = "standard_besa.mat"
+_BEM_DEFAULT_MAXITER = 1000
+_BEM_XGRID = np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 24)
+_BEM_YGRID = np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 24)
+_BEM_ZGRID = np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 12)
 DEFAULT_GRID_X_COUNT = 24
 DEFAULT_GRID_Y_COUNT = 24
 DEFAULT_GRID_Z_COUNT = 12
@@ -63,6 +73,7 @@ class DipfitForwardData:
     head_radius: float
     coordformat: str
     headmodel: dict[str, Any] | None = None
+    sens: dict[str, Any] | None = None
 
 
 def dipfit_gridsearch(
@@ -76,19 +87,33 @@ def dipfit_gridsearch(
 ) -> dict[str, Any]:
     """Fit initial single-dipole locations by scanning a regular grid."""
     forward = prepare_forward_data(EEG, component)
-    x_default, y_default, z_default = default_scan_axes(forward.head_radius)
+    if _is_bem(forward.headmodel):
+        x_default, y_default, z_default = _BEM_XGRID, _BEM_YGRID, _BEM_ZGRID
+    else:
+        x_default, y_default, z_default = default_scan_axes(forward.head_radius)
     x_values = parse_grid_values(xgrid, default=x_default)
     y_values = parse_grid_values(ygrid, default=y_default)
     z_values = parse_grid_values(zgrid, default=z_default)
     candidates = _candidate_grid(x_values, y_values, z_values, forward.head_radius, headmodel=forward.headmodel)
     if candidates.size == 0:
-        raise ValueError("grid does not contain any points inside the spherical head")
+        message = (
+            "grid does not contain any points inside the brain compartment"
+            if forward.headmodel is not None
+            else "grid does not contain any points inside the spherical head"
+        )
+        raise ValueError(message)
     out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
-    fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
-    for component_index in forward.components:
-        fit = fit_component_grid(forward, component_index, candidates, fields)
-        models[component_index - 1].update(fit)
+    if _is_bem(forward.headmodel):
+        shared_leadfield = ft_compute_leadfield(candidates, forward.sens, forward.headmodel)
+        for component_index in forward.components:
+            fit = _fit_bem_component_grid(forward, component_index, candidates, leadfield=shared_leadfield)
+            models[component_index - 1].update(fit)
+    else:
+        fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
+        for component_index in forward.components:
+            fit = fit_component_grid(forward, component_index, candidates, fields)
+            models[component_index - 1].update(fit)
     if reject is not None:
         models = dipfit_reject(models, reject)
     out["dipfit"]["model"] = models
@@ -101,9 +126,13 @@ def dipfit_nonlinear(
     component: int,
     nonlinear: str | bool = "yes",
     symmetry: str | None = None,
-    maxiter: int = 3000,
+    maxiter: int | None = None,
 ) -> dict[str, Any]:
-    """Refine one component's dipole position and moment."""
+    """Refine one component's dipole position and moment.
+
+    ``maxiter`` limits the optimizer. When it is omitted, a boundary-element
+    model uses 1000 iterations and a spherical model uses 3000.
+    """
     forward = prepare_forward_data(EEG, [component])
     out = copy_eeg(EEG)
     models = ensure_model_list(out, component_count(out))
@@ -113,6 +142,8 @@ def dipfit_nonlinear(
     positions = positions[selected]
     optimize_position = _is_nonlinear_enabled(nonlinear)
     if optimize_position:
+        if maxiter is None:
+            maxiter = _BEM_DEFAULT_MAXITER if _is_bem(forward.headmodel) else 3000
         positions = _optimize_positions(forward, component, positions, symmetry=symmetry, maxiter=maxiter)
     fit = fit_component_at_positions(forward, component, positions)
     fit["select"] = [index + 1 for index in selected]
@@ -175,21 +206,35 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
         raise ValueError("No channel locations with coordinates remain for DIPFIT")
     map_rows, chansel = _map_rows_for_channels(EEG, maps, chansel, len(chanlocs))
     positions = _channel_positions([chanlocs[index - 1] for index in chansel])
-    headmodel = resolve_spherical_headmodel(dipfit)
-    if headmodel is not None:
-        head_radius = float(np.max(np.asarray(headmodel["r"], dtype=float)))
-        positions = _scale_subcentimeter_positions(positions, head_radius)
-        if dipfit.get("coord_transform"):
-            positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
-        _prepared, sensors = ft_prepare_vol_sens(headmodel, {"elecpos": positions})
-        positions = np.asarray(sensors["elecpos"], dtype=float)
-    else:
-        head_radius = _head_radius(dipfit, positions)
-        positions = _scale_or_project_to_head(positions, head_radius)
-        if dipfit.get("coord_transform"):
-            positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
-    selected_maps = maps[map_rows, :][:, [component - 1 for component in selected_components]]
     labels = [str(chanlocs[index - 1].get("labels") or index) for index in chansel]
+    sens = None
+    if _uses_bem(dipfit):
+        head_radius = _head_radius(dipfit, positions)
+        if dipfit.get("coord_transform"):
+            positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
+        else:
+            logger.warning(
+                "DIPFIT MNI boundary-element fit has an empty coord_transform; "
+                "electrode coordinates are not rotated into the head model"
+            )
+        sens = {"elecpos": positions, "label": labels, "unit": "mm"}
+        headmodel, sens = ft_prepare_vol_sens(_load_bem_volume(dipfit), sens)
+        positions = np.asarray(sens["elecpos"], dtype=float)
+    else:
+        headmodel = resolve_spherical_headmodel(dipfit)
+        if headmodel is not None:
+            head_radius = float(np.max(np.asarray(headmodel["r"], dtype=float)))
+            positions = _scale_subcentimeter_positions(positions, head_radius)
+            if dipfit.get("coord_transform"):
+                positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
+            _prepared, sensors = ft_prepare_vol_sens(headmodel, {"elecpos": positions})
+            positions = np.asarray(sensors["elecpos"], dtype=float)
+        else:
+            head_radius = _head_radius(dipfit, positions)
+            positions = _scale_or_project_to_head(positions, head_radius)
+            if dipfit.get("coord_transform"):
+                positions = apply_transform(traditionaldipfit(dipfit["coord_transform"]), positions)
+    selected_maps = maps[map_rows, :][:, [component - 1 for component in selected_components]]
     return DipfitForwardData(
         positions=positions,
         maps=selected_maps,
@@ -199,6 +244,7 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
         head_radius=head_radius,
         coordformat=str(dipfit.get("coordformat", "")),
         headmodel=headmodel,
+        sens=sens,
     )
 
 
@@ -207,8 +253,11 @@ def fit_component_grid(
     component: int,
     candidates: np.ndarray,
     fields: list[np.ndarray] | None = None,
+    leadfield: np.ndarray | None = None,
 ) -> dict[str, Any]:
     """Return the best single-dipole fit for one component over candidates."""
+    if _is_bem(forward.headmodel):
+        return _fit_bem_component_grid(forward, component, candidates, leadfield=leadfield)
     topography = _average_reference(_component_topography(forward, component))
     if fields is None:
         fields = leadfield_matrix(forward.positions, candidates, forward.headmodel)
@@ -251,14 +300,25 @@ def leadfield_matrix(
 ) -> list[np.ndarray]:
     """Return one average-referenced 3-column leadfield per source point.
 
-    A spherical ``headmodel`` uses ``ft_compute_leadfield``. Without one, the
-    columns are the infinite-medium kernel kept for MNI and BEM settings.
+    A head model uses ``ft_compute_leadfield``. Without one, the columns are
+    the infinite-medium kernel.
     """
     source_points, _ = _as_positions(sources)
     if headmodel is None:
         return [_average_reference(_unit_moment_leadfield(electrodes, point)) for point in source_points]
     stacked = ft_compute_leadfield(source_points, {"elecpos": np.asarray(electrodes, dtype=float)}, headmodel)
     return [stacked[:, 3 * index : 3 * index + 3] for index in range(source_points.shape[0])]
+
+
+def loreta_key_source_points() -> np.ndarray:
+    """Return EEGPrep's in-head grid for the LORETA-KEY leadfield choice.
+
+    Spacing is 20 mm from -80 mm to 80 mm, and points stay inside a 75 mm
+    radius. FieldTrip's LORETA-KEY atlas file is not bundled.
+    """
+    coords = np.arange(-80.0, 80.0 + 20.0, 20.0)
+    grid = np.stack(np.meshgrid(coords, coords, coords, indexing="ij"), axis=-1).reshape(-1, 3)
+    return grid[np.linalg.norm(grid, axis=1) <= 75.0]
 
 
 def source_model_from_points(EEG: dict[str, Any], points: Any, *, labels: list[str] | None = None) -> dict[str, Any]:
@@ -278,6 +338,17 @@ def source_model_from_points(EEG: dict[str, Any], points: Any, *, labels: list[s
         "unit": "mm",
         "coordformat": forward.coordformat,
     }
+
+
+def default_search_grids(EEG: dict[str, Any]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return the grid ``pop_dipfit_gridsearch`` records when the caller omits one."""
+    dipfit = EEG.get("dipfit") if isinstance(EEG.get("dipfit"), dict) else {}
+    if _uses_bem(dipfit or {}):
+        return _BEM_XGRID.copy(), _BEM_YGRID.copy(), _BEM_ZGRID.copy()
+    headmodel = resolve_spherical_headmodel(dipfit or {})
+    if headmodel is not None:
+        return default_scan_axes(float(np.max(np.asarray(headmodel["r"], dtype=float))))
+    return default_scan_axes(DEFAULT_HEAD_RADIUS_MM)
 
 
 def default_scan_axes(head_radius: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -355,7 +426,11 @@ def _fit_positions_to_topography(
     headmodel: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     source_positions, _ = _as_positions(positions)
-    leadfield = np.column_stack(leadfield_matrix(electrodes, source_positions, headmodel))
+    bem = _is_bem(headmodel)
+    if bem:
+        leadfield = ft_compute_leadfield(source_positions, {"elecpos": np.asarray(electrodes, dtype=float)}, headmodel)
+    else:
+        leadfield = np.column_stack(leadfield_matrix(electrodes, source_positions, headmodel))
     data = _average_reference(np.asarray(topography, dtype=float).ravel())
     if not np.any(np.isfinite(data)) or np.linalg.norm(data) == 0:
         return {
@@ -366,10 +441,14 @@ def _fit_positions_to_topography(
             "sourcepot": np.zeros_like(data).tolist(),
             "datapot": data.tolist(),
         }
-    moment, *_ = np.linalg.lstsq(leadfield, data, rcond=None)
+    if bem:
+        moment = np.linalg.pinv(leadfield) @ data
+        difference = data - (leadfield @ moment)
+    else:
+        moment, *_ = np.linalg.lstsq(leadfield, data, rcond=None)
+        # dipfit_nonlinear stores Vmodel - Vdata.
+        difference = (leadfield @ moment) - data
     model = leadfield @ moment
-    # dipfit_nonlinear stores Vmodel - Vdata.
-    difference = model - data
     denominator = float(np.sum(data**2))
     rv = float(np.sum(difference**2) / denominator) if denominator > 0 else 1.0
     moments = moment.reshape(source_positions.shape[0], 3)
@@ -419,21 +498,30 @@ def _optimize_positions(
         return rv
 
     start = np.asarray(initial_params, dtype=float).ravel()
-    result = minimize(
-        objective,
-        start,
-        method="Nelder-Mead",
-        options={
-            "maxiter": int(maxiter),
-            "maxfev": 2 * int(maxiter) * int(start.size),
-            "xatol": 1e-4,
-            "fatol": 1e-4,
-            "initial_simplex": _fminsearch_simplex(start),
-            "adaptive": False,
-            "disp": False,
-        },
-    )
-    fitted = result.x if np.isfinite(result.x).all() else start
+    if _is_bem(forward.headmodel):
+        result = minimize(
+            objective,
+            start,
+            method="BFGS",
+            options={"maxiter": int(maxiter), "gtol": 1e-9, "eps": 1e-3, "disp": False},
+        )
+        fitted = result.x if result.success or np.isfinite(result.fun) else start
+    else:
+        result = minimize(
+            objective,
+            start,
+            method="Nelder-Mead",
+            options={
+                "maxiter": int(maxiter),
+                "maxfev": 2 * int(maxiter) * int(start.size),
+                "xatol": 1e-4,
+                "fatol": 1e-4,
+                "initial_simplex": _fminsearch_simplex(start),
+                "adaptive": False,
+                "disp": False,
+            },
+        )
+        fitted = result.x if np.isfinite(result.x).all() else start
     return unpack(fitted)
 
 
@@ -531,6 +619,77 @@ def _head_radius(dipfit: dict[str, Any], positions: np.ndarray) -> float:
     if finite.size and np.median(finite) > 20:
         return float(np.median(finite))
     return DEFAULT_HEAD_RADIUS_MM
+
+
+def _is_bem(headmodel: dict[str, Any] | None) -> bool:
+    if not isinstance(headmodel, dict):
+        return False
+    try:
+        kind = ft_headmodeltype(headmodel).lower()
+    except ValueError:
+        return False
+    return kind in BEM_TYPES
+
+
+def _uses_bem(dipfit: dict[str, Any]) -> bool:
+    volume = dipfit.get("vol")
+    if isinstance(volume, dict) and "bnd" in volume and "mat" in volume:
+        kind = str(volume.get("type", "")).lower()
+        if kind in BEM_TYPES:
+            return True
+        label = kind or "missing"
+        raise ValueError(f"In-memory DIPFIT volume type {label!r} is not a dipoli, bemcp, or OpenMEEG head model")
+    hdmfile = str(dipfit.get("hdmfile") or "")
+    if not hdmfile:
+        return False
+    name = hdmfile.replace("\\", "/").lower().rsplit("/", 1)[-1]
+    if name == _BESA_TEMPLATE_NAME:
+        return False
+    return True
+
+
+def _load_bem_volume(dipfit: dict[str, Any]) -> dict[str, Any]:
+    volume = dipfit.get("vol")
+    if isinstance(volume, dict) and "bnd" in volume and "mat" in volume:
+        return volume
+    return load_bem_headmodel(str(dipfit.get("hdmfile") or ""))
+
+
+def _fit_bem_component_grid(
+    forward: DipfitForwardData,
+    component: int,
+    candidates: np.ndarray,
+    *,
+    leadfield: np.ndarray | None = None,
+) -> dict[str, Any]:
+    data = _average_reference(_component_topography(forward, component).ravel())
+    if not np.any(np.isfinite(data)) or float(np.sum(data**2)) == 0.0:
+        return empty_model(component)
+    if leadfield is None:
+        leadfield = ft_compute_leadfield(candidates, forward.sens, forward.headmodel)
+    n_candidates = candidates.shape[0]
+    blocks = np.moveaxis(leadfield.reshape(leadfield.shape[0], n_candidates, 3), 0, 1)
+    moments = np.linalg.pinv(blocks) @ data
+    models = np.einsum("nij,nj->ni", blocks, moments)
+    denominator = float(np.sum(data**2))
+    residual_variance = np.sum((data - models) ** 2, axis=1) / denominator
+    residual_variance = np.where(np.isfinite(residual_variance), residual_variance, np.inf)
+    best_index = int(np.argmin(residual_variance))
+    best_rv = float(residual_variance[best_index])
+    best_moment = moments[best_index]
+    best_model = models[best_index]
+    residual = data - best_model
+    return {
+        "posxyz": [candidates[best_index].tolist()],
+        "momxyz": [best_moment.reshape(3).tolist()],
+        "rv": min(max(float(best_rv), 0.0), 1.0),
+        "diffmap": residual.tolist(),
+        "sourcepot": best_model.tolist(),
+        "datapot": data.tolist(),
+        "component": component,
+        "select": [1],
+        "active": [1],
+    }
 
 
 def resolve_spherical_headmodel(dipfit: dict[str, Any]) -> dict[str, Any] | None:
@@ -654,6 +813,7 @@ __all__ = [
     "fit_component_grid",
     "leadfield_matrix",
     "default_scan_axes",
+    "default_search_grids",
     "parse_grid_values",
     "resolve_spherical_headmodel",
     "prepare_forward_data",

@@ -11,7 +11,6 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import scipy.io
-from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -886,6 +885,122 @@ def test_zero_trial_epoch_disagreement_stays_on_pop_epoch(mutate, error_class, d
     assert detail in outcome.detail
 
 
+def _scalar_valuelim_eeg():
+    eeg = create_test_eeg(n_channels=29, n_samples=200, srate=64.0)
+    eeg["data"] = np.full((29, 200), 10.0)
+    eeg["event"] = [
+        {"type": "rt", "latency": 80.0},
+        {"type": "rt", "latency": 140.0},
+    ]
+    return eeg
+
+
+def _scalar_valuelim_case(valuelim, *, pipeline=False):
+    params = freeze_params({"types": ["rt"], "lim": [-0.5, -0.1], "valuelim": valuelim})
+    spec = EEGSpec(tuple(range(29)), 0, 200, 1, -1, 0, 0, srate_hz=64.0)
+    if not pipeline:
+        return FuzzCase("pop_epoch", spec, params)
+    return FuzzCase(
+        "pipeline",
+        spec,
+        freeze_params({}),
+        pipeline=(
+            ("pop_epoch", params),
+            ("pop_select", freeze_params({"trial": [1], "sorttrial": "on"})),
+        ),
+    )
+
+
+def _reject_every_epoch(_case, dataset):
+    output = dispatch_python(_case, dataset)
+    eeg = copy.deepcopy(output[0] if isinstance(output, tuple) else output)
+    data = np.asarray(eeg["data"])
+    eeg["data"] = np.zeros((data.shape[0], data.shape[1], 0), dtype=np.float64)
+    eeg["pnts"] = data.shape[1]
+    eeg["trials"] = 0
+    return eeg
+
+
+def test_scalar_valuelim_empty_oracle_is_not_filed():
+    case = _scalar_valuelim_case([50.0])
+    outcome = evaluate_case(
+        case,
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _CallBackend(_reject_every_epoch),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+    assert "symmetric bound" in outcome.detail
+
+    shifted = _scalar_valuelim_case([50.0])
+
+    def different_window(_case, dataset):
+        eeg = _reject_every_epoch(_case, dataset)
+        eeg["data"] = np.zeros((eeg["data"].shape[0], eeg["pnts"] + 1, 0), dtype=np.float64)
+        eeg["pnts"] += 1
+        return eeg
+
+    filed = evaluate_case(
+        shifted,
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _CallBackend(different_window),
+        load_tolerances(),
+    )
+    assert filed.diverged is True
+    assert filed.error_class == "shape"
+
+    interval = evaluate_case(
+        _scalar_valuelim_case([-50.0, 50.0]),
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _CallBackend(_reject_every_epoch),
+        load_tolerances(),
+    )
+    assert interval.diverged is True
+    assert interval.error_class == "shape"
+
+    def outside_bound(_case, dataset):
+        output = dispatch_python(_case, dataset)
+        eeg = copy.deepcopy(output[0] if isinstance(output, tuple) else output)
+        eeg["data"] = np.full(np.asarray(eeg["data"]).shape, 60.0)
+        return eeg
+
+    outlier = evaluate_case(
+        _scalar_valuelim_case([50.0]),
+        lambda _case: _scalar_valuelim_eeg(),
+        _CallBackend(outside_bound),
+        _CallBackend(_reject_every_epoch),
+        load_tolerances(),
+    )
+    assert outlier.diverged is True
+    assert outlier.error_class == "shape"
+
+
+def test_pipeline_scalar_valuelim_continues_from_python():
+    seen = []
+
+    class _Oracle:
+        def run_raw(self, step, dataset):
+            if step.function != "pop_epoch":
+                seen.append((int(dataset["trials"]), np.asarray(dataset["data"]).shape))
+                return dispatch_python(step, dataset)
+            return _reject_every_epoch(step, dataset)
+
+    outcome = evaluate_case(
+        _scalar_valuelim_case([50.0], pipeline=True),
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _Oracle(),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert seen[0][0] == 2
+    assert seen[0][1][:2] == (29, 26)
+
+
 def test_duplicate_trial_order_is_not_filed():
     eeg = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=5)
     data = np.zeros((1, 4, 5))
@@ -1388,7 +1503,6 @@ def test_same_seed_draws_the_same_cases():
 
 
 def test_shrink_reduces_channel_count_to_the_failure_boundary(tmp_path):
-    strategy = st.integers(1, 8).map(lambda n: _reref_case(n))
     result = run_session(
         seed_value=7,
         output_dir=tmp_path,
@@ -1397,7 +1511,7 @@ def test_shrink_reduces_channel_count_to_the_failure_boundary(tmp_path):
         max_shrinks=2,
         python_backend=_Backend(_identity),
         oracle_backend=_Backend(_diverge_over_two_channels),
-        strategies={"pop_reref": strategy},
+        strategies={"pop_reref": lambda draw: _reref_case(draw.integers(1, 8))},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
     )
@@ -1423,7 +1537,7 @@ def test_sanity_failure_does_not_file_divergence_issues(tmp_path):
         examples=3,
         python_backend=_Backend(_identity),
         oracle_backend=_Backend(explode),
-        strategies={"pop_reref": st.just(_reref_case(2))},
+        strategies={"pop_reref": lambda draw: _reref_case(2)},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
         tracker=tracker,
@@ -1525,6 +1639,71 @@ def test_github_tracker_sends_signature_and_labels():
     assert "fuzz-unconfirmed" in create
 
 
+def test_matlab_refloc_sent_to_the_batch_session_has_chanloc_fields():
+    case = FuzzCase(
+        "pop_reref",
+        EEGSpec(tuple(range(32)), 0, 32, 1, -1, 0, 0),
+        freeze_params({"ref": (), "keepref": "off", "exclude": (6, 9), "refloc": "oldref"}),
+    )
+    eeg = materialize_eeg(case)
+    captured = {}
+
+    class _Engine:
+        def pop_reref(self, *args):
+            captured["args"] = args
+            return eeg
+
+    dispatch_matlab(_Engine(), case, eeg)
+    args = captured["args"]
+    refloc = next(args[index + 1] for index, value in enumerate(args) if isinstance(value, str) and value == "refloc")
+    template = eeg["chanlocs"][0]
+    template = template.item() if isinstance(template, np.ndarray) and template.shape == () else template
+    assert set(template) <= set(refloc)
+    assert np.isfinite(float(refloc["sph_theta"]))
+    assert refloc["labels"] == "oldref"
+    assert refloc["type"] == "REF"
+
+
+def test_reproduce_matched_error_exits_zero_and_a_divergence_exits_one(tmp_path):
+    from tests.fuzz.__main__ import main
+
+    shared = {
+        "function": "pop_eegfiltnew",
+        "params": {
+            "filtorder": 101,
+            "hicutoff": None,
+            "locutoff": 1.0,
+            "minphase": False,
+            "revfilt": False,
+            "usefftfilt": False,
+        },
+        "spec": {
+            "channels": [0, 1],
+            "decimate": 1,
+            "length": 64,
+            "nan_channel": -1,
+            "nan_length": 0,
+            "nan_start": 0,
+            "start": 0,
+        },
+    }
+    repro = tmp_path / "odd-order.json"
+    repro.write_text(json.dumps(shared))
+    assert main(["reproduce", str(repro), "--oracle", "fake", "--fake-mode", "match"]) == 0
+
+    numeric = tmp_path / "average.json"
+    numeric.write_text(
+        json.dumps(
+            {
+                "function": "pop_reref",
+                "params": {"exclude": [], "keepref": "off", "ref": []},
+                "spec": shared["spec"],
+            }
+        )
+    )
+    assert main(["reproduce", str(numeric), "--oracle", "fake", "--fake-mode", "survey-diverge"]) == 1
+
+
 def test_reproduce_reruns_and_rejects_a_changed_input_hash(tmp_path):
     python = _Backend(_identity)
     oracle = _Backend(_diverge_over_two_channels)
@@ -1535,7 +1714,7 @@ def test_reproduce_reruns_and_rejects_a_changed_input_hash(tmp_path):
         shrink_budget=2,
         python_backend=python,
         oracle_backend=oracle,
-        strategies={"pop_reref": st.just(_reref_case(4))},
+        strategies={"pop_reref": lambda draw: _reref_case(4)},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
     )
@@ -1956,7 +2135,6 @@ def test_signature_is_stable_for_one_defect_and_distinct_for_two():
 
 
 def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
-    strategy = st.sampled_from([_reref_case(3), _reref_case(6)])
     result = run_session(
         seed_value=11,
         output_dir=tmp_path,
@@ -1965,7 +2143,7 @@ def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
         max_shrinks=4,
         python_backend=_Backend(_identity),
         oracle_backend=_Backend(_diverge_over_two_channels),
-        strategies={"pop_reref": strategy},
+        strategies={"pop_reref": lambda draw: draw.choice((_reref_case(3), _reref_case(6)))},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
     )

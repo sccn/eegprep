@@ -5,17 +5,20 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._utils import (
     STANDARD_TEMPLATES,
     apply_template,
+    channel_template_filename,
     coordinate_channel_indices,
     copy_eeg,
     dipfit_history,
+    lookupchantemplate,
     one_based_indices,
     template_by_name,
+    template_form_state,
 )
 
 
@@ -30,8 +33,9 @@ def pop_dipfit_settings(
     """Configure DIPFIT settings without requiring an EEGLAB runtime.
 
     EEGPrep stores the same key DIPFIT fields that EEGLAB records on
-    ``EEG.dipfit``. The standard spherical fitting path is standalone; BEM
-    head-model assets and MRI co-registration remain explicit backend limits.
+    ``EEG.dipfit``. ``standardBEM`` loads the packaged MNI boundary-element
+    model at fit time. Creating a new BEM system matrix from an MRI remains
+    unavailable.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -63,8 +67,16 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     chanfile = str(dipfit.get("chanfile") or template.chanfile)
     coordformat = str(dipfit.get("coordformat") or template.coordformat or "MNI")
     coord_index = {"spherical": 1, "mni": 2}.get(coordformat.lower(), 4)
-    coord_transform = dipfit.get("coord_transform", template.coord_transform)
+    stored_transform = dipfit.get("coord_transform")
+    found, looked_up = lookupchantemplate(channel_template_filename(EEG), template)
+    if stored_transform:
+        coord_transform = stored_transform
+    elif found:
+        coord_transform = looked_up
+    else:
+        coord_transform = template.coord_transform
     coreg_text = " ".join(f"{float(value):g}" for value in coord_transform) if coord_transform else ""
+    browse_enabled = selected_model == len(STANDARD_TEMPLATES)
     return DialogSpec(
         title="Dipole fit settings - pop_dipfit_settings()",
         function_name="pop_dipfit_settings",
@@ -88,6 +100,13 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
                 "|".join(template.name for template in STANDARD_TEMPLATES),
                 tag="model",
                 value=selected_model,
+                callback=CallbackSpec(
+                    "dipfit_template",
+                    params={
+                        "source": "model",
+                        "templates": [template_form_state(item) for item in STANDARD_TEMPLATES],
+                    },
+                ),
             ),
             ControlSpec("spacer"),
             ControlSpec("text", "Output coordinates"),
@@ -102,17 +121,17 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("text", "Head model file"),
             ControlSpec("edit", tag="hdmfile", value=hdmfile),
-            ControlSpec("pushbutton", "Browse", tag="hdmfile_browse", enabled=False),
+            ControlSpec("pushbutton", "Browse", tag="hdmfile_browse", enabled=browse_enabled),
             ControlSpec("pushbutton", "Help", tag="hdmfile_help"),
             ControlSpec("spacer"),
             ControlSpec("text", "Associated MRI file for plotting"),
             ControlSpec("edit", tag="mrifile", value=mrifile),
-            ControlSpec("pushbutton", "Browse", tag="mrifile_browse", enabled=False),
+            ControlSpec("pushbutton", "Browse", tag="mrifile_browse", enabled=browse_enabled),
             ControlSpec("pushbutton", "Help", tag="mrifile_help"),
             ControlSpec("spacer"),
             ControlSpec("text", "Associated coord. landmarks if any"),
             ControlSpec("edit", tag="chanfile", value=chanfile),
-            ControlSpec("pushbutton", "Browse", tag="chanfile_browse", enabled=False),
+            ControlSpec("pushbutton", "Browse", tag="chanfile_browse", enabled=browse_enabled),
             ControlSpec("pushbutton", "Help", tag="chanfile_help"),
             ControlSpec("spacer"),
             ControlSpec("text", "Matrix to align chan. locs. with head model"),
@@ -125,8 +144,8 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "EEGPrep records DIPFIT settings. standardBESA fits use the four-shell BESA leadfield.",
-            "Browse/Coregister buttons are disabled until standalone MRI/BEM asset loading is implemented.",
+            "EEGPrep keeps the MNI boundary-element model selected when a channel file name contains standard-10-5-cap385, and fills that file's cap385-to-MNI transform. standardBESA fits use the four-shell BESA leadfield.",
+            "Changing the head-model menu fills the file fields for the selected template. Browse is enabled for a custom head model. Co-register stays disabled. Head-model creation from an MRI is not implemented.",
         ),
         row_spacing=10,
     )
@@ -136,18 +155,25 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None = None) -> dict[str, Any]
     result = inputgui(pop_dipfit_settings_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
-    template = STANDARD_TEMPLATES[int(result.get("model", 2)) - 1]
+    model_index = int(result.get("model", 2) or 2)
+    template = STANDARD_TEMPLATES[model_index - 1]
+    state = template_form_state(template)
     coord_formats = ("Spherical", "MNI", "Neuromag", "")
-    coord_index = int(result.get("coordformat", 2)) - 1
+    try:
+        coord_index = int(result.get("coordformat", state["coordformat"]) or state["coordformat"]) - 1
+    except (TypeError, ValueError):
+        coord_index = int(state["coordformat"]) - 1
     options: dict[str, Any] = {
         "model": template.shortname,
-        "hdmfile": result.get("hdmfile", ""),
-        "mrifile": result.get("mrifile", ""),
-        "chanfile": result.get("chanfile", ""),
-        "coordformat": coord_formats[coord_index] if coord_index < len(coord_formats) else "",
+        "hdmfile": str(result.get("hdmfile") or "").strip() or state["hdmfile"],
+        "mrifile": str(result.get("mrifile") or "").strip() or state["mrifile"],
+        "chanfile": str(result.get("chanfile") or "").strip() or state["chanfile"],
+        "coordformat": coord_formats[coord_index] if 0 <= coord_index < len(coord_formats) else "",
     }
-    if not result.get("no_coreg", False):
-        options["coord_transform"] = result.get("coord_transform", "")
+    if not result.get("no_coreg", state["no_coreg"]):
+        transform = str(result.get("coord_transform") or "").strip() or state["coord_transform"]
+        if transform:
+            options["coord_transform"] = transform
     if str(result.get("chanomit", "")).strip():
         options["chanomit"] = result["chanomit"]
     return options
@@ -158,15 +184,17 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
     existing = out.get("dipfit")
     dipfit = dict(existing) if isinstance(existing, dict) else {}
     if "model" in options and str(options["model"]).strip():
-        apply_template(dipfit, template_by_name(options["model"]))
+        template = template_by_name(options["model"])
+        apply_template(dipfit, template)
+        found, transform = lookupchantemplate(channel_template_filename(out), template)
+        if found:
+            dipfit["coord_transform"] = transform
     for key in ("hdmfile", "mrifile", "chanfile", "coordformat"):
         value = options.get(key)
         if value not in (None, ""):
             dipfit[key] = value
     if "coord_transform" in options:
-        transform = _numeric_list(options["coord_transform"])
-        if transform:
-            dipfit["coord_transform"] = transform
+        dipfit["coord_transform"] = _numeric_list(options["coord_transform"])
     usable = coordinate_channel_indices(out)
     nbchan = int(out.get("nbchan", len(usable)) or len(usable))
     if "chanomit" in options and str(options.get("chanomit", "")).strip():
@@ -198,10 +226,16 @@ def _index_list(value: Any) -> list[int]:
 
 
 def _template_index(dipfit: dict[str, Any]) -> int:
-    hdmfile = str(dipfit.get("hdmfile") or "").lower()
+    hdmfile = str(dipfit.get("hdmfile") or "").replace("\\", "/").lower()
+    model = str(dipfit.get("model") or "").strip().lower()
     for index, template in enumerate(STANDARD_TEMPLATES, start=1):
-        if template.hdmfile.lower() == hdmfile or template.shortname.lower() == str(dipfit.get("model", "")).lower():
+        if template.shortname and model == template.shortname.lower():
             return index
+        template_file = template.hdmfile.replace("\\", "/").lower()
+        if template_file and hdmfile.endswith(template_file):
+            return index
+    if hdmfile:
+        return len(STANDARD_TEMPLATES)
     return 2
 
 

@@ -18,7 +18,7 @@ from eegprep.functions.popfunc.eeg_amica import eeg_amica
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_pamica import eeg_pamica
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
-from eegprep.functions.popfunc.eeg_runica import eeg_runica
+from eegprep.functions.popfunc.eeg_runica import _pca_option_key, apply_runica_data_rank, eeg_runica
 
 
 _ALGORITHMS = (
@@ -43,7 +43,12 @@ def pop_runica(
     return_com: bool = False,
     **kwargs,
 ):
-    """Run ICA decomposition with EEGLAB ``pop_runica`` calling semantics."""
+    """Run ICA decomposition with EEGLAB ``pop_runica`` calling semantics.
+
+    When ``icatype`` is ``runica`` and ``pca`` is omitted, a data rank below
+    the selected channel count is passed as ``pca`` and recorded in the history
+    command. An explicit ``pca`` value is left unchanged.
+    """
     selectamica = _selectamica_mode(args)
     parsed = _parse_runica_args(args, kwargs)
     has_programmatic_options = bool(parsed)
@@ -74,7 +79,7 @@ def pop_runica(
 
     ica_options = _normalise_ica_options(icatype, options, parsed)
     if isinstance(EEG, list):
-        output = _runica_on_datasets(
+        output, history_options = _runica_on_datasets(
             EEG,
             dataset=dataset,
             icatype=icatype,
@@ -86,7 +91,7 @@ def pop_runica(
         )
         command = _history_command(
             icatype,
-            ica_options,
+            history_options,
             reorder,
             chanind,
             dataset=dataset,
@@ -95,7 +100,7 @@ def pop_runica(
         )
         return (output, command) if return_com else output
 
-    output = _runica_on_dataset(EEG, icatype, ica_options, reorder=reorder, chanind=chanind)
+    output, ica_options = _runica_on_dataset(EEG, icatype, ica_options, reorder=reorder, chanind=chanind)
     command = _history_command(icatype, ica_options, reorder, chanind)
     return (output, command) if return_com else output
 
@@ -217,7 +222,8 @@ def _runica_on_dataset(EEG, icatype, options, *, reorder, chanind):
     prepared = _prepare_ica_dataset(EEG)
     chanind = _resolve_chanind(prepared, chanind)
     if chanind is None:
-        return _finalize_ica_dataset(_run_ica_backend(prepared, icatype, options, reorder=reorder), prepared)
+        options = _options_for_ica_backend(prepared, icatype, options)
+        return _finalize_ica_dataset(_run_ica_backend(prepared, icatype, options, reorder=reorder), prepared), options
 
     subset = copy.deepcopy(prepared)
     subset["data"] = np.asarray(subset["data"])[chanind, ...]
@@ -225,6 +231,7 @@ def _runica_on_dataset(EEG, icatype, options, *, reorder, chanind):
     chanlocs = _as_list(subset.get("chanlocs", []))
     if chanlocs:
         subset["chanlocs"] = [chanlocs[index] for index in chanind]
+    options = _options_for_ica_backend(subset, icatype, options)
     subset = _run_ica_backend(subset, icatype, options, reorder=reorder)
     output = copy.deepcopy(prepared)
     output["icasphere"] = subset["icasphere"]
@@ -232,7 +239,13 @@ def _runica_on_dataset(EEG, icatype, options, *, reorder, chanind):
     output["icawinv"] = subset["icawinv"]
     output["icaact"] = subset["icaact"]
     output["icachansind"] = np.asarray(chanind)
-    return _finalize_ica_dataset(output, prepared)
+    return _finalize_ica_dataset(output, prepared), options
+
+
+def _options_for_ica_backend(EEG, icatype, options):
+    if icatype != "runica":
+        return options
+    return apply_runica_data_rank(EEG["data"], options, pca_requested=_pca_option_key(options) is not None)
 
 
 def _runica_on_datasets(EEG, *, dataset, icatype, options, reorder, chanind, concatenate, concatcond):
@@ -240,20 +253,24 @@ def _runica_on_datasets(EEG, *, dataset, icatype, options, reorder, chanind, con
     indices = _dataset_indices(output, dataset)
     selected = [output[index] for index in indices]
     logger.info("NOW RUNNING ALL DECOMPOSITIONS")
+    history_options = options
     if is_on(concatcond):
         logger.info("Concatenating datasets by subject and session.")
         updated = _runica_by_subject_session(selected, icatype, options, reorder=reorder, chanind=chanind)
     elif is_on(concatenate):
         logger.info("Concatenating datasets...")
-        updated = _runica_concatenated(selected, icatype, options, reorder=reorder, chanind=chanind)
+        updated, history_options = _runica_concatenated(selected, icatype, options, reorder=reorder, chanind=chanind)
     else:
         updated = []
         for offset, item in enumerate(selected, start=1):
             logger.info("Processing group dataset %s of %s.", offset, len(selected))
-            updated.append(_runica_on_dataset(item, icatype, options, reorder=reorder, chanind=chanind))
+            item_output, _item_options = _runica_on_dataset(
+                item, icatype, dict(options), reorder=reorder, chanind=chanind
+            )
+            updated.append(item_output)
     for index, item in zip(indices, updated):
         output[index] = item
-    return output
+    return output, history_options
 
 
 def _runica_concatenated(datasets, icatype, options, *, reorder, chanind):
@@ -268,8 +285,8 @@ def _runica_concatenated(datasets, icatype, options, *, reorder, chanind):
     merged["trials"] = 1
     merged["event"] = []
     merged["urevent"] = []
-    merged = _runica_on_dataset(merged, icatype, options, reorder=reorder, chanind=chanind)
-    return [_copy_ica_fields(item, merged) for item in datasets]
+    merged, used_options = _runica_on_dataset(merged, icatype, dict(options), reorder=reorder, chanind=chanind)
+    return [_copy_ica_fields(item, merged) for item in datasets], used_options
 
 
 def _runica_by_subject_session(datasets, icatype, options, *, reorder, chanind):
@@ -279,7 +296,7 @@ def _runica_by_subject_session(datasets, icatype, options, *, reorder, chanind):
     output = list(datasets)
     for indices in groups.values():
         logger.info("Found %s dataset(s) for one subject/session group.", len(indices))
-        updated = _runica_concatenated(
+        updated, _used_options = _runica_concatenated(
             [datasets[index] for index in indices], icatype, options, reorder=reorder, chanind=chanind
         )
         for index, item in zip(indices, updated):
