@@ -17,6 +17,7 @@ from eegprep.functions.studyfunc.pop_importgroupvar import pop_importgroupvar
 from eegprep.functions.studyfunc.pop_listfactors import pop_listfactors
 from eegprep.functions.studyfunc.std_addvarlevel import std_addvarlevel
 from eegprep.functions.studyfunc.std_builddesignmat import std_builddesignmat
+from eegprep.functions.studyfunc.std_checkfiles import std_checkfiles
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.functions.studyfunc.std_editset import std_editset
 from eegprep.functions.studyfunc.std_findgroupvars import std_findgroupvars
@@ -260,6 +261,10 @@ def test_pop_loadstudy_keeps_ragged_measure_cells(tmp_path):
     assert alleeg == []
     saved = study["changrp"][0]["erpdata"]
     assert [int(np.asarray(row).size) for row in saved] == [2, 5]
+    _ok, report = std_checkfiles(study, alleeg, return_report=True)
+    erp_shapes = [entry["shape"] for entry in report["measure_cache"]["checked"] if entry["field"] == "erpdata"]
+    assert erp_shapes == [[2], [5]]
+    assert report["measure_cache"]["problems"] == []
 
 
 def test_pop_loadstudy_rebases_a_moved_study_onto_its_new_directory(tmp_path):

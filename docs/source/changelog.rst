@@ -14,9 +14,11 @@ Unreleased
   EEGPrep JSON. MATLAB ``char`` arrays are decoded as Latin-1. Dataset
   paths stored under the previous study directory are rebased onto the
   directory that contains the file, and ``option_storedisk`` selects a
-  header-only or full data load. Measure arrays saved in the STUDY stay
-  in place; EEGLAB clears those in-memory copies because it reloads them
-  from separate files. ``eeg_getversion`` reports the installed
+  header-only or full data load. The load calls ``std_checkfiles``, as
+  EEGLAB's ``pop_loadstudy.m`` does. A ``changrp.erpdata`` cell whose cells
+  have different lengths stays a cell. Measure arrays saved in the STUDY
+  stay in place; EEGLAB clears those in-memory copies because it reloads
+  them from separate files. ``eeg_getversion`` reports the installed
   EEGPrep version. A source checkout of EEGLAB reports ``'dev'`` from the
   copy embedded in ``eeg_getversion.m``; the numeric collapse is the same,
   so ``11.3.2.4b`` is ``11.324``.
