@@ -1679,9 +1679,12 @@ def _asr_zero_width_index_is_known(case: FuzzCase, eeg: dict, python: SideResult
 
     Reference selection off uses the whole recording. Automatic selection uses
     the length actually kept. That path also requires the fit stack, so a
-    different index error is not swallowed.
+    different index error is not swallowed. EEGPrep raises ``ASRCalibrationError``
+    for the same grid.
     """
-    if case.function != "clean_asr" or not python.ok or oracle.ok:
+    if case.function != "clean_asr" or python.ok or oracle.ok:
+        return False
+    if python.error_type != "ASRCalibrationError" or "fit width" not in (python.error_message or ""):
         return False
     if "Index in position 1 is invalid" not in (oracle.error_message or ""):
         return False
@@ -1693,14 +1696,22 @@ def _asr_zero_width_index_is_known(case: FuzzCase, eeg: dict, python: SideResult
     return _zero_width_reference(eeg, params)
 
 
+def _burst_stage_skipped(eeg: dict, params: dict) -> np.ndarray:
+    """``pop_clean_rawdata`` with burst repair off and the case's other options."""
+    options = dict(_clean_options(params))
+    options["BurstCriterion"] = "off"
+    cleaned = pop_clean_rawdata(copy.deepcopy(eeg), gui=False, **options)
+    return np.asarray(cleaned["data"], dtype=np.float64)
+
+
 def _pop_clean_rawdata_zero_width_is_known(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
 ) -> bool:
-    """EEGLAB returned the input after its RMS fit indexed a width of 0.
+    """EEGLAB returned before restoring srate and before the final window stage.
 
-    ``pop_clean_rawdata`` catches that error. The reference length is the
-    section automatic selection kept, not the whole recording. EEGPrep
-    calibrates on the positive widths and still removes bursts.
+    The reference length is the section automatic selection kept. EEGPrep skips
+    ASR, keeps the sampling rate, and still runs that stage. A case whose
+    window stage leaves the samples and the rate unchanged is an ordinary match.
     """
     if case.function != "clean_asr" or not python.ok or not oracle.ok:
         return False
@@ -1710,18 +1721,19 @@ def _pop_clean_rawdata_zero_width_is_known(
     if params.get("entry") != "clean_rawdata" or "ref_maxbadchannels" not in params or "cutoff" not in params:
         return False
     original = np.asarray(eeg["data"], dtype=np.float64)
-    oracle_gap, *_rest = compare_data(original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance)
-    if oracle_gap:
+    _gap, oracle_class, *_rest = compare_data(
+        original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance
+    )
+    if oracle_class not in ("match", "srate"):
         return False
     if not _zero_width_reference(eeg, params):
         return False
-    kwargs = {"cutoff": float(params["cutoff"]), "ref_maxbadchannels": params["ref_maxbadchannels"]}
-    if not isinstance(params["ref_maxbadchannels"], str):
-        kwargs["ref_tolerances"] = _effective_reference_tolerances(params)
-        kwargs["ref_wndlen"] = 1.0
-    cleaned = clean_asr(copy.deepcopy(eeg), **kwargs)
-    python_gap, *_rest = compare_data(python.data, cleaned["data"], float(python.srate), float(eeg["srate"]), tolerance)
-    return not python_gap
+    skipped = _burst_stage_skipped(eeg, params)
+    python_gap, *_rest = compare_data(python.data, skipped, float(python.srate), float(eeg["srate"]), tolerance)
+    if python_gap:
+        return False
+    differs, *_rest = compare_data(python.data, oracle.data, float(python.srate), float(oracle.srate), tolerance)
+    return bool(differs)
 
 
 def _channel_axis_reference_is_short(eeg: dict, params: dict, python: SideResult) -> bool:
@@ -1903,7 +1915,7 @@ def _known_wrapper_zero_width(case: FuzzCase, eeg: dict, backend, digest: str) -
     identifier, stack = _caught_evidence(backend)
     detail = "\n".join(
         [
-            "known EEGLAB defect: pop_clean_rawdata returns the input after a zero-width fit (#582)",
+            "known EEGLAB defect: clean_artifacts returns before restoring srate and before clean_windows (#651)",
             f"selected reference length: {length}",
             f"reference tolerances: {rendered}",
             "oracle returned the input unchanged: true",
@@ -1983,7 +1995,7 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     if _asr_zero_width_index_is_known(case, eeg, python, oracle):
         # asr_calibrate.m indexes X(m,:) at m = 0 for two or three RMS windows.
-        # EEGPrep skips the non-positive widths and still calibrates.
+        # EEGPrep raises ASRCalibrationError on that grid.
         return _remember_oracle(
             _outcome(
                 case,
@@ -1998,8 +2010,8 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             oracle,
         )
     if _pop_clean_rawdata_zero_width_is_known(case, eeg, python, oracle, tolerance):
-        # clean_artifacts.m catches that index error, prints it with lasterr,
-        # and returns the recording. EEGPrep skips the non-positive widths.
+        # clean_artifacts.m lines 270-275 return before the sampling-rate restore
+        # and before the final clean_windows stage.
         return _known_wrapper_zero_width(case, eeg, oracle_backend, digest)
     if _low_rate_spectral_filter_is_known(case, eeg, python, oracle, tolerance):
         # Below the rate where the default breakpoints stay monotonic,

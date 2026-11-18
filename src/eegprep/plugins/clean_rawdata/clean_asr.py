@@ -87,16 +87,16 @@ def clean_asr(
     short for the generalized-Gaussian fit still drops high-power windows; the
     window scale is then the median and MAD of each channel's window RMS.
     EEGLAB's fit throws in that situation and calibrates on every sample.
-    A recording that is too short for EEGLAB's calibration-time RMS fit, which
-    indexes a zero window width, is still calibrated here. Fewer than two
-    calibration RMS windows, and a calibration shorter than one window, raise
-    ``ASRCalibrationError``. The calibration is the reference
-    ``clean_windows`` kept. A longer recording is not substituted when that
-    reference has fewer samples than one 0.5 s RMS window. Each names ``asr_calibrate`` or
-    ``asr_calibrate_r``, the sample counts, and whether to record more data
-    or set ``BurstCriterion`` off. EEGLAB raises an error that asks for different
-    ``BurstCriterionRefTolerances`` in both cases. A sampling rate whose
-    default spectral breakpoints are not monotonic raises
+    Two or three calibration RMS windows make a fit width round to zero and
+    raise ``ASRCalibrationError``. Fewer than two calibration RMS windows, and
+    a calibration shorter than one window, raise ``ASRCalibrationError`` too.
+    The calibration is the reference ``clean_windows`` kept. A longer recording
+    is not substituted when that reference has fewer samples than one 0.5 s RMS
+    window. Those errors name ``asr_calibrate`` or ``asr_calibrate_r`` and
+    whether to record more data or set ``BurstCriterion`` off. EEGLAB raises an
+    error that asks for different ``BurstCriterionRefTolerances`` when the
+    reference is shorter than one window or yields fewer than two. A sampling
+    rate whose default spectral breakpoints are not monotonic raises
     ``ASRCalibrationError`` as well.
 
     Args:
@@ -154,7 +154,7 @@ def clean_asr(
     Raises
     ------
     ImportError : If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
-    ASRCalibrationError : The spectral shaping filter cannot be designed, or the calibration cannot form two RMS windows.
+    ASRCalibrationError : The spectral shaping filter cannot be designed, the calibration cannot form two RMS windows, or a fit width rounds to a non-positive value.
     ValueError : If input arguments are invalid, or ``state`` does not fit the EEG or is not an ASR state.
 
     Warns

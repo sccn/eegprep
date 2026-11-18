@@ -397,15 +397,15 @@ def _issue_526_case(*, entry: str = "clean_rawdata", length: int = 89, start: in
 
 
 def test_two_window_clean_rawdata_returning_the_input_is_not_a_divergence():
-    """89 samples at 128 Hz are two RMS windows. EEGLAB returns that input."""
+    """89 samples at 128 Hz are two RMS windows. Both sides leave that input."""
     case = _issue_526_case()
     eeg = materialize_eeg(case)
     original = np.asarray(eeg["data"], dtype=np.float64)
     assert data_sha256(original) == _ISSUE_526_SHA256
-    cleaned = np.asarray(clean_asr(copy.deepcopy(eeg), cutoff=5.0, ref_maxbadchannels="off")["data"])
-    diverged, error_class, *_rest = compare_data(cleaned, original, 128.0, 128.0, load_tolerances()["clean_asr"])
-    assert diverged is True
-    assert error_class == "numeric"
+    with pytest.raises(ASRCalibrationError, match="fit width"):
+        clean_asr(copy.deepcopy(eeg), cutoff=5.0, ref_maxbadchannels="off")
+    popped = np.asarray(dispatch_python(case, eeg)["data"])
+    np.testing.assert_array_equal(popped, original)
 
     def unchanged(_case, dataset):
         return np.array(dataset["data"], dtype=np.float64, copy=True)
@@ -1985,7 +1985,7 @@ def test_auto_reference_zero_width_needs_the_fit_stack():
     assert unmatched.diverged is True
 
 
-def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence(tmp_path):
+def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence():
     case = FuzzCase(
         "clean_asr",
         EEGSpec((0, 1), 0, 124, 1, -1, 0, 0),
@@ -1996,29 +1996,10 @@ def test_wrapper_three_window_reference_returning_the_input_is_not_a_divergence(
     def unchanged(_case, dataset):
         return np.array(dataset["data"], dtype=np.float64, copy=True)
 
-    backend = _Backend(unchanged)
-    observer = _InputObserver(None)
-    observer.last_caught_error = {
-        "identifier": "MATLAB:badsubscript",
-        "message": "Index in position 1 is invalid. Array indices must be positive integers or logical values.",
-        "stack": "  asr_calibrate.m>fit_eeg_distribution (line 395)\n",
-        "printed": "Index in position 1 is invalid. Array indices must be positive integers or logical values.\n",
-    }
-    backend._engine = SimpleNamespace(engine=observer)
-    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), backend, load_tolerances())
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(unchanged), load_tolerances())
     assert outcome.diverged is False
-    assert "#582" in outcome.detail
-    assert outcome.oracle_identifier == "MATLAB:badsubscript"
-    assert "fit_eeg_distribution" in outcome.oracle_stack
-    assert outcome.reference_samples
-    assert "-inf" in outcome.reference_tolerances and "5.5" in outcome.reference_tolerances
-    assert outcome.oracle_returned_input is True
-    saved = json.loads(write_repro(tmp_path, outcome, 1, eeg).read_text())
-    assert saved["oracle_identifier"] == "MATLAB:badsubscript"
-    assert "fit_eeg_distribution" in saved["oracle_stack"]
-    assert saved["reference_samples"] == outcome.reference_samples
-    assert saved["reference_tolerances"] == outcome.reference_tolerances
-    assert saved["oracle_returned_input"] is True
+    assert outcome.error_class == "match"
+    np.testing.assert_array_equal(np.asarray(dispatch_python(case, eeg)["data"]), np.asarray(eeg["data"]))
 
 
 def test_one_channel_sort_defect_is_not_a_divergence(tmp_path):

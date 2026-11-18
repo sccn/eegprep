@@ -275,22 +275,24 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        errors once only a few windows are available, and ``clean_asr`` then
        calibrates on every sample.
    * - ASR on a very short recording
-     - With calibration reference selection off, ``clean_asr`` still returns
-       cleaned data when only two or three RMS windows are available.
-       EEGLAB's calibration fit indexes a zero window width and errors
-       (``asr_calibrate.m`` lines 392-395, the same index as
-       ``fit_eeg_distribution.m`` lines 112-115). ``pop_clean_rawdata``
-       catches that error and returns the recording unchanged
-       (``clean_artifacts.m`` lines 270-275). EEGPrep skips the
-       non-positive widths and still removes bursts. The 21-channel,
-       89-sample recording at 128 Hz has two windows, and eleven of those
-       widths round to zero.
+     - With calibration reference selection off, two or three 0.5 s RMS
+       windows make ``round(n * width)`` include 0. ``clean_asr`` raises
+       ``ASRCalibrationError``. ``pop_clean_rawdata`` skips burst repair,
+       keeps the sampling rate, and still runs window removal. EEGLAB's
+       calibration fit indexes that width (``asr_calibrate.m`` lines
+       392-395, the same index as ``fit_eeg_distribution.m`` lines 112-115).
+       ``clean_artifacts.m`` lines 270-275 then ``return``, which leaves the
+       rounded sampling rate in place and skips window removal. The
+       21-channel, 89-sample recording at 128 Hz has two windows, and eleven
+       of those widths round to zero.
    * - ASR reference selection leaving three RMS windows
      - Automatic reference selection can leave three RMS windows.
-       ``asr_calibrate.m`` lines 392-395 then index a zero fit width, and
-       ``clean_artifacts.m`` lines 270-275 catch the error and return the
-       recording unchanged (#582). EEGPrep skips non-positive widths and
-       still calibrates on that reference.
+       ``asr_calibrate.m`` lines 392-395 then index a zero fit width.
+       ``clean_asr`` raises ``ASRCalibrationError``. ``clean_artifacts`` and
+       ``pop_clean_rawdata`` leave the post-channel samples unrepaired, keep
+       the sampling rate, and still run the final window stage.
+       ``clean_artifacts.m`` lines 270-275 ``return`` before the sampling-rate
+       restore (line 311) and before window removal (line 318) (#651).
    * - One-channel ``clean_windows`` sort
      - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
        One channel is one row, so MATLAB sorts that row across time and the

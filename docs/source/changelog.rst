@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``asr_calibrate`` raises ``ASRCalibrationError`` when an RMS fit width
+  rounds to zero, which happens for two or three 0.5 s windows at the default
+  quantiles. ``clean_artifacts`` and ``pop_clean_rawdata`` skip burst repair,
+  keep the sampling rate, and still remove bad windows. EEGLAB indexes that
+  width and ``clean_artifacts.m`` lines 270-275 return before restoring the
+  rounded sampling rate and before the window stage (#651).
 - Time axes, frequency grids, and cycle grids that are returned or used to
   pick a sample follow MATLAB ``linspace`` (``start + i * (stop - start) / (n - 1)``,
   last sample equal to the stop, one sample equal to the stop) or the colon
@@ -170,9 +176,10 @@ Unreleased
   oracle failure. ``clean_windows`` sorts a one-channel score across
   channels. A one-channel reference shorter than one RMS window raises
   ``ASRCalibrationError``; EEGLAB's sort can reach the fit first. ASR
-  calibration skips a zero fit width, including a reference that leaves
-  three RMS windows
-  (#576, #577, #578, #581, #582, #583, #584).
+  calibration raises ``ASRCalibrationError`` when a fit width rounds to zero,
+  including a reference that leaves two or three RMS windows. ``clean_artifacts``
+  still keeps the sampling rate and runs window removal
+  (#576, #577, #578, #581, #582, #583, #584, #651).
 - ``compute_spectra`` is exported from the package root and can be imported
   without Matplotlib. It returns Welch density in dB on the FFT grid, with
   1 Hz spacing when the sampling rate is an integer and the record is at
