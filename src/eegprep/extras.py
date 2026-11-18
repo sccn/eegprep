@@ -31,11 +31,13 @@ PUBLIC_EXTRAS: dict[str, tuple[str, str]] = {
     "eeg_picard": ("picard", "Picard ICA"),
     "eeglab_clean_artifacts": ("eeglab", "the Octave runtime"),
     "iclabel": ("eeglab", "the Octave runtime"),
+    "iclabel_async": ("eeglab", "the Octave runtime"),
     "mne2eeg": ("mne", "converting from an MNE object"),
     "picard": ("picard", "Picard ICA"),
     "pop_biosig": ("mne", "EDF, BDF, and GDF import"),
     "pop_fileio": ("mne", "EDF, BDF, GDF, EGI .mff, and BrainVision .vhdr with a block range"),
     "pop_iclabel": ("eeglab", "engine='octave'"),
+    "pop_iclabel_async": ("eeglab", "engine='octave'"),
     "pop_importbids": ("pybids", "reading a BIDS dataset"),
     "pop_load_frombids": ("pybids", "reading a BIDS dataset"),
     "pop_resample": ("eeglab", "engine='octave'"),
@@ -60,6 +62,10 @@ EXTRA_SUMMARY: dict[str, str] = {
         "Picard ICA (eeg_picard, and pop_runica with icatype='picard'). "
         "The default runica path does not need it. Installs python-picard."
     ),
+    "iclabel": (
+        "ICLabel classification with the packaged network in iclabel, pop_iclabel, and their async versions. "
+        "Not part of full. Installs onnxruntime."
+    ),
     "full": "The eeglab, mne, pybids, and picard extras together. This restores the previous complete install.",
 }
 
@@ -82,10 +88,12 @@ _INSTEAD = {
     "eeg_picard": "pop_runica() uses runica unless icatype is 'picard'.",
     "eeglab_clean_artifacts": "clean_artifacts is the Python cleaner and does not need Octave or MATLAB.",
     "get_eeglab": "Pass runtime='MAT' to use the MATLAB engine instead.",
-    "iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[torch]".',
+    "iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[iclabel]".',
+    "iclabel_async": 'Leave engine unset for the Python network, which needs pip install "eegprep[iclabel]".',
     "picard": "pop_runica() uses runica unless icatype is 'picard'.",
     "pop_fileio": "EEGLAB .set, CNT, and BrainVision .vhdr without a block range do not need MNE.",
-    "pop_iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[torch]".',
+    "pop_iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[iclabel]".',
+    "pop_iclabel_async": 'Leave engine unset for the Python network, which needs pip install "eegprep[iclabel]".',
     "pop_resample": "Leave engine unset to resample in Python.",
     "pop_runica": "Leave icatype unset to use runica, which does not need Picard.",
     "resample": "Leave engine unset to resample in Python.",
@@ -108,12 +116,12 @@ def missing_extra_message(feature: str, library: str) -> str:
     )
 
 
-def missing_torch_message(feature: str) -> str:
+def missing_onnxruntime_message(feature: str) -> str:
     """Plain-language ``ImportError`` text for the Python ICLabel network."""
     return (
-        f"{feature} needs PyTorch for the Python ICLabel network, and it is not installed. "
-        f"Install it with {install_command('torch')}. "
-        f"{install_command('all')} includes PyTorch with the other extras. "
+        f"{feature} needs ONNX Runtime for the Python ICLabel network, and it is not installed. "
+        f"Install it with {install_command('iclabel')}. "
+        f"{install_command('all')} includes it with the other extras. "
         "engine='matlab' or engine='octave' runs ICLabel through EEGLAB instead. "
         f"Octave needs {install_command('eeglab')}."
     )

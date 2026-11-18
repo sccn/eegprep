@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from tests import eeglab_tests as suite_pins
 from tests.eeglab_tests import (
     assert_matlab_near,
     eeglab_test,
     load_matlab_test_fixture,
     upstream_references,
 )
+from tools import eeglab_test_port_audit as audit_pins
 
 
 def test_eeglab_test_records_multiple_upstream_scenarios() -> None:
@@ -97,3 +101,27 @@ def test_matlab_near_keeps_absolute_tolerance_and_nan_semantics():
 def test_matlab_near_rejects_broadcasting_rows_into_columns():
     with pytest.raises(AssertionError, match="\\(2, 1\\) != \\(1, 2\\)"):
         assert_matlab_near([[1], [2]], [[1, 2]])
+
+
+def test_vendored_eeglab_gitlink_and_pin_modules_agree() -> None:
+    vendored_eeglab = "src/eegprep/eeglab"
+    repository_root = Path(__file__).resolve().parents[1]
+    staged = subprocess.run(
+        ["git", "-C", str(repository_root), "ls-files", "--stage", "--", vendored_eeglab],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    assert len(staged) == 1, f"expected one index entry for {vendored_eeglab}, got {staged!r}"
+    mode, gitlink, _stage = staged[0].split("\t")[0].split()
+    together = "The vendored EEGLAB gitlink and both pin modules (tests/eeglab_tests and tools/eeglab_test_port_audit) move together."
+
+    assert mode == "160000", f"{vendored_eeglab} is index mode {mode}, not a gitlink. {together}"
+    assert gitlink == suite_pins.EEGLAB_TESTS_EEGLAB_COMMIT, (
+        f"{vendored_eeglab} is recorded at {gitlink}; tests.eeglab_tests pins {suite_pins.EEGLAB_TESTS_EEGLAB_COMMIT}. {together}"
+    )
+    for name in ("EEGLAB_TESTS_REPOSITORY", "EEGLAB_TESTS_COMMIT", "EEGLAB_TESTS_EEGLAB_COMMIT"):
+        assert getattr(audit_pins, name) == getattr(suite_pins, name), (
+            f"{name} is {getattr(audit_pins, name)} in tools.eeglab_test_port_audit "
+            f"but {getattr(suite_pins, name)} in tests.eeglab_tests. {together}"
+        )

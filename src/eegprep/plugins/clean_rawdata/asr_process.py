@@ -3,15 +3,29 @@
 import logging
 
 import numpy as np
-import psutil
 import scipy.signal
 
-from ...functions.miscfunc.misc import finite_matmul, round_mat
+from ...functions.miscfunc.misc import finite_matmul, round_mat, virtual_memory
 from .private.riemann import asr_subspace_reconstruction
 from .private.sigproc import moving_average
 from .private.windows import asr_update_at
 
 logger = logging.getLogger(__name__)
+
+
+def fallback_max_mem_mb():
+    """Half of the free system RAM in MB, the ASR budget when ``max_mem`` is not given or is too small.
+
+    Raises:
+        ImportError: If psutil is not installed (Pyodide). The message says to pass a ``max_mem``
+            (``maxmem`` in ``clean_asr``, ``MaxMem`` in ``clean_artifacts``) large enough for the
+            lookahead buffers.
+    """
+    free_bytes = virtual_memory(
+        'size the ASR memory budget when max_mem is not given or is too small; '
+        'pass a max_mem (maxmem in clean_asr, MaxMem in clean_artifacts) large enough for the lookahead buffers'
+    ).free
+    return free_bytes / 1024**2 / 2
 
 
 def asr_process(
@@ -63,7 +77,7 @@ def asr_process(
         lookahead = window_len / 2
     if max_mem is None:
         # use at most half of available memory
-        max_mem = psutil.virtual_memory().free / 1024**2 / 2
+        max_mem = fallback_max_mem_mb()
 
     window_len = max(window_len, 1.5 * C / srate)
 
@@ -104,7 +118,7 @@ def asr_process(
             "Memory too low, increasing it (rejection block size now "
             "depends on available memory so it might not be fully reproducible)..."
         )
-        max_mem = psutil.virtual_memory().free / 1024**2 / 2
+        max_mem = fallback_max_mem_mb()
         if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
             raise RuntimeError('Not enough memory')
 

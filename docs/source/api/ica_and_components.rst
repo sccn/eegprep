@@ -42,6 +42,7 @@ zero-based component and sample indices.
    eegprep.icaproj
    eegprep.icavar
    eegprep.iclabel
+   eegprep.iclabel_async
    eegprep.optimal_kmeans
    eegprep.picard
    eegprep.posact
