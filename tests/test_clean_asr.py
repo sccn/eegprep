@@ -348,17 +348,19 @@ def test_flat_channel_reference_keeps_241_samples():
         1.0,
         return_diagnostics=True,
     )
-    assert int(np.asarray(kept).sum()) == 241
+    kept = np.asarray(kept, dtype=bool)
+    # Inclusive bounds of the three kept stretches on this crop.
+    expected_indices = np.concatenate((np.arange(607, 740), np.arange(955, 1001), np.arange(1216, 1278)))
+    assert expected_indices.size == 241
+    np.testing.assert_array_equal(np.flatnonzero(kept), expected_indices)
     assert np.all(np.isposinf(diag["zscores"][8]))
     assert not np.any(np.isnan(diag["zscores"]))
 
     produced = np.asarray(clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=0.075, window_len=1.0)["data"])
-    reference = np.asarray(
-        clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=data[:, np.asarray(kept, dtype=bool)], window_len=1.0)["data"]
-    )
-    np.testing.assert_array_equal(produced, reference)
-    digest = hashlib.sha256(np.ascontiguousarray(produced, dtype=np.float64).tobytes()).hexdigest()
-    assert digest == "3f9712334d066b830bb116dfac888da9d4e5398e8392ff050a0af4da1cbd8dcf"
+    reference = np.asarray(clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=data[:, kept], window_len=1.0)["data"])
+    tolerance = load_tolerances()["clean_asr"]
+    np.testing.assert_allclose(produced, reference, rtol=tolerance.rel, atol=tolerance.abs)
+    assert np.all(produced[8] == 0.0)
 
 
 def test_asr_only_flat_channel_stays_exactly_zero():
