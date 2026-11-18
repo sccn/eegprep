@@ -431,6 +431,8 @@ _CLEAN_WINDOW_OVERLAP = 0.66
 _ASR_REF_WNDLEN = 1.0
 # asr_calibrate's RMS window. clean_asr does not forward its processing window_len.
 _ASR_CALIB_WINDOW = 0.5
+# A dead channel's oracle residual may be this fraction of the live-channel scale.
+_FLAT_CHANNEL_ROUNDOFF_REL = 1e-9
 
 
 def _matlab_colon(start: float, step: float, stop: float) -> np.ndarray:
@@ -1785,6 +1787,18 @@ def _failed_samples_are_on_rows(
     return not np.any(np.any(failed, axis=1) & ~rows)
 
 
+def _flat_rows_are_roundoff(oracle_data: np.ndarray, rows: np.ndarray) -> bool:
+    """The oracle values on ``rows`` stay at roundoff next to the live signal."""
+    live = ~rows
+    if not np.any(live):
+        return False
+    scale = float(np.nanmax(np.abs(oracle_data[live])))
+    residual = float(np.nanmax(np.abs(oracle_data[rows])))
+    if not np.isfinite(scale) or scale == 0.0 or not np.isfinite(residual):
+        return False
+    return residual <= _FLAT_CHANNEL_ROUNDOFF_REL * scale
+
+
 def _nan_sort_reference(eeg: dict, params: dict) -> np.ndarray | None:
     """Samples ``clean_windows.m`` keeps when a dead channel scores NaN.
 
@@ -1847,7 +1861,8 @@ def _flat_nan_sort_is_known(
 
     The oracle has to match ASR on that NaN-sort reference. A residual that
     fails the approved limit has to sit on a channel that is identically zero
-    and that this calibration left at zero.
+    and that this calibration left at zero, and it has to stay at roundoff
+    next to the live signal.
     """
     if case.function != "clean_asr" or not python.ok or not oracle.ok:
         return False
@@ -1876,15 +1891,18 @@ def _flat_nan_sort_is_known(
     diverged, *_rest = compare_data(alternate_data, oracle_data, srate, oracle_srate, tolerance)
     if not diverged:
         return True
-    return _failed_samples_are_on_rows(alternate_data, oracle_data, flat, srate, oracle_srate, tolerance)
+    return _failed_samples_are_on_rows(
+        alternate_data, oracle_data, flat, srate, oracle_srate, tolerance
+    ) and _flat_rows_are_roundoff(oracle_data, flat)
 
 
 def _flat_nullspace_roundoff_is_known(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
 ) -> bool:
-    """An all-zero channel stays zero. MATLAB's ``sqrtm`` does not.
+    """An all-zero channel stays zero. MATLAB's ``sqrtm`` leaves a roundoff residual.
 
-    The approved tolerance still applies to every channel that carries signal.
+    That residual has to stay at most 1e-9 of the live-channel scale. The
+    approved tolerance still applies everywhere else.
     """
     if case.function != "clean_asr" or not python.ok or not oracle.ok:
         return False
@@ -1900,7 +1918,9 @@ def _flat_nullspace_roundoff_is_known(
         return False
     srate = float(eeg["srate"])
     oracle_srate = float(oracle.srate if oracle.srate is not None else srate)
-    return _failed_samples_are_on_rows(python_data, oracle_data, flat, srate, oracle_srate, tolerance)
+    return _failed_samples_are_on_rows(
+        python_data, oracle_data, flat, srate, oracle_srate, tolerance
+    ) and _flat_rows_are_roundoff(oracle_data, flat)
 
 
 def _one_channel_sort_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:

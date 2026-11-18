@@ -2252,6 +2252,15 @@ def test_flat_channel_nan_sort_is_not_a_divergence():
     assert rejected.diverged is True
     assert "#642" not in rejected.detail
 
+    def flat_signal(_case, _dataset):
+        data = nan_out.copy()
+        data[8, 0] = 1.0
+        return data
+
+    written = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(flat_signal), load_tolerances())
+    assert written.diverged is True
+    assert "#642" not in written.detail
+
 
 def test_flat_channel_roundoff_is_not_a_divergence():
     case, eeg = _flat_case(
@@ -2282,6 +2291,15 @@ def test_flat_channel_roundoff_is_not_a_divergence():
     rejected = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(also_real), load_tolerances())
     assert rejected.diverged is True
 
+    def large_flat(_case, _dataset):
+        data = produced.copy()
+        data[11, 0] = 1.0
+        return data
+
+    written = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(large_flat), load_tolerances())
+    assert written.diverged is True
+    assert "#643" not in written.detail
+
     tolerance = Tolerance(0.0, 1e-6)
     zero = SideResult(True, produced, 128.0, None, None)
     noisy = SideResult(True, residual, 128.0, None, None)
@@ -2292,4 +2310,7 @@ def test_flat_channel_roundoff_is_not_a_divergence():
     assert not _flat_nullspace_roundoff_is_known(
         case, eeg, zero, SideResult(True, bumped, 128.0, None, None), tolerance
     )
+    loud = produced.copy()
+    loud[11, 0] = 1.0
+    assert not _flat_nullspace_roundoff_is_known(case, eeg, zero, SideResult(True, loud, 128.0, None, None), tolerance)
     assert not _flat_nan_sort_is_known(case, eeg, zero, noisy, tolerance)
