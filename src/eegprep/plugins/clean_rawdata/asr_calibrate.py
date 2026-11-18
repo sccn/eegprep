@@ -173,6 +173,16 @@ def asr_calibrate(
         freqvals, amps = _spectral_breakpoints(srate)
         B, A = yulewalk(8, freqvals, amps)
 
+    # asr_calibrate.m:188-191. The RMS window is this function's window_len
+    # (0.5 s), not clean_asr's processing window.
+    N = int(round_mat(window_len * srate))
+    if S < N:
+        raise ASRCalibrationError(
+            f"asr_calibrate: Not enough calibration data. "
+            f"Calibration data has {S} samples but one {window_len:g} s RMS window needs {N} at {srate:g} Hz; "
+            f"use a recording of at least {N} samples or set BurstCriterion='off'."
+        )
+
     # asr_calibrate.m:169 assigns into X. MATLAB copy-on-write keeps the caller's array.
     X = X.copy()
     X[~np.isfinite(X)] = 0.0
@@ -251,15 +261,6 @@ def asr_calibrate(
     M = np.real(M)  # Ensure M is real
 
     # ----- Calculate Thresholds -----
-    # Window length for calculating thresholds
-    N = int(round_mat(window_len * srate))
-    if S < N:
-        raise ASRCalibrationError(
-            f"asr_calibrate: Not enough calibration data. "
-            f"Calibration data has {S} samples but one {window_len:g} s RMS window needs {N} at {srate:g} Hz; "
-            f"use a recording of at least {N} samples or set BurstCriterion='off'."
-        )
-
     logger.info('Determining per-component thresholds...')
 
     # Eigendecomposition of M plus some massaging

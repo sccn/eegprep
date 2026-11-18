@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import scipy.sparse
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
-from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.adminfunc.eegh import eegh
+from eegprep.functions.adminfunc.storage import MemmapData
+from eegprep.functions.guifunc.session import EEGPrepSession, eeglab_history_command
+from eegprep.plugins.ICLabel.iclabel import iclabel
 from tests.fixtures import (
     create_test_eeg,
 )
@@ -62,6 +66,203 @@ def test_currentset_empty_single_and_multiple_console_values():
     assert session.current_set_value() == [1, 2]
 
 
+def _session_with(*setnames):
+    session = EEGPrepSession()
+    for setname in setnames:
+        eeg = create_test_eeg(n_channels=2, n_samples=8)
+        eeg["setname"] = setname
+        eeg["etc"] = {"note": "kept"}
+        session.store_current(eeg, new=True)
+    return session
+
+
+def test_dataset_state_token_changes_when_a_dataset_is_stored():
+    session = EEGPrepSession()
+    token = session.dataset_state_token()
+
+    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+
+    assert session.dataset_state_token() != token
+
+
+@pytest.mark.parametrize(
+    "change",
+    (
+        lambda session: session.add_history("plot(EEG);"),
+        lambda session: session.mark_current_saved(),
+        lambda session: session.EEG.update(history="edited history"),
+        lambda session: session.ALLEEG[0].update(setname="unselected edit"),
+    ),
+    ids=("session-history", "saved-flag", "dataset-history", "unselected-dataset"),
+)
+def test_dataset_state_token_ignores_history_saved_flag_and_unselected_datasets(change):
+    session = _session_with("unselected", "selected")
+    token = session.dataset_state_token()
+
+    change(session)
+
+    assert session.dataset_state_token() == token
+
+
+@pytest.mark.parametrize(
+    "change",
+    (
+        lambda session: session.EEG["data"].__setitem__((0, 0), 9.0),
+        lambda session: np.putmask(session.EEG["data"], session.EEG["data"] > 0, 0.0),
+        lambda session: session.EEG["chanlocs"][0].update(labels="renamed"),
+        lambda session: session.EEG["etc"].update(history="nested history is dataset content"),
+        lambda session: session.ALLEEG[1].update(setname="edited slot"),
+    ),
+    ids=("data-sample", "putmask", "nested-chanloc", "nested-history-key", "selected-slot-alias"),
+)
+def test_dataset_state_token_detects_in_place_edits_of_selected_datasets(change):
+    session = _session_with("unselected", "selected")
+    session.retrieve(2)
+    assert session.EEG is not session.ALLEEG[1]
+    token = session.dataset_state_token()
+
+    change(session)
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_detects_edit_in_last_chunk_of_fortran_data():
+    session = EEGPrepSession()
+    eeg = create_test_eeg(n_channels=2, n_samples=8)
+    eeg["data"] = np.asfortranarray(np.zeros((3, 700_000), dtype=np.float32))
+    eeg["nbchan"], eeg["pnts"] = eeg["data"].shape
+    session.store_current(eeg, new=True)
+    assert session.EEG["data"].flags.f_contiguous
+    token = session.dataset_state_token()
+
+    session.EEG["data"][-1, -1] = 1.0
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_matches_again_after_an_edit_is_reverted():
+    # Only content is compared, so a result computed from the restored values is still valid.
+    session = _session_with("selected")
+    token = session.dataset_state_token()
+    original = session.EEG["data"][0, 0]
+
+    session.EEG["data"][0, 0] = original + 1.0
+    assert session.dataset_state_token() != token
+    session.EEG["data"][0, 0] = original
+
+    assert session.dataset_state_token() == token
+
+
+def test_dataset_state_token_detects_selected_slot_replacement_without_notification():
+    session = EEGPrepSession()
+    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+    token = session.dataset_state_token()
+    replacement = create_test_eeg(n_channels=2, n_samples=8)
+    session.ALLEEG[0] = replacement
+    session.EEG = replacement
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
+    path = tmp_path / "data.fdt"
+    backing = np.memmap(path, dtype="float32", mode="w+", shape=(2, 2), order="F")
+    backing[:] = [[1.0, 2.0], [3.0, 4.0]]
+    backing.flush()
+
+    eeg = create_test_eeg(n_channels=2, n_samples=2)
+    eeg["data"] = MemmapData(path, (2, 2), mode="r+")
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    token = session.dataset_state_token()
+
+    np.asarray(session.EEG["data"])[0, 0] = 9.0
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_detects_edits_in_the_iclabel_classes_object_array(sample_ica_eeg):
+    session = EEGPrepSession()
+    session.store_current(iclabel(sample_ica_eeg), new=True)
+    classes = session.EEG["etc"]["ic_classification"]["ICLabel"]["classes"]
+    assert classes.dtype == object
+    token = session.dataset_state_token()
+
+    classes[0] = "Renamed"
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_detects_edits_of_an_array_held_in_an_object_array():
+    session = _session_with("selected")
+    cells = np.empty(2, dtype=object)
+    cells[0], cells[1] = np.zeros(3), "label"
+    session.EEG["etc"]["cells"] = cells
+    token = session.dataset_state_token()
+
+    cells[0][1] = 5.0
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_follows_an_object_array_that_contains_itself():
+    session = _session_with("selected")
+    cells = np.empty(2, dtype=object)
+    cells[0], cells[1] = cells, "label"
+    session.EEG["etc"]["cells"] = cells
+    token = session.dataset_state_token()
+
+    cells[1] = "edited"
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_follows_reference_cycles_and_still_detects_edits():
+    session = _session_with("selected")
+    etc = session.EEG["etc"]
+    holder = np.empty(1, dtype=object)
+    holder[0] = etc
+    etc["self"] = etc
+    etc["cells"] = holder
+    token = session.dataset_state_token()
+
+    etc["note"] = "edited inside the cycle"
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_hashes_a_strided_view_by_its_visible_content():
+    session = _session_with("selected")
+    # The view spans several buffered digest chunks.
+    base = np.zeros((3, 1_400_000), dtype=np.float32)
+    session.EEG["data"] = base[:, ::2]
+    token = session.dataset_state_token()
+
+    base[-1, -1] = 1.0
+    assert session.dataset_state_token() == token
+
+    base[-1, -2] = 1.0
+    assert session.dataset_state_token() != token
+
+
+def test_require_dataset_state_unchanged_names_the_function_and_the_change():
+    session = _session_with("first", "second")
+    token = session.dataset_state_token()
+    session.require_dataset_state_unchanged(token, "pop_iclabel_async")
+
+    session.EEG["setname"] = "edited"
+    with pytest.raises(
+        RuntimeError, match=r"pop_iclabel_async result discarded because the selected dataset was modified"
+    ):
+        session.require_dataset_state_unchanged(token, "pop_iclabel_async")
+
+    session.retrieve(1)
+    with pytest.raises(
+        RuntimeError, match=r"ICLabel result discarded because the dataset selection changed.*Run ICLabel again"
+    ):
+        session.require_dataset_state_unchanged(token, "ICLabel")
+
+
 @pytest.mark.parametrize(
     ("source", "value"),
     (
@@ -84,3 +285,183 @@ def test_console_currentset_assignment_rejects_invalid_indices(source, value):
             workspace.after_execute(source, success=True)
     finally:
         workspace.close()
+
+
+ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
+ICLABEL_EEGLAB_COMMAND = "EEG = pop_iclabel(EEG, 'default');"
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        (ICLABEL_ASYNC_COMMAND, ICLABEL_EEGLAB_COMMAND),
+        (f"  {ICLABEL_ASYNC_COMMAND}\n", ICLABEL_EEGLAB_COMMAND),
+        ("[EEG, com] = await pop_iclabel_async(EEG, 'default');", "[EEG, com] = pop_iclabel(EEG, 'default');"),
+        ("EEG = await pop_editset_async(EEG, 'setname', 'a;b');", "EEG = pop_editset(EEG, 'setname', 'a;b');"),
+        ('EEG = await pop_editset_async(EEG, "a;b");', 'EEG = pop_editset(EEG, "a;b");'),
+        ("EEG = await pop_editset_async(EEG, 'it''s');", "EEG = pop_editset(EEG, 'it''s');"),
+        (
+            "EEG = await pop_x_async(EEG, struct('a', {1, 2}), (1 + 2)');",
+            "EEG = pop_x(EEG, struct('a', {1, 2}), (1 + 2)');",
+        ),
+        ("EEG = await pop_x_async(EEG, A', 'k');", "EEG = pop_x(EEG, A', 'k');"),
+        (
+            "EEG = await pop_editset_async(EEG, 'setname', 'caf\u00e9');",
+            "EEG = pop_editset(EEG, 'setname', 'caf\u00e9');",
+        ),
+        ("EEG = pop_editset(EEG, 'setname', 'await review');", None),
+        ("EEG = pop_editset(EEG, 'setname', 'x = await pop_a_async(EEG);');", None),
+        ("x = await foo_async(1);", None),
+        ("EEG = pop_reref( EEG, []);", None),
+        ("EEG = await pop_a_async(EEG); EEG = await pop_b_async(EEG);", None),
+        ("EEG = await pop_iclabel_async(EEG, 'default')", None),
+        ("print(1)\nEEG = await pop_x_async(EEG);", None),
+        ("EEG = await pop_x_async(EEG,\n 'default');", None),
+        ("EEG = await pop_a_async(1) or await pop_b_async(2);", None),
+        ("EEG != await pop_x_async(EEG);", None),
+        ("EEG += await pop_x_async(EEG);", None),
+        ("EEG == await pop_x_async(EEG);", None),
+        ("EEG(2) = await pop_x_async(EEG);", None),
+        ("EEG = await pop_foo_async(A'); B = pop_bar(C');", None),
+        ("EEG = await pop_x_async(EEG, 'unterminated);", None),
+    ],
+    ids=(
+        "iclabel",
+        "surrounding-whitespace",
+        "two-outputs",
+        "semicolon-inside-a-string",
+        "semicolon-inside-a-double-quoted-string",
+        "doubled-quote-inside-a-string",
+        "nested-parentheses-and-transpose",
+        "transpose-argument",
+        "non-ascii",
+        "await-inside-a-string",
+        "await-statement-inside-a-string",
+        "not-a-pop-function",
+        "synchronous",
+        "two-statements",
+        "no-terminating-semicolon",
+        "statement-before-on-another-line",
+        "newline-inside",
+        "second-await-in-an-expression",
+        "not-equal-operator",
+        "compound-assignment",
+        "comparison-operator",
+        "indexed-target",
+        "statement-hidden-behind-a-transpose",
+        "unterminated-string",
+    ),
+)
+def test_eeglab_history_command_rewrites_only_one_awaited_pop_async_statement(command, expected):
+    assert eeglab_history_command(command) == (command if expected is None else expected)
+
+
+def test_dataset_history_records_the_eeglab_form_while_the_session_keeps_the_awaitable_one():
+    session = _session_with("selected")
+
+    session.store_current(session.EEG, command=ICLABEL_ASYNC_COMMAND)
+
+    # A saved .set carries the dataset history into MATLAB EEGLAB, which has no await.
+    assert session.EEG["history"].splitlines()[-1] == ICLABEL_EEGLAB_COMMAND
+    assert "await" not in session.EEG["history"]
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    assert session.LASTCOM == ICLABEL_ASYNC_COMMAND
+
+
+def test_carry_current_history_gives_a_result_the_history_of_the_dataset_it_replaces():
+    session = _session_with("first", "second")
+    session.retrieve([2, 1])
+    eegh("second_only(EEG);", session.EEG[0])
+    eegh("first_only(EEG);", session.EEG[1])
+    stale = [dict(dataset, history="stale") for dataset in session.EEG]
+
+    assert session.carry_current_history(stale) is stale
+
+    assert [dataset["history"] for dataset in stale] == [dataset["history"] for dataset in session.EEG]
+    assert stale[0]["history"].splitlines()[-1] == "second_only(EEG);"
+    assert stale[1]["history"].splitlines()[-1] == "first_only(EEG);"
+
+
+def test_carry_current_history_handles_one_dataset_and_leaves_other_lengths_alone():
+    session = _session_with("selected")
+    eegh("added_meanwhile(EEG);", session.EEG)
+    single = dict(session.EEG, history="stale")
+
+    assert session.carry_current_history(single) is single
+    assert single["history"] == session.EEG["history"]
+
+    # A list that does not match the selection was not computed from it, so nothing is carried.
+    other = [dict(session.EEG, history="stale"), dict(session.EEG, history="stale")]
+    session.carry_current_history(other)
+    assert [dataset["history"] for dataset in other] == ["stale", "stale"]
+
+
+def _structured():
+    return np.zeros(4, dtype=[("a", "f8"), ("b", "i4")])
+
+
+def _edit_structured(array):
+    array["a"][1] = 5.0
+
+
+def _strided_structured():
+    return _structured().repeat(2)[::2]
+
+
+def _edit_strided_structured(array):
+    array["b"][1] = 7
+
+
+def _set_item(index, value):
+    def edit(array):
+        array[index] = value
+
+    return edit
+
+
+ARRAY_KINDS = {
+    "structured": (_structured, _edit_structured),
+    "unicode": (lambda: np.array(["ab", "cd", "ef"]), _set_item(1, "zz")),
+    "bytes": (lambda: np.array([b"ab", b"cd"]), _set_item(0, b"zz")),
+    "bool": (lambda: np.array([True, False, True]), _set_item(1, True)),
+    "datetime64": (
+        lambda: np.array(["2026-01-01", "2026-01-02"], dtype="datetime64[D]"),
+        _set_item(0, np.datetime64("2027-01-01")),
+    ),
+    "timedelta64": (lambda: np.array([1, 2], dtype="timedelta64[s]"), _set_item(1, np.timedelta64(9, "s"))),
+    "zero-dimensional": (lambda: np.array(3.0), _set_item((), 4.0)),
+    "byte-swapped": (lambda: np.arange(5, dtype=">f8"), _set_item(2, 9.0)),
+    "strided-structured": (_strided_structured, _edit_strided_structured),
+    "zero-size": (lambda: np.zeros((0, 3)), None),
+}
+
+
+@pytest.mark.parametrize(("make", "edit"), ARRAY_KINDS.values(), ids=ARRAY_KINDS.keys())
+def test_dataset_state_token_is_computed_for_unusual_array_dtypes(make, edit):
+    session = _session_with("selected")
+    session.EEG["etc"]["array"] = make()
+    token = session.dataset_state_token()
+
+    session.EEG["etc"]["array"] = make()
+    assert session.dataset_state_token() == token
+
+    if edit is None:
+        return
+    edit(session.EEG["etc"]["array"])
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_cannot_see_an_in_place_edit_of_a_sparse_matrix():
+    """Pin the documented limitation: a value that is not a container or an array is hashed by its ``repr``.
+
+    A SciPy sparse matrix keeps its ``repr`` when its entries change, so the token misses the edit.
+    The test exists to flag a change of that behavior, so that the documentation follows it.
+    """
+    session = _session_with("selected")
+    sparse = scipy.sparse.csr_matrix(np.array([[1.0, 0.0], [0.0, 2.0]]))
+    session.EEG["etc"]["sparse"] = sparse
+    token = session.dataset_state_token()
+
+    sparse.data[0] = 99.0
+
+    assert session.dataset_state_token() == token

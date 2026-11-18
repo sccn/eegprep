@@ -262,7 +262,7 @@ jobs:
             done
             kill -KILL -- "-\$pid" 2>/dev/null || kill -KILL "\$pid" 2>/dev/null || true
           fi
-          rm -f "$BATCH_DIR"/req_*.mat "$BATCH_DIR"/req_*.part "$BATCH_DIR"/res_*.part "$BATCH_DIR/ready"
+          rm -f "$BATCH_DIR"/req_*.mat "$BATCH_DIR"/req_*.part "$BATCH_DIR"/res_*.mat "$BATCH_DIR"/res_*.part "$BATCH_DIR/ready"
           setsid matlab-batch "addpath('$TESTS_MATLAB'); eegprep_batch_engine_startup('$EEGLAB_ROOT'); eegprep_batch_engine_serve('$BATCH_DIR')" >> "$BATCH_DIR/server.log" 2>&1 &
           echo \$! > "$BATCH_DIR/server.pid"
           EOF

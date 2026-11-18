@@ -4,6 +4,7 @@ import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.miscfunc.pinv import pinv
+from eegprep.functions.sigprocfunc.electrode_geometry import validate_electrode_positions
 
 
 # Helper function (vectorized version of MATLAB's interpMx)
@@ -81,6 +82,7 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
 
     Args:
         src (np.ndarray): Source electrode positions [3 x N]. Assumes coordinates are in columns.
+            Identical or collinear positions raise ``ValueError``. Planar positions warn.
         dest (np.ndarray): Destination electrode positions [3 x M]. Assumes coordinates are in columns.
         lambda_reg (float, optional): Regularisation parameter for smoothing estimates. Defaults to 1e-5.
                                       (Renamed from 'lambda' to avoid clash with Python keyword).
@@ -115,12 +117,22 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     """
     src = np.asarray(src)
     dest = np.asarray(dest)
+    _require_xyz(src, dest)
+    validate_electrode_positions(src.T, operation="sphericalSplineInterpolate")
+    return _spherical_spline_weights(src, dest, lambda_reg, order, type, tol)
 
-    # Validate input shapes (optional but good practice)
+
+def _require_xyz(src: np.ndarray, dest: np.ndarray) -> None:
     if src.ndim != 2 or src.shape[0] != 3:
         raise ValueError(f"src must be a 2D array with shape (3, N), got {src.shape}")
     if dest.ndim != 2 or dest.shape[0] != 3:
         raise ValueError(f"dest must be a 2D array with shape (3, M), got {dest.shape}")
+
+
+def _spherical_spline_weights(src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps):
+    src = np.asarray(src)
+    dest = np.asarray(dest)
+    _require_xyz(src, dest)
 
     n_src = src.shape[1]
     n_dest = dest.shape[1]

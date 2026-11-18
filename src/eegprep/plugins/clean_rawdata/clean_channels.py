@@ -8,6 +8,7 @@ import numpy as np
 from eegprep.plugins.firfilt.design import design_fir
 
 from ...functions.miscfunc.misc import finite_matmul, round_mat
+from ...functions.sigprocfunc.electrode_geometry import validate_electrode_positions
 from .private.channel_removal import (
     copy_clean_channel_mask,
     remove_channels_without_pop_select,
@@ -88,6 +89,10 @@ def clean_channels(
     are the float64 array written before that copy. Copy the dataset with
     ``copy.deepcopy`` first when the original recording must be preserved.
 
+    Identical or collinear electrode positions raise ``ValueError``.
+    Planar or nearly planar positions, including a ring, warn and channel
+    removal still runs. EEGLAB does not reject those layouts.
+
     Returns
     -------
     EEG : data set with bad channels removed
@@ -145,6 +150,7 @@ def clean_channels(
     usable_channels = np.where(~np.any(np.isnan(xyz), axis=0))[0]
 
     locs = xyz[:, usable_channels].T
+    validate_electrode_positions(locs, operation="clean_channels")
     X = np.asarray(X[:, usable_channels])
 
     # Replicate MATLAB's default randseed, for exact compatibility.

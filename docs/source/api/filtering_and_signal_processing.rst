@@ -17,6 +17,7 @@ deviations. ``type`` is not an option.
    eegprep.dftfilt
    eegprep.dftfilt2
    eegprep.dftfilt3
+   eegprep.design_eegfiltnew
    eegprep.eegfilt
    eegprep.env
    eegprep.fir_filterdcpadded
