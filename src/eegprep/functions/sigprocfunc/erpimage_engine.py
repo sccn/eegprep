@@ -1813,7 +1813,16 @@ def _retained(keep: np.ndarray, ntrials: int, power: str) -> np.ndarray:
 def _sort_window(minx: int, cycles: float, srate: float, freq: float, frames: int) -> np.ndarray:
     """0-based frames of the EEGLAB sorting window (for 'showwin')."""
     winlen = int(np.floor(cycles * srate / freq))
-    window = (minx + 1) - np.linspace(np.floor(winlen / 2), np.floor(-winlen / 2), winlen + 1)
+    count = winlen + 1
+    start = float(np.floor(winlen / 2))
+    stop = float(np.floor(-winlen / 2))
+    offsets = np.empty(count, dtype=float)
+    if count == 1:
+        offsets[0] = stop
+    else:
+        offsets[:-1] = start + np.arange(count - 1) * (stop - start) / (count - 1)
+        offsets[-1] = stop
+    window = (minx + 1) - offsets
     return (window[(window > 0) & (window <= frames)] - 1).astype(int)
 
 

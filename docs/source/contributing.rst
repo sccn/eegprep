@@ -80,13 +80,14 @@ If you only need documentation dependencies, sync the docs extra:
 
 .. code-block:: bash
 
-    uv sync --extra docs --group dev
+    uv sync --group dev --extra docs
 
 ``uv sync`` installs:
 
 - The eegprep package in editable mode
 - Repo tooling dependencies
 - GUI and ``eegprep-console`` runtime dependencies
+- Open Neural Network Exchange (ONNX) Runtime (the ``dev`` group includes it), because gallery examples and tests run ICLabel
 - Documentation dependencies when ``--extra docs`` is used
 
 Code Style Guidelines

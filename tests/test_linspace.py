@@ -4,15 +4,22 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import Rectangle
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.gauss import gauss
+from eegprep.functions.miscfunc.hist2 import hist2
 from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.plot_utils import eeg_times_ms
+from eegprep.functions.sigprocfunc.cbar import cbar
 from eegprep.functions.sigprocfunc.envtopo import envtopo
+from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc._pac_support import _pac_cont_windows
+from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.tf_cycle_calc import tf_cycle_calc
 from eegprep.functions.timefreqfunc.timefreq import timefreq
+from eegprep.plugins.dipfit._fitting import parse_grid_values
 from eegprep.plugins.firfilt.plotfresp import plotfresp
 
 
@@ -143,6 +150,52 @@ def test_envtopo_times_follow_the_matlab_colon():
         assert result.comptimes[0] != np.linspace(-500.0, 492.0, frames)[55]
     finally:
         plt.close(result.figure)
+
+
+def test_gauss_samples_follow_the_matlab_colon():
+    window = gauss(7, 0.3)
+    assert window[4].hex() == "0x1.fae7cfd2b9cfdp-1"
+    numpy_window = np.exp(-(np.linspace(-0.3, 0.3, 7) ** 2))
+    assert window[4] != numpy_window[4]
+
+
+def test_hist2_centers_match_matlab_linspace():
+    axis = hist2([-2.0, 2.0], [-2.0, 2.0], 7)
+    try:
+        centers = np.array(
+            [patch.get_x() + patch.get_width() / 2 for patch in axis.patches[:7] if isinstance(patch, Rectangle)]
+        )
+        assert centers[5].hex() == "0x1.5555555555556p+0"
+        assert centers[5] != np.linspace(-2.0, 2.0, 7)[5]
+    finally:
+        plt.close("all")
+
+
+def test_fdr_threshold_grid_matches_matlab_linspace():
+    probability = float.fromhex("0x1.28a21bad72473p-4")
+    result = fdr([probability])
+    threshold = float(np.asarray(result.threshold, dtype=float).reshape(-1)[0])
+    assert threshold.hex() == "0x1.2c1250b421389p-4"
+
+
+def test_dftfilt_phase_matches_matlab_linspace():
+    filters = dftfilt(10, 1.0, 1.0, 1.0, 0.0)
+    assert float(np.imag(filters[3, 0])).hex() == "0x1.3ad4403949ff0p-1"
+
+
+def test_dipfit_linspace_string_matches_matlab_linspace():
+    grid = parse_grid_values("linspace(-100,100,24)", default=np.array([0.0]))
+    assert grid[7].hex() == "-0x1.390b21642c859p+5"
+    assert grid[7] != np.linspace(-100.0, 100.0, 24)[7]
+
+
+def test_cbar_tick_positions_follow_the_matlab_colon():
+    axis = cbar("vert", minmax=[0.0, 1.0], grad=7)
+    try:
+        assert axis.get_yticks()[4].hex() == "0x1.5555555555556p-1"
+        assert axis.get_yticks()[4] != np.linspace(0.0, 1.0, 7)[4]
+    finally:
+        plt.close("all")
 
 
 def test_single_pac_window_selects_the_matlab_linspace_stop():

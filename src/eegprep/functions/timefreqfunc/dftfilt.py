@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.timefreqfunc.dftfilt3 import symmetric_hanning
 
@@ -16,7 +17,7 @@ def dftfilt(length: int, maxfreq: float, cycle: float, oversmp: float, wavfact: 
     columns = []
     for index in np.arange(1.0, float(maxfreq) * length / float(cycle) + np.finfo(float).eps, 1.0 / float(oversmp)):
         phase = (
-            1j * index * float(cycle) * np.linspace(-np.pi + 2.0 * np.pi / length, np.pi - 2.0 * np.pi / length, length)
+            1j * index * float(cycle) * linspace(-np.pi + 2.0 * np.pi / length, np.pi - 2.0 * np.pi / length, length)
         )
         columns.append(np.exp(-phase))
     if not columns:

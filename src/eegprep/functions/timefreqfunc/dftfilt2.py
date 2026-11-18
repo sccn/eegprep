@@ -31,7 +31,7 @@ def dftfilt2(
         winlenint = int(np.floor(winlen))
         if winlenint % 2 == 1:
             winlenint += 1
-        winval = np.linspace(winlenint / 2.0, -winlenint / 2.0, winlenint + 1)
+        winval = linspace(winlenint / 2.0, -winlenint / 2.0, winlenint + 1)
         if str(kind).lower() == "sinus":
             wavelet = np.exp(2j * np.pi * float(freq) * winval / float(srate)) * symmetric_hanning(winval.size)
         else:

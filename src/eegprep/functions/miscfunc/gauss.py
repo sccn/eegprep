@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from eegprep.plugins.clean_rawdata.private.windows import matlab_colon
+
 from ._validation import integer_scalar
 
 
@@ -19,7 +21,8 @@ def gauss(frames: int, standard_deviations: float) -> np.ndarray:
     if frame_count == 1:
         # gauss.m: incr is Inf, and -sds:Inf:sds is the single sample -sds.
         return np.array([np.exp(-(standard_deviations**2))])
-    locations = np.linspace(-standard_deviations, standard_deviations, frame_count)
+    step = 2.0 * standard_deviations / (frame_count - 1)
+    locations = matlab_colon(-standard_deviations, step, standard_deviations)
     return np.exp(-(locations**2))
 
 

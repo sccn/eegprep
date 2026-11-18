@@ -1,4 +1,4 @@
-# POP_WRITEEG - Export EEG data to EDF/BDF/GDF
+# POP_WRITEEEG - Export EEG data to EDF/BDF/GDF
 
 `pop_writeeeg` writes the current dataset to an external EEG file format.
 
@@ -23,5 +23,8 @@ numeric event types and sample timing are stored in the GDF event table. Since
 GDF event types are uint16 codes, free-text labels receive file-local codes and
 raise a warning that reports the mapping. Use `pop_saveset` for EEGPrep/EEGLAB
 `.set` files and `pop_exportbids` for BIDS folder output.
+
+Writing EDF and BDF files needs `pyedflib`, which every install includes except Pyodide
+(it has no `pyedflib` build); GDF output does not need it.
 
 See also: POP_SAVESET, POP_EXPORTBIDS

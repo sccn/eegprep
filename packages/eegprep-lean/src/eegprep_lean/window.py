@@ -40,6 +40,7 @@ from typing import Any
 import numpy as np
 
 from .channels import GroupMetadata, read_group_metadata
+from .electrodes import ElectrodeAttributes
 from .extras import is_missing_extra, missing_extra_error
 from .index import ChannelGroup, DatasetIndex, IndexError_, Store
 from .transport import Transport
@@ -87,6 +88,15 @@ class Window:
     learns that 250 Hz of electroencephalography came from a 500 Hz recording.
     """
 
+    electrodes: ElectrodeAttributes | None = None
+    """The electrode positions the store's root declares, or None.
+
+    None means no attributes were read into this window: :func:`read_window` makes no
+    request for the store root, and :func:`~eegprep_lean.load_recording` does and sets this
+    to None for a store that declares no positions. :func:`~eegprep_lean.to_eeg` fills the
+    EEG dictionary's ``chanlocs`` from it.
+    """
+
     @property
     def was_resampled(self) -> bool:
         return bool(self.original_rate) and self.original_rate != self.rate
@@ -132,8 +142,14 @@ def to_physical(digital: np.ndarray, attributes: dict[str, Any], channels: Seque
         )
     scale = np.asarray(attributes["scale"], dtype=np.float64)[list(channels)]
     offset = np.asarray(attributes["offset"], dtype=np.float64)[list(channels)]
-    # Column vectors so each channel's constants apply along its own row.
-    return digital.astype(np.float64) * scale[:, None] + offset[:, None]
+    # Column vectors so each channel's constants apply along its own row. In place on the
+    # one float64 copy, so the peak is that copy and not two or three of them; the
+    # operations and their order are the same as ``digital * scale + offset``, so the
+    # values are bit-identical.
+    physical = digital.astype(np.float64)
+    physical *= scale[:, None]
+    physical += offset[:, None]
+    return physical
 
 
 async def read_window(
@@ -191,7 +207,11 @@ async def read_window(
     # shape spans every channel), so any subset fetches the same chunks regardless.
     first, last = min(wanted), max(wanted)
     span = await array.getitem((slice(first, last + 1), slice(start_sample, stop)))
-    digital = np.asarray(span)[[channel - first for channel in wanted], :]
+    digital = np.asarray(span)
+    if wanted != tuple(range(first, last + 1)):
+        # A subset or a reordering needs its own copy; the whole contiguous span, which is
+        # what a whole-recording read asks for, does not.
+        digital = digital[[channel - first for channel in wanted], :]
 
     data = to_physical(digital, dict(array.metadata.attributes), wanted) if physical else np.asarray(digital)
 

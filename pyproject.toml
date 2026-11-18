@@ -30,6 +30,7 @@ dependencies = [
   # substitute another version. Their floors are therefore a ceiling: raising one
   # past what Pyodide ships makes the install impossible, not merely larger.
   # Shipped by 0.29.5: h5py 3.13.0, matplotlib 3.8.4, numpy 2.2.5, scipy 1.14.1.
+  # Keep the Pyodide version in sync with tools/pyodide/package.json.
   # threadpoolctl is bundled too but is pure Python, so micropip can fetch any
   # version from PyPI and its floor is not constrained this way.
   # tests/test_browser_dependency_floors.py enforces the distinction.
@@ -37,8 +38,13 @@ dependencies = [
   "matplotlib>=3.8.0",
   "numpy>=2.1.0",
   "packaging>=23.0",
-  "psutil>=7.0.0",
-  "pyedflib>=0.1.42",
+  # psutil and pyedflib have no Pyodide build and no pure-Python wheel, so micropip cannot install
+  # them in a browser. The markers keep them in every other install and out of Pyodide.
+  # tests/test_browser_dependency_floors.py enforces the markers, and the pyodide CI job's live
+  # micropip.install of the wheel enforces resolution. tools/check_pyodide_base_resolution.py is
+  # run by hand, as a diagnostic that needs network access.
+  "psutil>=7.0.0; sys_platform != 'emscripten'",
+  "pyedflib>=0.1.42; sys_platform != 'emscripten'",
   "pyyaml>=6.0",
   # 1.14.1 is what Pyodide 0.29.5 ships, so the floor cannot go above it without
   # making a browser install impossible. macOS needs more: scipy built before
@@ -72,8 +78,27 @@ full = [
   "eegprep[pybids]",
   "eegprep[picard]",
 ]
+# Developer-only, and very large: regenerates the shipped iclabel.onnx from netICL.mat, and
+# onnxruntime comes from the iclabel extra or the dev group. tools/iclabel/export_iclabel_onnx.py
+# needs torch and onnx; tools/iclabel/quantize_iclabel_onnx.py needs onnx and documents the full
+# sequence. Not needed to run ICLabel; the iclabel extra is the runtime. ``all`` still includes it,
+# as it includes pamica, which pulls torch in.
+# torch 2.4 is the first release whose torch.onnx.export accepts the dynamo=False argument the
+# export script passes: the keyword exists on torch.onnx.utils.export, which torch.onnx.export
+# re-exports, from 2.4.0 (it is absent from the signature in 2.3.1).
 torch = [
-  "torch>=2.0"
+  "torch>=2.4",
+  "onnx>=1.14",
+]
+# Runtime for ICLabel classification (pop_iclabel, iclabel). 1.20 is the first release usable with
+# the base numpy>=2.1 on every supported Python: 1.18.1 pins numpy<2 (1.18.0 is built against numpy
+# 1.x), 1.19 added numpy 2 support, and 1.20 added the first cp313 wheels (requires-python is >=3.12).
+iclabel = [
+  "onnxruntime>=1.20",
+]
+# pAMICA, the PyTorch AMICA engine behind pop_runica(icatype='pamica'). Pulls in torch.
+pamica = [
+  "pamica==0.4.0",
 ]
 gui = [
   "pyqtgraph>=0.13.7",
@@ -95,7 +120,9 @@ docs = [
   "sphinxcontrib-spelling>=7.1.0"
 ]
 all = [
+  "eegprep[iclabel]",
   "eegprep[torch]",
+  "eegprep[pamica]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
@@ -116,11 +143,15 @@ dev = [
   # Keep `uv run eegprep-console --full` working from a fresh source checkout.
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
-  # Same packages as the eeglab, mne, pybids, and picard extras, so the suite can
+  # Same packages as the eeglab, mne, pybids, picard, and iclabel extras, so the suite can
   # exercise those paths without ``--all-extras``.
   "mne>=1.10.0",
   "defusedxml>=0.7.1",
   "oct2py>=5.5.0",
+  # onnxruntime 1.24 and newer publish no macOS x86_64 wheel; 1.23.2 is the last that does, and it
+  # has them for Python 3.12 and 3.13 only, so an Intel Mac needs one of those two.
+  "onnxruntime>=1.20; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "onnxruntime>=1.20,<1.24; sys_platform == 'darwin' and platform_machine == 'x86_64'",
   "pybids>=0.4",
   "python-picard>=0.8,<0.9",
   "pytest>=8.0",
@@ -254,8 +285,8 @@ exclude = ["eegprep.eeglab*"]
   "resources/**/*.xyz",
   "plugins/**/*.json",
   "plugins/**/*.locs",
-  "plugins/**/*.mat",
   "plugins/**/*.md",
+  "plugins/**/*.onnx",
   "plugins/**/*.sfp",
   "plugins/**/*.tsv",
   "plugins/**/*.txt",
