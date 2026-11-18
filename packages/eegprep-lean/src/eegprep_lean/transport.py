@@ -40,6 +40,8 @@ USER_AGENT = "eegprep-lean"
 #: Fetching a chunk that is not cached at the edge crosses to S3, so this is generous.
 DEFAULT_TIMEOUT_S = 60.0
 
+_MILLISECONDS_PER_SECOND = 1000
+
 
 class TransportError(RuntimeError):
     """A request did not produce bytes.
@@ -176,16 +178,29 @@ class FetchTransport:
         return _check_ranged(Response(status=status, body=bytes(body)), url=url, ranged=range_value is not None)
 
 
-async def _pyfetch(url: str, *, headers: dict[str, str]) -> tuple[int, bytes]:
+async def _pyfetch(url: str, *, headers: dict[str, str], timeout_s: float) -> tuple[int, bytes]:
     """Adapts ``pyodide.http.pyfetch`` to the :class:`Fetch` shape :class:`FetchTransport` calls.
 
     Imported lazily so this module stays importable off Pyodide; the tests install a
     stand-in module at ``sys.modules["pyodide.http"]`` to exercise this off Pyodide too.
+
+    ``timeout_s`` is read from :class:`PyfetchTransport` when each request starts.
+    Pyodide 0.29.5 applies the ``signal`` passed to ``pyfetch`` to ``FetchResponse.bytes``
+    as well, and ``AbortSignal.timeout`` takes milliseconds. A deadline abort is reported
+    as a timeout; any other failure, including cancellation of this task, propagates.
     """
+    from js import AbortSignal  # ty: ignore[unresolved-import]
     from pyodide.http import pyfetch  # ty: ignore[unresolved-import]
 
-    response = await pyfetch(url, headers=headers)
-    return response.status, await response.bytes()
+    signal = AbortSignal.timeout(round(timeout_s * _MILLISECONDS_PER_SECOND))
+    try:
+        response = await pyfetch(url, headers=headers, signal=signal)
+        body = await response.bytes()
+    except Exception as err:
+        if signal.aborted:
+            raise TimeoutError(f"timed out after {timeout_s:g}s") from err
+        raise
+    return response.status, body
 
 
 class PyfetchTransport:
@@ -197,11 +212,17 @@ class PyfetchTransport:
     script-set ``User-Agent`` here used to turn every read into a CORS-preflighted request
     in Safari and Firefox, which ``zarr.nemar.org`` refuses; Chrome only worked because it
     silently drops a script-set ``User-Agent`` and sends its own instead.
+
+    ``timeout_s`` aborts that fetch, including the read of the body. A host-supplied
+    :class:`FetchTransport` is not given this deadline; its own client enforces one.
     """
 
     def __init__(self, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
         self.timeout_s = timeout_s
-        self._transport = FetchTransport(_pyfetch)
+        self._transport = FetchTransport(self._fetch)
+
+    async def _fetch(self, url: str, *, headers: dict[str, str]) -> tuple[int, bytes]:
+        return await _pyfetch(url, headers=headers, timeout_s=self.timeout_s)
 
     async def get(self, url: str, *, start: int | None = None, end: int | None = None) -> Response:
         return await self._transport.get(url, start=start, end=end)

@@ -127,6 +127,15 @@ class TestContractConformance:
         assert index.level0_url(store) == f"{CONTRACT_BASE}{STORE0_ZARR}/{GROUP0_NAME}/0"
         assert index.view_url(store, 1) == f"{CONTRACT_BASE}{STORE0_ZARR}/{GROUP0_NAME}/view/1"
 
+    def test_the_store_root_is_the_zarr_path_on_the_contract_base(self) -> None:
+        """The root group's attributes live in `<store>/zarr.json`, which is the parent of
+        every channel group's directory."""
+        index, _ = _read(_document())
+        store = index.stores[0]
+
+        assert index.store_url(store) == f"{CONTRACT_BASE}{STORE0_ZARR}"
+        assert index.group_url(store).startswith(index.store_url(store) + "/")
+
     def test_parses_every_group_field_into_the_field_it_names(self) -> None:
         """Catches a transposition in from_entry, which no URL assertion can see."""
         group = _read(_document())[0].stores[0].group()

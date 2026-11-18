@@ -6,10 +6,9 @@ no WebAssembly build to fall back to. That makes ``requires-python`` and these f
 *ceiling* for the browser target, which is the opposite of how a floor usually reads, and it
 is invisible from the code. A routine bump made for an unrelated reason is enough to break it.
 
-``epic/324-pyodide-browser`` already carries ``tools/check_pyodide_base_resolution.py``, but
-that gate matches package *names* against the Pyodide lock and never compares versions, so a
-floor above what Pyodide ships passes it (sccn/eegprep#400). These tests close that gap on
-``develop``, offline and without a network fetch.
+``tools/check_pyodide_base_resolution.py`` matches package *names* against the Pyodide lock
+and never compares versions, so a floor above what Pyodide ships passes it (sccn/eegprep#400).
+These tests close that gap, offline and without a network fetch.
 """
 
 from __future__ import annotations
@@ -28,6 +27,7 @@ PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
 # than it does here: it exists to be installed in a browser. Its floors live in its own
 # pyproject and were not covered by this file, which reads only the root one.
 LEAN_PYPROJECT_PATH = REPO_ROOT / "packages" / "eegprep-lean" / "pyproject.toml"
+UV_LOCK_PATH = REPO_ROOT / "uv.lock"
 
 # The Pyodide release the browser work targets, and the versions it bundles. Read from
 # https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide-lock.json on 2026-09-20. Update both
@@ -187,4 +187,27 @@ def test_lean_carries_the_darwin_scipy_floor_that_eegprep_does() -> None:
     assert max(floors) >= Version("1.16.3"), (
         "scipy built before 1.16.3 fails to dlopen on current macOS with a zero-fill "
         "section error, which is why eegprep splits this floor by platform"
+    )
+
+
+def test_lock_gives_intel_macs_an_onnxruntime_wheel() -> None:
+    """A default ``uv sync`` must keep working on an Intel Mac.
+
+    onnxruntime 1.24 and newer publish no macOS x86_64 wheel, so the ``dev`` group caps
+    it for that platform and the lock must carry a second entry with such a wheel.
+    Without it ``uv sync --locked`` fails there with "no wheels with a matching platform".
+    """
+    intel_mac = "platform_machine == 'x86_64' and sys_platform == 'darwin'"
+    packages = tomllib.loads(UV_LOCK_PATH.read_text(encoding="utf-8"))["package"]
+    entries = [package for package in packages if package["name"] == "onnxruntime"]
+    if len(entries) > 1:
+        entries = [
+            package
+            for package in entries
+            if any(intel_mac in marker for marker in package.get("resolution-markers", []))
+        ]
+    assert len(entries) == 1, "uv.lock has no single onnxruntime entry that applies to an Intel Mac"
+    wheels = [wheel["url"].rsplit("/", 1)[-1] for wheel in entries[0].get("wheels", [])]
+    assert any("macosx" in wheel and "x86_64" in wheel for wheel in wheels), (
+        f"onnxruntime {entries[0]['version']} in uv.lock has no macOS x86_64 wheel, so an Intel Mac cannot sync it"
     )
