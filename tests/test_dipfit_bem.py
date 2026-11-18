@@ -23,7 +23,7 @@ from eegprep.plugins.dipfit.fieldtrip.bem import (
     ft_prepare_vol_sens,
     load_bem_headmodel,
 )
-from eegprep.plugins.dipfit.fieldtrip.ft_compute_leadfield import ft_compute_leadfield
+from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
 from eegprep.plugins.dipfit.fieldtrip.geometry import ft_inside_headmodel, project_elec, surface_inside, transfer_elec
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings, pop_dipfit_settings_dialog_spec
 from eegprep.utils.bem_parity import PARITY_DIPOLES_MM, bem_parity_payload
@@ -309,20 +309,23 @@ def test_openmeeg_file_is_rejected(tmp_path):
         prepare_forward_data(_custom_headmodel_eeg(path), [1])
 
 
-def test_standard_besa_template_stays_on_the_sphere_path(tmp_path):
+def test_standard_besa_template_uses_the_four_shell_model(tmp_path):
     eeg = pop_dipfit_settings(
         create_test_eeg_with_ica(n_channels=4, n_samples=8, n_components=1),
         model="standardBESA",
     )
     forward = prepare_forward_data(eeg, [1])
-    assert forward.headmodel is None
+    assert forward.headmodel is not None
+    assert str(forward.headmodel["type"]).lower() == "concentricspheres"
+    np.testing.assert_allclose(np.sort(forward.headmodel["r"]), [71.0, 72.0, 79.0, 85.0])
 
     installed = tmp_path / "standard_BESA" / "standard_BESA.mat"
     installed.parent.mkdir()
     installed.write_bytes(b"")
     eeg["dipfit"]["hdmfile"] = str(installed)
-    forward = prepare_forward_data(eeg, [1])
-    assert forward.headmodel is None
+    named = prepare_forward_data(eeg, [1])
+    assert str(named.headmodel["type"]).lower() == "concentricspheres"
+    np.testing.assert_allclose(named.headmodel["r"], forward.headmodel["r"])
 
 
 def test_pop_multifit_default_bem_returns_finite_positions():

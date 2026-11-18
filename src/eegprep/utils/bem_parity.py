@@ -8,7 +8,7 @@ import numpy as np
 
 from eegprep import pop_loadset
 from eegprep.plugins.dipfit._fitting import prepare_forward_data
-from eegprep.plugins.dipfit.fieldtrip.ft_compute_leadfield import ft_compute_leadfield
+from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
 from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 

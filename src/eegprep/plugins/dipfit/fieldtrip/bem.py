@@ -23,7 +23,6 @@ from eegprep.plugins.dipfit.fieldtrip.geometry import (
     project_elec,
     transfer_elec,
 )
-from eegprep.plugins.dipfit.fieldtrip.spheres import ft_prepare_vol_sens_spheres
 
 
 BEM_TYPES = frozenset({"bem", "dipoli", "asa", "bemcp", "openmeeg"})
@@ -96,12 +95,10 @@ def ft_prepare_vol_sens(headmodel: dict[str, Any], sens: dict[str, Any]) -> tupl
     """Project EEG electrodes onto the skin and fold that transfer into ``mat``.
 
     This is the ``bem`` / ``dipoli`` / ``asa`` / ``bemcp`` branch of FieldTrip
-    ``ft_prepare_vol_sens``. ``singlesphere`` and ``concentricspheres`` go to
-    the sphere hook. OpenMEEG and any other type raise.
+    ``ft_prepare_vol_sens``. The concentric-sphere dispatch lives in
+    ``forward.ft_prepare_vol_sens``. OpenMEEG and any other type raise.
     """
     kind = str(headmodel.get("type", "")).lower()
-    if kind in {"singlesphere", "concentricspheres"}:
-        return ft_prepare_vol_sens_spheres(headmodel, sens)
     if kind == "openmeeg":
         raise ValueError("OpenMEEG head models are not implemented")
     if kind not in _IMPLEMENTED_BEM_TYPES:

@@ -343,7 +343,7 @@ def pop_dipfit_gridsearch_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="reject", value="40"),
         ),
         known_differences=(
-            "The MNI boundary-element model uses the packaged dipoli leadfield. A spherical head model keeps the single-sphere leadfield.",
+            "standardBEM uses the packaged dipoli leadfield. standardBESA uses the four-shell BESA leadfield.",
         ),
     )
 
@@ -426,7 +426,7 @@ def pop_multifit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("pushbutton", "Help", tag="plot_help", enabled=False),
         ),
         known_differences=(
-            "Autofit uses the packaged MNI boundary-element leadfield when that model is selected, and the single-sphere leadfield otherwise.",
+            "standardBEM autofit uses the packaged dipoli leadfield. standardBESA autofit uses the four-shell BESA leadfield.",
         ),
     )
 
@@ -639,10 +639,10 @@ def _make_bilateral_starting_models(EEG: dict[str, Any], components: list[int]) 
     axis = 0 if coordformat == "mni" else 1
     for component in components:
         model = models[component - 1]
-        first = np.asarray(model.get("posxyz", [40.0, 0.0, 30.0]), dtype=float).reshape(-1, 3)[0]
-        first[axis] = abs(first[axis]) or 40.0
+        first = np.asarray(model.get("posxyz", [0.0, -40.0, 30.0]), dtype=float).reshape(-1, 3)[0]
         second = first.copy()
-        second[axis] = -second[axis]
+        first[axis] = -40.0
+        second[axis] = 40.0
         moment = np.asarray(model.get("momxyz", [0.0, 0.0, 0.0]), dtype=float).reshape(-1, 3)[0]
         model.update(
             {

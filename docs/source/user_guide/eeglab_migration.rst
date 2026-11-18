@@ -113,7 +113,8 @@ the limits. Cancelling the menu discards its changes.
        file that matches no keyword keeps the template transform. An empty
        transform is left unchanged and a fit logs a warning, because those
        electrodes are not rotated into the head model.
-       ``standardBESA`` still uses the single-sphere leadfield. A custom
+       ``standardBESA`` uses the four-shell leadfield (radii 71, 72, 79, and
+       85 mm; conductivities 0.33, 1, 0.0042, and 0.33). A custom
        head-model file is a boundary-element volume when it contains
        ``bnd``, ``mat``, and ``cond`` with type dipoli, bemcp, or openmeeg.
        OpenMEEG is recognized and rejected. Any other head-model file raises
@@ -469,6 +470,11 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_headplot`` returns the dataset. EEGPrep writes the spline file
        onto the dataset during the call and returns the figures, so the
        history command does not assign over ``EEG``.
+   * - DIPFIT ``standardBESA`` forward model
+     - ``model="standardBESA"`` uses the four-shell concentric sphere in
+       ``standard_BESA.mat`` (radii 71, 72, 79, and 85 mm; conductivities
+       0.33, 1, 0.0042, and 0.33). The grid and nonlinear fit follow DIPFIT.
+       ``model="standardBEM"`` uses the packaged dipoli volume described above.
 
 Plugin Migration
 ================

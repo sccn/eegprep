@@ -16,9 +16,9 @@ from eegprep.functions.popfunc.plot_utils import numeric_vector, python_literal
 
 FIELDTRIP_LIMITATION = (
     "This DIPFIT workflow builds a new MRI head model or runs eLORETA. EEGPrep "
-    "fits dipoles with the packaged MNI boundary-element model and the spherical "
-    "workflow, but it does not create bemcp or dipoli system matrices and it does "
-    "not run FieldTrip eLORETA."
+    "fits dipoles with the packaged MNI boundary-element model and the four-shell "
+    "standardBESA leadfield, but it does not create bemcp or dipoli system matrices "
+    "and it does not run FieldTrip eLORETA."
 )
 
 

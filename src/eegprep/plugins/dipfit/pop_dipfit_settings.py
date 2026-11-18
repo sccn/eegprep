@@ -135,7 +135,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "EEGPrep keeps the MNI boundary-element model selected when a channel file name contains standard-10-5-cap385, and fills that file's cap385-to-MNI transform.",
+            "EEGPrep keeps the MNI boundary-element model selected when a channel file name contains standard-10-5-cap385, and fills that file's cap385-to-MNI transform. standardBESA fits use the four-shell BESA leadfield.",
             "Browse and interactive co-registration stay disabled. Head-model creation from an MRI is not implemented.",
         ),
         row_spacing=10,
