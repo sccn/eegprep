@@ -6,7 +6,6 @@ import warnings
 from typing import Callable, Optional
 
 import numpy as np
-import psutil
 
 __all__ = [
     'is_debug',
@@ -176,6 +175,30 @@ def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Option
     return default
 
 
+def virtual_memory(purpose: str):
+    """Return psutil's system memory snapshot, importing psutil only when it is needed.
+
+    psutil is part of the base install everywhere except Pyodide, which has no psutil build.
+
+    Args:
+        purpose: What the memory reading is for, completing "psutil is required to ...".
+
+    Returns:
+        The named tuple of ``psutil.virtual_memory()``.
+
+    Raises:
+        ImportError: If psutil is not installed. The message gives ``purpose``.
+    """
+    try:
+        import psutil
+    except ImportError as exc:
+        raise ImportError(
+            f"psutil is required to {purpose}, and it could not be imported ({exc}). "
+            "It is part of the base eegprep install except under Pyodide, which has no psutil build."
+        ) from exc
+    return psutil.virtual_memory()
+
+
 def num_jobs_from_reservation(ReservePerJob: str) -> int:
     """Parse the job reservation string and calculate the number of jobs that can be run.
 
@@ -218,7 +241,7 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
     else:
         reserve, margin = ReservePerJob, '0%'
     if reserve.endswith('B'):
-        avail_amt = psutil.virtual_memory().available
+        avail_amt = virtual_memory('determine available system RAM').available
         unit = reserve[-2:].upper()
         multiplier = {'GB': 2**30, 'MB': 2**20, 'KB': 2**10, 'B': 1}[unit]
         reserve_amt = float(reserve[:-2]) * multiplier

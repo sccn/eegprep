@@ -98,9 +98,17 @@ What the workflow does
 1. **verify** — ``ruff check``, ``ruff format --check``, ``ty check``, and the full
    test suite with ``EEGPREP_SKIP_MATLAB=1``.
 2. **build** — ``uv build``, then checks that the tag matches ``__version__``, that
-   the vendored EEGLAB checkout is absent from both artifacts, that packaged data
-   (ICLabel weights, help resources) is present, that ``twine check --strict``
-   passes, and that the built wheel installs and imports.
+   the vendored EEGLAB checkout is absent from both artifacts, that the wheel and
+   sdist contain both packaged ICLabel networks (and no source ``netICL.mat``), and
+   that the SHA-256 of the packaged 8-bit network equals ``packaged_model.sha256``
+   and that of the full-precision network equals ``float32_model.sha256`` in
+   ``tools/iclabel/parity_report.json``, and that the report's ``gate_pass`` is
+   true. It also runs ``twine check --strict`` and installs both artifacts with
+   the ICLabel extra for runtime classification and the ASR filter smoke test.
+   The smoke tests also pin ``onnxruntime==1.32.0``, the version ``uv.lock``
+   resolves on Linux and the one the test suite runs on, which is stricter than the
+   ``iclabel`` extra's ``>=1.20`` floor. Bump the pin in ``release.yml`` together
+   with ``uv.lock``; ``tests/test_ci_workflows.py`` fails when they differ.
 3. **publish** — uploads to PyPI using Trusted Publishing, so no API token is
    stored in the repository.
 4. **github-release** — creates the GitHub release with the artifacts attached.
@@ -110,6 +118,47 @@ What the workflow does
    Trusted Publishing needs one-time setup on PyPI under
    *Manage project → Publishing → Add a new publisher*: owner ``sccn``, repository
    ``eegprep``, workflow ``release.yml``, environment ``pypi``.
+
+Regenerating the ICLabel network
+================================
+
+Two network files are built from the EEGLAB weights in ``netICL.mat``:
+``src/eegprep/plugins/ICLabel/iclabel.onnx``, the full-precision (float32)
+network that every native run loads, and ``iclabel_int8.onnx`` next to it, the
+8-bit network the browser loads. Rebuild them only when the weights or the
+quantization change; a normal release reuses the committed files. The sequence is:
+
+1. Install the developer tools with the ``torch`` extra (very large); the ``dev``
+   group already includes ONNX Runtime.
+2. Export the full-precision (float32) network from ``netICL.mat``; it is written
+   under ``build/iclabel/`` first.
+3. Quantize its weights to 8-bit integers. The script compares the result with the
+   frozen reference probabilities in ``tools/iclabel/`` and exits with an error,
+   without writing a report, when it fails an acceptance criterion.
+4. Copy the float32 export to ``src/eegprep/plugins/ICLabel/iclabel.onnx`` and the
+   passing 8-bit network to ``src/eegprep/plugins/ICLabel/iclabel_int8.onnx``.
+5. Commit both networks together with the updated
+   ``tools/iclabel/parity_report.json``, so the report's ``packaged_model.sha256``
+   matches the packaged 8-bit file and its ``float32_model.sha256`` matches the
+   full-precision file.
+
+The exact commands are in the docstring of ``tools/iclabel/quantize_iclabel_onnx.py``.
+The report records the float32 file given to the quantize step, so step 4 copies
+that same file. Replacing ``iclabel.onnx`` also means refreezing the reference
+probabilities, which are that file's outputs, and updating the SHA-256 in the
+``source`` field of ``tools/iclabel/evaluation_manifest.json``, as that docstring
+describes. If only the quantization changed, keep the committed ``iclabel.onnx``:
+skip the export (step 2) and the float32 copy (step 4), and quantize the committed file.
+
+Continuous integration repeats steps 2 and 3 on every change. It requires the
+regenerated float32 network to match the committed ``iclabel.onnx`` to 1e-5 on the
+evaluation components and the regenerated 8-bit network to produce network outputs
+identical to the committed ``iclabel_int8.onnx``; it does not compare bytes, because a
+fresh PyTorch export need not be byte-identical across PyTorch versions. The build job
+above fails the release when a packaged network differs from its source file, or
+either packaged network and the report disagree, or the report records a failed
+criterion. After a rebuild, update the measured agreement shown to users
+(:ref:`iclabel_measured_agreement`) from the new report.
 
 If a tag was pushed at a bad commit
 ===================================
