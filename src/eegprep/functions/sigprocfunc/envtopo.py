@@ -28,11 +28,11 @@ from matplotlib.figure import Figure
 from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import MaxNLocator
 
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.axcopy import axcopy
 from eegprep.functions.sigprocfunc.topoplot import topoplot
-from eegprep.plugins.clean_rawdata.private.windows import matlab_colon
 
 MAXTOPOS = 20  # EEGLAB caps the number of plotted component maps
 _FILLCOLOR = (0.815, 0.94, 1.0)  # light blue summed-projection fill, as EEGLAB

@@ -10,7 +10,7 @@ from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
 
 from eegprep.functions.miscfunc.linspace import linspace
-from eegprep.plugins.clean_rawdata.private.windows import matlab_colon
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 
 
 def cbar(

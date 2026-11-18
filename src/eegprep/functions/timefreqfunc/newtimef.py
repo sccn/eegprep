@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
@@ -26,7 +27,6 @@ from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
 from eegprep.functions.timefreqfunc.timefreq import as_channel_epoch_data, timefreq
-from eegprep.plugins.clean_rawdata.private.windows import matlab_colon
 
 
 class TimeFrequencyResult(NamedTuple):

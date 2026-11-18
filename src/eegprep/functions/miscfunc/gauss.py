@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from eegprep.plugins.clean_rawdata.private.windows import matlab_colon
-
 from ._validation import integer_scalar
+from .matlab_colon import matlab_colon
 
 
 def gauss(frames: int, standard_deviations: float) -> np.ndarray:

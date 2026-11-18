@@ -62,6 +62,12 @@ def _bin_centers(first: np.ndarray, second: np.ndarray, bins: Any) -> np.ndarray
 
 
 def _even_centers(minimum: float, maximum: float, count: int) -> np.ndarray:
+    if minimum == maximum:
+        if count == 1:
+            return np.asarray([minimum])
+        span = max(abs(minimum), 1.0) * 0.5
+        minimum -= span
+        maximum += span
     return linspace(minimum, maximum, count)
 
 

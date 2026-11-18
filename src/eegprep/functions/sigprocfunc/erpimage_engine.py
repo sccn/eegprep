@@ -1410,6 +1410,19 @@ def _mround(values: Any) -> Any:
     return np.sign(values) * np.floor(np.abs(values) + 0.5)
 
 
+def _linspace(start: float, stop: float, count: int) -> np.ndarray:
+    """MATLAB ``linspace(start, stop, count)``. A count of 1 returns ``stop``."""
+    n = int(count)
+    stop_value = np.float64(stop)
+    if n == 1:
+        return np.asarray([stop_value])
+    start_value = np.float64(start)
+    values = np.empty(n, dtype=np.float64)
+    values[:-1] = start_value + np.arange(n - 1, dtype=np.float64) * (stop_value - start_value) / np.float64(n - 1)
+    values[-1] = stop_value
+    return values
+
+
 def _colon(start: float, step: float, stop: float) -> np.ndarray:
     """MATLAB ``start:step:stop`` (symmetric halves, endpoint snapping)."""
     if step == 0 or (step > 0 and start > stop) or (step < 0 and start < stop) or np.isnan(step):
@@ -1813,16 +1826,7 @@ def _retained(keep: np.ndarray, ntrials: int, power: str) -> np.ndarray:
 def _sort_window(minx: int, cycles: float, srate: float, freq: float, frames: int) -> np.ndarray:
     """0-based frames of the EEGLAB sorting window (for 'showwin')."""
     winlen = int(np.floor(cycles * srate / freq))
-    count = winlen + 1
-    start = float(np.floor(winlen / 2))
-    stop = float(np.floor(-winlen / 2))
-    offsets = np.empty(count, dtype=float)
-    if count == 1:
-        offsets[0] = stop
-    else:
-        offsets[:-1] = start + np.arange(count - 1) * (stop - start) / (count - 1)
-        offsets[-1] = stop
-    window = (minx + 1) - offsets
+    window = (minx + 1) - _linspace(np.floor(winlen / 2), np.floor(-winlen / 2), winlen + 1)
     return (window[(window > 0) & (window <= frames)] - 1).astype(int)
 
 

@@ -16,8 +16,7 @@ import numpy as np
 from scipy import signal
 
 from eegprep.functions.miscfunc.linspace import linspace
-from eegprep.plugins.clean_rawdata.private.windows import matlab_colon
-
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 from eegprep.functions.sigprocfunc.erpimage_engine import (
     ErpimageComputation,
     ErpimageOptions,
@@ -479,9 +478,7 @@ def _colorbar_ticks(vmin: float, vmax: float) -> tuple[np.ndarray, np.ndarray]:
     ticks = matlab_colon(vmin, (vmax - vmin) / 4.0, vmax)
     labels = vmin * linspace(1.0, 0.0, 5) + vmax * linspace(0.0, 1.0, 5)
     scale = max(abs(vmin), abs(vmax))
-    dec = int(np.floor(np.log10(scale))) if scale else 0
-    if scale == 0:
-        return ticks, labels
+    dec = int(np.floor(np.log10(scale)))
     if dec < 1:
         labels = np.round(labels * 10.0 ** (1 - dec)) * 10.0 ** (dec - 1)
     elif dec == 1:

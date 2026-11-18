@@ -11,11 +11,12 @@ from typing import Any, Dict, Sequence, Tuple, Union
 import numpy as np
 
 from ...functions.miscfunc.linspace import linspace
+from ...functions.miscfunc.matlab_colon import matlab_colon
 from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 from .private.masks import mask_to_intervals
 from .private.stats import fit_eeg_distribution
-from .private.windows import matlab_colon, matlab_window_offsets
+from .private.windows import matlab_window_offsets
 
 logger = logging.getLogger(__name__)
 

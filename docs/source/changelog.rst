@@ -19,11 +19,13 @@ Unreleased
   ``tlimits(2)+0.000001``. ``gauss`` uses ``-sds:incr:sds``. Histogram centers,
   FDR thresholds, trend regressors, the ``dftfilt`` phase grid, color-bar
   ticks and labels, DIPFIT scan grids, and the topoplot mesh follow the
-  same rule. The plotted head outline keeps 100 points, spaced with MATLAB
-  ``linspace``; EEGLAB's circle uses 201. Colormap samples, pixel bin edges,
-  scroll ticks, log-image tick marks, ``signalstat`` histogram centers, the
-  blank scalp placeholder, and contour levels are unchanged: EEGLAB does not
-  build them with ``linspace`` or a colon (#568).
+  same rule. A constant ``hist2`` widens a zero span before that spacing,
+  so the bars have a width. The plotted head outline keeps 100 points,
+  spaced with MATLAB ``linspace``; EEGLAB's circle uses 201. Colormap
+  samples, pixel bin edges, scroll ticks, log-image tick marks,
+  ``signalstat`` histogram centers, the blank scalp placeholder, and
+  contour levels are unchanged: EEGLAB does not build them with
+  ``linspace`` or a colon (#568).
 - ``reref`` and ``pop_reref`` sum an average reference in float64 and cast
   once back to the input dtype, so a float32 recording stays float32 and the
   result does not depend on the BLAS kernel or thread count. On the

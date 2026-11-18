@@ -171,6 +171,20 @@ def test_hist2_centers_match_matlab_linspace():
         plt.close("all")
 
 
+def test_hist2_constant_data_keeps_a_positive_bin_width():
+    axis = hist2([1.0, 1.0], [1.0, 1.0])
+    try:
+        centers = np.array(
+            [patch.get_x() + patch.get_width() / 2 for patch in axis.patches[:100] if isinstance(patch, Rectangle)]
+        )
+        assert centers.size == 100
+        assert np.all(np.diff(centers) > 0)
+        left, right = axis.get_xlim()
+        assert left < right
+    finally:
+        plt.close("all")
+
+
 def test_fdr_threshold_grid_matches_matlab_linspace():
     probability = float.fromhex("0x1.28a21bad72473p-4")
     result = fdr([probability])
