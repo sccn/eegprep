@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._utils import (
@@ -18,6 +18,7 @@ from eegprep.plugins.dipfit._utils import (
     lookupchantemplate,
     one_based_indices,
     template_by_name,
+    template_form_state,
 )
 
 
@@ -75,6 +76,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     else:
         coord_transform = template.coord_transform
     coreg_text = " ".join(f"{float(value):g}" for value in coord_transform) if coord_transform else ""
+    browse_enabled = selected_model == len(STANDARD_TEMPLATES)
     return DialogSpec(
         title="Dipole fit settings - pop_dipfit_settings()",
         function_name="pop_dipfit_settings",
@@ -98,6 +100,13 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
                 "|".join(template.name for template in STANDARD_TEMPLATES),
                 tag="model",
                 value=selected_model,
+                callback=CallbackSpec(
+                    "dipfit_template",
+                    params={
+                        "source": "model",
+                        "templates": [template_form_state(item) for item in STANDARD_TEMPLATES],
+                    },
+                ),
             ),
             ControlSpec("spacer"),
             ControlSpec("text", "Output coordinates"),
@@ -112,17 +121,17 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("text", "Head model file"),
             ControlSpec("edit", tag="hdmfile", value=hdmfile),
-            ControlSpec("pushbutton", "Browse", tag="hdmfile_browse", enabled=False),
+            ControlSpec("pushbutton", "Browse", tag="hdmfile_browse", enabled=browse_enabled),
             ControlSpec("pushbutton", "Help", tag="hdmfile_help"),
             ControlSpec("spacer"),
             ControlSpec("text", "Associated MRI file for plotting"),
             ControlSpec("edit", tag="mrifile", value=mrifile),
-            ControlSpec("pushbutton", "Browse", tag="mrifile_browse", enabled=False),
+            ControlSpec("pushbutton", "Browse", tag="mrifile_browse", enabled=browse_enabled),
             ControlSpec("pushbutton", "Help", tag="mrifile_help"),
             ControlSpec("spacer"),
             ControlSpec("text", "Associated coord. landmarks if any"),
             ControlSpec("edit", tag="chanfile", value=chanfile),
-            ControlSpec("pushbutton", "Browse", tag="chanfile_browse", enabled=False),
+            ControlSpec("pushbutton", "Browse", tag="chanfile_browse", enabled=browse_enabled),
             ControlSpec("pushbutton", "Help", tag="chanfile_help"),
             ControlSpec("spacer"),
             ControlSpec("text", "Matrix to align chan. locs. with head model"),
@@ -136,7 +145,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         ),
         known_differences=(
             "EEGPrep keeps the MNI boundary-element model selected when a channel file name contains standard-10-5-cap385, and fills that file's cap385-to-MNI transform. standardBESA fits use the four-shell BESA leadfield.",
-            "Browse and interactive co-registration stay disabled. Head-model creation from an MRI is not implemented.",
+            "Changing the head-model menu fills the file fields for the selected template. Browse is enabled for a custom head model. Co-register stays disabled. Head-model creation from an MRI is not implemented.",
         ),
         row_spacing=10,
     )
@@ -146,18 +155,25 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None = None) -> dict[str, Any]
     result = inputgui(pop_dipfit_settings_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
-    template = STANDARD_TEMPLATES[int(result.get("model", 2)) - 1]
+    model_index = int(result.get("model", 2) or 2)
+    template = STANDARD_TEMPLATES[model_index - 1]
+    state = template_form_state(template)
     coord_formats = ("Spherical", "MNI", "Neuromag", "")
-    coord_index = int(result.get("coordformat", 2)) - 1
+    try:
+        coord_index = int(result.get("coordformat", state["coordformat"]) or state["coordformat"]) - 1
+    except (TypeError, ValueError):
+        coord_index = int(state["coordformat"]) - 1
     options: dict[str, Any] = {
         "model": template.shortname,
-        "hdmfile": result.get("hdmfile", ""),
-        "mrifile": result.get("mrifile", ""),
-        "chanfile": result.get("chanfile", ""),
-        "coordformat": coord_formats[coord_index] if coord_index < len(coord_formats) else "",
+        "hdmfile": str(result.get("hdmfile") or "").strip() or state["hdmfile"],
+        "mrifile": str(result.get("mrifile") or "").strip() or state["mrifile"],
+        "chanfile": str(result.get("chanfile") or "").strip() or state["chanfile"],
+        "coordformat": coord_formats[coord_index] if 0 <= coord_index < len(coord_formats) else "",
     }
-    if not result.get("no_coreg", False):
-        options["coord_transform"] = result.get("coord_transform", "")
+    if not result.get("no_coreg", state["no_coreg"]):
+        transform = str(result.get("coord_transform") or "").strip() or state["coord_transform"]
+        if transform:
+            options["coord_transform"] = transform
     if str(result.get("chanomit", "")).strip():
         options["chanomit"] = result["chanomit"]
     return options

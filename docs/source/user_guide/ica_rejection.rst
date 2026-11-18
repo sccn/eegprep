@@ -207,11 +207,15 @@ not a replacement for expert inspection.
 Visual Diagnostics
 ==================
 
-``pop_viewprops(EEG, typecomp=0)`` opens EEGPrep's native component-property
-browser. With ICLabel classifications present, component mode opens the
-``pop_prop_extended`` dashboard with scalp map, activity browser, ERP/image
-summary, spectrum, class probabilities, component accept/reject controls, and
+``pop_viewprops(EEG, typecomp=0)`` shows the component topography grid and the
+``pop_prop_extended`` dashboard. The dashboard contains the scalp map,
+activity browser, ERP/image summary, spectrum, class probabilities when a
+classifier matches the current ICA, component accept/reject controls, and
 DIPFIT projections when localized dipoles are already stored in ``EEG.dipfit``.
+Clicking a map opens that component's dashboard. Channel mode,
+``pop_viewprops(EEG, typecomp=1)``, shows the same dashboard for channels.
+A component request with no ICA asks for ``pop_runica``. Labels left behind
+after the decomposition was removed are not used.
 
 The activity browser uses EEGLAB-facing one-based component indices and
 preserves event display state through the ``scroll_event`` option.

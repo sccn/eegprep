@@ -20,8 +20,6 @@ import os
 from pathlib import Path
 
 import numpy as np
-from hypothesis import strategies as st
-
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
@@ -414,30 +412,28 @@ def _continuous_recordings() -> tuple[_Recording, ...]:
 
 
 def extra_strategies(info, spec_cls, case_cls, freeze):
-    """Hypothesis strategies for the seven new targets and the pipeline."""
+    """Builders for the seven event-aware targets and the pipeline."""
     del info, freeze
     corpus = _corpus()
     continuous = _continuous_recordings()
     epoched = corpus["eeglab_data_epochs_ica"]
 
-    @st.composite
     def eegrej(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
         spec = _draw_continuous(draw, spec_cls, rec, user=user, events="keep+boundary")
-        params = {"regions": _draw_regions(draw, spec, rec, user), "eegplot": (not user) and draw(st.booleans())}
-        if not user and draw(st.booleans()):
+        params = {"regions": _draw_regions(draw, spec, rec, user), "eegplot": (not user) and draw.choice((False, True))}
+        if not user and draw.choice((False, True)):
             params["stale_trials"] = True
         return case_cls("eeg_eegrej", spec, freeze_params(params))
 
-    @st.composite
     def select(draw):
         user = _user_draw(draw)
-        if user and draw(st.booleans()):
+        if user and draw.choice((False, True)):
             spec = _draw_trials(draw, spec_cls, epoched, user=True)
             count = spec.length
-            first = draw(st.integers(1, max(1, count // 2)))
-            last = draw(st.integers(first, count))
+            first = draw.integers(1, max(1, count // 2))
+            last = draw.integers(first, count)
             params = {"trial": list(range(first, last + 1)), "sorttrial": "on"}
         elif user:
             rec = _pick_continuous(draw, continuous, True)
@@ -447,7 +443,6 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
             spec, params = _edge_select(draw, spec_cls, continuous, epoched)
         return case_cls("pop_select", spec, freeze_params(params))
 
-    @st.composite
     def epoch(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
@@ -460,57 +455,54 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
             rates=_EDGE_RATES if not user else (0.0,),
         )
         types = _user_types(draw, rec) if user else _edge_types(draw, rec)
-        window = draw(st.sampled_from(_EPOCH_WINDOWS)) if user else _edge_window(draw, spec.srate_hz or rec.srate)
+        window = draw.choice(_EPOCH_WINDOWS) if user else _edge_window(draw, spec.srate_hz or rec.srate)
         params = {"types": types, "lim": list(window)}
-        if not user and draw(st.booleans()):
-            params["valuelim"] = draw(st.sampled_from(([-200.0, 200.0], [50.0], [-20.0, 20.0])))
-        if not user and draw(st.booleans()):
-            params["eventindices"] = [1, 2]
+        if not user and draw.choice((False, True)):
+            params["valuelim"] = draw.choice(([-200.0, 200.0], [50.0], [-20.0, 20.0]))
+        if not user and draw.choice((False, True)):
+            params["eventindices"] = draw.choice(([1], [1, 2], [10**6]))
         return case_cls("pop_epoch", spec, freeze_params(params))
 
-    @st.composite
     def rmbase(draw):
         user = _user_draw(draw)
         if user:
             spec = _draw_trials(draw, spec_cls, epoched, user=True)
-            params = {"timerange": list(draw(st.sampled_from(_BASELINES_MS))), "pointrange": [], "chanlist": []}
-            if draw(st.booleans()):
+            params = {"timerange": list(draw.choice(_BASELINES_MS)), "pointrange": [], "chanlist": []}
+            if draw.choice((False, True)):
                 params = {"timerange": [], "pointrange": [], "chanlist": []}
         else:
             spec, params = _edge_rmbase(draw, spec_cls, continuous, epoched)
         return case_cls("pop_rmbase", spec, freeze_params(params))
 
-    @st.composite
     def windows(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
-        seconds = 8.0 if user else draw(st.sampled_from((4.0, 8.0, 16.0)))
+        seconds = 8.0 if user else draw.choice((4.0, 8.0, 16.0))
         spec = _draw_continuous(
             draw, spec_cls, rec, user=user, events="keep", rates=_EDGE_RATES, seconds=seconds, max_length=16384
         )
         if user:
             params = {
-                "max_bad_channels": draw(st.sampled_from((0.2, 0.25))),
-                "zthresholds": draw(st.sampled_from(([-3.5, 5.0], ["-inf", 7.0]))),
-                "window_len": draw(st.sampled_from((0.5, 1.0))),
+                "max_bad_channels": draw.choice((0.2, 0.25)),
+                "zthresholds": draw.choice(([-3.5, 5.0], ["-inf", 7.0])),
+                "window_len": draw.choice((0.5, 1.0)),
                 "window_overlap": 0.66,
             }
         else:
             params = {
-                "max_bad_channels": draw(st.sampled_from((0.05, 0.1, 0.25, 0.5, 0, 1, 3))),
-                "zthresholds": draw(st.sampled_from(([-3.5, 5.0], ["-inf", 7.0], [-3.0, "inf"]))),
-                "window_len": draw(st.sampled_from((0.5, 1.0, 1.5, 2.0))),
-                "window_overlap": draw(st.sampled_from((0.0, 0.5, 0.66, 0.9))),
+                "max_bad_channels": draw.choice((0.05, 0.1, 0.25, 0.5, 0, 1, 3)),
+                "zthresholds": draw.choice(([-3.5, 5.0], ["-inf", 7.0], [-3.0, "inf"])),
+                "window_len": draw.choice((0.5, 1.0, 1.5, 2.0)),
+                "window_overlap": draw.choice((0.0, 0.5, 0.66, 0.9)),
             }
-            if draw(st.booleans()):
-                spec = _with_prior(spec, "sample" if draw(st.booleans()) else "sample-short")
+            if draw.choice((False, True)):
+                spec = _with_prior(spec, "sample" if draw.choice((False, True)) else "sample-short")
         return case_cls("clean_windows", spec, freeze_params(params))
 
-    @st.composite
     def channels(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
-        seconds = 20.0 if user else draw(st.sampled_from((15.0, 20.0, 30.0)))
+        seconds = 20.0 if user else draw.choice((15.0, 20.0, 30.0))
         spec = _draw_continuous(
             draw,
             spec_cls,
@@ -521,55 +513,53 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
             seconds=seconds,
             max_length=32768,
         )
-        if user and draw(st.booleans()):
+        if user and draw.choice((False, True)):
             spec = _with_artifact(spec, "copy", 1, 0, spec.length)
         if user:
             params = {
                 "corr_threshold": 0.8,
-                "noise_threshold": draw(st.sampled_from((4.0, 4.0, 5.0))),
+                "noise_threshold": draw.choice((4.0, 4.0, 5.0)),
                 "window_len": 5.0,
-                "max_broken_time": draw(st.sampled_from((0.4, 0.5))),
+                "max_broken_time": draw.choice((0.4, 0.5)),
                 "num_samples": 50,
                 "subset_size": 0.25,
             }
         else:
             params = {
-                "corr_threshold": draw(st.sampled_from((0.7, 0.8, 0.85))),
-                "noise_threshold": draw(st.sampled_from((3.0, 4.0, 6.0))),
-                "window_len": draw(st.sampled_from((2.0, 5.0))),
-                "max_broken_time": draw(st.sampled_from((0.2, 0.4, 0.5, 2.0))),
-                "num_samples": draw(st.sampled_from((20, 50, 51))),
+                "corr_threshold": draw.choice((0.7, 0.8, 0.85)),
+                "noise_threshold": draw.choice((3.0, 4.0, 6.0)),
+                "window_len": draw.choice((2.0, 5.0)),
+                "max_broken_time": draw.choice((0.2, 0.4, 0.5, 2.0)),
+                "num_samples": draw.choice((20, 50, 51)),
                 "subset_size": 0.25,
             }
-            spec = _with_artifact(spec, draw(st.sampled_from(("copy", "hf", "flat"))), 1, 0, spec.length)
+            spec = _with_artifact(spec, draw.choice(("copy", "hf", "flat")), 1, 0, spec.length)
         return case_cls("clean_channels", spec, freeze_params(params))
 
-    @st.composite
     def flatlines(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
-        duration = 5.0 if user else draw(st.sampled_from((5.0, 1.0, 0.25)))
+        duration = 5.0 if user else draw.choice((5.0, 1.0, 0.25))
         spec = _draw_continuous(draw, spec_cls, rec, user=user, events="keep", rates=_EDGE_RATES, max_length=2048)
         rate = spec.srate_hz or rec.srate / spec.decimate
         run = int(duration * rate)
         if user:
             jitter = 20.0
-            if draw(st.booleans()):
+            if draw.choice((False, True)):
                 spec = _with_artifact(spec, "flat", 0, 0, run + 2)
         else:
-            jitter = draw(st.sampled_from((20.0, 10.0, 40.0)))
-            mode = draw(st.sampled_from(("flat", "span", "allflat")))
+            jitter = draw.choice((20.0, 10.0, 40.0))
+            mode = draw.choice(("flat", "span", "allflat"))
             if mode == "span":
                 spec = _span_flatline(draw, spec, rec, duration, jitter)
             else:
-                extra = 2 if draw(st.booleans()) else 1
+                extra = 2 if draw.choice((False, True)) else 1
                 spec = _with_artifact(spec, mode, 0, 0, max(2, run + extra))
-            if draw(st.booleans()):
+            if draw.choice((False, True)):
                 spec = _with_prior(spec, "channel")
         params = {"max_flatline_duration": duration, "max_allowed_jitter": jitter}
         return case_cls("clean_flatlines", spec, freeze_params(params))
 
-    @st.composite
     def pipeline(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
@@ -584,19 +574,19 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
             max_length=cap,
         )
         if not user:
-            spec = _with_boundaries(draw, spec, nested=draw(st.booleans()))
+            spec = _with_boundaries(draw, spec, nested=draw.choice((False, True)))
         steps = _tutorial_chain(draw, rec) if user else _edge_chain(draw, rec)
         return case_cls("pipeline", spec, freeze_params({"profile": steps[0]}), pipeline=tuple(steps[1]))
 
     return {
-        "eeg_eegrej": eegrej(),
-        "pop_select": select(),
-        "pop_epoch": epoch(),
-        "pop_rmbase": rmbase(),
-        "clean_windows": windows(),
-        "clean_channels": channels(),
-        "clean_flatlines": flatlines(),
-        "pipeline": pipeline(),
+        "eeg_eegrej": eegrej,
+        "pop_select": select,
+        "pop_epoch": epoch,
+        "pop_rmbase": rmbase,
+        "clean_windows": windows,
+        "clean_channels": channels,
+        "clean_flatlines": flatlines,
+        "pipeline": pipeline,
     }
 
 
@@ -655,12 +645,12 @@ def extra_sanity(spec_cls, case_cls):
 
 
 def _user_draw(draw) -> bool:
-    return draw(st.sampled_from(_USER))
+    return draw.choice(_USER)
 
 
 def _pick_continuous(draw, recordings, user: bool) -> _Recording:
     del user
-    return draw(st.sampled_from(recordings))
+    return draw.choice(recordings)
 
 
 def _duration_samples(rec, seconds: float, cap: int) -> int:
@@ -677,31 +667,31 @@ def _draw_continuous(draw, spec_cls, rec, *, user, events, rates=(0.0,), min_len
         choices = tuple(length for length in choices if min_length <= length <= rec.pnts) or (
             min(rec.pnts, max(min_length, 256)),
         )
-        length = min(rec.pnts, draw(st.sampled_from(choices)))
-    decimate = 1 if user else draw(st.sampled_from((1, 1, 2, 4)))
+        length = min(rec.pnts, draw.choice(choices))
+    decimate = 1 if user else draw.choice((1, 1, 2, 4))
     while length * decimate > rec.pnts and decimate > 1:
         decimate //= 2
     span = length * decimate
     start_max = rec.pnts - span
     if user:
-        start = draw(st.integers(0, min(start_max, max(rec.pnts // 5, 1)))) if start_max else 0
+        start = draw.integers(0, min(start_max, max(rec.pnts // 5, 1))) if start_max else 0
         channels = tuple(range(rec.nbchan))
         nan = (-1, 0, 0)
         srate_hz = 0.0
         drop = ()
     else:
-        start = draw(st.integers(0, start_max)) if start_max else 0
-        count = draw(st.integers(max(4, rec.nbchan // 4), rec.nbchan))
-        offset = draw(st.integers(0, rec.nbchan - count))
+        start = draw.integers(0, start_max) if start_max else 0
+        count = draw.integers(max(4, rec.nbchan // 4), rec.nbchan)
+        offset = draw.integers(0, rec.nbchan - count)
         channels = tuple(range(offset, offset + count))
-        if draw(st.sampled_from((False, False, True))):
-            nan_length = draw(st.integers(1, min(4, length)))
-            nan = (draw(st.integers(0, count - 1)), draw(st.integers(0, length - nan_length)), nan_length)
+        if draw.choice((False, False, True)):
+            nan_length = draw.integers(1, min(4, length))
+            nan = (draw.integers(0, count - 1), draw.integers(0, length - nan_length), nan_length)
         else:
             nan = (-1, 0, 0)
-        srate_hz = draw(st.sampled_from(rates))
-        drop_count = draw(st.integers(0, min(4, count)))
-        drop = tuple(sorted({draw(st.integers(0, count - 1)) for _ in range(drop_count)}))
+        srate_hz = draw.choice(rates)
+        drop_count = draw.integers(0, min(4, count))
+        drop = tuple(sorted({draw.integers(0, count - 1) for _ in range(drop_count)}))
     return spec_cls(
         channels,
         start,
@@ -719,8 +709,8 @@ def _draw_continuous(draw, spec_cls, rec, *, user, events, rates=(0.0,), min_len
 
 def _draw_trials(draw, spec_cls, rec, *, user):
     choices = (8, 16, 20, 40) if user else (1, 2, 5, rec.trials)
-    count = min(rec.trials, draw(st.sampled_from(choices)))
-    start = 0 if user else draw(st.integers(0, rec.trials - count))
+    count = min(rec.trials, draw.choice(choices))
+    start = 0 if user else draw.integers(0, rec.trials - count)
     return spec_cls(
         tuple(range(rec.nbchan if user else max(1, rec.nbchan // 2))),
         start,
@@ -737,35 +727,35 @@ def _draw_trials(draw, spec_cls, rec, *, user):
 def _draw_regions(draw, spec, rec, user: bool):
     length = spec.length
     if user:
-        count = draw(st.sampled_from((1, 1, 2)))
+        count = draw.choice((1, 1, 2))
         regions = []
         cursor = 32
         for _ in range(count):
             if cursor >= length - 16:
                 break
-            width = draw(st.sampled_from((16, 32, 64, 128)))
+            width = draw.choice((16, 32, 64, 128))
             stop = min(length, cursor + width)
             regions.append([cursor, stop])
-            cursor = stop + draw(st.integers(8, 64))
+            cursor = stop + draw.integers(8, 64)
         return regions or [[32, min(length, 96)]]
-    count = draw(st.integers(1, 6))
+    count = draw.integers(1, 6)
     regions = []
     for _ in range(count):
         left = _quarter(draw, -2, length + 4)
         right = _quarter(draw, -2, length + 4)
         regions.append([left, right])
-    if draw(st.booleans()) and regions:
+    if draw.choice((False, True)) and regions:
         regions[0] = [regions[0][1], regions[0][0]]
     latencies = _crop_latencies(rec, spec)
     if latencies and regions:
         regions[0][1] = round(latencies[0])
-    if draw(st.booleans()) and length > 4:
+    if draw.choice((False, True)) and length > 4:
         regions.append([1, length])
     return regions
 
 
 def _user_select(draw, spec, rec):
-    mode = draw(st.sampled_from(("time", "time", "channel", "nochannel")))
+    mode = draw.choice(("time", "time", "channel", "nochannel"))
     if mode == "time":
         stop = min(2.0, max(0.5, (spec.length - 1) / rec.srate))
         return {"time": [[0.0, round(stop, 3)]]}
@@ -776,14 +766,14 @@ def _user_select(draw, spec, rec):
 
 
 def _edge_select(draw, spec_cls, continuous, epoched):
-    kind = draw(st.sampled_from(("point", "nopoint", "notime", "trial", "dupes")))
+    kind = draw.choice(("point", "nopoint", "notime", "trial", "dupes"))
     if kind == "trial":
         spec = _draw_trials(draw, spec_cls, epoched, user=False)
         trials = list(range(1, spec.length + 1))
         draw_order = trials[::-1]
-        if draw(st.booleans()):
+        if draw.choice((False, True)):
             draw_order = draw_order + draw_order[:1]
-        return spec, {"trial": draw_order, "sorttrial": draw(st.sampled_from(("on", "off")))}
+        return spec, {"trial": draw_order, "sorttrial": draw.choice(("on", "off"))}
     rec = _pick_continuous(draw, continuous, False)
     spec = _draw_continuous(draw, spec_cls, rec, user=False, events="keep+boundary")
     if kind == "point":
@@ -801,31 +791,38 @@ def _user_types(draw, rec):
     present = [kind for kind in rec.event_types if kind not in {"boundary", "None"}]
     if not present:
         return []
-    mode = draw(st.sampled_from(("one", "one", "both", "all")))
+    mode = draw.choice(("one", "one", "both", "all"))
     if mode == "all":
         return []
     if mode == "both" and len(present) > 1:
         return present[:2]
-    return [draw(st.sampled_from(present))]
+    return [draw.choice(present)]
 
 
 def _edge_types(draw, rec):
-    return draw(st.sampled_from((["sq.*"], ["^r"], [], _user_types(draw, rec))))
+    kind = draw.choice(("square", "rt", "all", "present"))
+    if kind == "square":
+        return ["sq.*"]
+    if kind == "rt":
+        return ["^r"]
+    if kind == "all":
+        return []
+    return _user_types(draw, rec)
 
 
 def _edge_window(draw, srate):
     rate = srate or 128.0
     half = 0.5 / rate
-    return draw(st.sampled_from(((-1.0, 2.0), (-0.2, 0.8), (0.0, 0.5), (half, half + 0.25), (-0.5, -0.1), (0.1, 0.4))))
+    return draw.choice(((-1.0, 2.0), (-0.2, 0.8), (0.0, 0.5), (half, half + 0.25), (-0.5, -0.1), (0.1, 0.4)))
 
 
 def _edge_rmbase(draw, spec_cls, continuous, epoched):
-    kind = draw(st.sampled_from(("points", "offset", "timerange", "nan", "error")))
+    kind = draw.choice(("points", "offset", "timerange", "nan", "error"))
     if kind in {"timerange", "error"}:
         spec = _draw_trials(draw, spec_cls, epoched, user=False)
         if kind == "error":
             return spec, {"timerange": [-1.0e6, 1.0e6], "pointrange": [], "chanlist": []}
-        return spec, {"timerange": list(draw(st.sampled_from(_BASELINES_MS))), "pointrange": [], "chanlist": [1, 2]}
+        return spec, {"timerange": list(draw.choice(_BASELINES_MS)), "pointrange": [], "chanlist": [1, 2]}
     rec = _pick_continuous(draw, continuous, False)
     spec = _draw_continuous(draw, spec_cls, rec, user=False, events="keep+boundary")
     if kind == "offset":
@@ -851,7 +848,7 @@ def _chain_types(rec: _Recording, preferred: list[str]) -> list[str]:
 
 
 def _tutorial_chain(draw, rec: _Recording):
-    profile = draw(st.sampled_from(("tutorial-epoch", "bids-clean", "gui-clean", "ds003061-params")))
+    profile = draw.choice(("tutorial-epoch", "bids-clean", "gui-clean", "ds003061-params"))
     if profile == "tutorial-epoch":
         steps = (
             ("pop_eegfiltnew", _filter_params(1.0)),
@@ -962,7 +959,7 @@ def _with_nan(spec):
 def _with_boundaries(draw, spec, *, nested: bool):
     length = spec.length
     latency = _quarter(draw, 8, max(8, length / 2))
-    duration = float(draw(st.sampled_from((1.0, 4.0, 8.0))))
+    duration = float(draw.choice((1.0, 4.0, 8.0)))
     bounds = [(latency, duration)]
     if nested:
         bounds.append((latency + 0.25, 0.5))
@@ -1001,7 +998,7 @@ def _quarter(draw, low: float, high: float) -> float:
     stop_q = int(np.floor(float(high) * 4.0))
     if stop_q < start_q:
         return float(low)
-    return draw(st.integers(start_q, stop_q)) / 4.0
+    return draw.integers(start_q, stop_q) / 4.0
 
 
 def _crop_latencies(rec, spec) -> list[float]:
@@ -1144,9 +1141,9 @@ def _jitter_partner(base: float, threshold: float, place: str) -> float | None:
 
 
 def _span_flatline(draw, spec, rec, duration: float, jitter: float):
-    place = draw(st.sampled_from(("below", "equal", "above")))
-    relation = draw(st.sampled_from(("below", "equal", "above")))
-    baseline = draw(st.sampled_from(("near0", "recorded")))
+    place = draw.choice(("below", "equal", "above"))
+    relation = draw.choice(("below", "equal", "above"))
+    baseline = draw.choice(("near0", "recorded"))
     rate = float(spec.srate_hz or rec.srate / spec.decimate)
     limit = float(duration) * rate
     count = _span_sample_count(limit, place)

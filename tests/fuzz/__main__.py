@@ -67,7 +67,9 @@ def _run(args, python, oracle) -> int:
             f"abs={outcome.max_abs} rel={outcome.max_rel}"
         )
         print(outcome.detail)
-        return 0 if outcome.both_ok and not outcome.diverged else 1
+        if outcome.diverged or "oracle-infrastructure" in outcome.error_class:
+            return 1
+        return 0
 
     seed_value = nightly_seed() if args.seed is None else args.seed
     functions = None
