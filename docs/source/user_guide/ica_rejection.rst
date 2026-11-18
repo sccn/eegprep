@@ -80,6 +80,28 @@ fewer component than channels, which is useful after average referencing. The
 initial unmixing matrix is sized to the reduced decomposition while remaining
 deterministic.
 
+``runica`` estimates that rank when ``pca`` is omitted. Average referencing
+leaves one near-null direction, so a 32-channel recording is decomposed into
+31 components. The estimate uses the first 3000 frames and keeps the smaller
+of the matrix rank and the number of covariance eigenvalues above ``1e-7``.
+The history command records the ``pca`` value. Pass ``pca`` to choose a
+different count; a negative value subtracts from the channel count and is not
+replaced by the estimate. The decomposition dialog applies the estimate on
+the same path as the console. ``eeg_runica`` applies the same estimate when
+``pca`` is omitted. ``bids_preproc`` calls ``eeg_runica`` for its runica
+stage, so that stage reduces rank the same way. A direct ``runica(data)``
+call does not reduce rank. Its sphering matrix is
+``2 * inv(sqrtm(cov(data)))``, which is not meaningful along the
+average-reference direction.
+
+The rank-31 reconstruction is the PCA projection of the recording. On the
+average-referenced tutorial data, EEGPrep stays on that projection to
+5.4e-13. EEGLAB's projectors agree with EEGPrep's to 2.3e-13 before scaling.
+After EEGLAB scales components to RMS microvolt and recomputes the
+activations, ``icawinv * icaweights * icasphere * data`` leaves EEGLAB's own
+projection by 5.7e-8, which is 7.1e-10 of the data root-mean-square. The
+mixing maps still agree after accounting for sign and order.
+
 Picard starts from an identity matrix by default. To choose a reproducible
 random starting point, call ``eeg_picard(EEG, random_state=42)`` or pass
 ``options={"seed": 42}`` to ``pop_runica`` with ``icatype="picard"``.
