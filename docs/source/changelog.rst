@@ -17,7 +17,7 @@ Unreleased
   1 ms differs in the sixth sample from NumPy. ``envtopo`` uses
   ``xmin:sampint:xmax`` in seconds. The ``newtimef`` ERP time base ends at
   ``tlimits(2)+0.000001``. ``gauss`` uses ``-sds:incr:sds`` and fdlibm
-  ``exp``. Log-spaced widths use fdlibm ``10.^x``. Histogram centers,
+  ``exp`` on the whole window. Log-spaced widths use fdlibm ``10.^x``. Histogram centers,
   FDR thresholds, trend regressors, the ``dftfilt`` phase grid, color-bar
   ticks and labels, DIPFIT scan grids, and the topoplot mesh follow the
   same rule. A constant ``hist2`` widens a zero span before that spacing,

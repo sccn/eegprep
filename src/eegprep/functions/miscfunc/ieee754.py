@@ -10,48 +10,48 @@ from __future__ import annotations
 import numpy as np
 
 
-def _bits(high: int, low: int = 0) -> np.float64:
-    return np.uint64((high << 32) | low).view(np.float64)
-
-
 _ONE = np.float64(1.0)
 _TWO = np.float64(2.0)
 _HUGE = np.float64(1.0e300)
 _TINY = np.float64(1.0e-300)
-_TWO54 = _bits(0x43500000)
-_TWOM54 = _bits(0x3C900000)
-_TWOM1000 = _bits(0x01700000)
-_EXP1 = np.float64(2.718281828459045235360)
-_O_THRESHOLD = _bits(0x40862E42, 0xFEFA39EF)
-_U_THRESHOLD = _bits(0xC0874910, 0xD52D3051)
-_LN2_HI = _bits(0x3FE62E42, 0xFEE00000)
-_LN2_LO = _bits(0x3DEA39EF, 0x35793C76)
-_INVLN2 = _bits(0x3FF71547, 0x652B82FE)
-_P1 = _bits(0x3FC55555, 0x5555553E)
-_P2 = _bits(0xBF66C16C, 0x16BEBD93)
-_P3 = _bits(0x3F11566A, 0xAF25DE2C)
-_P4 = _bits(0xBEBBBD41, 0xC5D26BF1)
-_P5 = _bits(0x3E663769, 0x72BEA4D0)
+_TWO54 = np.float64.fromhex("0x1.0000000000000p+54")
+_TWOM54 = np.float64.fromhex("0x1.0000000000000p-54")
+_TWOM1000 = np.float64.fromhex("0x1.0000000000000p-1000")
+_EXP1 = np.float64.fromhex("0x1.5bf0a8b145769p+1")
+_O_THRESHOLD = np.float64.fromhex("0x1.62e42fefa39efp+9")
+_U_THRESHOLD = np.float64.fromhex("-0x1.74910d52d3051p+9")
+_LN2_HI = np.float64.fromhex("0x1.62e42fee00000p-1")
+_LN2_LO = np.float64.fromhex("0x1.a39ef35793c76p-33")
+_INVLN2 = np.float64.fromhex("0x1.71547652b82fep+0")
+_P1 = np.float64.fromhex("0x1.555555555553ep-3")
+_P2 = np.float64.fromhex("-0x1.6c16c16bebd93p-9")
+_P3 = np.float64.fromhex("0x1.1566aaf25de2cp-14")
+_P4 = np.float64.fromhex("-0x1.bbd41c5d26bf1p-20")
+_P5 = np.float64.fromhex("0x1.6376972bea4d0p-25")
 _BP = (_ONE, np.float64(1.5))
-_DP_H = (np.float64(0.0), _bits(0x3FE2B803, 0x40000000))
-_DP_L = (np.float64(0.0), _bits(0x3E4CFDEB, 0x43CFD006))
-_L1 = _bits(0x3FE33333, 0x33333303)
-_L2 = _bits(0x3FDB6DB6, 0xDB6FABFF)
-_L3 = _bits(0x3FD55555, 0x518F264D)
-_L4 = _bits(0x3FD17460, 0xA91D4101)
-_L5 = _bits(0x3FCD864A, 0x93C9DB65)
-_L6 = _bits(0x3FCA7E28, 0x4A454EEF)
-_LG2 = _bits(0x3FE62E42, 0xFEFA39EF)
-_LG2_H = _bits(0x3FE62E43, 0x00000000)
-_LG2_L = _bits(0xBE205C61, 0x0CA86C39)
-_OVT = _bits(0x3C971547, 0x652B82FE)
-_CP = _bits(0x3FEEC709, 0xDC3A03FD)
-_CP_H = _bits(0x3FEEC709, 0xE0000000)
-_CP_L = _bits(0xBE3E2FE0, 0x145B01F5)
-_IVLN2 = _bits(0x3FF71547, 0x652B82FE)
-_IVLN2_H = _bits(0x3FF71547, 0x60000000)
-_IVLN2_L = _bits(0x3E54AE0B, 0xF85DDF44)
-_POW_2_1023 = _bits(0x7FE00000)
+_DP_H = (np.float64(0.0), np.float64.fromhex("0x1.2b80340000000p-1"))
+_DP_L = (np.float64(0.0), np.float64.fromhex("0x1.cfdeb43cfd006p-27"))
+_L1 = np.float64.fromhex("0x1.3333333333303p-1")
+_L2 = np.float64.fromhex("0x1.b6db6db6fabffp-2")
+_L3 = np.float64.fromhex("0x1.55555518f264dp-2")
+_L4 = np.float64.fromhex("0x1.17460a91d4101p-2")
+_L5 = np.float64.fromhex("0x1.d864a93c9db65p-3")
+_L6 = np.float64.fromhex("0x1.a7e284a454eefp-3")
+_LG2 = np.float64.fromhex("0x1.62e42fefa39efp-1")
+_LG2_H = np.float64.fromhex("0x1.62e4300000000p-1")
+_LG2_L = np.float64.fromhex("-0x1.05c610ca86c39p-29")
+_OVT = np.float64.fromhex("0x1.71547652b82fep-54")
+_CP = np.float64.fromhex("0x1.ec709dc3a03fdp-1")
+_CP_H = np.float64.fromhex("0x1.ec709e0000000p-1")
+_CP_L = np.float64.fromhex("-0x1.e2fe0145b01f5p-28")
+_IVLN2 = np.float64.fromhex("0x1.71547652b82fep+0")
+_IVLN2_H = np.float64.fromhex("0x1.7154760000000p+0")
+_IVLN2_L = np.float64.fromhex("0x1.4ae0bf85ddf44p-26")
+_POW_2_1023 = np.float64.fromhex("0x1.0000000000000p+1023")
+_EXP_BLOCK = 16384
+with np.errstate(over="ignore", under="ignore"):
+    _OVERFLOW = np.float64(_HUGE * _HUGE)
+    _UNDERFLOW = np.float64(_TWOM1000 * _TWOM1000)
 
 
 def _u32(value: int) -> int:
@@ -128,9 +128,9 @@ def _exp_scalar(value: float) -> np.float64:
                 return np.float64(number + number)
             return number if sign == 0 else np.float64(0.0)
         if number > _O_THRESHOLD:
-            return np.float64(_HUGE * _HUGE)
+            return _OVERFLOW
         if number < _U_THRESHOLD:
-            return np.float64(_TWOM1000 * _TWOM1000)
+            return _UNDERFLOW
     if number == 1.0:
         return _EXP1
 
@@ -354,14 +354,112 @@ def _pow_scalar(base: float, exponent: float) -> np.float64:
     return np.float64(sign * result)
 
 
+def _exp_series(reduced: np.ndarray) -> np.ndarray:
+    square = reduced * reduced
+    polynomial = square * _P5
+    polynomial += _P4
+    polynomial *= square
+    polynomial += _P3
+    polynomial *= square
+    polynomial += _P2
+    polynomial *= square
+    polynomial += _P1
+    polynomial *= square
+    correction = reduced - polynomial
+    ratio = reduced * correction
+    ratio /= correction - 2.0
+    ratio -= reduced
+    return _ONE - ratio
+
+
+def _twopk(exponent: np.ndarray) -> np.ndarray:
+    shifted = exponent.astype(np.int64) << np.int64(20)
+    low = shifted & np.int64(0xFFFFFFFF)
+    signed = np.where(low >= np.int64(0x80000000), low - np.int64(0x100000000), low)
+    scale_word = (np.int64(0x3FF00000) + signed) & np.int64(0xFFFFFFFF)
+    return (scale_word.astype(np.uint64) << np.uint64(32)).view(np.float64)
+
+
 def exp(values: np.ndarray | float) -> np.ndarray:
     """Return fdlibm ``exp`` of each value."""
-    array = np.asarray(values, dtype=np.float64)
-    output = np.empty(array.shape, dtype=np.float64)
+    requested = np.asarray(values, dtype=np.float64)
+    number = np.ascontiguousarray(requested)
+    bits = number.view(np.uint64)
+    high_raw = (bits >> np.uint64(32)).astype(np.uint32)
+    sign = high_raw >> np.uint32(31)
+    high = high_raw & np.uint32(0x7FFFFFFF)
+    low = bits.astype(np.uint32)
+    if number.size and int(high.max()) <= 0x3FD62E42:
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            flat = number.ravel()
+            high_flat = high.ravel()
+            series = np.empty(flat.shape, dtype=np.float64)
+            for start in range(0, flat.size, _EXP_BLOCK):
+                stop = start + _EXP_BLOCK
+                block = flat[start:stop]
+                block_series = _exp_series(block)
+                small = high_flat[start:stop] < np.uint32(0x3E300000)
+                if np.any(small):
+                    block_series = np.where(small, _ONE + block, block_series)
+                series[start:stop] = block_series
+        return series.reshape(requested.shape)
+
+    nonfinite = high >= np.uint32(0x7FF00000)
+    nan_bits = ((high & np.uint32(0xFFFFF)).astype(np.uint64) | low.astype(np.uint64)) != 0
+    large = high >= np.uint32(0x40862E42)
+    output = np.empty(number.shape, dtype=np.float64)
+    done = np.zeros(number.shape, dtype=bool)
+
+    nan = nonfinite & nan_bits
+    positive_inf = nonfinite & ~nan_bits & (sign == 0)
+    negative_inf = nonfinite & ~nan_bits & (sign == 1)
+    with np.errstate(over="ignore", under="ignore", invalid="ignore"):
+        output[nan] = number[nan] + number[nan]
+    output[positive_inf] = number[positive_inf]
+    output[negative_inf] = 0.0
+    done |= nonfinite
+
+    overflow = large & ~done & (number > _O_THRESHOLD)
+    underflow = large & ~done & (number < _U_THRESHOLD)
+    output[overflow] = _OVERFLOW
+    output[underflow] = _UNDERFLOW
+    done |= overflow | underflow
+
+    one = ~done & (number == 1.0)
+    output[one] = _EXP1
+    done |= one
+
+    small = ~done & (high < np.uint32(0x3E300000))
+    output[small] = _ONE + number[small]
+    done |= small
+
     with np.errstate(over="ignore", under="ignore", divide="ignore", invalid="ignore"):
-        for index in np.ndindex(array.shape):
-            output[index] = _exp_scalar(array[index])
-    return output
+        negative = sign == 1
+        mid = ~done & (high > np.uint32(0x3FD62E42)) & (high < np.uint32(0x3FF0A2B2))
+        wide = ~done & (high > np.uint32(0x3FD62E42)) & ~mid
+        high_part = np.zeros(number.shape, dtype=np.float64)
+        low_part = np.zeros(number.shape, dtype=np.float64)
+        exponent = np.zeros(number.shape, dtype=np.int64)
+        high_part = np.where(mid, number - np.where(negative, -_LN2_HI, _LN2_HI), high_part)
+        low_part = np.where(mid, np.where(negative, -_LN2_LO, _LN2_LO), low_part)
+        exponent = np.where(mid, np.where(negative, np.int64(-1), np.int64(1)), exponent)
+        biased = np.where(wide, _INVLN2 * number + np.where(negative, np.float64(-0.5), np.float64(0.5)), 0.0)
+        reduced_exponent = np.trunc(biased).astype(np.int64)
+        scale = reduced_exponent.astype(np.float64)
+        high_part = np.where(wide, number - scale * _LN2_HI, high_part)
+        low_part = np.where(wide, scale * _LN2_LO, low_part)
+        exponent = np.where(wide, reduced_exponent, exponent)
+        reduced = np.where(mid | wide, high_part - low_part, number)
+        square = reduced * reduced
+        correction = reduced - square * (_P1 + square * (_P2 + square * (_P3 + square * (_P4 + square * _P5))))
+        zero_scale = _exp_series(reduced)
+        shifted = _ONE - ((low_part - (reduced * correction) / (2.0 - correction)) - high_part)
+        result = np.where(exponent == 0, zero_scale, shifted)
+        twopk = _twopk(np.where(exponent >= -1021, exponent, exponent + 1000))
+        scaled = np.where(exponent == 0, result, result * twopk)
+        scaled = np.where(exponent == 1024, result * 2.0 * _POW_2_1023, scaled)
+        scaled = np.where(exponent < -1021, result * twopk * _TWOM1000, scaled)
+    return np.where(done, output, scaled).reshape(requested.shape)
 
 
 def power(base: np.ndarray | float, exponent: np.ndarray | float) -> np.ndarray:
