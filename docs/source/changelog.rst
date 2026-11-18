@@ -12,10 +12,12 @@ Unreleased
 
 - ``pop_runica`` with ``runica`` reduces a rank-deficient recording, including
   an average-referenced one, to the estimated data rank and records that
-  ``pca`` value in history. An explicit ``pca`` is kept. A direct ``runica``
-  call still spheres every channel; that sphere is not meaningful along the
-  average-reference null direction. On the average-referenced tutorial
-  recording, EEGLAB's scaled ``icawinv * icaweights * icasphere * data``
+  ``pca`` value in history. An explicit ``pca`` is kept. ``eeg_runica``
+  applies the same reduction when ``pca`` is omitted, and ``bids_preproc``'s
+  runica stage calls ``eeg_runica``, so that stage inherits it. A direct
+  ``runica`` call still spheres every channel; that sphere is not meaningful
+  along the average-reference null direction. On the average-referenced
+  tutorial recording, EEGLAB's scaled ``icawinv * icaweights * icasphere * data``
   leaves its own rank-31 projection by 5.7e-8; EEGPrep's product stays
   within 5.4e-13 (#567).
 - ``reref`` and ``pop_reref`` sum an average reference in float64 and cast

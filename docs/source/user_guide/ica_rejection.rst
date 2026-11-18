@@ -86,9 +86,12 @@ of the matrix rank and the number of covariance eigenvalues above ``1e-7``.
 The history command records the ``pca`` value. Pass ``pca`` to choose a
 different count; a negative value subtracts from the channel count and is not
 replaced by the estimate. The decomposition dialog applies the estimate on
-the same path as the console. A direct ``runica(data)`` call does not reduce
-rank. Its sphering matrix is ``2 * inv(sqrtm(cov(data)))``, which is not
-meaningful along the average-reference direction.
+the same path as the console. ``eeg_runica`` applies the same estimate when
+``pca`` is omitted. ``bids_preproc`` calls ``eeg_runica`` for its runica
+stage, so that stage reduces rank the same way. A direct ``runica(data)``
+call does not reduce rank. Its sphering matrix is
+``2 * inv(sqrtm(cov(data)))``, which is not meaningful along the
+average-reference direction.
 
 The rank-31 reconstruction is the PCA projection of the recording. On the
 average-referenced tutorial data, EEGPrep stays on that projection to
