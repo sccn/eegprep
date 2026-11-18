@@ -1422,7 +1422,10 @@ def _scalar_valuelim_is_known(
     if oracle_data.ndim != 3 or oracle_data.shape[2] != 0:
         return False
     plane = _kept_epoch_plane(python.data)
-    return plane == (int(oracle_data.shape[0]), int(oracle_data.shape[1]))
+    if plane != (int(oracle_data.shape[0]), int(oracle_data.shape[1])):
+        return False
+    limit = abs(float(valuelim[0]))
+    return bool(np.all(np.abs(np.asarray(python.data)) < limit))
 
 
 def _kept_epoch_plane(data: np.ndarray) -> tuple[int, int] | None:

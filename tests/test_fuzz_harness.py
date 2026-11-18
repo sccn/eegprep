@@ -958,6 +958,22 @@ def test_scalar_valuelim_empty_oracle_is_not_filed():
     assert interval.diverged is True
     assert interval.error_class == "shape"
 
+    def outside_bound(_case, dataset):
+        output = dispatch_python(_case, dataset)
+        eeg = copy.deepcopy(output[0] if isinstance(output, tuple) else output)
+        eeg["data"] = np.full(np.asarray(eeg["data"]).shape, 60.0)
+        return eeg
+
+    outlier = evaluate_case(
+        _scalar_valuelim_case([50.0]),
+        lambda _case: _scalar_valuelim_eeg(),
+        _CallBackend(outside_bound),
+        _CallBackend(_reject_every_epoch),
+        load_tolerances(),
+    )
+    assert outlier.diverged is True
+    assert outlier.error_class == "shape"
+
 
 def test_pipeline_scalar_valuelim_continues_from_python():
     seen = []
