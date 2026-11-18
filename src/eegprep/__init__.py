@@ -107,6 +107,7 @@ _LAZY_EXPORTS = {
     "eeg_getdatact": ("eegprep.functions.adminfunc.eeg_getdatact", "eeg_getdatact"),
     "eeg_getepochevent": ("eegprep.functions.popfunc.eeg_getepochevent", "eeg_getepochevent"),
     "eeg_getica": ("eegprep.functions.sigprocfunc.ica_helpers", "eeg_getica"),
+    "eeg_getversion": ("eegprep.functions.adminfunc.eeg_getversion", "eeg_getversion"),
     "eeg_helphelp": ("eegprep.functions.adminfunc.eeg_helphelp", "eeg_helphelp"),
     "eeg_hist": ("eegprep.functions.adminfunc.eeg_hist", "eeg_hist"),
     "eeg_icalabelstat": ("eegprep.plugins.ICLabel.eeg_icalabelstat", "eeg_icalabelstat"),

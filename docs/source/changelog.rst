@@ -16,6 +16,18 @@ Unreleased
   keep the sampling rate, and still remove bad windows. EEGLAB indexes that
   width and ``clean_artifacts.m`` lines 270-275 return before restoring the
   rounded sampling rate and before the window stage (#651).
+- ``pop_loadstudy`` reads an EEGLAB MATLAB ``.study`` file as well as
+  EEGPrep JSON. MATLAB ``char`` arrays are decoded as Latin-1. Dataset
+  paths stored under the previous study directory are rebased onto the
+  directory that contains the file, and ``option_storedisk`` selects a
+  header-only or full data load. The load calls ``std_checkfiles``, as
+  EEGLAB's ``pop_loadstudy.m`` does. A ``changrp.erpdata`` cell whose cells
+  have different lengths stays a cell. Measure arrays saved in the STUDY
+  stay in place; EEGLAB clears those in-memory copies because it reloads
+  them from separate files. ``eeg_getversion`` reports the installed
+  EEGPrep version. A source checkout of EEGLAB reports ``'dev'`` from the
+  copy embedded in ``eeg_getversion.m``; the numeric collapse is the same,
+  so ``11.3.2.4b`` is ``11.324``.
 - Time axes, frequency grids, and cycle grids that are returned or used to
   pick a sample follow MATLAB ``linspace`` (``start + i * (stop - start) / (n - 1)``,
   last sample equal to the stop, one sample equal to the stop) or the colon

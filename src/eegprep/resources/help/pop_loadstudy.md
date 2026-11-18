@@ -1,7 +1,14 @@
 # POP_LOADSTUDY - Load an EEGPrep STUDY
 
-`pop_loadstudy` loads an EEGPrep-owned `.study` JSON file saved by
-`pop_savestudy`.
+`pop_loadstudy` loads a `.study` file saved by `pop_savestudy` or by EEGLAB.
+
+EEGPrep saves JSON. EEGLAB saves a MATLAB file with a `STUDY` variable.
+MATLAB character arrays are decoded as Latin-1, so characters such as `ä`
+and `¸` survive. When the STUDY directory has moved, dataset paths that
+lived under the saved study directory are rebased onto the new directory.
+Other locations are tried beside the STUDY file and under the dataset's
+parent folder names. `option_storedisk` selects a header-only load or a
+full data load.
 
 Usage:
 

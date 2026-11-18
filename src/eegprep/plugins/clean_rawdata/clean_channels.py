@@ -24,6 +24,39 @@ logger = logging.getLogger(__name__)
 DEFAULT_RANSAC_SEED = 5489
 
 
+def _is_missing_coord(value: Any) -> bool:
+    """True when MATLAB ``isempty`` is true: ``[]``, ``''``, an empty array, or None."""
+    if value is None or (isinstance(value, str) and value == ''):
+        return True
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    return isinstance(value, (list, tuple)) and len(value) == 0
+
+
+def _coord_or_nan(value: Any) -> float:
+    if _is_missing_coord(value):
+        return np.nan
+    if isinstance(value, (list, tuple, np.ndarray)):
+        arr = np.asarray(value, dtype=float).reshape(-1)
+        if arr.size != 1:
+            raise ValueError('channel coordinate must be a scalar')
+        return float(arr[0])
+    return float(value)
+
+
+def _concat_length(values: list[Any]) -> int:
+    """Element count of ``[chanlocs.X]``: empty coordinates contribute nothing."""
+    total = 0
+    for value in values:
+        if _is_missing_coord(value):
+            continue
+        if isinstance(value, (list, tuple, np.ndarray)):
+            total += int(np.asarray(value).size)
+        else:
+            total += 1
+    return total
+
+
 def clean_channels(
     EEG: Dict[str, Any],
     corr_threshold: float = 0.8,
@@ -142,12 +175,19 @@ def clean_channels(
         X = EEG['data'].T
         noise_mask = np.zeros(C, dtype=bool)  # transpose added in MATLAB comment
 
-    xyz = [[ch.get(coord, np.nan) for ch in EEG['chanlocs']] for coord in ['X', 'Y', 'Z']]
-    xyz = [[x if not (isinstance(x, np.ndarray) and x.size == 0) else np.nan for x in xyz_sub] for xyz_sub in xyz]
-    xyz = np.asarray([np.asarray([np.nan if x is None else x for x in row], dtype=float) for row in xyz])
-    if np.mean(np.any(np.isnan(xyz), axis=0)) > 0.5:
+    coordinate_values = [[channel.get(coord) for channel in chanlocs] for coord in ('X', 'Y', 'Z')]
+    # clean_channels.m: length([chanlocs.X/Y/Z]) > n*0.5, then RANSAC uses complete triples only.
+    if any(_concat_length(values) <= len(chanlocs) * 0.5 for values in coordinate_values):
         raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
-    usable_channels = np.where(~np.any(np.isnan(xyz), axis=0))[0]
+    missing = np.asarray(
+        [[_is_missing_coord(value) for value in values] for values in coordinate_values],
+        dtype=bool,
+    )
+    usable_channels = np.flatnonzero(~np.any(missing, axis=0))
+    xyz = np.full((3, len(chanlocs)), np.nan)
+    for index in usable_channels:
+        for axis, values in enumerate(coordinate_values):
+            xyz[axis, index] = _coord_or_nan(values[index])
 
     locs = xyz[:, usable_channels].T
     validate_electrode_positions(locs, operation="clean_channels")
