@@ -86,6 +86,8 @@ INTERP_NEW_ATOL = 1e-4
 SUBCOMP_ATOL = 1e-6
 PICARD_AMARI_MAX = 1e-5
 PICARD_CORR_MIN = 0.9999
+PICARD_TOL = 1e-10
+PICARD_MAX_ITER = 2048
 EVENT_ATOL = 1e-6
 EXPECTED_SUMMARY = Path(__file__).resolve().parent / "parity_expected" / "ds003061_pipeline.json"
 EXACT_SUMMARY_KEYS = {
@@ -402,10 +404,10 @@ class _Side:
             return cleaned
         return self.wrapper.clean_artifacts(eeg, **CLEAN_PARAMS)
 
-    def picard(self, eeg):
+    def picard(self, eeg, **kwargs):
         if self.wrapper is None:
-            return eeg_picard(eeg)
-        return self.wrapper.eeg_picard(eeg)
+            return eeg_picard(eeg, **kwargs)
+        return self.wrapper.eeg_picard(eeg, **kwargs)
 
     def label(self, eeg):
         if self.wrapper is None:
@@ -683,7 +685,13 @@ def _chain_subject(subject, imported, engine):
     assert _removed_labels(python_ref, python_eeg) == _removed_labels(matlab_ref, matlab_eeg)
     _assert_events_match(python_eeg, matlab_eeg)
 
-    python_eeg, matlab_eeg, _max_abs, _rms = _step_pair("picard", python.picard, matlab.picard, python_eeg, matlab_eeg)
+    python_eeg, matlab_eeg, _max_abs, _rms = _step_pair(
+        "picard",
+        lambda eeg: python.picard(eeg, tol=PICARD_TOL, max_iter=PICARD_MAX_ITER),
+        lambda eeg: matlab.picard(eeg, tol=PICARD_TOL, max_iter=PICARD_MAX_ITER),
+        python_eeg,
+        matlab_eeg,
+    )
     distance = amari_distance(_unmixing(python_eeg), np.asarray(matlab_eeg["icawinv"], dtype=float))
     mean_correlation, min_correlation = matched_mixing_correlation(python_eeg["icawinv"], matlab_eeg["icawinv"])
     summary["picard"] = {"amari": distance, "corr_min": min_correlation, "corr_mean": mean_correlation}
