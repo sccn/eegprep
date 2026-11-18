@@ -10,9 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- A pAMICA fit runs at its ``threads`` argument for torch intra-op, torch inter-op, and the NumPy and SciPy BLAS and OpenMP pools, then restores the intra-op count and those pools.
+- A pAMICA fit runs at its ``threads`` argument for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools, then restores those counts.
   ``EEG["etc"]["pamica"]["threads"]`` stores that count when the pools actually used it, and replaying the record runs at the same count.
-  PyTorch accepts an inter-op count once per process, so a later fit repeats it and a different count raises.
 - ``reref`` and ``pop_reref`` sum an average reference in float64 and cast
   once back to the input dtype, so a float32 recording stays float32 and the
   result does not depend on the BLAS kernel or thread count. On the

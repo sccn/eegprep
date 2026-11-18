@@ -114,12 +114,10 @@ def eeg_pamica(
     device : str
         Torch device. Only ``'cpu'`` is covered by the reproducibility statement above.
     threads : int
-        Threads for torch intra-op, torch inter-op, and the NumPy and SciPy BLAS
-        and OpenMP pools during the run. Intra-op and those pools are restored
-        afterwards. PyTorch accepts an inter-op count once per process, so a later
-        call repeats that count and a different count raises. The record stores the
-        count those pools actually ran with. A larger count is reproducible only on
-        the host where it was measured.
+        Threads for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools
+        during the run, restored afterwards. The record stores the count those
+        pools actually ran with. A larger count is reproducible only on the host
+        where it was measured.
     pcakeep : int | None
         Number of principal components to keep. Default: every channel pAMICA finds full rank.
         pAMICA ignores it when ``do_sphere=False``. The record keeps the value requested in
@@ -228,25 +226,12 @@ def _exercise_blas():
     scipy.linalg.svd(matrix, full_matrices=False)
 
 
-def _limit_interop_threads(torch, threads):
-    current = int(torch.get_num_interop_threads())
-    if current == threads:
-        return
-    try:
-        torch.set_num_interop_threads(threads)
-    except RuntimeError as exc:
-        raise RuntimeError(f"torch inter-op threads are fixed at {current} and cannot be changed to {threads}") from exc
-
-
 def _require_thread_count(torch, threads):
-    """Return ``threads`` when torch, BLAS, and OpenMP are all using that count."""
+    """Return ``threads`` when torch intra-op, BLAS, and OpenMP are all using that count."""
     intra = int(torch.get_num_threads())
-    inter = int(torch.get_num_interop_threads())
     mismatches = []
     if intra != threads:
         mismatches.append(f"torch intra-op is {intra}")
-    if inter != threads:
-        mismatches.append(f"torch inter-op is {inter}")
     for pool in threadpool_info():
         if pool["user_api"] not in ("blas", "openmp"):
             continue
@@ -261,18 +246,16 @@ def _require_thread_count(torch, threads):
 
 @contextmanager
 def _limited_threads(torch, threads):
-    """Run the block at ``threads`` torch and BLAS/OpenMP threads, then restore intra-op and those pools.
+    """Run the block at ``threads`` intra-op and BLAS/OpenMP threads, then restore them.
 
     The BLAS copies are initialized first, so their first call cannot put the
-    environment count back. PyTorch accepts an inter-op count once per process.
-    The first request sticks, and a later request for a different count raises.
+    environment count back.
     """
     threads = int(threads)
     _exercise_blas()
     previous = torch.get_num_threads()
     torch.set_num_threads(threads)
     try:
-        _limit_interop_threads(torch, threads)
         with threadpool_limits(limits=threads):
             _exercise_blas()
             running = _require_thread_count(torch, threads)

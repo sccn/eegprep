@@ -465,6 +465,40 @@ def _high_thread_environment_replay():
         raise AssertionError(f"max abs {delta.max()} max rel {(delta / np.maximum(scale, 1e-300)).max()}")
 
 
+def _two_thread_counts_in_one_process():
+    """Fit twice at different thread counts, then replay each result."""
+    eeg = _synthetic_eeg()
+
+    one = eeg_pamica(eeg, max_iter=20, threads=1)
+    four = pop_runica(eeg, icatype="pamica", max_iter=20, threads=4, reorder="off")
+    again = eeg_pamica(eeg, max_iter=20, threads=1)
+
+    assert (one["etc"]["pamica"]["threads"], four["etc"]["pamica"]["threads"]) == (1, 4)
+    assert np.array_equal(_replay(eeg, one["etc"]["pamica"]).get_unmixing_matrix(), one["icaweights"])
+    assert np.array_equal(_replay(eeg, four["etc"]["pamica"]).get_unmixing_matrix(), four["icaweights"])
+    assert np.array_equal(again["icaweights"], one["icaweights"])
+
+
+def test_two_thread_counts_in_one_process_replay_exactly():
+    root = str(Path(__file__).resolve().parents[1])
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join([root, env.get("PYTHONPATH", "")])
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from tests.test_pop_runica_pamica import _two_thread_counts_in_one_process; "
+            "_two_thread_counts_in_one_process()",
+        ],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + "\n" + completed.stderr
+
+
 def test_high_environment_thread_pools_still_replay_exactly():
     env = os.environ.copy()
     env["OMP_NUM_THREADS"] = "32"
