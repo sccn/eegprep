@@ -14,7 +14,7 @@ import argparse
 import json
 from pathlib import Path
 
-from eegprep.plugins.dipfit._bem_parity import bem_parity_payload
+from eegprep.utils.bem_parity import bem_parity_payload
 
 
 def main() -> None:

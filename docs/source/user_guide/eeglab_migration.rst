@@ -105,8 +105,8 @@ the limits. Cancelling the menu discards its changes.
        inside the brain mesh, then refines each dipole with SciPy BFGS.
        That optimizer is the analogue of ``fminunc`` and is not bit-identical
        to MATLAB. Components 1 and 2 of the sample dataset land within 1 mm
-       of EEGLAB. ``fminunc`` can stop at a higher-residual local minimum,
-       and EEGPrep keeps the lower-residual fit. EEGLAB's settings
+       of EEGLAB. On that sample, component 3's lower residual than EEGLAB
+       is an observation, not a general rule. EEGLAB's settings
        dialog switches a channel file whose name contains
        ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
        model and applies that file's cap385-to-MNI coregistration. A channel

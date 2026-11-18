@@ -23,10 +23,10 @@ from eegprep.plugins.dipfit.fieldtrip.bem import (
     ft_prepare_vol_sens,
     load_bem_headmodel,
 )
-from eegprep.plugins.dipfit._bem_parity import PARITY_DIPOLES_MM, bem_parity_payload
 from eegprep.plugins.dipfit.fieldtrip.ft_compute_leadfield import ft_compute_leadfield
-from eegprep.plugins.dipfit.fieldtrip.geometry import project_elec, surface_inside, transfer_elec
+from eegprep.plugins.dipfit.fieldtrip.geometry import ft_inside_headmodel, project_elec, surface_inside, transfer_elec
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings, pop_dipfit_settings_dialog_spec
+from eegprep.utils.bem_parity import PARITY_DIPOLES_MM, bem_parity_payload
 from tests.eeglab_tests.backend import skip_without_matlab_plugin
 from tests.fixtures import create_test_eeg_with_ica
 
@@ -333,6 +333,10 @@ def test_pop_multifit_default_bem_returns_finite_positions():
     leadfield = np.asarray(payload["leadfield"], dtype=float)
     assert leadfield.shape[1] == 9
     assert leadfield.shape[0] == len(payload["labels"])
+    eeg = pop_dipfit_settings(pop_loadset(str(_SAMPLE)), model="standardBEM")
+    forward = prepare_forward_data(eeg, [1, 2])
+    assert forward.headmodel is not None
+    assert ft_inside_headmodel(positions[:2], forward.headmodel).all()
 
 
 @pytest.mark.matlab
