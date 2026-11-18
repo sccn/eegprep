@@ -575,6 +575,24 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
         or _same_pop_select_channel_range(message, oracle_message)
         or _same_pop_select_notime(message, oracle_message)
         or _same_pop_epoch_eventindices(message, oracle_message)
+        or _same_empty_rms_fit(message, oracle)
+    )
+
+
+def _same_empty_rms_fit(message: str, oracle: SideResult) -> bool:
+    """asr_calibrate.m guards length(rms)==1 and then indexes X(1,:) in the fit.
+
+    S == N makes ``1:step:(S-N)`` empty, so that guard does not run.
+    """
+    if "Fewer than 2 calibration windows" not in message or "got 0" not in message:
+        return False
+    if "fit_eeg_distribution" not in (oracle.error_stack or ""):
+        return False
+    oracle_message = oracle.error_message or ""
+    return (
+        oracle.error_identifier == "MATLAB:badsubscript"
+        or "Index in position 1 exceeds array bounds" in oracle_message
+        or "Index in position 1 is invalid" in oracle_message
     )
 
 
