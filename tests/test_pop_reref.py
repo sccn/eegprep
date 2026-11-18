@@ -22,6 +22,8 @@ from eegprep.functions.sigprocfunc.reref import reref
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
+from tests.fuzz.catalog import freeze_params
+from tests.fuzz.harness import EEGSpec, FuzzCase, dispatch_python, materialize_eeg
 import importlib
 
 eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_checkset')
@@ -992,3 +994,65 @@ def test_reref_rejects_invalid_one_based_identifiers(key, value):
     kwargs.setdefault("ref", [])
     with pytest.raises(ValueError, match=r"pop_reref:.*1\.\.4"):
         pop_reref(eeg, **kwargs)
+
+
+def _fuzz_reref_case(channels, start, length, decimate, params, **spec_kwargs):
+    fields = {"nan_channel": -1, "nan_start": 0, "nan_length": 0}
+    fields.update(spec_kwargs)
+    spec = EEGSpec(tuple(channels), start, length, decimate, **fields)
+    return FuzzCase("pop_reref", spec, freeze_params(params))
+
+
+def test_pop_reref_refloc_on_empty_loaded_nodatchans_reports_missing_reference():
+    case = _fuzz_reref_case(
+        range(13, 25),
+        8,
+        41,
+        2,
+        {"ref": (), "keepref": "off", "exclude": (6, 9), "refloc": "oldref"},
+    )
+    eeg = materialize_eeg(case)
+    nodatchans = eeg["chaninfo"]["nodatchans"]
+    assert isinstance(nodatchans, np.ndarray)
+    assert nodatchans.size == 0
+    with pytest.raises(
+        ValueError,
+        match=r"Missing reference channel information\. Edit channels and add reference first\.",
+    ):
+        dispatch_python(case, eeg)
+
+
+def test_pop_reref_keepref_on_keeps_a_four_sample_nan_on_its_channel():
+    """Subtraction keeps a NaN span. EEGLAB's refmatrix spreads it with 0*NaN."""
+    case = _fuzz_reref_case(
+        range(10, 22),
+        20295,
+        36,
+        2,
+        {"exclude": (), "keepref": "on", "ref": (0, 5)},
+        nan_channel=6,
+        nan_start=28,
+        nan_length=4,
+        flat_channel=8,
+    )
+    eeg = materialize_eeg(case)
+    data = np.asarray(eeg["data"], dtype=np.float64)
+    assert data.shape == (12, 36)
+    assert float(eeg["srate"]) == 64.0
+    assert np.all(data[8] == 0.0)
+    assert int(np.isnan(data).sum()) == 4
+    assert np.isnan(data[6, 28:32]).all()
+
+    output = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
+    reference = data[[0, 5]].mean(axis=0)
+    np.testing.assert_allclose(output, data - reference, equal_nan=True)
+    assert int(np.isnan(output).sum()) == 4
+    assert np.isnan(output[6, 28:32]).all()
+    assert np.isfinite(np.delete(output, 6, axis=0)).all()
+
+    refmatrix = np.eye(data.shape[0])
+    refmatrix[:, [0, 5]] -= 0.5
+    with np.errstate(invalid="ignore"):
+        spread = refmatrix @ data
+    assert int(np.isnan(spread).sum()) == 48
+    assert int((np.isnan(output) != np.isnan(spread)).sum()) == 44
