@@ -989,7 +989,23 @@ latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
 and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
 out Z, Y, X here and X, Z, Y in EEGLAB.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Continuous rejection with <code class="docutils literal notranslate"><span class="pre">trials</span></code> 0</p></td>
+<tr class="row-odd"><td><p>One-value <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> <code class="docutils literal notranslate"><span class="pre">valuelim</span></code></p></td>
+<td><p>A single limit is a symmetric exclusive bound. <code class="docutils literal notranslate"><span class="pre">valuelim=[50]</span></code>
+keeps an epoch only when every sample is strictly inside (-50, 50).
+The value 50 itself is an outlier. With limits <code class="docutils literal notranslate"><span class="pre">[-0.5,</span> <span class="pre">-0.1]</span></code> at
+64 Hz that window is 26 samples, so two <code class="docutils literal notranslate"><span class="pre">rt</span></code> events whose samples
+are 10 are returned as shape <code class="docutils literal notranslate"><span class="pre">(29,</span> <span class="pre">26,</span> <span class="pre">2)</span></code>. A sample of 50 in one
+window drops that epoch, and samples of -60 drop both.
+<code class="docutils literal notranslate"><span class="pre">pop_epoch.m</span></code> lines 37-39 and <code class="docutils literal notranslate"><span class="pre">epoch.m</span></code> lines 19-21 describe
+this rule on pin <code class="docutils literal notranslate"><span class="pre">d0963be9</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_epoch.m</span></code> line 224 passes a
+one-element limit through unchanged, and <code class="docutils literal notranslate"><span class="pre">epoch.m</span></code> lines 133-136
+read the second element only after the first comparison succeeds.
+A scalar 50 therefore rejects every epoch whose minimum is not
+above 50, which is why the same two windows come back empty.
+<code class="docutils literal notranslate"><span class="pre">test_single_valuelim_is_a_symmetric_bound</span></code> locks the EEGPrep
+result.</p></td>
+</tr>
+<tr class="row-even"><td><p>Continuous rejection with <code class="docutils literal notranslate"><span class="pre">trials</span></code> 0</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> sets <code class="docutils literal notranslate"><span class="pre">trials</span></code> from the data shape before checking
 events, so a stored 0 does not delete events past sample 1.
 <code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 440-449 remove latencies above
@@ -997,14 +1013,14 @@ events, so a stored 0 does not delete events past sample 1.
 Lines 821-826 then set <code class="docutils literal notranslate"><span class="pre">trials</span></code> from <code class="docutils literal notranslate"><span class="pre">size(data,3)</span></code>, which is 1
 for a continuous recording. EEGLAB has already dropped the events.</p></td>
 </tr>
-<tr class="row-even"><td><p>Numeric boundary types</p></td>
+<tr class="row-odd"><td><p>Numeric boundary types</p></td>
 <td><p>Consecutive equal-latency boundaries are merged whether <code class="docutils literal notranslate"><span class="pre">type</span></code> is
 the string <code class="docutils literal notranslate"><span class="pre">boundary</span></code> or the number <code class="docutils literal notranslate"><span class="pre">-99</span></code> with
 <code class="docutils literal notranslate"><span class="pre">option_boundary99</span></code> on. EEGLAB skips that merge when the first
 event type is numeric, so two <code class="docutils literal notranslate"><span class="pre">-99</span></code> boundaries with durations 1
 and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Quoted channel-selection text</p></td>
+<tr class="row-even"><td><p>Quoted channel-selection text</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_chansel</span></code> keeps an empty quoted token as an empty label, and
 it removes leading and trailing braces. <code class="docutils literal notranslate"><span class="pre">'',</span> <span class="pre">Cz</span></code> selects an
 empty label and <code class="docutils literal notranslate"><span class="pre">Cz</span></code>. <code class="docutils literal notranslate"><span class="pre">{Cz,</span> <span class="pre">Fp1}</span></code> selects <code class="docutils literal notranslate"><span class="pre">Cz</span></code> and <code class="docutils literal notranslate"><span class="pre">Fp1</span></code>.
@@ -1016,17 +1032,17 @@ from <code class="docutils literal notranslate"><span class="pre">'',</span> <sp
 <code class="docutils literal notranslate"><span class="pre">test_pop_chansel_reads_a_brace_wrapped_channel_list</span></code> lock the
 EEGPrep selections.</p></td>
 </tr>
-<tr class="row-even"><td><p>Spectrum frequency range</p></td>
+<tr class="row-odd"><td><p>Spectrum frequency range</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">spectopo</span></code> requires <code class="docutils literal notranslate"><span class="pre">freqrange</span></code> as <code class="docutils literal notranslate"><span class="pre">[lo</span> <span class="pre">hi]</span></code> with
 <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;=</span> <span class="pre">lo</span> <span class="pre">&lt;</span> <span class="pre">hi</span> <span class="pre">&lt;=</span> <span class="pre">Nyquist</span></code> and names the function in the error.
 EEGLAB <code class="docutils literal notranslate"><span class="pre">spectopo.m</span></code> line 183 rejects the same input inside
 <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> with a message that does not name the frequency bounds.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Identical dataset comparison</p></td>
+<tr class="row-even"><td><p>Identical dataset comparison</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> on two identical datasets plots the near-zero
 difference. EEGLAB can raise an axes-limit error on that difference.</p></td>
 </tr>
-<tr class="row-even"><td><p>Component-envelope dataset indices</p></td>
+<tr class="row-odd"><td><p>Component-envelope dataset indices</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> records <code class="docutils literal notranslate"><span class="pre">EEG([i</span> <span class="pre">j])</span></code> when the dialog or an explicit
 <code class="docutils literal notranslate"><span class="pre">subindices</span></code> value names that pair in <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>. A two-dataset list
 with no indices is recorded as <code class="docutils literal notranslate"><span class="pre">pop_envtopo(EEG,</span> <span class="pre">...)</span></code>. Replaying
@@ -1035,20 +1051,20 @@ write <code class="docutils literal notranslate"><span class="pre">EEG([subindic
 <code class="docutils literal notranslate"><span class="pre">subindices</span></code>. A scripted two-dataset call leaves that history line
 unset, so the returned command does not name the datasets.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Component head-plot color scale</p></td>
+<tr class="row-even"><td><p>Component head-plot color scale</p></td>
 <td><p>Component <code class="docutils literal notranslate"><span class="pre">pop_headplot</span></code> maps use per-map <code class="docutils literal notranslate"><span class="pre">absmax</span></code> limits and the
 <code class="docutils literal notranslate"><span class="pre">jet</span></code> colormap. EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_headplot.m</span></code> lines 424-439 fix component
 <code class="docutils literal notranslate"><span class="pre">maplimits</span></code> at <code class="docutils literal notranslate"><span class="pre">[-1</span> <span class="pre">1]</span></code>. <code class="docutils literal notranslate"><span class="pre">icadefs.m</span></code> selects <code class="docutils literal notranslate"><span class="pre">turbo</span></code> when
 MATLAB is newer than 20.01 and <code class="docutils literal notranslate"><span class="pre">jet</span></code> otherwise. Per-map <code class="docutils literal notranslate"><span class="pre">absmax</span></code>
 keeps small component weights visible.</p></td>
 </tr>
-<tr class="row-even"><td><p>Head-plot history assignment</p></td>
+<tr class="row-odd"><td><p>Head-plot history assignment</p></td>
 <td><p>EEGLAB prefixes <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span></code> when a spline file is computed because
 <code class="docutils literal notranslate"><span class="pre">pop_headplot</span></code> returns the dataset. EEGPrep writes the spline file
 onto the dataset during the call and returns the figures, so the
 history command does not assign over <code class="docutils literal notranslate"><span class="pre">EEG</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>DIPFIT <code class="docutils literal notranslate"><span class="pre">standardBEM</span></code> forward model</p></td>
+<tr class="row-even"><td><p>DIPFIT <code class="docutils literal notranslate"><span class="pre">standardBEM</span></code> forward model</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">model=&quot;standardBESA&quot;</span></code> uses the four-shell concentric sphere in
 <code class="docutils literal notranslate"><span class="pre">standard_BESA.mat</span></code> (radii 71, 72, 79, and 85 mm; conductivities
 0.33, 1, 0.0042, and 0.33). The grid and nonlinear fit follow DIPFIT.
@@ -1056,7 +1072,7 @@ history command does not assign over <code class="docutils literal notranslate">
 infinite-medium kernel. FieldTrip’s boundary-element leadfield is not
 in this dispatch yet, so those dipole positions do not match EEGLAB.</p></td>
 </tr>
-<tr class="row-even"><td><p>Degenerate electrode positions</p></td>
+<tr class="row-odd"><td><p>Degenerate electrode positions</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>, spherical <code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code>, <code class="docutils literal notranslate"><span class="pre">spheric_spline</span></code>,
 <code class="docutils literal notranslate"><span class="pre">sphericalSplineInterpolate</span></code>, and <code class="docutils literal notranslate"><span class="pre">headplot</span></code> raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
 when Cartesian electrode positions are identical or collinear. Planar
