@@ -4,7 +4,8 @@ import copy
 from contextlib import contextmanager
 
 import numpy as np
-from threadpoolctl import threadpool_limits
+import scipy.linalg
+from threadpoolctl import threadpool_info, threadpool_limits
 
 from eegprep.extras import install_command
 from ..miscfunc.misc import finite_matmul
@@ -113,8 +114,12 @@ def eeg_pamica(
     device : str
         Torch device. Only ``'cpu'`` is covered by the reproducibility statement above.
     threads : int
-        Threads for torch and the BLAS libraries during the run, restored afterwards. A larger
-        count is reproducible only on the host where it was measured.
+        Threads for torch intra-op, torch inter-op, and the NumPy and SciPy BLAS
+        and OpenMP pools during the run. Intra-op and those pools are restored
+        afterwards. PyTorch accepts an inter-op count once per process, so a later
+        call repeats that count and a different count raises. The record stores the
+        count those pools actually ran with. A larger count is reproducible only on
+        the host where it was measured.
     pcakeep : int | None
         Number of principal components to keep. Default: every channel pAMICA finds full rank.
         pAMICA ignores it when ``do_sphere=False``. The record keeps the value requested in
@@ -141,7 +146,7 @@ def eeg_pamica(
     settings = {**_EEGLAB_DEFAULTS, **amica_options}
     fit_arguments = {name: settings[name] for name in _FIT_ARGUMENTS}
     backend_options = {name: value for name, value in settings.items() if name not in _FIT_ARGUMENTS}
-    with _limited_threads(torch, threads):
+    with _limited_threads(torch, threads) as threads_used:
         model = pamica.AMICA(n_models=n_models, n_mix=n_mix, device=device, verbose=False)
         model.fit(
             data,
@@ -153,7 +158,6 @@ def eeg_pamica(
             **fit_arguments,
             **backend_options,
         )
-        threads_used = torch.get_num_threads()
 
     stop_reason = model.stop_reason_
     history = np.asarray(model.ll_history_, dtype=np.float64)
@@ -217,13 +221,62 @@ def _import_pamica():
     return pamica, torch, AMICATorchNG._DEGENERATE_STOP_REASONS
 
 
+def _exercise_blas():
+    """Initialize the NumPy and SciPy OpenBLAS copies."""
+    matrix = np.ones((32, 32), dtype=np.float64)
+    np.linalg.svd(matrix, full_matrices=False)
+    scipy.linalg.svd(matrix, full_matrices=False)
+
+
+def _limit_interop_threads(torch, threads):
+    current = int(torch.get_num_interop_threads())
+    if current == threads:
+        return
+    try:
+        torch.set_num_interop_threads(threads)
+    except RuntimeError as exc:
+        raise RuntimeError(f"torch inter-op threads are fixed at {current} and cannot be changed to {threads}") from exc
+
+
+def _require_thread_count(torch, threads):
+    """Return ``threads`` when torch, BLAS, and OpenMP are all using that count."""
+    intra = int(torch.get_num_threads())
+    inter = int(torch.get_num_interop_threads())
+    mismatches = []
+    if intra != threads:
+        mismatches.append(f"torch intra-op is {intra}")
+    if inter != threads:
+        mismatches.append(f"torch inter-op is {inter}")
+    for pool in threadpool_info():
+        if pool["user_api"] not in ("blas", "openmp"):
+            continue
+        count = pool["num_threads"]
+        if count is None or int(count) == threads:
+            continue
+        mismatches.append(f"{pool['user_api']}/{pool['internal_api']} is {int(count)}")
+    if mismatches:
+        raise RuntimeError(f"requested {threads} threads but " + "; ".join(mismatches))
+    return threads
+
+
 @contextmanager
 def _limited_threads(torch, threads):
-    """Limit torch and the BLAS libraries to ``threads`` threads, and restore both afterwards."""
+    """Run the block at ``threads`` torch and BLAS/OpenMP threads, then restore intra-op and those pools.
+
+    The BLAS copies are initialized first, so their first call cannot put the
+    environment count back. PyTorch accepts an inter-op count once per process.
+    The first request sticks, and a later request for a different count raises.
+    """
+    threads = int(threads)
+    _exercise_blas()
     previous = torch.get_num_threads()
     torch.set_num_threads(threads)
     try:
+        _limit_interop_threads(torch, threads)
         with threadpool_limits(limits=threads):
-            yield
+            _exercise_blas()
+            running = _require_thread_count(torch, threads)
+            yield running
+            _require_thread_count(torch, threads)
     finally:
         torch.set_num_threads(previous)

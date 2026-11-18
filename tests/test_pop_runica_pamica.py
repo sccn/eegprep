@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import os
+import subprocess
 import sys
 import time
 import warnings
@@ -23,7 +24,7 @@ from scipy.optimize import linear_sum_assignment
 from threadpoolctl import threadpool_info
 
 from eegprep import pop_loadset
-from eegprep.functions.popfunc.eeg_pamica import PamicaFitError, eeg_pamica
+from eegprep.functions.popfunc.eeg_pamica import PamicaFitError, _limited_threads, eeg_pamica
 from eegprep.functions.popfunc.pop_runica import pop_runica
 from eegprep.functions.sigprocfunc.runamica import is_amica_available
 from tests.fixtures import create_test_eeg
@@ -65,19 +66,22 @@ def _synthetic_eeg(n_channels=6, n_samples=3000):
 
 
 def _replay(eeg, record):
-    """Fit pAMICA directly from an ``etc['pamica']`` record and return the fitted model."""
+    """Fit pAMICA from an ``etc['pamica']`` record under that record's thread count."""
     settings = {key: value for key, value in record.items() if key not in RESULT_KEYS}
-    model = pamica.AMICA(n_models=settings.pop("n_models"), n_mix=settings.pop("n_mix"), device="cpu", verbose=False)
-    return model.fit(
-        np.asarray(eeg["data"], dtype=np.float64),
-        max_iter=settings.pop("max_iter"),
-        lrate=settings.pop("lrate"),
-        do_mean=settings.pop("do_mean"),
-        do_sphere=settings.pop("do_sphere"),
-        do_newton=settings.pop("do_newton"),
-        dtype=torch.float64,
-        **settings,
-    )
+    with _limited_threads(torch, record["threads"]):
+        model = pamica.AMICA(
+            n_models=settings.pop("n_models"), n_mix=settings.pop("n_mix"), device="cpu", verbose=False
+        )
+        return model.fit(
+            np.asarray(eeg["data"], dtype=np.float64),
+            max_iter=settings.pop("max_iter"),
+            lrate=settings.pop("lrate"),
+            do_mean=settings.pop("do_mean"),
+            do_sphere=settings.pop("do_sphere"),
+            do_newton=settings.pop("do_newton"),
+            dtype=torch.float64,
+            **settings,
+        )
 
 
 def test_icawinv_times_icaact_reconstructs_the_data_at_full_rank():
@@ -441,6 +445,47 @@ def test_an_epoched_dataset_gives_epoched_activations():
     flat = eeg["data"].reshape(channels, -1, order="F")
     reconstructed = result["icawinv"] @ result["icaact"].reshape(channels, -1, order="F")
     assert np.max(np.abs(reconstructed - flat)) <= 1e-8 * np.max(np.abs(flat))
+
+
+def _high_thread_environment_replay():
+    """Fit and replay once in a process whose BLAS and OpenMP pools were started large."""
+    assert os.environ["OMP_NUM_THREADS"] == "32"
+    assert os.environ["OPENBLAS_NUM_THREADS"] == "32"
+    pools = [pool for pool in threadpool_info() if pool["user_api"] in ("blas", "openmp")]
+    assert torch.get_num_threads() > 1 or any(pool["num_threads"] > 1 for pool in pools)
+    eeg = _synthetic_eeg()
+
+    result = eeg_pamica(eeg, max_iter=40)
+
+    assert result["etc"]["pamica"]["threads"] == 1
+    weights = _replay(eeg, result["etc"]["pamica"]).get_unmixing_matrix()
+    if not np.array_equal(weights, result["icaweights"]):
+        delta = np.abs(weights - result["icaweights"])
+        scale = np.maximum(np.abs(weights), np.abs(result["icaweights"]))
+        raise AssertionError(f"max abs {delta.max()} max rel {(delta / np.maximum(scale, 1e-300)).max()}")
+
+
+def test_high_environment_thread_pools_still_replay_exactly():
+    env = os.environ.copy()
+    env["OMP_NUM_THREADS"] = "32"
+    env["OPENBLAS_NUM_THREADS"] = "32"
+    env["MKL_NUM_THREADS"] = "32"
+    root = str(Path(__file__).resolve().parents[1])
+    env["PYTHONPATH"] = os.pathsep.join([root, env.get("PYTHONPATH", "")])
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from tests.test_pop_runica_pamica import _high_thread_environment_replay; "
+            "_high_thread_environment_replay()",
+        ],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + "\n" + completed.stderr
 
 
 def test_threads_are_limited_for_the_run_and_restored_after():
