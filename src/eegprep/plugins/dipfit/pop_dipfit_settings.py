@@ -15,7 +15,6 @@ from eegprep.plugins.dipfit._utils import (
     copy_eeg,
     dipfit_history,
     one_based_indices,
-    sync_volume_to_hdmfile,
     template_by_name,
     template_form_state,
 )
@@ -63,7 +62,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     hdmfile = str(dipfit.get("hdmfile") or template.hdmfile)
     mrifile = str(dipfit.get("mrifile") or template.mrifile)
     chanfile = str(dipfit.get("chanfile") or template.chanfile)
-    coordformat = str(dipfit.get("coordformat") or template.coordformat or "Spherical")
+    coordformat = str(dipfit.get("coordformat") or template.coordformat or "MNI")
     coord_index = {"spherical": 1, "mni": 2}.get(coordformat.lower(), 4)
     coord_transform = dipfit.get("coord_transform", template.coord_transform)
     coreg_text = " ".join(f"{float(value):g}" for value in coord_transform) if coord_transform else ""
@@ -135,9 +134,8 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "The dialog opens on the BESA template and stores radii 71, 72, 79, and 85 mm. The current fit is an infinite homogeneous medium and does not apply those conductivities.",
-            "The MNI boundary-element file standard_vol.mat is not bundled. Choosing that template keeps the file names and fitting asks for the BESA template.",
-            "Browse is enabled for a custom head model. Co-register stays disabled because the FieldTrip coregistration UI is not bundled.",
+            "EEGPrep records DIPFIT settings and uses them for native spherical fitting.",
+            "Changing the head-model menu fills the file fields for the selected template. Browse is enabled for a custom head model. Co-register stays disabled.",
         ),
         row_spacing=10,
     )
@@ -147,7 +145,7 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None = None) -> dict[str, Any]
     result = inputgui(pop_dipfit_settings_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
-    model_index = int(result.get("model", 1) or 1)
+    model_index = int(result.get("model", 2) or 2)
     template = STANDARD_TEMPLATES[model_index - 1]
     state = template_form_state(template)
     coord_formats = ("Spherical", "MNI", "Neuromag", "")
@@ -196,8 +194,6 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
         chansel = list(range(1, nbchan + 1))
     if "electrodes" in options:
         chansel = one_based_indices(options["electrodes"], limit=nbchan, default_all=True)
-    if any(str(options.get(key) or "").strip() for key in ("hdmfile", "model")):
-        sync_volume_to_hdmfile(dipfit)
     dipfit["chansel"] = [index for index in chansel if index in usable]
     if not dipfit["chansel"]:
         raise ValueError("No channel locations with coordinates remain for DIPFIT")
@@ -220,11 +216,9 @@ def _index_list(value: Any) -> list[int]:
 def _template_index(dipfit: dict[str, Any]) -> int:
     hdmfile = str(dipfit.get("hdmfile") or "").lower()
     for index, template in enumerate(STANDARD_TEMPLATES, start=1):
-        if template.hdmfile and template.hdmfile.lower() == hdmfile:
+        if template.hdmfile.lower() == hdmfile or template.shortname.lower() == str(dipfit.get("model", "")).lower():
             return index
-    if hdmfile:
-        return len(STANDARD_TEMPLATES)
-    return 1
+    return 2
 
 
 def _history_command(options: dict[str, Any]) -> str:

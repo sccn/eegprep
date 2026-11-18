@@ -42,8 +42,8 @@ Octave, MNE, PyBIDS, and Picard are extras. Install them together with:
 
     uv add "eegprep[full]"
 
-To include every optional extra, including the GUI, console, docs, and
-classifier dependencies:
+To include every optional extra, including the GUI, console, docs, ICLabel,
+and PyTorch dependencies:
 
 .. code-block:: bash
 
@@ -74,8 +74,9 @@ To install eegprep from source for development:
 and uses ``uv.lock`` for reproducible dependency resolution. The development
 environment includes the GUI and console runtime dependencies, so a fresh
 checkout can immediately launch ``uv run eegprep-console --full``. It also
-installs the ``eeglab``, ``mne``, ``pybids``, and ``picard`` packages so the
-test suite can exercise Octave, MNE conversion, BIDS import, and Picard ICA.
+installs the ``eeglab``, ``mne``, ``pybids``, ``picard``, and ``iclabel``
+packages so the test suite can exercise Octave, MNE conversion, BIDS import,
+Picard ICA, and ICLabel.
 
 To develop or build documentation from source, include the docs extra:
 
@@ -120,38 +121,68 @@ This installs four extras:
 - ``picard`` (``python-picard``), Picard ICA. The default ``runica`` path
   does not need it. This extra also installs scikit-learn.
 
-``eegprep[all]`` includes these four extras plus the GUI, console, docs, and
-ICLabel runtime extras. The ``torch`` extra is only for regenerating the
-packaged ICLabel network.
+``eegprep[all]`` includes these four extras plus the GUI, console, docs,
+ICLabel, and PyTorch extras.
 
 Riemannian ASR (``clean_asr(..., useriemannian=True)`` and
 ``Distance="Riemannian"``) is included. It uses NumPy and SciPy; there is no
 separate manifold package to install.
 
-ICLabel runtime (onnxruntime)
------------------------------
+ICLabel (component classification)
+----------------------------------
 
-``pip install "eegprep[gui]"`` installs onnxruntime with the Qt libraries, so
-Tools > Classify components using ICLabel can classify a dataset. A source
-checkout gets the same library from ``uv sync --group dev``. A base install
-can add ``pip install "eegprep[iclabel]"``. The ``torch`` extra installs
-PyTorch and ONNX only to regenerate ``iclabel.onnx``; classification does not
-import them.
-
-PyTorch is not used to classify components. To use GPU-accelerated processing
-with PyTorch:
+``pop_iclabel`` and ``iclabel`` classify independent components with a packaged
+Open Neural Network Exchange (ONNX) network run by ``onnxruntime``. Install the
+``iclabel`` extra to enable them. It is not part of ``full``:
 
 .. code-block:: bash
 
-    uv add torch
+    uv add "eegprep[iclabel]"
 
-For CUDA support (NVIDIA GPUs):
+PyTorch is not required to run ICLabel classification. Two network files ship
+in the package. ``iclabel.onnx`` holds the full-precision weights (about 11.6 MB)
+and is what ``iclabel`` and ``pop_iclabel`` load on every native platform; it
+matches the previous PyTorch network to about 1e-6.
+``iclabel_int8.onnx`` stores the weights as 8-bit integers (about 2.9 MB) for the
+browser, where the host page supplies the model bytes to ONNX Runtime Web and
+``iclabel_async`` awaits the result. :ref:`iclabel_measured_agreement` reports how
+closely each file matches the others. Developers who change the network rebuild
+both files with the ``torch`` extra, following :ref:`releasing`; ICLabel itself
+does not need that extra.
+
+In a browser (Pyodide), ``psutil`` and ``pyedflib`` are not installed because
+they have no WebAssembly build, although every other install includes them. EDF
+and BDF export, memory-based ``ReservePerJob`` reservations such as ``"4GB"``,
+and the free-memory fallback of ASR then raise an ``ImportError`` that says so;
+give ASR an explicit ``maxmem`` that fits its lookahead buffers instead.
+
+pAMICA
+------
+
+pAMICA is a Python implementation of AMICA built on PyTorch.
+It needs no executable.
+Install it with the ``pamica`` extra, which also installs PyTorch:
+
+.. code-block:: bash
+
+    uv add "eegprep[pamica]"
+
+``pop_runica(EEG, icatype="pamica")`` and ``eeg_pamica`` use it.
+The extra is part of ``eegprep[all]`` and not of ``eegprep[full]``.
+
+PyTorch is used only by pAMICA and by the developer export of the ICLabel networks
+(see :ref:`releasing`); no other function needs it, and EEGPrep computes on the CPU
+unless pAMICA's ``device`` argument selects a GPU.
+For a GPU, install the PyTorch build that matches your CUDA version first, then the
+``pamica`` extra; the troubleshooting section below shows how to find your CUDA version
+and links PyTorch's install page.
+For example, for NVIDIA GPUs with CUDA 11.8:
 
 .. code-block:: bash
 
     uv add torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-For CPU-only PyTorch:
+and for CPU-only PyTorch:
 
 .. code-block:: bash
 
@@ -209,7 +240,18 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[gui,docs]"
+    uv add "eegprep[iclabel,gui,docs]"
+
+eegprep-lean
+============
+
+The commands on this page install EEGPrep. They do not install the separate
+``eegprep-lean`` distribution (import name ``eegprep_lean``). In Pyodide that
+package reads with ``PyfetchTransport(timeout_s=60)``. The browser request is
+aborted if the response headers and the body have not both arrived within
+``timeout_s`` seconds. A host that registers its own client with
+``FetchTransport`` keeps that client's deadline. ``eegprep-lean`` does not
+add a second one.
 
 Verification
 ============
@@ -273,10 +315,10 @@ Version Conflicts
     source eegprep_env/bin/activate  # On Windows: eegprep_env\Scripts\activate
     uv pip install eegprep
 
-PyTorch Installation Issues
-----------------------------
+pAMICA and PyTorch Installation Issues
+---------------------------------------
 
-**Problem**: PyTorch installation fails or GPU not detected
+**Problem**: PyTorch installation fails or pAMICA does not detect the GPU
 
 **Solution**:
 
@@ -328,7 +370,6 @@ Memory Issues
 1. Process data in chunks or epochs
 2. Reduce the number of channels if possible
 3. Increase available RAM or use a machine with more memory
-4. Use GPU acceleration if available
 
 Getting Help
 ============

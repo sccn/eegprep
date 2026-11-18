@@ -3,21 +3,16 @@
 from __future__ import annotations
 
 import copy
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
-
-import re
 
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_options_text, python_literal
 
-# dipfitdefs.m BESA shell numbers stored on the template. The spherical fitter
-# does not apply these conductivities; it is an infinite homogeneous medium.
-BESA_SHELL_RADII_MM = (71.0, 72.0, 79.0, 85.0)
-BESA_SHELL_CONDUCTIVITIES = (0.33, 1.0, 0.0042, 0.33)
 _QUOTED_PLOT_GAP = re.compile(r"""(?<=['"])\s+(?=['"])""")
 
 
@@ -95,18 +90,6 @@ def dipfit_record(EEG: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def besa_four_shell_volume() -> dict[str, Any]:
-    """Return the BESA shell radii and conductivities stored by ``dipfitdefs.m``.
-
-    The current spherical fitter does not apply these conductivities.
-    """
-    return {
-        "r": list(BESA_SHELL_RADII_MM),
-        "c": list(BESA_SHELL_CONDUCTIVITIES),
-        "o": [0.0, 0.0, 0.0],
-    }
-
-
 def template_form_state(template: DipfitTemplate) -> dict[str, Any]:
     """Return dialog field values for one head-model template."""
     coord_index = {"spherical": 1, "mni": 2}.get(template.coordformat.lower(), 4)
@@ -155,10 +138,6 @@ def apply_template(dipfit: dict[str, Any], template: DipfitTemplate) -> None:
     dipfit["chanfile"] = template.chanfile
     dipfit["coordformat"] = template.coordformat
     dipfit["coord_transform"] = list(template.coord_transform)
-    if template.shortname == "standardBESA":
-        dipfit["vol"] = besa_four_shell_volume()
-    elif template.shortname == "standardBEM":
-        dipfit.pop("vol", None)
 
 
 def component_count(EEG: dict[str, Any]) -> int:
@@ -184,74 +163,13 @@ def ensure_channel_locations(EEG: dict[str, Any]) -> None:
         raise ValueError("No channel locations with 3-D or polar coordinates are available")
 
 
-def _shell_radii(vol: Any) -> np.ndarray:
-    if not isinstance(vol, dict):
-        return np.array([])
-    radii = np.asarray(vol.get("r", []), dtype=float).ravel()
-    if radii.size and np.all(np.isfinite(radii)) and np.all(radii > 0):
-        return radii
-    return np.array([])
-
-
-def _template_kind(dipfit: dict[str, Any]) -> str:
-    """Classify the head model from ``hdmfile``.
-
-    ``dipfit['model']`` is the fitted dipole list, so the template is not read from it.
-    """
-    hdm = str(dipfit.get("hdmfile") or "").lower()
-    if "standard_besa" in hdm:
-        return "besa"
-    if "standard_vol" in hdm or "standard_bem" in hdm:
-        return "bem"
-    return ""
-
-
-def sync_volume_to_hdmfile(dipfit: dict[str, Any]) -> None:
-    """Store the BESA sphere only while ``hdmfile`` names that template.
-
-    EEGLAB loads ``vol`` from ``hdmfile``. Replacing the file drops the volume
-    stored for the previous file. ``dipfit['model']`` stays the fitted dipole list.
-    """
-    if not str(dipfit.get("hdmfile") or ""):
-        return
-    if _template_kind(dipfit) == "besa":
-        dipfit["vol"] = besa_four_shell_volume()
-        return
-    dipfit.pop("vol", None)
-
-
-def fill_missing_besa_volume(EEG: dict[str, Any]) -> None:
-    """Store the bundled BESA sphere when a working copy names that template and has no volume."""
-    dipfit = dipfit_record(EEG)
-    if _template_kind(dipfit) == "besa" and _shell_radii(dipfit.get("vol")).size == 0:
-        dipfit["vol"] = besa_four_shell_volume()
-
-
-def ensure_dipfit_settings(EEG: dict[str, Any], *, caller: str = "dipfit") -> dict[str, Any]:
-    """Return existing DIPFIT settings or raise an actionable error.
-
-    This check does not write ``EEG.dipfit``. Fitting copies the dataset and
-    calls :func:`fill_missing_besa_volume` on that copy.
-    """
+def ensure_dipfit_settings(EEG: dict[str, Any]) -> dict[str, Any]:
+    """Return existing DIPFIT settings or raise an EEGLAB-like error."""
     dipfit = dipfit_record(EEG)
     if not dipfit:
-        raise ValueError(
-            f"{caller}: dipole fit settings are missing. "
-            "Run pop_dipfit_settings and choose Template Spherical Four-Shell (BESA)."
-        )
-    kind = _template_kind(dipfit)
-    if kind == "bem" and _shell_radii(dipfit.get("vol")).size == 0:
-        raise ValueError(
-            f"{caller}: the MNI boundary-element volume standard_vol.mat is not bundled. "
-            "Run pop_dipfit_settings and choose Template Spherical Four-Shell (BESA). "
-            "That template stores radii 71, 72, 79, and 85 mm. The current fit "
-            "uses the outer radius as the head boundary of an infinite homogeneous medium."
-        )
-    if _shell_radii(dipfit.get("vol")).size == 0 and not dipfit.get("hdmfile"):
-        raise ValueError(
-            f"{caller}: the volume conductor model is not specified. "
-            "Run pop_dipfit_settings and choose Template Spherical Four-Shell (BESA)."
-        )
+        raise ValueError("General dipolefit settings not specified")
+    if not dipfit.get("hdmfile") and not dipfit.get("vol"):
+        raise ValueError("Dipolefit volume conductor model not specified")
     return dipfit
 
 

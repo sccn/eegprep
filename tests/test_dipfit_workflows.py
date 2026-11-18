@@ -311,82 +311,6 @@ def test_empty_dipfit_array_is_missing_settings():
         pop_dipplot(eeg)
 
 
-def test_settings_default_to_the_besa_sphere_and_fill_template_files():
-    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
-    spec = pop_dipfit_settings_dialog_spec(eeg)
-
-    assert _dialog_control(spec, "model").value == 1
-    assert "standard_BESA.mat" in _dialog_control(spec, "hdmfile").value
-    assert "avg152t1.mat" in _dialog_control(spec, "mrifile").value
-    assert "standard-10-5-cap385.elp" in _dialog_control(spec, "chanfile").value
-
-    class Renderer:
-        def run(self, spec, initial_values=None):
-            return {
-                "model": 1,
-                "hdmfile": "",
-                "mrifile": "",
-                "chanfile": "",
-                "coordformat": 1,
-                "no_coreg": True,
-            }
-
-    configured = pop_dipfit_settings(eeg, gui=True, renderer=Renderer())
-    assert configured["dipfit"]["hdmfile"].endswith("standard_BESA.mat")
-    assert configured["dipfit"]["vol"]["r"] == [71.0, 72.0, 79.0, 85.0]
-    assert configured["dipfit"]["vol"]["c"] == [0.33, 1.0, 0.0042, 0.33]
-
-    bem = pop_dipfit_settings(configured, model="standardBEM")
-    assert "vol" not in bem["dipfit"]
-    with pytest.raises(ValueError, match="pop_dipfit_gridsearch"):
-        pop_dipfit_gridsearch(bem, [1], [0], [0], [40], 100)
-
-
-def test_replacing_the_besa_head_model_file_drops_the_stored_sphere():
-    eeg = pop_dipfit_settings(_ica_eeg(), model="standardBESA", gui=False)
-    fitted = pop_dipfit_gridsearch(eeg, [1], [0], [0], [40], 100)
-    dipole = fitted["dipfit"]["model"][0]["posxyz"]
-
-    switched = pop_dipfit_settings(
-        fitted,
-        hdmfile="standard_BEM/standard_vol.mat",
-        coordformat="MNI",
-        gui=False,
-    )
-    custom = pop_dipfit_settings(fitted, hdmfile="custom/headmodel.mat", gui=False)
-    kept = pop_dipfit_settings(
-        fitted,
-        model="standardBESA",
-        hdmfile="standard_BESA/standard_BESA.mat",
-        gui=False,
-    )
-
-    assert "vol" not in switched["dipfit"]
-    assert switched["dipfit"]["model"][0]["posxyz"] == dipole
-    with pytest.raises(ValueError, match="standard_vol.mat is not bundled"):
-        pop_dipfit_gridsearch(switched, [1], gui=False)
-    assert "vol" not in custom["dipfit"]
-    assert custom["dipfit"]["model"][0]["posxyz"] == dipole
-    assert kept["dipfit"]["model"][0]["posxyz"] == dipole
-    assert kept["dipfit"]["vol"]["r"] == [71.0, 72.0, 79.0, 85.0]
-    assert fitted["dipfit"]["vol"]["r"] == [71.0, 72.0, 79.0, 85.0]
-
-
-def test_besa_fit_stores_a_missing_volume_on_the_result_only():
-    eeg = pop_dipfit_settings(
-        create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBESA"
-    )
-    eeg["dipfit"].pop("vol")
-
-    fitted = pop_dipfit_gridsearch(eeg, [1], [0], [0], [40], 100)
-
-    assert "vol" not in eeg["dipfit"]
-    assert fitted["dipfit"]["vol"]["r"] == [71.0, 72.0, 79.0, 85.0]
-    with pytest.raises(ValueError, match="pop_leadfield"):
-        pop_dipfit_loreta(eeg, [1])
-    assert "vol" not in eeg["dipfit"]
-
-
 def test_gui_dipfit_template_choice_updates_files_and_browse(qapp):
     from PySide6.QtWidgets import QApplication
 
@@ -396,10 +320,12 @@ def test_gui_dipfit_template_choice_updates_files_and_browse(qapp):
         pop_dipfit_settings_dialog_spec(create_test_eeg(n_channels=2)), {}
     )
     try:
-        assert widgets["model"].currentIndex() == 0
+        widgets["model"].setCurrentIndex(0)
+        QApplication.processEvents()
         assert "standard_BESA.mat" in widgets["hdmfile"].text()
+        assert "avg152t1.mat" in widgets["mrifile"].text()
+        assert widgets["no_coreg"].isChecked() is True
         assert not widgets["hdmfile_browse"].isEnabled()
-        assert not widgets["coregister"].isEnabled()
         widgets["model"].setCurrentIndex(1)
         QApplication.processEvents()
         assert "standard_vol.mat" in widgets["hdmfile"].text()
@@ -444,9 +370,7 @@ def test_besa_coarse_fit_and_autofit_keep_linspace_history():
 
 
 def test_loreta_key_leadfield_and_missing_source_analysis():
-    eeg = pop_dipfit_settings(
-        create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBESA"
-    )
+    eeg = pop_dipfit_settings(create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBEM")
     with pytest.raises(ValueError, match="pop_leadfield"):
         pop_dipfit_loreta(eeg, [1])
 

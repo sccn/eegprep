@@ -1,29 +1,54 @@
 """ONNX Runtime backend for the packaged ICLabel default network.
 
 This is the runtime counterpart to :mod:`iclabel_net`, the PyTorch definition
-used only to export the network. It runs ``iclabel.onnx``, the float32 network
-built by ``tools/iclabel/export_iclabel_onnx.py``, through onnxruntime, so
-ICLabel classification does not need PyTorch.
+used only to export the network. It runs ``iclabel.onnx``, the
+full-precision network built by ``tools/iclabel/export_iclabel_onnx.py``,
+through onnxruntime, so ICLabel classification does not need PyTorch. Under
+Emscripten (Pyodide) the backend is chosen when this module is first
+imported, and inference goes through the host's ONNX Runtime Web bridge in
+:mod:`iclabel_net_onnx_web` instead; the host loads ``iclabel_int8.onnx``, the
+8-bit weight-only network built by ``tools/iclabel/quantize_iclabel_onnx.py``.
 """
 
 import functools
 import os
+import sys
 
 import numpy as np
 
 from eegprep.extras import missing_onnxruntime_message
+from eegprep.plugins.ICLabel.iclabel_net_onnx_web import MODEL_FILE as BROWSER_MODEL_FILE
 
 INPUT_NAMES = ('image', 'psdmed', 'autocorr')
 OUTPUT_NAME = 'output'
+# The full-precision network the native backend loads. The browser host loads iclabel_int8.onnx instead.
+MODEL_FILE = 'iclabel.onnx'
+# True in Pyodide, where only the asynchronous ONNX Runtime Web backend exists.
+IS_EMSCRIPTEN = sys.platform == 'emscripten'
+# The packaged network this platform runs, recorded in the classification as ``network``.
+NETWORK_FILE = BROWSER_MODEL_FILE if IS_EMSCRIPTEN else MODEL_FILE
+
+
+def require_onnxruntime(feature='iclabel'):
+    """Import onnxruntime, or raise ``ImportError`` naming the ``iclabel`` extra.
+
+    Args:
+        feature: Name of the calling function, used in the error message.
+
+    Returns:
+        The ``onnxruntime`` module.
+    """
+    try:
+        import onnxruntime
+    except ImportError as e:
+        raise ImportError(missing_onnxruntime_message(feature)) from e
+    return onnxruntime
 
 
 @functools.cache
 def _get_session():
-    try:
-        import onnxruntime as ort
-    except ImportError as e:
-        raise ImportError(missing_onnxruntime_message('iclabel')) from e
-    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'iclabel.onnx')
+    ort = require_onnxruntime()
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), MODEL_FILE)
     return ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
 
@@ -40,9 +65,14 @@ def run_iclabel_net(image, psdmed, autocorr):
         model's output.
 
     Raises:
+        RuntimeError: Under Emscripten, where only the asynchronous backend exists.
         ImportError: If onnxruntime is not installed; the message names the
             ``eegprep[iclabel]`` extra.
     """
+    if IS_EMSCRIPTEN:
+        raise RuntimeError(
+            "ICLabel synchronous ONNX execution is unavailable under Emscripten; use await run_iclabel_net_async(...)."
+        )
     session = _get_session()
     inputs = {
         INPUT_NAMES[0]: np.asarray(image, dtype=np.float32),
@@ -51,3 +81,16 @@ def run_iclabel_net(image, psdmed, autocorr):
     }
     (output,) = session.run([OUTPUT_NAME], inputs)
     return output
+
+
+if IS_EMSCRIPTEN:
+    from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async as _run_iclabel_net_async
+else:
+
+    async def _run_iclabel_net_async(image, psdmed, autocorr):
+        return run_iclabel_net(image, psdmed, autocorr)
+
+
+async def run_iclabel_net_async(image, psdmed, autocorr):
+    """Run the platform-selected ICLabel backend asynchronously."""
+    return await _run_iclabel_net_async(image, psdmed, autocorr)

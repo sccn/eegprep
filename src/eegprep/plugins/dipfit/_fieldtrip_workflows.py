@@ -30,7 +30,6 @@ from eegprep.plugins.dipfit._utils import (
     dipfit_history,
     dipfit_record,
     ensure_channel_locations,
-    fill_missing_besa_volume,
     ensure_dipfit_settings,
     ensure_ica,
     matlab_plot_options,
@@ -83,7 +82,7 @@ def pop_dipfit_gridsearch(
         return (None, "") if return_com else None
     ensure_channel_locations(EEG)
     ensure_ica(EEG)
-    ensure_dipfit_settings(EEG, caller="pop_dipfit_gridsearch")
+    ensure_dipfit_settings(EEG)
     if gui is None:
         gui = select is None
     if gui:
@@ -124,7 +123,7 @@ def pop_dipfit_nonlinear(
     """Run standalone nonlinear dipole refinement for one component."""
     if EEG is None:
         return (None, "") if return_com else None
-    ensure_dipfit_settings(EEG, caller="pop_dipfit_nonlinear")
+    ensure_dipfit_settings(EEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if "component" in options and component is None:
         component = options.pop("component")
@@ -164,7 +163,7 @@ def pop_multifit(
     if EEG is None:
         return (None, "") if return_com else None
     ensure_ica(EEG)
-    ensure_dipfit_settings(EEG, caller="pop_multifit")
+    ensure_dipfit_settings(EEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if gui is None:
         gui = comps is None and not options
@@ -237,8 +236,7 @@ def pop_leadfield(
         )
     points = _source_points_from_option(options.get("sourcemodel"))
     out = copy_eeg(EEG)
-    ensure_dipfit_settings(out, caller="pop_leadfield")
-    fill_missing_besa_volume(out)
+    ensure_dipfit_settings(out)
     out["dipfit"]["sourcemodel"] = source_model_from_points(out, points)
     out["dipfit"]["sourcemodel"]["file"] = options.get("sourcemodel")
     if options.get("sourcemodel2mni") not in (None, ""):
@@ -266,12 +264,14 @@ def pop_dipfit_loreta(
         return (None, "") if return_com else None
     ensure_channel_locations(EEG)
     ensure_ica(EEG)
-    dipfit = ensure_dipfit_settings(EEG, caller="pop_dipfit_loreta")
+    dipfit = ensure_dipfit_settings(EEG)
     if not dipfit.get("sourcemodel"):
         raise ValueError(
             "pop_dipfit_loreta: no leadfield is stored in EEG.dipfit.sourcemodel. "
             "Run pop_leadfield first. The LORETA-KEY choice builds EEGPrep's in-head grid."
         )
+    if str(dipfit.get("coordformat", "")).lower() != "mni":
+        raise ValueError("For this function, you must use the template BEM model MNI in dipole fit settings")
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if gui is None:
         gui = select is None and not options
