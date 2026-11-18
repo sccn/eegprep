@@ -1095,6 +1095,19 @@ Two identical source channels raise. EEGLAB
 come back as a channel deletion or an interpolation that does not
 reflect the recording.</p></td>
 </tr>
+<tr class="row-even"><td><p>Empty <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> locations</p></td>
+<td><p>An interpolated <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when channel
+locations are <code class="docutils literal notranslate"><span class="pre">None</span></code> or empty. The message names <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> and
+says to load locations with <code class="docutils literal notranslate"><span class="pre">pop_chanedit</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_readlocs</span></code>.
+A blank map with an empty location list draws the head.
+<code class="docutils literal notranslate"><span class="pre">plot_channel_location</span></code> uses that blank map when a channel has no
+stored location.
+EEGLAB replaces an empty <code class="docutils literal notranslate"><span class="pre">loc_file</span></code> with <code class="docutils literal notranslate"><span class="pre">DEFAULT_ELOC</span></code>
+(<code class="docutils literal notranslate"><span class="pre">chan.locs</span></code>, <code class="docutils literal notranslate"><span class="pre">icadefs.m</span></code> line 232) at <code class="docutils literal notranslate"><span class="pre">topoplot.m</span></code> lines
+358-362, then passes that filename to <code class="docutils literal notranslate"><span class="pre">readlocs</span></code>.
+<code class="docutils literal notranslate"><span class="pre">test_missing_or_empty_channel_locations_name_the_problem</span></code> locks
+the EEGPrep error.</p></td>
+</tr>
 </tbody>
 </table>
 </div>

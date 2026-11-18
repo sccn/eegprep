@@ -557,7 +557,9 @@
 <dl class="simple">
 <dt>datavector<span class="classifier">array-like</span></dt><dd><p>Values to plot at each channel location.</p>
 </dd>
-<dt>chan_locs<span class="classifier">list of dict</span></dt><dd><p>Channel location structures with ‘labels’, ‘theta’, and ‘radius’ fields.</p>
+<dt>chan_locs<span class="classifier">list of dict</span></dt><dd><p>Channel location structures with ‘labels’, ‘theta’, and ‘radius’ fields.
+<code class="docutils literal notranslate"><span class="pre">None</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. An empty list raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
+for an interpolated map. A blank map with an empty list draws the head.</p>
 </dd>
 <dt>kwargs<span class="classifier">dict</span></dt><dd><p>Additional keyword arguments for customization:</p>
 <ul class="simple">

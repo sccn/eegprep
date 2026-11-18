@@ -508,6 +508,18 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``eeg_interp`` do not test the layout, so a collinear montage can
        come back as a channel deletion or an interpolation that does not
        reflect the recording.
+   * - Empty ``topoplot`` locations
+     - An interpolated ``topoplot`` raises ``ValueError`` when channel
+       locations are ``None`` or empty. The message names ``topoplot`` and
+       says to load locations with ``pop_chanedit`` or ``pop_readlocs``.
+       A blank map with an empty location list draws the head.
+       ``plot_channel_location`` uses that blank map when a channel has no
+       stored location.
+       EEGLAB replaces an empty ``loc_file`` with ``DEFAULT_ELOC``
+       (``chan.locs``, ``icadefs.m`` line 232) at ``topoplot.m`` lines
+       358-362, then passes that filename to ``readlocs``.
+       ``test_missing_or_empty_channel_locations_name_the_problem`` locks
+       the EEGPrep error.
 
 Plugin Migration
 ================
