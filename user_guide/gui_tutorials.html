@@ -755,6 +755,10 @@ Use them after ICA:</p>
 <span class="n">figures</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_dipplot</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">summary</span><span class="o">=</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Changing the head-model menu fills the file fields for the selected template.
+The leadfield dialog’s LORETA-KEY choice builds a 20 mm in-head grid. The
+leadfield uses the selected head model. <code class="docutils literal notranslate"><span class="pre">pop_dipfit_loreta</span></code> then reports that FieldTrip source
+analysis is not bundled.</p>
 <p>MRI-derived BEM creation, AFNI atlas clipping, LORETA analysis, and STUDY-level
 source statistics remain explicit backend boundaries. EEGPrep raises clear
 errors for unavailable external workflows instead of producing placeholder

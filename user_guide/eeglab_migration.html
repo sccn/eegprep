@@ -1039,6 +1039,30 @@ events, so a stored 0 does not delete events past sample 1.
 Lines 821-826 then set <code class="docutils literal notranslate"><span class="pre">trials</span></code> from <code class="docutils literal notranslate"><span class="pre">size(data,3)</span></code>, which is 1
 for a continuous recording. EEGLAB has already dropped the events.</p></td>
 </tr>
+<tr class="row-odd"><td><p>Extended properties on the Plot menu</p></td>
+<td><p>EEGLAB <code class="docutils literal notranslate"><span class="pre">d0963be9</span></code> shows extended component properties under Tools &gt;
+Classify components using ICLabel. EEGPrep also lists View extended
+channel properties and View extended component properties on the Plot
+menu.</p></td>
+</tr>
+<tr class="row-even"><td><p>LORETA-KEY leadfield</p></td>
+<td><p>The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius. The
+leadfield uses the selected head model. FieldTrip’s LORETA-KEY atlas and eLORETA source
+analysis are not bundled. <code class="docutils literal notranslate"><span class="pre">pop_dipfit_loreta</span></code> asks for
+<code class="docutils literal notranslate"><span class="pre">pop_leadfield</span></code> when <code class="docutils literal notranslate"><span class="pre">EEG.dipfit.sourcemodel</span></code> is missing, then
+reports the missing FieldTrip backend.</p></td>
+</tr>
+<tr class="row-odd"><td><p>DIPFIT history</p></td>
+<td><p>Settings, fitting, leadfield, and dipole-plot commands are stored as
+Python keywords so <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> can replay them. EEGLAB stores
+the same calls as <code class="docutils literal notranslate"><span class="pre">'key',</span> <span class="pre">value</span></code> pairs. A <code class="docutils literal notranslate"><span class="pre">linspace</span></code> string entered
+for the coarse-fit grid is kept as that string.</p></td>
+</tr>
+<tr class="row-even"><td><p>DIPFIT co-registration</p></td>
+<td><p>The Co-register button stays disabled. The FieldTrip coregistration
+window is not bundled. No Co-Reg. remains available for an empty
+transform.</p></td>
+</tr>
 <tr class="row-odd"><td><p>Numeric boundary types</p></td>
 <td><p>Consecutive equal-latency boundaries are merged whether <code class="docutils literal notranslate"><span class="pre">type</span></code> is
 the string <code class="docutils literal notranslate"><span class="pre">boundary</span></code> or the number <code class="docutils literal notranslate"><span class="pre">-99</span></code> with

@@ -702,11 +702,15 @@ not a replacement for expert inspection.</p>
 </section>
 <section id="visual-diagnostics">
 <h2>Visual Diagnostics<a class="headerlink" href="#visual-diagnostics" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">pop_viewprops(EEG,</span> <span class="pre">typecomp=0)</span></code> opens EEGPrep’s native component-property
-browser. With ICLabel classifications present, component mode opens the
-<code class="docutils literal notranslate"><span class="pre">pop_prop_extended</span></code> dashboard with scalp map, activity browser, ERP/image
-summary, spectrum, class probabilities, component accept/reject controls, and
-DIPFIT projections when localized dipoles are already stored in <code class="docutils literal notranslate"><span class="pre">EEG.dipfit</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_viewprops(EEG,</span> <span class="pre">typecomp=0)</span></code> shows the component topography grid and the
+<code class="docutils literal notranslate"><span class="pre">pop_prop_extended</span></code> dashboard. The dashboard contains the scalp map,
+activity browser, ERP/image summary, spectrum, class probabilities when a
+classifier matches the current ICA, component accept/reject controls, and
+DIPFIT projections when localized dipoles are already stored in <code class="docutils literal notranslate"><span class="pre">EEG.dipfit</span></code>.
+Clicking a map opens that component’s dashboard. Channel mode,
+<code class="docutils literal notranslate"><span class="pre">pop_viewprops(EEG,</span> <span class="pre">typecomp=1)</span></code>, shows the same dashboard for channels.
+A component request with no ICA asks for <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code>. Labels left behind
+after the decomposition was removed are not used.</p>
 <p>The activity browser uses EEGLAB-facing one-based component indices and
 preserves event display state through the <code class="docutils literal notranslate"><span class="pre">scroll_event</span></code> option.</p>
 </section>

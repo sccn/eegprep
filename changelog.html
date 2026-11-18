@@ -514,6 +514,22 @@ in the diagnostics (#540).</p></li>
 docstrings record which calls replace float32 samples with float64, which
 return the same object, and which leave the input unchanged. Copy a
 dataset first when the original recording must be preserved (#541).</p></li>
+<li><p>An empty <code class="docutils literal notranslate"><span class="pre">EEG.dipfit</span></code> array is treated as missing dipole settings.</p></li>
+<li><p>Extended channel properties open the topography, ERP image, and spectrum
+dashboard. Extended component properties open that dashboard with the
+topography grid, and a map click opens the selected component. A component
+request with no ICA names <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code>. Stored classifier rows that do
+not match the current decomposition are refused.</p></li>
+<li><p>Plot &gt; View extended channel properties and Plot &gt; View extended component
+properties stay available beside Tools &gt; Classify components using ICLabel.</p></li>
+<li><p>Changing the DIPFIT head-model menu fills the file fields for the selected
+template. Browse is enabled for a custom head model.</p></li>
+<li><p>The leadfield dialog’s LORETA-KEY choice builds a 20 mm in-head grid. The
+leadfield uses the selected head model. <code class="docutils literal notranslate"><span class="pre">pop_dipfit_loreta</span></code> names
+<code class="docutils literal notranslate"><span class="pre">pop_leadfield</span></code> when no leadfield is stored.</p></li>
+<li><p>Autofit accepts the plot text <code class="docutils literal notranslate"><span class="pre">'normlen'</span> <span class="pre">'on'</span></code> and shows the dipole
+figure. A <code class="docutils literal notranslate"><span class="pre">linspace</span></code> string entered for the coarse-fit grid stays in the
+history command.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">reref</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> sum an average reference in float64 and cast
 once back to the input dtype, so a float32 recording stays float32 and the
 result does not depend on the BLAS kernel or thread count. On the

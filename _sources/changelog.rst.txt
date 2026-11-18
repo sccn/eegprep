@@ -33,6 +33,22 @@ Unreleased
   docstrings record which calls replace float32 samples with float64, which
   return the same object, and which leave the input unchanged. Copy a
   dataset first when the original recording must be preserved (#541).
+- An empty ``EEG.dipfit`` array is treated as missing dipole settings.
+- Extended channel properties open the topography, ERP image, and spectrum
+  dashboard. Extended component properties open that dashboard with the
+  topography grid, and a map click opens the selected component. A component
+  request with no ICA names ``pop_runica``. Stored classifier rows that do
+  not match the current decomposition are refused.
+- Plot > View extended channel properties and Plot > View extended component
+  properties stay available beside Tools > Classify components using ICLabel.
+- Changing the DIPFIT head-model menu fills the file fields for the selected
+  template. Browse is enabled for a custom head model.
+- The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid. The
+  leadfield uses the selected head model. ``pop_dipfit_loreta`` names
+  ``pop_leadfield`` when no leadfield is stored.
+- Autofit accepts the plot text ``'normlen' 'on'`` and shows the dipole
+  figure. A ``linspace`` string entered for the coarse-fit grid stays in the
+  history command.
 - ``reref`` and ``pop_reref`` sum an average reference in float64 and cast
   once back to the input dtype, so a float32 recording stays float32 and the
   result does not depend on the BLAS kernel or thread count. On the
