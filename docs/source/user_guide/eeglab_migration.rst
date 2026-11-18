@@ -397,6 +397,21 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
        and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
        out Z, Y, X here and X, Z, Y in EEGLAB.
+   * - One-value ``pop_epoch`` ``valuelim``
+     - A single limit is a symmetric exclusive bound. ``valuelim=[50]``
+       keeps an epoch only when every sample is strictly inside (-50, 50).
+       The value 50 itself is an outlier. With limits ``[-0.5, -0.1]`` at
+       64 Hz that window is 26 samples, so two ``rt`` events whose samples
+       are 10 are returned as shape ``(29, 26, 2)``. A sample of 50 in one
+       window drops that epoch, and samples of -60 drop both.
+       ``pop_epoch.m`` lines 37-39 and ``epoch.m`` lines 19-21 describe
+       this rule on pin ``d0963be9``. ``pop_epoch.m`` line 224 passes a
+       one-element limit through unchanged, and ``epoch.m`` lines 133-136
+       read the second element only after the first comparison succeeds.
+       A scalar 50 therefore rejects every epoch whose minimum is not
+       above 50, which is why the same two windows come back empty.
+       ``test_single_valuelim_is_a_symmetric_bound`` locks the EEGPrep
+       result.
    * - Continuous rejection with ``trials`` 0
      - ``eeg_eegrej`` sets ``trials`` from the data shape before checking
        events, so a stored 0 does not delete events past sample 1.
