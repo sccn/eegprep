@@ -460,6 +460,26 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pnts*trials+1`` while ``trials`` is still that stored value.
        Lines 821-826 then set ``trials`` from ``size(data,3)``, which is 1
        for a continuous recording. EEGLAB has already dropped the events.
+   * - Extended properties on the Plot menu
+     - EEGLAB ``d0963be9`` shows extended component properties under Tools >
+       Classify components using ICLabel. EEGPrep also lists View extended
+       channel properties and View extended component properties on the Plot
+       menu.
+   * - LORETA-KEY leadfield
+     - The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius. The
+       leadfield uses the selected head model. FieldTrip's LORETA-KEY atlas and eLORETA source
+       analysis are not bundled. ``pop_dipfit_loreta`` asks for
+       ``pop_leadfield`` when ``EEG.dipfit.sourcemodel`` is missing, then
+       reports the missing FieldTrip backend.
+   * - DIPFIT history
+     - Settings, fitting, leadfield, and dipole-plot commands are stored as
+       Python keywords so ``eegprep-console`` can replay them. EEGLAB stores
+       the same calls as ``'key', value`` pairs. A ``linspace`` string entered
+       for the coarse-fit grid is kept as that string.
+   * - DIPFIT co-registration
+     - The Co-register button stays disabled. The FieldTrip coregistration
+       window is not bundled. No Co-Reg. remains available for an empty
+       transform.
    * - Numeric boundary types
      - Consecutive equal-latency boundaries are merged whether ``type`` is
        the string ``boundary`` or the number ``-99`` with

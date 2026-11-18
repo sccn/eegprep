@@ -6,7 +6,7 @@ from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc.plot_utils import history_command
+from eegprep.functions.popfunc.plot_utils import history_command, show_figures
 from eegprep.plugins.ICLabel._prop_browser import build_navigable_dashboard
 from eegprep.plugins.ICLabel._prop_numerics import (
     DEFAULT_ICLABEL_CLASSES,
@@ -101,6 +101,7 @@ def pop_prop_extended(
             show_activity=show_activity,
             reject_callback=reject_callback,
         )
+        show_figures(figure, plot=True)
     return (figure, command) if return_com else figure
 
 

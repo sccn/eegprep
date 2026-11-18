@@ -379,7 +379,7 @@ def test_marked_epochs_notice_closes_instead_of_staying_in_the_session_list(monk
     pytest.importorskip("PySide6")
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     try:
-        from PySide6 import QtWidgets
+        from PySide6 import QtCore, QtWidgets
     except ImportError as exc:
         pytest.skip(f"Qt is not loadable: {exc}")
 
@@ -396,6 +396,7 @@ def test_marked_epochs_notice_closes_instead_of_staying_in_the_session_list(monk
     boxes = window.findChildren(QtWidgets.QMessageBox, "marked_epochs_notice")
     assert boxes
     assert boxes[0].parent() is window
+    assert boxes[0].windowModality() == QtCore.Qt.WindowModality.NonModal
     assert rejection._notice_boxes == before
     boxes[0].close()
     app.processEvents()
@@ -407,6 +408,7 @@ def test_marked_epochs_notice_closes_instead_of_staying_in_the_session_list(monk
     app.processEvents()
     held = [box for box in rejection._notice_boxes if box not in before]
     assert len(held) == 1
+    assert held[0].windowModality() == QtCore.Qt.WindowModality.NonModal
     held[0].close()
     app.processEvents()
     assert held[0] not in rejection._notice_boxes

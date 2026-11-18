@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import math
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -11,7 +12,9 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc.plot_utils import numeric_vector, python_literal
+from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_options_text, python_literal
+
+_QUOTED_PLOT_GAP = re.compile(r"""(?<=['"])\s+(?=['"])""")
 
 
 FIELDTRIP_LIMITATION = (
@@ -114,6 +117,39 @@ def copy_eeg(EEG: dict[str, Any]) -> dict[str, Any]:
     return copy.deepcopy(EEG)
 
 
+def dipfit_record(EEG: dict[str, Any]) -> dict[str, Any]:
+    """Return ``EEG.dipfit`` when it is a mapping.
+
+    An empty numeric placeholder is not a settings record. Using it in
+    ``value or {}`` raises ``ValueError`` because the array has no truth value.
+    """
+    dipfit = EEG.get("dipfit") if isinstance(EEG, dict) else None
+    if isinstance(dipfit, dict):
+        return dipfit
+    return {}
+
+
+def template_form_state(template: DipfitTemplate) -> dict[str, Any]:
+    """Return dialog field values for one head-model template."""
+    coord_index = {"spherical": 1, "mni": 2}.get(template.coordformat.lower(), 4)
+    transform = " ".join(f"{float(value):g}" for value in template.coord_transform)
+    return {
+        "hdmfile": template.hdmfile,
+        "mrifile": template.mrifile,
+        "chanfile": template.chanfile,
+        "coord_transform": transform,
+        "coordformat": coord_index,
+        "no_coreg": not bool(transform),
+        "browse": not bool(template.shortname),
+    }
+
+
+def matlab_plot_options(text: Any) -> dict[str, Any]:
+    """Parse plot options, including MATLAB ``'key' 'value'`` text."""
+    normalized = _QUOTED_PLOT_GAP.sub(", ", str(text or "").strip())
+    return parse_plot_options_text(normalized)
+
+
 def dipfit_history(function_name: str, *args: Any, assignment: bool = True, **kwargs: Any) -> str:
     """Build a valid Python command for GUI/console history."""
     pieces = ["EEG", *(python_literal(arg) for arg in args)]
@@ -190,8 +226,8 @@ def ensure_channel_locations(EEG: dict[str, Any]) -> None:
 
 def ensure_dipfit_settings(EEG: dict[str, Any]) -> dict[str, Any]:
     """Return existing DIPFIT settings or raise an EEGLAB-like error."""
-    dipfit = EEG.get("dipfit")
-    if not isinstance(dipfit, dict) or not dipfit:
+    dipfit = dipfit_record(EEG)
+    if not dipfit:
         raise ValueError("General dipolefit settings not specified")
     if not dipfit.get("hdmfile") and not dipfit.get("vol"):
         raise ValueError("Dipolefit volume conductor model not specified")
@@ -226,8 +262,8 @@ def one_based_indices(value: Any, *, limit: int, default_all: bool = False) -> l
 
 def normalize_model_list(EEG: dict[str, Any]) -> list[dict[str, Any]]:
     """Return DIPFIT model entries as a list of dictionaries."""
-    dipfit = EEG.get("dipfit") or {}
-    models = dipfit.get("model", []) if isinstance(dipfit, dict) else []
+    dipfit = dipfit_record(EEG)
+    models = dipfit.get("model", [])
     if isinstance(models, dict):
         return [models]
     if isinstance(models, np.ndarray):
