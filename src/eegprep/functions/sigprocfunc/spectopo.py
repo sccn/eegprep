@@ -9,10 +9,9 @@ import numpy as np
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.patches import ConnectionPatch
-from scipy.signal import get_window, welch
 
-from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list, channel_has_coordinates
+from eegprep.functions.sigprocfunc.spectra import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
 # Lowest frequency plotted on the spectra axis, matching EEGLAB ``spectopo`` LOPLOTHZ.
@@ -80,98 +79,6 @@ def spectopo(
             nyquist=float(srate) / 2.0,
         )
     return spectra, frequency_values, None, None, specstd, figure
-
-
-def compute_spectra(
-    data: np.ndarray,
-    frames: int,
-    srate: float,
-    *,
-    percent: float = 100,
-    winsize: int | None = None,
-    overlap: int = 0,
-    nfft: int | None = None,
-    mapnorm: Any = None,
-    wintype: str = "hamming",
-    blckhn: int = 2,
-) -> tuple[np.ndarray, np.ndarray, None]:
-    """Return Welch spectra in dB as ``channels x frequencies``.
-
-    Epoched input (3-D ``(nchan, pnts, trials)`` or 2-D ``(nchan, pnts*trials)`` with
-    ``frames < sample_count``) is handled per epoch and averaged in linear power
-    before the dB conversion, matching EEGLAB ``spectopo``'s ``spectcomp``. 2-D
-    concatenated data is unstacked column-major to match MATLAB's ``reshape``.
-
-    ``mapnorm`` (a component scalp-map column) scales the linear power by
-    ``sqrt(mean(mapnorm**4))`` before the dB conversion, so a single component's
-    activation spectrum reflects its projected scalp power (EEGLAB ``spectopo.m``).
-    """
-    values = np.asarray(data, dtype=float)
-    if values.ndim == 3:
-        _, pnts, trials = values.shape
-        epochs = values
-    elif values.ndim == 2:
-        nchan, sample_count = values.shape
-        frames = int(frames) if frames > 0 else sample_count
-        if sample_count % frames:
-            raise ValueError("compute_spectra: sample count is not an integer multiple of frames")
-        trials = sample_count // frames
-        # column-major so trial ``k`` occupies samples ``[k*frames:(k+1)*frames]``,
-        # matching MATLAB's ``reshape(data, nchan, pnts, trials)``
-        epochs = values.reshape(nchan, frames, trials, order="F") if trials > 1 else values[:, :, np.newaxis]
-        pnts = frames
-    else:
-        raise ValueError("data must be a 2-D or 3-D channel-major array")
-
-    if percent <= 0 or percent > 100:
-        raise ValueError("percent must be in the range (0, 100]")
-    if percent < 100:
-        if trials > 1:
-            keep_trials = max(1, int(round(trials * percent / 100.0)))
-            epochs = epochs[:, :, :keep_trials]
-            trials = keep_trials
-        else:
-            keep = max(1, int(round_mat(pnts * percent / 100.0)))
-            epochs = epochs[:, :keep, :]
-            pnts = keep
-
-    window_type = str(wintype).strip().lower()
-    if window_type not in {"hamming", "blackmanharris"}:
-        raise ValueError("wintype must be 'hamming' or 'blackmanharris'")
-    nperseg = int(winsize or min(int(round_mat(srate)), pnts))
-    if window_type == "blackmanharris":
-        divisor = int(blckhn)
-        if divisor <= 0:
-            raise ValueError("blckhn must be a positive integer")
-        nperseg = int(np.floor(nperseg / divisor + 0.5))
-    nperseg = max(1, min(nperseg, pnts))
-    noverlap = max(0, min(int(overlap), nperseg - 1))
-    # EEGLAB uses symmetric windows and disables detrending in pwelch.
-    window = get_window(window_type, nperseg, fftbins=False)
-    if window_type == "blackmanharris":
-        nfft = 1 << int(np.ceil(np.log2(nperseg)))
-    freqs = None
-    psd_sum: np.ndarray | None = None
-    for index in range(trials):
-        freqs, power = welch(
-            epochs[:, :, index],
-            fs=float(srate),
-            window=window,
-            nperseg=nperseg,
-            noverlap=noverlap,
-            nfft=nfft,
-            axis=1,
-            detrend=False,
-            scaling="density",
-        )
-        if psd_sum is None:
-            psd_sum = np.zeros_like(power)
-        psd_sum += power
-    psd_mean = psd_sum / trials
-    if mapnorm is not None:
-        psd_mean = psd_mean * np.sqrt(np.mean(np.asarray(mapnorm, dtype=float) ** 4))
-    spectra = 10.0 * np.log10(np.maximum(psd_mean, np.finfo(float).tiny))
-    return spectra, freqs, None
 
 
 def plot_spectra(

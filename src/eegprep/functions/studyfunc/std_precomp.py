@@ -17,7 +17,7 @@ from eegprep.functions.popfunc.plot_utils import (
     python_literal,
 )
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_text_tokens
-from eegprep.functions.sigprocfunc.spectopo import compute_spectra
+from eegprep.functions.sigprocfunc.spectra import compute_spectra
 from eegprep.functions.studyfunc._study_utils import (
     as_alleeg_list,
     build_python_call,
