@@ -24,9 +24,7 @@ EEG = pop_loadset(dataset);
 EEG = pop_dipfit_settings(EEG, 'model', 'standardBESA', 'coord_transform', []);
 EEG.icaweights = EEG.icaweights(1:3, :);
 EEG.icawinv = EEG.icawinv(:, 1:3);
-if isfield(EEG, 'icaact')
-    EEG = rmfield(EEG, 'icaact');
-end
+EEG.icaact = [];
 EEG = pop_multifit(EEG, 1:3, 'threshold', 100, 'dipplot', 'off');
 
 chansel = EEG.dipfit.chansel;
