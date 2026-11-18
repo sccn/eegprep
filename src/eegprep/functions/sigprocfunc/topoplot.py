@@ -64,12 +64,7 @@ def griddata_v4(x, y, v, xq, yq):
 
 
 def _require_channel_locations(chan_locs) -> None:
-    empty = chan_locs is None
-    if isinstance(chan_locs, np.ndarray):
-        empty = chan_locs.size == 0
-    elif isinstance(chan_locs, (list, tuple)):
-        empty = len(chan_locs) == 0
-    if empty:
+    if chan_locs is None or len(chan_locs) == 0:
         raise ValueError(
             "topoplot: Channel locations are required. "
             "Load locations with pop_chanedit or pop_readlocs before plotting."
