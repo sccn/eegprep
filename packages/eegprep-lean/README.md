@@ -104,9 +104,50 @@ the thousands that differ between channels by more than the signal spans;
 without it every trace is a flat line at its own level.
 That never touches the window, and `demean=False` draws the values as they are.
 
+## Channel locations
+
+When a recording's BIDS dataset has an `electrodes.tsv`,
+NEMAR's converter writes its positions into the store's root attributes
+(`electrode_positions`, `electrode_coordinate_system` and `electrode_coordinate_units`),
+and a dataset without that file leaves all three out.
+`load_recording` reads them into `window.electrodes`,
+and `to_eeg` fills EEGLAB's `chanlocs` from them,
+giving the locations eegprep's `pop_load_frombids` gives from the same file:
+
+```python
+from eegprep_lean import index_sha256, load_recording, to_eeg
+
+# store_path is the recording's source path in the index, as for index.store(...)
+window = load_recording("nm000132", store_path)
+eeg = to_eeg(window, dataset_id="nm000132", store=store_path, index_digest=index_sha256("nm000132"))
+eeg["chanlocs"][0]  # labels, X, Y, Z in millimeters (ALS), sph_theta, sph_phi, sph_radius, theta, radius
+eeg["etc"]["nemar"]["locations"]  # what the store stated, how many channels got a position, and why none did
+```
+
+A channel is matched to the entry for exactly its label,
+and a channel with no entry keeps empty arrays, as the BIDS import leaves it.
+The unit and the coordinate system must be ones the BIDS coordinate-systems appendix names:
+anything else fills no positions and is never guessed,
+and `reason` says `units_unknown` or `coordinate_system_unknown`.
+That is where it differs from the BIDS import,
+which guesses a unit when none is declared, assumes a frame when there is no coordsystem file,
+and turns `CTF`, `4DBti` and `KitYokogawa`, which the appendix gives as ALS, as if they were RAS.
+The import also reads a coordsystem whose `EEGCoordinateSystemDescription` is `EEGLAB` as ALS,
+whatever `EEGCoordinateSystem` says.
+A store carries no description, so a dataset that states a RAS system with that description
+is ALS through the import and is turned by 90 degrees here.
+The converter writes no such description today,
+and reading it here is a follow-up if it ever does.
+A store that declares no positions leaves `chanlocs` as labels alone, and has no `locations` record.
+`read_window` makes no request for the store root;
+a caller that reads windows itself reads the attributes once per store with
+`read_electrode_attributes` and sets them with `dataclasses.replace(window, electrodes=...)`.
+
 ## In a runtime that owns the network
 
 In a plain Pyodide, reads go through `pyodide.http.pyfetch`.
+`PyfetchTransport(timeout_s=60)` aborts the browser fetch if the response headers
+and the body have not both arrived within `timeout_s` seconds.
 A sandboxed runtime may remove that module and offer its own client instead,
 one that enforces what executed code is allowed to reach.
 The runtime registers a transport over that client once, before any reader code runs,
@@ -123,6 +164,7 @@ eegprep_lean.set_default_transport(eegprep_lean.FetchTransport(client))
 and accepts only a `2xx`:
 any other status is a `TransportError`, a redirect included, since it follows none,
 and so is a range request answered in full.
+It does not set a deadline; that stays with the host's client.
 A request the host refuses must raise rather than answer with a status of its own,
 because the store reads 403, 404 and 416 as a key that does not exist.
 An explicit `transport=` argument still wins over the registered default,

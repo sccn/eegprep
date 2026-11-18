@@ -64,7 +64,7 @@ def _restore_double_eeg_data(eeg, path: str) -> None:
     """Replace loaded single data and file activations with the MATLAB copies."""
     if not os.path.exists(path) or not isinstance(eeg, dict) or "data" not in eeg:
         return
-    saved = scipy.io.loadmat(path, squeeze_me=False)
+    saved = scipy.io.loadmat(path, squeeze_me=False, mat_dtype=True)
     stashed = np.asarray(saved["eegprep_roundtrip_data"])
     current = np.asarray(eeg["data"])
     if stashed.size != current.size:
@@ -72,6 +72,84 @@ def _restore_double_eeg_data(eeg, path: str) -> None:
     eeg["data"] = np.reshape(stashed, current.shape, order="F")
     if "eegprep_roundtrip_icaact" in saved:
         eeg["icaact"] = np.asarray(saved["eegprep_roundtrip_icaact"])
+
+
+def _matlab_quote(path: str) -> str:
+    return str(path).replace("'", "''")
+
+
+def _saved_two_files(eeg: dict) -> bool:
+    datfile = eeg.get("datfile")
+    if isinstance(datfile, str):
+        return datfile != ""
+    if isinstance(datfile, np.ndarray):
+        return datfile.size > 0
+    return False
+
+
+def _stale_continuous_trials(eeg: dict) -> bool:
+    """True when ``trials`` is 0 but ``data`` is still a 2-D continuous array.
+
+    An empty epoch stack is ``(nbchan, pnts, 0)``. A stored 0 on a 2-D array is
+    the count ``eeg_checkset.m`` lines 440-449 read before lines 821-826
+    replace it from ``size(data, 3)``.
+    """
+    data = np.asarray(eeg["data"])
+    return eeg["trials"] == 0 and data.ndim == 2 and data.size > 0
+
+
+def matlab_held_data(data, eeg: dict | None = None) -> np.ndarray:
+    """Return ``data`` as ``pop_loadset`` leaves ``EEG.data``.
+
+    A two-file set is ``fread([nbchan Inf])`` then ``reshape`` to
+    ``(nbchan, pnts, trials)`` (``eeg_getdatact.m``). That ``reshape`` drops a
+    trailing singleton, so one trial is ``(nbchan, pnts)``. A one-file set
+    keeps the stored array, and ``eeg_checkset.m`` then reshapes a 2-D array
+    whose column count is a multiple of ``pnts`` into that 3-D shape.
+    """
+    values = np.array(np.asarray(data), dtype=np.float64, copy=True)
+    if eeg is None or values.ndim < 2 or values.size == 0 or values.shape[0] == 0:
+        return values
+    nbchan = int(eeg.get("nbchan") or values.shape[0])
+    pnts = int(eeg.get("pnts") or values.shape[1])
+    trials = int(eeg.get("trials") or 1)
+    if nbchan < 1 or pnts < 1 or trials < 1 or values.shape[0] != nbchan:
+        return values
+    target = (nbchan, pnts) if trials == 1 else (nbchan, pnts, trials)
+    if values.shape == target:
+        return values
+    if int(np.prod(target, dtype=np.int64)) != values.size:
+        return values
+    if _saved_two_files(eeg) and trials == 1 and values.shape == (nbchan, pnts, 1):
+        return np.reshape(values, target, order="F")
+    flat_epoch = values.ndim == 2 and trials > 1 and values.shape == (nbchan, pnts * trials)
+    if flat_epoch:
+        return np.reshape(values, target, order="F")
+    return values
+
+
+def save_double_input(data, path: str, eeg: dict | None = None) -> None:
+    """Write ``data`` as the double array MATLAB holds after ``pop_loadset``."""
+    array = matlab_held_data(data, eeg)
+    scipy.io.savemat(path, {"eegprep_input_data": np.asfortranarray(array)}, do_compression=False)
+
+
+def matlab_restore_input(path: str) -> str:
+    """Assign the saved double array onto ``EEG.data`` after ``pop_loadset``.
+
+    ``pop_saveset`` may have written a float32 ``.fdt``. The shape check fails
+    the call instead of continuing with that quantized array.
+    """
+    quoted = _matlab_quote(path)
+    return (
+        f"eegprep_input = load('{quoted}'); "
+        "if ~(isfield(eegprep_input, 'eegprep_input_data') && isnumeric(eegprep_input.eegprep_input_data) "
+        "&& isequal(size(eegprep_input.eegprep_input_data), size(EEG.data))), "
+        "error('eegprep:InputTransport', 'double input does not match EEG.data'); "
+        "end; "
+        "EEG.data = eegprep_input.eegprep_input_data; "
+        "clear eegprep_input"
+    )
 
 
 def _matlab_args_cell(values) -> np.ndarray:
@@ -245,6 +323,7 @@ class MatlabWrapper:
                 result_filename = temp_filename1 + '.result.set'
                 result_extra_filename = temp_filename1 + '.result.mat'
                 double_data_filename = temp_filename1 + '.double.mat'
+                input_double_filename = temp_filename1 + '.input.mat'
                 logger.debug("MATLAB roundtrip input set path: %s", temp_filename1)
                 logger.debug("MATLAB roundtrip args path: %s", temp_filename2)
                 logger.debug("MATLAB roundtrip result set path: %s", result_filename)
@@ -260,10 +339,22 @@ class MatlabWrapper:
                 else:
                     self.engine.eval("args.args = {};", nargout=0)
 
+                roundtrip_eeg = args[0] if args else None
+                restore_stale_trials = False
+                if needs_roundtrip and _stale_continuous_trials(args[0]):
+                    # Two-file save reads trials 0 as an empty epoch stack.
+                    # pop_loadset's eeg_checkset then drops events and replaces
+                    # the count, so write 1 and put 0 back after the load.
+                    roundtrip_eeg = dict(args[0])
+                    roundtrip_eeg["trials"] = 1
+                    restore_stale_trials = True
                 if needs_roundtrip:
-                    # passage data through a file
-                    pop_saveset(args[0], temp_filename1)
+                    pop_saveset(roundtrip_eeg, temp_filename1)
+                    save_double_input(roundtrip_eeg["data"], input_double_filename, roundtrip_eeg)
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
+                    self.engine.eval(matlab_restore_input(input_double_filename), nargout=0)
+                    if restore_stale_trials:
+                        self.engine.eval("EEG.trials = 0;", nargout=0)
 
                 logger.debug("Running in MATLAB/Octave: %s", eval_str)
                 self.engine.eval(eval_str, nargout=0)
@@ -332,6 +423,8 @@ class MatlabWrapper:
                         os.remove(result_extra_filename)
                     if os.path.exists(double_data_filename):
                         os.remove(double_data_filename)
+                    if os.path.exists(input_double_filename):
+                        os.remove(input_double_filename)
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
 

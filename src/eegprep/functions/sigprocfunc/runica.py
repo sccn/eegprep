@@ -27,6 +27,7 @@ from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
 from ..miscfunc.misc import finite_pinv
 from ..miscfunc.value_parsing import parse_key_value_args
+from . import runica_matmul as _runica_matmul
 
 logger = logging.getLogger(__name__)
 
@@ -665,7 +666,7 @@ def runica(data, *args, **kwargs):
                 for t in range(0, lastt, block):
                     # Extract and process block (MATLAB line 846)
                     # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
-                    u = weights @ data[:, timeperm[t : t + block]] + bias
+                    u = _runica_matmul.runica_matmul(weights, data[:, timeperm[t : t + block]]) + bias
 
                     # Apply tanh nonlinearity (MATLAB line 848)
                     y = np.tanh(u)
@@ -673,7 +674,9 @@ def runica(data, *args, **kwargs):
                     # Extended-ICA natural gradient weight update (MATLAB line 849)
                     # weights = weights + lrate*(BI-signs*y*u'-u*u')*weights
                     signed_y = signs[:, np.newaxis] * y
-                    weights = weights + lrate * ((BI - (signed_y + u) @ u.T) @ weights)
+                    weights = weights + lrate * _runica_matmul.runica_matmul(
+                        BI - _runica_matmul.runica_matmul(signed_y + u, u.T), weights
+                    )
 
                     # Bias update for tanh (MATLAB line 850)
                     # bias = bias + lrate*sum((-2*y)')';
@@ -697,9 +700,9 @@ def runica(data, *args, **kwargs):
                             # Random subset selection or whole data (MATLAB lines 868-879)
                             if kurtsize < frames:
                                 rp = _kurtosis_columns(rng, datalength, kurtsize)
-                                partact = weights @ data[:, rp]
+                                partact = _runica_matmul.runica_matmul(weights, data[:, rp])
                             else:
-                                partact = weights @ data
+                                partact = _runica_matmul.runica_matmul(weights, data)
 
                             m2 = np.mean(partact**2, axis=1) ** 2
                             m4 = np.mean(partact**4, axis=1)
@@ -846,7 +849,7 @@ def runica(data, *args, **kwargs):
                     # Extract and process block (MATLAB line 1021)
                     # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
                     # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
-                    u = weights @ data[:, timeperm[t : t + block]] + bias
+                    u = _runica_matmul.runica_matmul(weights, data[:, timeperm[t : t + block]]) + bias
 
                     # Apply logistic nonlinearity (MATLAB line 1022)
                     # Clip u to prevent overflow in exp
@@ -857,7 +860,9 @@ def runica(data, *args, **kwargs):
                     # Natural gradient weight update (MATLAB line 1023)
                     # weights = weights + lrate*(BI+(1-2*y)*u')*weights
                     y_update = 1.0 - 2.0 * y
-                    weights = weights + lrate * ((BI + y_update @ u.T) @ weights)
+                    weights = weights + lrate * _runica_matmul.runica_matmul(
+                        BI + _runica_matmul.runica_matmul(y_update, u.T), weights
+                    )
 
                     # Bias update (MATLAB line 1024)
                     # bias = bias + lrate*sum((1-2*y)')';
@@ -985,14 +990,16 @@ def runica(data, *args, **kwargs):
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 for t in range(0, lastt, block):
                     # Extract and process block - NO BIAS (MATLAB line 1145)
-                    u = weights @ data[:, timeperm[t : t + block]]
+                    u = _runica_matmul.runica_matmul(weights, data[:, timeperm[t : t + block]])
 
                     # Apply tanh nonlinearity (MATLAB line 1146)
                     y = np.tanh(u)
 
                     # Extended-ICA natural gradient weight update (MATLAB line 1147)
                     signed_y = signs[:, np.newaxis] * y
-                    weights = weights + lrate * ((BI - (signed_y + u) @ u.T) @ weights)
+                    weights = weights + lrate * _runica_matmul.runica_matmul(
+                        BI - _runica_matmul.runica_matmul(signed_y + u, u.T), weights
+                    )
 
                     # NO BIAS UPDATE for no-bias variant
 
@@ -1012,9 +1019,9 @@ def runica(data, *args, **kwargs):
                         if extblocks > 0 and blockno % extblocks == 0:
                             if kurtsize < frames:
                                 rp = _kurtosis_columns(rng, datalength, kurtsize)
-                                partact = weights @ data[:, rp]
+                                partact = _runica_matmul.runica_matmul(weights, data[:, rp])
                             else:
-                                partact = weights @ data
+                                partact = _runica_matmul.runica_matmul(weights, data)
 
                             m2 = np.mean(partact**2, axis=1) ** 2
                             m4 = np.mean(partact**4, axis=1)
@@ -1143,7 +1150,7 @@ def runica(data, *args, **kwargs):
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 for t in range(0, lastt, block):
                     # Extract and process block - NO BIAS (MATLAB line 1315)
-                    u = weights @ data[:, timeperm[t : t + block]]
+                    u = _runica_matmul.runica_matmul(weights, data[:, timeperm[t : t + block]])
 
                     # Apply logistic nonlinearity (MATLAB line 1316)
                     u = np.maximum(u, -MAX_WEIGHT)
@@ -1152,7 +1159,9 @@ def runica(data, *args, **kwargs):
 
                     # Natural gradient weight update (MATLAB line 1317)
                     y_update = 1.0 - 2.0 * y
-                    weights = weights + lrate * ((BI + y_update @ u.T) @ weights)
+                    weights = weights + lrate * _runica_matmul.runica_matmul(
+                        BI + _runica_matmul.runica_matmul(y_update, u.T), weights
+                    )
 
                     # NO BIAS UPDATE for no-bias variant
 

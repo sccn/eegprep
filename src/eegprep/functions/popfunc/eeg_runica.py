@@ -15,9 +15,7 @@ from ..sigprocfunc.runica import runica
 
 logger = logging.getLogger(__name__)
 
-# EEGLAB pop_runica.m:475 limits the estimate to 3000 frames. getrank
-# (pop_runica.m:670-684) keeps covariance eigenvalues above 1e-7 and, when
-# that count disagrees with matrix rank, the smaller one.
+# pop_runica.m:475 and getrank, pop_runica.m:670-684.
 _RUNICA_RANK_FRAME_LIMIT = 3000
 _RUNICA_RANK_EIGEN_TOLERANCE = 1e-7
 
@@ -30,7 +28,6 @@ def _matlab_eps(value):
 
 
 def _matlab_matrix_rank(data):
-    # MATLAB rank: number of singular values above max(size(A)) * eps(norm(A)).
     singular = np.linalg.svd(data, compute_uv=False)
     if singular.size == 0:
         return 0
