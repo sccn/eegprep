@@ -98,6 +98,31 @@ the limits. Cancelling the menu discards its changes.
      - MATLAB-only LIMO, FieldTrip STUDY source statistics, MRI BEM creation,
        AFNI atlas clipping, and unavailable ICLabel network artifacts fail
        clearly instead of being faked.
+   * - DIPFIT MNI model
+     - The default head model is the packaged dipoli boundary-element volume
+       from DIPFIT ``standard_vol.mat``. Grid search uses EEGLAB's
+       ``linspace(-85,85,24)`` and ``linspace(0,85,12)`` points that fall
+       inside the brain mesh, then refines each dipole with SciPy BFGS.
+       That BFGS refinement has no inside-brain constraint, so a fit can
+       land outside the brain mesh with a lower residual than EEGLAB's.
+       Sample component 3 does this. The optimizer is the analogue of
+       ``fminunc`` and is not bit-identical to MATLAB. Components 1 and 2
+       of the sample dataset land within 1 mm of EEGLAB. On that sample,
+       component 3's lower residual than EEGLAB is an observation, not a
+       general rule. EEGLAB's settings
+       dialog switches a channel file whose name contains
+       ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
+       model and applies that file's cap385-to-MNI coregistration. A channel
+       file that matches no keyword keeps the template transform. An empty
+       transform is left unchanged and a fit logs a warning, because those
+       electrodes are not rotated into the head model.
+       ``standardBESA`` uses the four-shell leadfield (radii 71, 72, 79, and
+       85 mm; conductivities 0.33, 1, 0.0042, and 0.33). A custom
+       head-model file is a boundary-element volume when it contains
+       ``bnd``, ``mat``, and ``cond`` with type dipoli, bemcp, or openmeeg.
+       OpenMEEG is recognized and rejected. Any other head-model file raises
+       instead of falling back to the sphere. Creating a bemcp or dipoli
+       system matrix from an MRI, and eLORETA, stay unsupported.
    * - Scripts
      - Assign return values explicitly outside ``eegprep-console``.
 
@@ -479,13 +504,11 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_headplot`` returns the dataset. EEGPrep writes the spline file
        onto the dataset during the call and returns the figures, so the
        history command does not assign over ``EEG``.
-   * - DIPFIT ``standardBEM`` forward model
+   * - DIPFIT ``standardBESA`` forward model
      - ``model="standardBESA"`` uses the four-shell concentric sphere in
        ``standard_BESA.mat`` (radii 71, 72, 79, and 85 mm; conductivities
        0.33, 1, 0.0042, and 0.33). The grid and nonlinear fit follow DIPFIT.
-       ``model="standardBEM"`` and other MNI settings still use an
-       infinite-medium kernel. FieldTrip's boundary-element leadfield is not
-       in this dispatch yet, so those dipole positions do not match EEGLAB.
+       ``model="standardBEM"`` uses the packaged dipoli volume described above.
    * - Degenerate electrode positions
      - ``clean_channels``, spherical ``eeg_interp``, ``spheric_spline``,
        ``sphericalSplineInterpolate``, and ``headplot`` raise ``ValueError``
