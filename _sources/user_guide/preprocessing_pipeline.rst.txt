@@ -181,10 +181,13 @@ burst stage needs 64 samples, so with the other stages off the samples stay
 identical, including NaNs. EEGLAB prints the calibration error and returns
 before window removal.
 
-Two or three 0.5 s RMS windows still calibrate. EEGLAB's fit indexes a rounded
-width of 0 and ``clean_artifacts`` returns the recording unchanged. EEGPrep
-skips those non-positive widths and still removes bursts. A 21-channel,
-89-sample recording at 128 Hz has two such windows.
+Two or three 0.5 s RMS windows make a fit width round to 0. ``clean_asr``
+raises ``ASRCalibrationError``. ``clean_artifacts`` and ``pop_clean_rawdata``
+warn, leave the recording unrepaired by ASR, keep the sampling rate, and still
+run window removal. EEGLAB indexes that width and ``clean_artifacts`` returns
+immediately (``clean_artifacts.m`` lines 270-275), so the rounded sampling rate
+stays in place and the window stage does not run. A 21-channel, 89-sample
+recording at 128 Hz has two such windows.
 
 Riemannian ASR Notes
 ====================

@@ -491,6 +491,12 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when an RMS fit width
+rounds to zero, which happens for two or three 0.5 s windows at the default
+quantiles. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> skip burst repair,
+keep the sampling rate, and still remove bad windows. EEGLAB indexes that
+width and <code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> lines 270-275 return before restoring the
+rounded sampling rate and before the window stage (#651).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_loadstudy</span></code> reads an EEGLAB MATLAB <code class="docutils literal notranslate"><span class="pre">.study</span></code> file as well as
 EEGPrep JSON. MATLAB <code class="docutils literal notranslate"><span class="pre">char</span></code> arrays are decoded as Latin-1. Dataset
 paths stored under the previous study directory are rebased onto the
@@ -666,9 +672,10 @@ exception or a cleaning wrapper that returns its input is filed as an
 oracle failure. <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> sorts a one-channel score across
 channels. A one-channel reference shorter than one RMS window raises
 <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>; EEGLAB’s sort can reach the fit first. ASR
-calibration skips a zero fit width, including a reference that leaves
-three RMS windows
-(#576, #577, #578, #581, #582, #583, #584).</p></li>
+calibration raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when a fit width rounds to zero,
+including a reference that leaves two or three RMS windows. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code>
+still keeps the sampling rate and runs window removal
+(#576, #577, #578, #581, #582, #583, #584, #651).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">compute_spectra</span></code> is exported from the package root and can be imported
 without Matplotlib. It returns Welch density in dB on the FFT grid, with
 1 Hz spacing when the sampling rate is an integer and the record is at

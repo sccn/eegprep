@@ -687,10 +687,13 @@ window removal when it was requested. On a 44-sample recording at 128 Hz the
 burst stage needs 64 samples, so with the other stages off the samples stay
 identical, including NaNs. EEGLAB prints the calibration error and returns
 before window removal.</p>
-<p>Two or three 0.5 s RMS windows still calibrate. EEGLAB’s fit indexes a rounded
-width of 0 and <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> returns the recording unchanged. EEGPrep
-skips those non-positive widths and still removes bursts. A 21-channel,
-89-sample recording at 128 Hz has two such windows.</p>
+<p>Two or three 0.5 s RMS windows make a fit width round to 0. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code>
+raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code>
+warn, leave the recording unrepaired by ASR, keep the sampling rate, and still
+run window removal. EEGLAB indexes that width and <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> returns
+immediately (<code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> lines 270-275), so the rounded sampling rate
+stays in place and the window stage does not run. A 21-channel, 89-sample
+recording at 128 Hz has two such windows.</p>
 </section>
 <section id="riemannian-asr-notes">
 <h2>Riemannian ASR Notes<a class="headerlink" href="#riemannian-asr-notes" title="Link to this heading">#</a></h2>
