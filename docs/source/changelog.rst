@@ -10,6 +10,98 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- **BREAKING: ICLabel needs the** ``iclabel`` **extra, and** ``eegprep[torch]`` **no longer enables it.**
+  ``iclabel`` and ``pop_iclabel`` now classify with ``onnxruntime``, the Open Neural Network Exchange (ONNX) runtime, instead of PyTorch.
+  The package ships ``iclabel.onnx``, the full-precision network, and ``iclabel_int8.onnx``, an 8-bit copy for browsers, in place of ``netICL.mat``.
+  Migration: install ``pip install "eegprep[iclabel]"`` (``onnxruntime`` 1.20 or newer) where you installed ``eegprep[torch]`` for ICLabel.
+  Code that reads ``netICL.mat`` from the installed package must read ``iclabel.onnx`` instead.
+  The ``torch`` extra now installs ``torch`` and ``onnx`` only for rebuilding the packaged networks from ``netICL.mat`` (see :ref:`releasing`),
+  and ``eegprep[all]`` includes ``iclabel`` as well as ``torch``.
+- ICLabel probabilities from ``iclabel`` and ``pop_iclabel`` equal the PyTorch network's to about 1e-6, so existing results do not move.
+  The native network is the full-precision ONNX export of ``netICL.mat``.
+  The 8-bit ``iclabel_int8.onnx`` is for the browser only.
+  On the frozen evaluation set of 217 components its class probabilities differ from the full-precision network by at most 0.01346, and all top-1 labels and all keep-or-reject decisions agree.
+  That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
+  see :ref:`iclabel_measured_agreement` for the criteria, the numbers, and the caveats.
+  Because the two networks differ, ``EEG["etc"]["ic_classification"]["ICLabel"]`` now also holds ``network``, the name of the packaged file that ran, next to ``version``, which keeps EEGLAB's meaning.
+  MATLAB EEGLAB ignores ``network`` and neither writes nor clears it; EEGPrep removes a stale one when ``engine='matlab'`` or ``'octave'`` classifies.
+- Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
+  It classifies through ONNX Runtime Web (the JavaScript build of the ONNX runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
+  ``iclabel_async`` and ``pop_iclabel_async`` keep the native post-processing, the console history, and the GUI and console session synchronization.
+  ``ALLCOM`` keeps the ``await`` form of the command so that ``await eegh(n)`` replays it, but the dataset's own history records ``EEG = pop_iclabel(EEG, 'default');``, so a ``.set`` file saved from the browser replays in MATLAB EEGLAB.
+  The synchronous ``iclabel`` and ``pop_iclabel`` raise ``RuntimeError`` there.
+  Browser execution is checked against native classification for parity.
+  The bridge also exposes the ``modelBytes`` it was created from, and every call compares their SHA-256 digest with the packaged ``iclabel_int8.onnx``, so a stale or wrong model raises ``RuntimeError`` instead of classifying silently; a bridge result with a NaN or infinite probability raises it too.
+- ``eegh(n)`` in ``eegprep-console`` returns an awaitable only when history entry ``n`` has a top-level ``await``, such as ``EEG = await pop_iclabel_async(EEG, 'default');``.
+  Run it with ``await eegh(n)``; other entries, including ones that only mention ``await`` inside a string, still run immediately.
+- ``EEGPrepSession`` gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran: ``dataset_state_token()`` returns a ``DatasetStateToken`` and ``require_dataset_state_unchanged(token, function_name)`` raises a ``RuntimeError`` when the selection or the dataset content changed.
+  A result computed against a dataset that changed in the meantime is discarded with that error instead of being committed to the wrong dataset.
+  The developer notes in :doc:`user_guide/contracts` describe the contract.
+- ``psutil`` and ``pyedflib`` stay in the base install and now carry the environment marker ``sys_platform != 'emscripten'``, because Pyodide has no build of either.
+  The base requirement set resolves under Pyodide, so ``micropip.install("eegprep")`` works in the browser.
+  Their import sites are lazy: EDF and BDF output of ``pop_writeeeg``, memory-based reservations in ``num_jobs_from_reservation``, and the free-memory fallback of ASR raise an ``ImportError`` that names the cause there, and GDF output and an explicit ASR ``max_mem`` work.
+- Added a pinned Pyodide 0.29.5 harness and a continuous integration (CI) gate that installs the working-tree wheel, runs a sample-data smoke pipeline, checks the browser ICLabel result against native, and records one-thread ``runica`` and Picard benchmarks plus benchmarks of the matrix products (basic linear algebra subprograms, BLAS) that ``runica`` performs.
+  The harness needs ``uv``, Node.js 22 or newer, and Bun (``bun install --frozen-lockfile`` from ``tools/pyodide/bun.lock``); see :doc:`pyodide_benchmark`.
+  Pyodide Web Workers are documented as the browser responsiveness and independent-job concurrency boundary, not as threading inside one independent component analysis (ICA) run.
+- ``runica`` can use ``scipy.linalg.blas.dgemm`` for its matrix products under Emscripten; native platforms keep ``numpy.matmul``.
+- ``eegprep_lean.to_eeg`` fills ``chanlocs`` from the electrode positions a NEMAR store declares, which ``load_recording`` now reads into ``Window.electrodes``.
+  A channel is matched to the entry for exactly its label, and gets ``X``, ``Y`` and ``Z`` in millimeters in EEGLAB's ALS frame, ``sph_theta``, ``sph_phi``, ``sph_radius``, ``theta`` and ``radius``.
+  ``pop_load_frombids`` gives the same values from the same ``electrodes.tsv`` and coordsystem file, except where the import guesses a unit, assumes a system, or reads ``CTF``, ``4DBti`` or ``KitYokogawa``, which the BIDS appendix gives as ALS, as RAS.
+  The import also reads a coordsystem whose ``EEGCoordinateSystemDescription`` is ``EEGLAB`` as ALS whatever ``EEGCoordinateSystem`` says.
+  A store carries no description, so a RAS system with that description is turned by 90 degrees here.
+  The converter writes no such description today, and reading it here is a follow-up if it ever does.
+  A unit or coordinate system outside the BIDS appendix fills no positions and is never guessed.
+  ``EEG["etc"]["nemar"]["locations"]`` records what the store stated, how many channels were located and, when none was, why.
+  A store that declares no positions gives ``chanlocs`` of labels alone, as before.
+  With these locations ICLabel's feature extraction runs on a recording read from a store (#625).
+- ``eegprep_lean`` reads a store's electrode positions as NEMAR's locations digest defines them.
+  JSON integers are read as binary64, so an integer too large for a float, such as one of 400 digits, leaves its channel without a position instead of failing the read, and an integer literal of more than 4300 digits no longer raises ``ValueError``.
+  Every zero is read as ``+0.0`` whatever its spelling, so two stores that differ only in a signed zero give the same ``chanlocs``.
+  ``pop_load_frombids`` keeps the sign of a zero that a float column of an ``electrodes.tsv`` spells with a minus sign, so for such a file ``Y`` and ``theta`` can differ in sign between the two routes.
+  A store whose ``electrode_positions`` is not an object raises ``ElectrodePositionsNotAnObject``, an ``IndexError_``, which names the refusal.
+- ``pop_runica(EEG, icatype="pamica")`` decomposes with pAMICA, the PyTorch implementation of AMICA,
+  through the new ``eeg_pamica``.
+  Install it with the ``pamica`` extra, ``pip install "eegprep[pamica]"``.
+  The decomposition is computed by the ``pamica`` package, through ``pamica.AMICA(backend='torch').fit``, and not by EEGLAB's AMICA binary.
+  Reproducibility is pamica's promise: the same seed, data, settings and versions give bit-identical weights in float64 on the CPU with one thread, on one machine.
+  Settings you do not pass take eegprep's ``runamica15`` defaults.
+  ``EEG["etc"]["pamica"]`` records the pamica version, backend, pipeline and the settings that reproduce the run, and a fit that stops on ``max_iter`` reports ``did_converge`` false.
+- ``clean_asr(EEG, return_state=True)`` returns ``(EEG, state)``, where
+  ``state`` is the calibration state before processing plus the sampling
+  rate, the channel labels, and the processing arguments.
+  ``clean_asr(EEG, state=state)`` skips calibration and gives identical data
+  for the same EEG, for Euclidean, ``useriemannian="calib"``, and full
+  Riemannian ASR. A state from another sampling rate or channel order is
+  refused, a state is checked as a stored document is, and a recorded
+  ``maxmem`` that is ``None`` or below the processing overhead warns, because
+  the output then depends on the free memory. ``asr_state.state_to_json`` and
+  ``state_from_json`` write and read the state as plain JSON without loss.
+  A call with neither argument is unchanged.
+- ``pop_eegfiltnew`` appends each applied FIR design to
+  ``EEG["etc"]["eegfiltnew"]``, including the sampling rate, affected
+  channels, phase, cutoffs, order, transition width, ``revfilt``, and the
+  coefficients that were applied. ``design_eegfiltnew`` is the public
+  designer. The ``(EEG, com)`` return and history command are unchanged
+  (#537).
+- ``clean_asr`` raises ``ASRCalibrationError`` when the selected reference
+  is shorter than one 0.5 s RMS window. That reference is not replaced by
+  the rest of the recording (``asr_calibrate.m`` line 191).
+- The nightly fuzz oracle receives the exact float64 input and reads each
+  saved array as the class MATLAB holds. ``save -v7`` may pack an
+  integer-valued double into smaller storage; that array still compares as
+  float64. Epoched input is compared in the shape ``pop_loadset`` holds:
+  a 2-D channel-by-frame array whose frame count is a multiple of ``pnts``
+  is the 3-D epoch array, and a two-file one-trial array has no trailing
+  singleton.   A ``pop_epoch`` result with no trials is compared and the
+  pipeline stops there. Suspending ``option_single`` restores the options
+  file and reloads it into the MATLAB session. NaN, +Inf, and -Inf are compared separately, and a MATLAB
+  exception or a cleaning wrapper that returns its input is filed as an
+  oracle failure. ``clean_windows`` sorts a one-channel score across
+  channels. A one-channel reference shorter than one RMS window raises
+  ``ASRCalibrationError``; EEGLAB's sort can reach the fit first. ASR
+  calibration skips a zero fit width, including a reference that leaves
+  three RMS windows
+  (#576, #577, #578, #581, #582, #583, #584).
 - ``eeg_checkset`` turns a missing or empty ``etc`` into ``{}`` and leaves
   ``eeglabvers`` unset. A ``.set`` file written with an empty ``etc`` reloads
   as a dictionary, so ``clean_flatlines``, ``clean_drifts``, and

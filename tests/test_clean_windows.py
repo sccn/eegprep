@@ -235,6 +235,29 @@ def test_prior_mask_of_a_different_length_is_not_replaced(caplog):
     assert "clean_sample is present" in caplog.text
 
 
+def test_one_channel_sorts_across_channels():
+    """A loud window stays at its time index when the score matrix has one row.
+
+    ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension, which
+    sorts that row across time. Sorting across channels leaves the row in place.
+    """
+    samples = 1200
+    data = np.zeros((1, samples), dtype=np.float64)
+    data[0, 200:300] = 50.0
+    eeg = _eeg(data, 100.0)
+    cleaned, sample_mask = clean_windows(
+        eeg,
+        max_bad_channels=0,
+        zthresholds=(-3.5, 2.0),
+        window_len=1.0,
+        window_overlap=0.0,
+    )
+    expected = np.ones(samples, dtype=bool)
+    expected[200:300] = False
+    np.testing.assert_array_equal(sample_mask, expected)
+    assert int(cleaned["pnts"]) == samples - 100
+
+
 def test_prior_mask_is_written_into_the_kept_indices(caplog):
     samples = 2945
     eeg = _eeg(np.ones((4, samples), dtype=np.float64), 128.0)

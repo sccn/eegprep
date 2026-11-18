@@ -14,6 +14,7 @@ import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping
 from functools import partial
+from types import CodeType
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -23,7 +24,12 @@ from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.adminfunc.pop_editoptions import load_eegprep_options
-from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
+from eegprep.functions.guifunc.session import (
+    DatasetStateToken,
+    EEGPrepSession,
+    follow_dataset_selection,
+    normalize_dataset_indices,
+)
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
@@ -213,6 +219,10 @@ class ConsolePopFunction(LazyWorkspaceExport):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         function = self.resolve()
+        if inspect.iscoroutinefunction(function):
+            # Capture the selection now, not when the coroutine starts, so changes made
+            # between the call and its first await also invalidate the result.
+            return self._call_async(function, self.bridge.session.dataset_state_token(), args, kwargs)
         call_kwargs = dict(kwargs)
         recorded_commands: set[str] = set()
         if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
@@ -262,6 +272,27 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
+    async def _call_async(
+        self,
+        function: Callable[..., Any],
+        target_state: DatasetStateToken,
+        args: tuple[Any, ...],
+        kwargs: Mapping[str, Any],
+    ) -> Any:
+        call_kwargs = dict(kwargs)
+        if _accepts_return_com(function) and "return_com" not in call_kwargs:
+            call_kwargs["return_com"] = True
+        result = await function(*args, **call_kwargs)
+        session = self.bridge.session
+        session.require_dataset_state_unchanged(target_state, self.name)
+        eeg, _command = _extract_pop_eeg_and_command(result)
+        # accept_pop_result stores a result computed from the session's own EEG in its place, so a
+        # command recorded in the dataset history while the call ran must not be overwritten. A
+        # result computed from another dataset is stored as a new one and keeps its own history.
+        if eeg is not None and _first_call_eeg_argument(args, kwargs) is session.EEG:
+            session.carry_current_history(eeg)
+        return self.bridge.accept_pop_result(result, args, kwargs)
+
     def __repr__(self) -> str:
         return f"<EEGPrep console pop function {self.name}>"
 
@@ -295,6 +326,13 @@ class ConsoleEegh:
         self.bridge = bridge
 
     def __call__(self, command: Any = None, *args: Any) -> Any:
+        """Show, search, edit, or replay session history like EEGLAB ``eegh``.
+
+        ``eegh(n)`` with a positive ``n`` replays history entry ``n`` and returns its
+        text. An entry with a top-level ``await``, such as
+        ``EEG = await pop_iclabel_async(EEG, 'default');``, cannot run synchronously,
+        so ``eegh(n)`` returns an awaitable for it instead: use ``await eegh(n)``.
+        """
         if command is None:
             return eegh(None, self.bridge.session.ALLCOM)
         if isinstance(command, str) and command.strip().lower() == "find":
@@ -314,11 +352,19 @@ class ConsoleEegh:
                 self.bridge.pull_from_session()
                 return ""
             history_command = session.history_command_at(value)
-            if history_command:
-                # eegh.m:116-117 evals the stack entry, then records that same
-                # command once. The replay itself does not append it.
-                self.bridge.execute_history_command(history_command)
-                session.add_history(history_command)
+            if not history_command:
+                return history_command
+            try:
+                replay = self.bridge.execute_history_command(history_command)
+            except SyntaxError as exc:
+                raise SyntaxError(
+                    f"History entry {value} could not be replayed as Python: {history_command!r} ({exc.msg})"
+                ) from exc
+            if inspect.isawaitable(replay):
+                return self._record_after_replay(replay, history_command)
+            # eegh.m:116-117 evals the stack entry, then records that same
+            # command once. The replay itself does not append it.
+            session.add_history(history_command)
             return history_command
         session = self.bridge.session
         normalized = str(command).strip()
@@ -336,6 +382,11 @@ class ConsoleEegh:
             return updated
         self.bridge.pull_from_session()
         return normalized
+
+    async def _record_after_replay(self, replay: Any, history_command: str) -> str:
+        await replay
+        self.bridge.session.add_history(history_command)
+        return history_command
 
     def __repr__(self) -> str:
         return "<EEGPrep console eegh>"
@@ -606,7 +657,7 @@ class EEGPrepConsoleWorkspace:
         finally:
             self._syncing = False
 
-    def execute_history_command(self, command: str) -> None:
+    def execute_history_command(self, command: str) -> Any:
         """Execute one command from this session's own history.
 
         This is the console equivalent of ``evalin('base', ALLCOM{n})``.
@@ -614,16 +665,35 @@ class EEGPrepConsoleWorkspace:
         strings are refused. The call runs that entry and synchronizes
         workspace state without appending ``command``. ``eegh(n)`` records
         the stack entry once after this returns.
+
+        Returns ``command``. A command with a top-level ``await`` is compiled as a
+        coroutine, so an awaitable that runs it and resolves to ``command`` is
+        returned instead.
         """
         if command not in self.session.ALLCOM:
             raise ValueError("only a command from the session history can be executed")
         source = _console_python_command(command)
+        code = compile(source, "<eegprep-history>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        if code.co_flags & inspect.CO_COROUTINE:
+            return self._execute_history_coroutine(code, source, command)
         self._replaying_history = True
         try:
-            exec(source, self.namespace)
+            exec(code, self.namespace)
             self.after_execute(source)
         finally:
             self._replaying_history = False
+        return command
+
+    async def _execute_history_coroutine(self, code: CodeType, source: str, command: str) -> str:
+        await eval(code, self.namespace)
+        # The flag covers only the synchronous bookkeeping: held across the await it would
+        # also silence history recording for commands that run while the coroutine waits.
+        self._replaying_history = True
+        try:
+            self.after_execute(source)
+        finally:
+            self._replaying_history = False
+        return command
 
     def _refresh(self) -> None:
         if self.refresh is not None:

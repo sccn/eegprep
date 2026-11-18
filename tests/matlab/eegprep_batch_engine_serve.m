@@ -10,7 +10,14 @@ if isfile(quit_file), delete(quit_file); end
 fclose(fopen(fullfile(directory, 'ready'), 'w'));
 while ~isfile(quit_file)
     pending = dir(fullfile(directory, 'req_*.mat'));
-    if isempty(pending), pause(0.01); continue; end
+    if isempty(pending)
+        current_figure = get(groot, 'CurrentFigure');
+        pause(0.01);
+        if isempty(current_figure) || isgraphics(current_figure, 'figure')
+            set(groot, 'CurrentFigure', current_figure);
+        end
+        continue;
+    end
     for name = sort({pending.name})
         request_file = fullfile(directory, name{1});
         response_file = strrep(request_file, 'req_', 'res_');
@@ -40,15 +47,15 @@ else
     assignin('base', 'eegprep_rpc_args__', restore_arguments(args));
     call = 'feval(eegprep_rpc_name__, eegprep_rpc_args__{:})';
 end
+% clean_artifacts.m catches an ASR error, prints it with lasterr, and returns
+% the input. Reset first so the record below belongs to this call.
+evalc('lasterror(''reset'');'); %#ok<LERR>
 try
-    if n == 0
-        evalin('base', [call ';']);
-        outputs = cell(1, 0);
-    else
-        evalin('base', sprintf('eegprep_rpc_out__ = cell(1, %d); [eegprep_rpc_out__{:}] = %s;', n, call));
-        outputs = evalin('base', 'eegprep_rpc_out__');
+    [outputs, printed] = invoke_call(call, n);
+    if ~isempty(printed)
+        fprintf('%s', printed);
     end
-    response = struct('outputs', {prepare_outputs(outputs)});
+    response = struct('outputs', {prepare_outputs(outputs)}, 'caught', caught_record(lasterror, printed));
 catch err
     response = struct('error', describe_error(err));
 end
@@ -96,10 +103,35 @@ for index = 1:numel(entries)
 end
 end
 
+function [outputs, printed] = invoke_call(call, n)
+if n == 0
+    printed = evalc('evalin(''base'', [call '';'']);');
+    outputs = cell(1, 0);
+    return
+end
+statement = sprintf('eegprep_rpc_out__ = cell(1, %d); [eegprep_rpc_out__{:}] = %s;', n, call);
+printed = evalc('evalin(''base'', statement);');
+outputs = evalin('base', 'eegprep_rpc_out__');
+end
+
+function d = caught_record(err, printed)
+d = describe_error(err);
+d.printed = printed;
+if isempty(strtrim(char(d.identifier))) && contains(printed, 'Index in position 1 is invalid')
+    d.identifier = 'MATLAB:badsubscript';
+    d.message = 'Index in position 1 is invalid. Array indices must be positive integers or logical values.';
+    if isempty(strtrim(d.stack))
+        d.stack = printed;
+    end
+end
+end
+
 function d = describe_error(err)
 stack = '';
-for i = 1:min(numel(err.stack), 10)
-    stack = sprintf('%s  %s (line %d)\n', stack, err.stack(i).name, err.stack(i).line);
+for i = 1:min(numel(err.stack), 20)
+    frame = err.stack(i);
+    [~, file] = fileparts(frame.file);
+    stack = sprintf('%s  %s>%s (line %d)\n', stack, file, frame.name, frame.line);
 end
 d = struct('identifier', err.identifier, 'message', err.message, 'stack', stack);
 end
