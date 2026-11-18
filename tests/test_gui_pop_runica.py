@@ -15,7 +15,7 @@ from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_dialog_s
 
 def _eeg():
     return {
-        "data": np.arange(80, dtype=np.float64).reshape(4, 20),
+        "data": np.random.default_rng(1).standard_normal((4, 20)),
         "nbchan": 4,
         "pnts": 20,
         "trials": 1,
@@ -103,6 +103,36 @@ class PopRunicaGuiTests(unittest.TestCase):
         self.assertNotIn("qsub", amica.call_args.kwargs)
         self.assertEqual(out["icaweights"].shape, (4, 4))
         self.assertEqual(com, f"EEG = pop_runica(EEG, 'icatype', 'runamica15', 'outdir', '{amicaout}');")
+
+    def test_gui_rank_deficient_runica_records_estimated_pca(self):
+        calls = {"count": 0}
+
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                calls["count"] += 1
+                return {"icatype": 1, "params": "'extended', 1, 'maxsteps', 1", "reorder": True, "chantype": ""}
+
+        eeg = _eeg()
+        data = np.random.default_rng(2).standard_normal((4, 80))
+        data[3] = data[0]
+        eeg["data"] = data
+        eeg["pnts"] = data.shape[1]
+        updated = dict(
+            eeg,
+            icaweights=np.eye(3, 4),
+            icasphere=np.eye(4),
+            icawinv=np.eye(4, 3),
+            icaact=np.zeros((3, data.shape[1])),
+        )
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated) as runica:
+            _out, com = pop_runica(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(calls["count"], 1)
+        self.assertEqual(runica.call_args.kwargs["pca"], 3)
+        self.assertEqual(
+            com,
+            "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 1, 'interrupt', 'on', 'pca', 3);",
+        )
 
     def test_gui_numeric_chanind_keeps_one_based_history(self):
         class Renderer:
