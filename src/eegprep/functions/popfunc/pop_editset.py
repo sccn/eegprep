@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._file_io import infer_dataformat, load_data_array
@@ -440,7 +441,7 @@ def _refresh_time_fields(output: dict[str, Any]) -> None:
         output["times"] = np.array([])
         return
     output["xmax"] = xmin + (pnts - 1) / srate
-    output["times"] = np.linspace(xmin * 1000, output["xmax"] * 1000, pnts)
+    output["times"] = linspace(xmin * 1000, output["xmax"] * 1000, pnts)
 
 
 def _normalize_ica_index_field(output: dict[str, Any]) -> None:

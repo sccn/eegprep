@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
@@ -384,7 +385,14 @@ def newtimef(
         limits = _numeric_vector(tlimits)
         epoch_data = as_channel_epoch_data(data, frames=int(frames))[0]
         erp_full = np.nanmean(epoch_data, axis=1)
-        full_times = np.linspace(float(limits[0]), float(limits[-1]), int(frames))
+        frame_count = int(frames)
+        start = float(limits[0])
+        stop = float(limits[-1])
+        if frame_count <= 1:
+            full_times = np.asarray([start] if frame_count == 1 else [], dtype=np.float64)
+        else:
+            step = (stop - start) / (frame_count - 1)
+            full_times = matlab_colon(start, step, stop + 0.000001)
         erp = erp_full[[int(np.argmin(np.abs(full_times - center))) for center in decomp.times]]
         spectrum = np.asarray(powbase_array, dtype=float).reshape(-1)
         baseline_spectrum = (

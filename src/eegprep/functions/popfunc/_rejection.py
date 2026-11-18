@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 from scipy import signal, stats
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.plot_utils import component_activations as plot_component_activations
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
@@ -206,7 +207,7 @@ def trend_marks(
     if winsize < 2 or winsize > data.shape[1]:
         raise ValueError("winsize must be between 2 and EEG.pnts")
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
-    x = np.linspace(1 / winsize, 1, winsize)
+    x = linspace(1 / winsize, 1, winsize)
     x_centered = x - np.mean(x)
     x_denom = float(np.sum(x_centered**2))
     tolerance = 1000 * winsize * 1.1921e-7

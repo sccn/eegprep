@@ -6,10 +6,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
-from eegprep.plugins.clean_rawdata.private.windows import matlab_colon, matlab_window_offsets
+from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 
 _WINDOW_SAMPLES = (125, 128, 250, 256)
 _OVERLAPS = (0.66, 0.5, 0.75)

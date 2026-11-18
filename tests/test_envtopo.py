@@ -105,7 +105,7 @@ def test_closed_form_ranking_and_peak_frames():
     acts[2, 1] = 1.0  # IC3 peaks at frame 1, power 1
     data = _Q3 @ acts
     weights = _Q3.T  # orthonormal -> pinv(icawinv) == icawinv.T
-    timerange = [0.0, 400.0]  # -> times_ms = [0, 100, 200, 300, 400]
+    timerange = [0.0, 400.0]  # envtopo.m: xmin:sampint:xmax in seconds, then *1000
 
     res = envtopo(data, weights, chanlocs=None, icawinv=_Q3, timerange=timerange, sortvar="mp")
 
@@ -121,7 +121,7 @@ def test_closed_form_ranking_and_peak_frames():
     peak_frame = dict(zip(res.compvarorder.tolist(), res.compframes.tolist()))
     peak_time = dict(zip(res.compvarorder.tolist(), res.comptimes.tolist()))
     assert peak_frame == {1: 2, 2: 3, 3: 1}
-    assert peak_time == {1: 200.0, 2: 300.0, 3: 100.0}
+    assert peak_time == {1: 200.0, 2: float.fromhex("0x1.2c00000000001p+8"), 3: 100.0}
     plt.close(res.figure)
 
 

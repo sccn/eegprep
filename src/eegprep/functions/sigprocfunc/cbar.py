@@ -9,6 +9,9 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
 
+from eegprep.functions.miscfunc.linspace import linspace
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
+
 
 def cbar(
     arg: str | Axes | int | None = "vert",
@@ -121,7 +124,8 @@ def _set_value_ticks(ax: Axes, orientation: str, minmax: Sequence[float], grad: 
         raise ValueError("cbar minmax must contain two finite values")
     if grad < 2:
         raise ValueError("cbar grad must be at least 2")
-    positions = np.linspace(0.0, 1.0, int(grad))
+    step = 1.0 / (int(grad) - 1)
+    positions = matlab_colon(0.0, step, 1.0)
     labels = _rounded_labels(limits, int(grad))
     if orientation == "vert":
         ax.set_yticks(positions, labels)
@@ -130,7 +134,9 @@ def _set_value_ticks(ax: Axes, orientation: str, minmax: Sequence[float], grad: 
 
 
 def _rounded_labels(limits: np.ndarray, grad: int) -> np.ndarray:
-    labels = np.linspace(float(limits[0]), float(limits[1]), grad)
+    low = float(limits[0])
+    high = float(limits[1])
+    labels = low * linspace(1.0, 0.0, grad) + high * linspace(0.0, 1.0, grad)
     maximum = float(np.max(np.abs(limits)))
     if maximum == 0:
         return labels

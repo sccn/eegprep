@@ -28,6 +28,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import MaxNLocator
 
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.axcopy import axcopy
@@ -277,7 +278,13 @@ def _time_axis(timerange, n_frames):
     bounds = np.asarray(timerange, dtype=float).ravel()
     if bounds.size != 2:
         raise ValueError("timerange must be [min max] in milliseconds")
-    return np.linspace(bounds[0], bounds[1], n_frames)
+    frame_count = int(n_frames)
+    if frame_count <= 1:
+        return np.asarray(bounds[:frame_count], dtype=np.float64)
+    low = float(bounds[0]) / 1000.0
+    high = float(bounds[1]) / 1000.0
+    step = (high - low) / (frame_count - 1)
+    return matlab_colon(low, step, high) * 1000.0
 
 
 def _resolve_channels(plotchans, n_chans):

@@ -12,6 +12,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._file_io import channel_labels
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_on, parse_key_value_args
@@ -64,7 +65,7 @@ def pop_export(
     use_time = is_on(options.get("time", "on"))
     if use_time:
         time = np.tile(
-            np.linspace(float(EEG.get("xmin", 0)), float(EEG.get("xmax", 0)), int(EEG["pnts"]))
+            linspace(float(EEG.get("xmin", 0)), float(EEG.get("xmax", 0)), int(EEG["pnts"]))
             / _time_unit(options.get("timeunit", 1e-3)),
             int(EEG.get("trials", 1)) if not is_on(options.get("erp", "off")) else 1,
         )

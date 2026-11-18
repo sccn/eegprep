@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.linspace import linspace
+
 
 def rejtrend(
     signal: Any,
@@ -27,7 +29,7 @@ def rejtrend(
     if stride < 1:
         raise ValueError("step must be positive")
     tolerance = 1000 * window * 1.1921e-7
-    x = np.linspace(1 / window, 1, window)
+    x = linspace(1 / window, 1, window)
     x_centered = x - np.mean(x)
     denom = float(np.sum(x_centered**2))
     reject_rows = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
