@@ -570,6 +570,7 @@ Install it with <code class="docutils literal notranslate"><span class="pre">pip
 </div>
 <p>The decomposition is computed by the <code class="docutils literal notranslate"><span class="pre">pamica</span></code> package, through its <code class="docutils literal notranslate"><span class="pre">pamica.AMICA(backend='torch').fit</span></code> pipeline, and not by EEGLAB’s AMICA binary.
 It runs in float64 on the CPU with one thread and <code class="docutils literal notranslate"><span class="pre">seed=5489</span></code>.
+That thread count is torch intra-op parallelism and the NumPy and SciPy BLAS and OpenMP pools, and <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;][&quot;threads&quot;]</span></code> records the count those pools actually used.
 Reproducibility is pamica’s promise: the same seed, data, settings, and pamica and torch versions give bit-identical weights in float64 on the CPU with one thread, on one machine.
 EEGPrep’s tests check this on one host, by repeating a run and by replaying a run from its record.
 Another platform, another torch version, a GPU, or more threads is not covered by that check.
