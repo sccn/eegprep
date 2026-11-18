@@ -291,14 +291,9 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``clean_artifacts.m`` lines 270-275 catch the error and return the
        recording unchanged (#582). EEGPrep skips non-positive widths and
        still calibrates on that reference.
-   * - Zero-variance channel in ASR reference selection
-     - A channel whose window RMS values are all equal has scale 0 and is the
-       highest score in every window, so it uses a high-amplitude bad-channel
-       slot. On the 17-channel crop starting at sample 4097, with cutoff 3,
-       ``ref_maxbadchannels`` 0.075, and a 1 s processing window, the
-       calibration reference keeps 241 samples (#642). An all-zero channel
-       that ASR repairs stays exactly zero. MATLAB's ``sqrtm`` leaves a
-       roundoff residual on that channel (#643).
+   * - All-zero channel after ASR
+     - EEGPrep returns exactly zero. MATLAB's ``sqrtm`` leaves a roundoff
+       residual on that channel (#643).
    * - One-channel ``clean_windows`` sort
      - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
        One channel is one row, so MATLAB sorts that row across time and the
