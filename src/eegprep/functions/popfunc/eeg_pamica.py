@@ -5,7 +5,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import scipy.linalg
-from threadpoolctl import threadpool_info, threadpool_limits
+from threadpoolctl import ThreadpoolController, threadpool_info, threadpool_limits
 
 from eegprep.extras import install_command
 from ..miscfunc.misc import finite_matmul
@@ -226,12 +226,23 @@ def _exercise_blas():
     scipy.linalg.svd(matrix, full_matrices=False)
 
 
-def _require_thread_count(torch, threads):
-    """Return ``threads`` when torch intra-op and every BLAS pool use that count.
+def _openmp_setter_changes_count(lib, count):
+    """Return whether ``omp_set_num_threads`` changes the count ``lib`` reports.
 
-    ``torch.get_num_threads`` reads the OpenMP runtime PyTorch runs. Another
-    loaded OpenMP runtime can keep its own count, so it is not a second check.
+    Torch ships ``libiompstubs5md.dll`` beside ``libiomp5md.dll``. The stub
+    exports the OpenMP entry points and its getter stays at 1, so threadpoolctl
+    lists it as a pool. The real runtime follows the requested count in both
+    directions.
     """
+    probe = 1 if count != 1 else 2
+    lib.set_num_threads(probe)
+    reported = lib.get_num_threads()
+    lib.set_num_threads(count)
+    return reported is not None and int(reported) != count
+
+
+def _require_thread_count(torch, threads):
+    """Return ``threads`` when torch intra-op, every BLAS pool, and every live OpenMP pool use it."""
     intra = int(torch.get_num_threads())
     mismatches = []
     if intra != threads:
@@ -243,6 +254,12 @@ def _require_thread_count(torch, threads):
         if count is None or int(count) == threads:
             continue
         mismatches.append(f"blas/{pool['internal_api']} is {int(count)}")
+    for lib in ThreadpoolController().select(user_api="openmp").lib_controllers:
+        count = lib.get_num_threads()
+        if count is None or int(count) == threads or not _openmp_setter_changes_count(lib, int(count)):
+            continue
+        filename = str(lib.filepath).replace("\\", "/").rsplit("/", 1)[-1]
+        mismatches.append(f"openmp/{filename} is {int(count)}")
     if mismatches:
         raise RuntimeError(f"requested {threads} threads but " + "; ".join(mismatches))
     return threads
