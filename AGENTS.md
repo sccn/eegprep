@@ -14,7 +14,7 @@ Primary references:
 - `src/eegprep/functions/sigprocfunc/`: EEGLAB-style low-level signal processing functions such as `runica.py`, `runamica.py`, `topoplot.py`, `epoch.py`, and `eegrej.py`.
 - `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
 - `src/eegprep/plugins/clean_rawdata/private/`: ports of clean_rawdata private helpers such as `fit_eeg_distribution`, `geometric_median`, FIR helpers, covariance helpers, and spherical-spline interpolation.
-- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and bundled `netICL.mat`.
+- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and two bundled networks built from `netICL.mat`: `iclabel.onnx`, the full-precision network every native run loads (`tools/iclabel/export_iclabel_onnx.py`), and `iclabel_int8.onnx`, its 8-bit weight-only quantization that the browser loads (`tools/iclabel/quantize_iclabel_onnx.py`); `netICL.mat` stays in the source tree but is not packaged.
 - `src/eegprep/plugins/firfilt/`: Python ports of the EEGLAB firfilt plugin helpers.
 - `src/eegprep/functions/miscfunc/`: EEGLAB-style miscellaneous helpers, including format conversion and numerical utilities.
 - `src/eegprep/functions/eegobj/`: Python counterpart to EEGLAB's `functions/@eegobj/`.
@@ -144,7 +144,7 @@ Do not write comments that restate the code. Comments are only allowed to explai
 - Python support starts at 3.12 per `pyproject.toml`.
 - `uv` is the default package and environment manager for development, CI, and agent workflows.
 - `.python-version` sets the default development interpreter to Python 3.12.
-- Use `uv sync --group dev` after cloning or when dependencies change.
+- Use `uv sync --group dev` after cloning or when dependencies change; the `dev` group includes ONNX Runtime, which the ICLabel tests and gallery examples need.
 - Use `uv run python ...` for Python commands so tests run inside the project environment.
 - Do not add dependencies for tiny helpers. If a dependency is justified, update `pyproject.toml`, docs, and any CI/install notes.
 

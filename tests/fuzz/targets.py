@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+import math
 import os
 from pathlib import Path
 
@@ -557,9 +558,12 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
                 spec = _with_artifact(spec, "flat", 0, 0, run + 2)
         else:
             jitter = draw(st.sampled_from((20.0, 10.0, 40.0)))
-            kind = draw(st.sampled_from(("flat", "jitter10", "jitter20", "jitter40", "allflat")))
-            extra = 2 if draw(st.booleans()) else 1
-            spec = _with_artifact(spec, kind, 0, 0, max(2, run + extra))
+            mode = draw(st.sampled_from(("flat", "span", "allflat")))
+            if mode == "span":
+                spec = _span_flatline(draw, spec, rec, duration, jitter)
+            else:
+                extra = 2 if draw(st.booleans()) else 1
+                spec = _with_artifact(spec, mode, 0, 0, max(2, run + extra))
             if draw(st.booleans()):
                 spec = _with_prior(spec, "channel")
         params = {"max_flatline_duration": duration, "max_allowed_jitter": jitter}
@@ -1090,7 +1094,99 @@ def _apply_artifact(data, spec, srate: float):
     _write_artifact(data[channel], spec.artifact, start, stop, srate)
 
 
+def _span_sample_count(limit: float, place: str) -> int:
+    """Samples whose adjacent-difference count is below, at, or above ``limit``.
+
+    ``clean_flatlines`` removes a run only when its difference count is
+    strictly greater than ``max_flatline_duration * srate``.
+    """
+    at = math.floor(float(limit))
+    if place == "above":
+        diffs = at + 1
+    elif place == "equal":
+        diffs = max(0, at)
+    else:
+        diffs = max(0, at - 1)
+    return diffs + 1
+
+
+def _diff_place(diffs: int, limit: float) -> str:
+    if diffs > limit:
+        return "above"
+    if diffs == math.floor(limit):
+        return "equal"
+    return "below"
+
+
+def _jitter_threshold(jitter: float) -> float:
+    return float(jitter) * float(np.finfo(np.float64).eps)
+
+
+def _jitter_partner(base: float, threshold: float, place: str) -> float | None:
+    """A value whose absolute gap from ``base`` is below, equal to, or above ``threshold``."""
+    base = float(base)
+    if place == "below":
+        partner = base + threshold * 0.5
+        if partner == base:
+            partner = float(np.nextafter(base, np.inf))
+        if abs(partner - base) < threshold:
+            return partner
+        return None
+    if place == "equal":
+        partner = base + threshold
+        if abs(partner - base) == threshold:
+            return partner
+        return None
+    partner = float(np.nextafter(base + threshold, np.inf))
+    if abs(partner - base) > threshold:
+        return partner
+    return None
+
+
+def _span_flatline(draw, spec, rec, duration: float, jitter: float):
+    place = draw(st.sampled_from(("below", "equal", "above")))
+    relation = draw(st.sampled_from(("below", "equal", "above")))
+    baseline = draw(st.sampled_from(("near0", "recorded")))
+    rate = float(spec.srate_hz or rec.srate / spec.decimate)
+    limit = float(duration) * rate
+    count = _span_sample_count(limit, place)
+    available = spec.length
+    if count > available:
+        room = rec.pnts // spec.decimate
+        grown = min(room, count)
+        if grown > available:
+            start_max = rec.pnts - grown * spec.decimate
+            spec = _replace_spec(spec, length=grown, start=min(spec.start, start_max))
+            available = grown
+        if count > available:
+            place = _diff_place(available - 1, limit)
+            count = available
+    spec = _with_artifact(spec, f"span-{place}-jitter-{relation}-{baseline}-{int(jitter)}", 0, 0, count)
+    return _replace_spec(spec, nan_channel=-1, nan_start=0, nan_length=0)
+
+
+def _write_span(samples, kind: str, start: int, stop: int):
+    _span, _place, _jitter, relation, baseline, jitter_text = kind.split("-")
+    threshold = _jitter_threshold(float(jitter_text))
+    stop = min(samples.size, max(start + 1, stop))
+    original = float(samples[start])
+    samples[:] = np.arange(samples.size, dtype=np.float64)
+    base = 0.0 if baseline == "near0" else original
+    partner = _jitter_partner(base, threshold, relation)
+    if partner is None:
+        base = 0.0
+        partner = _jitter_partner(base, threshold, relation)
+    segment = samples[start:stop]
+    segment[0::2] = base
+    segment[1::2] = partner
+    if stop < samples.size:
+        samples[stop] = base + 1.0
+
+
 def _write_artifact(samples, kind: str, start: int, stop: int, srate: float):
+    if kind.startswith("span-"):
+        _write_span(samples, kind, start, stop)
+        return
     stop = min(samples.size, max(start + 1, stop))
     segment = samples[start:stop]
     if kind == "hf":

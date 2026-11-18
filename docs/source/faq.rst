@@ -45,6 +45,9 @@ For development installation from source:
     cd eegprep
     uv sync --group dev
 
+The ``dev`` group includes ONNX Runtime, so ICLabel runs from a source checkout
+without an extra.
+
 What are the system requirements?
 ---------------------------------
 
@@ -78,12 +81,10 @@ Or create a fresh uv environment:
 Does EEGPrep support GPU acceleration?
 --------------------------------------
 
-EEGPrep can leverage GPU acceleration through MNE-Python and PyTorch for ICA and other computations. Install GPU support:
-
-.. code-block:: bash
-
-    uv add torch  # For GPU support
-    uv add "mne[cuda]"  # For MNE GPU support
+EEGPrep computes on the CPU by default. pAMICA (``pop_runica(EEG, icatype="pamica")``, from the
+``pamica`` extra) is the one decomposition built on PyTorch, and its ``device`` argument selects a GPU that PyTorch supports.
+The ``use_gpu`` argument of ``clean_asr`` exists for EEGLAB compatibility and is ignored, and ICLabel runs on
+Open Neural Network Exchange (ONNX) Runtime's CPU provider. PyTorch is not needed for ICLabel.
 
 Usage FAQ
 =========
@@ -219,9 +220,8 @@ Preprocessing speed depends on:
 To speed up processing:
 
 1. Downsample data if appropriate
-2. Use GPU acceleration
-3. Process in parallel (for multiple subjects)
-4. Use faster algorithms (e.g., ASR instead of ICA)
+2. Process in parallel (for multiple subjects)
+3. Use faster algorithms (e.g., ASR instead of ICA)
 
 How much memory does EEGPrep use?
 ---------------------------------
@@ -267,8 +267,7 @@ Tips for optimization:
 2. **Skip unnecessary steps**: Only apply needed preprocessing
 3. **Use faster algorithms**: ASR is faster than ICA
 4. **Downsample if appropriate**: Reduces computation
-5. **Use GPU acceleration**: For ICA and other algorithms
-6. **Process in batches**: More efficient than one-by-one
+5. **Process in batches**: More efficient than one-by-one
 
 Troubleshooting FAQ
 ===================
@@ -300,23 +299,6 @@ I get "ValueError: Data shape mismatch"
     print(eeg.data.shape)  # Should be (channels, samples)
     print(eeg.nbchan)  # Number of channels
     print(eeg.pnts)  # Number of samples
-
-I get "RuntimeError: CUDA out of memory"
-----------------------------------------
-
-**Cause**: GPU memory exhausted
-
-**Solutions**:
-
-1. Use CPU instead:
-
-.. code-block:: python
-
-    eeg = eegprep.clean_artifacts(eeg, use_gpu=False)
-
-2. Process smaller segments
-3. Reduce batch size
-4. Upgrade GPU memory
 
 My data has NaN values
 ----------------------

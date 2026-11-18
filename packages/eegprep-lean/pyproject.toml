@@ -56,6 +56,10 @@ preprocess = [
   "scipy>=1.16.3; sys_platform == 'darwin'",
 ]
 
+# Hand a recording to MNE-Python as an `mne.io.RawArray`. A native convenience: its floor
+# matches eegprep's own `mne` extra. Not measured against the browser budget above.
+mne = ["mne>=1.10.0"]
+
 [project.urls]
 Homepage = "https://github.com/sccn/eegprep"
 Issues = "https://github.com/sccn/eegprep/issues"

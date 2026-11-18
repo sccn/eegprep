@@ -119,6 +119,25 @@ order (``3.3 / order * srate``) so the reported cutoff matches the coefficients:
 
    EEG, com = pop_eegfiltnew(EEG, locutoff=1, hicutoff=40, plotfreqz=False, return_com=True)
 
+Each call appends the applied design to ``EEG["etc"]["eegfiltnew"]``. A later
+filter appends another record, so the two stay distinguishable. A record
+contains the sampling rate, the 1-based channels that were filtered,
+``phase`` (``zerophase`` or ``minphase``), the passband edges, the -6 dB
+cutoffs, the order, the transition width, ``revfilt``, and the coefficients
+passed to the filter. A missing passband edge is NaN. A highpass is stored
+as the reversed lowpass that was designed: ``locutoff`` is NaN, ``hicutoff``
+is the passband edge, and ``revfilt`` is true. ``return_com=True``
+still returns the filtered dataset and the history command for the requested
+options.
+
+``design_eegfiltnew`` is that same designer:
+
+.. code-block:: python
+
+   from eegprep import design_eegfiltnew
+
+   coefficients, design = design_eegfiltnew(EEG["srate"], locutoff=1, hicutoff=40)
+
 Use the lower-level FIRFilt helpers for custom order/window work:
 
 .. code-block:: python
@@ -138,9 +157,13 @@ Use the lower-level FIRFilt helpers for custom order/window work:
 ICLabel
 =======
 
-The standalone Python engine ships the default ICLabel network. ``lite`` and
-``beta`` network requests require MATLAB or Octave with an EEGLAB ICLabel
-checkout that provides those artifacts.
+The standalone Python engine ships the default ICLabel network as Open Neural Network Exchange (ONNX)
+artifacts and classifies through ``onnxruntime`` (``eegprep[iclabel]``): the
+full-precision ``iclabel.onnx`` on native platforms and the 8-bit
+``iclabel_int8.onnx`` in the browser. ``lite``
+and ``beta`` network requests require MATLAB or Octave with an EEGLAB
+ICLabel checkout that provides those artifacts. How closely each packaged
+network matches the PyTorch one is in :ref:`iclabel_measured_agreement`.
 
 .. code-block:: python
 
@@ -148,13 +171,63 @@ checkout that provides those artifacts.
    stats = eeg_icalabelstat(EEG, threshold=0.9, verbose=False)
    EEG, com = pop_icflag(EEG, return_com=True)
 
+The result holds ``classes``, ``classifications`` and ``version`` under
+``EEG["etc"]["ic_classification"]["ICLabel"]``, as in EEGLAB, and also
+``network``: the name of the packaged file that ran, ``iclabel.onnx`` natively
+and ``iclabel_int8.onnx`` in the browser. The two networks differ by up to
+0.01346 per probability on the frozen evaluation set (the quantization gate
+allows 0.015), so a component near a ``pop_icflag`` threshold can be
+kept by one and rejected by the other, and ``network`` is the only record of
+which one classified. A saved ``.set`` file carries it. MATLAB EEGLAB ignores
+the field and neither writes nor clears it; with ``engine="matlab"`` or
+``engine="octave"`` EEGPrep removes a stale ``network`` because EEGLAB's own
+network ran.
+
+In a Pyodide/Emscripten browser runtime, use the asynchronous entry point and
+await the ONNX Runtime Web-backed operation:
+
+.. code-block:: python
+
+   EEG, com = await pop_iclabel_async(EEG, "default", return_com=True)
+
+The synchronous ``iclabel`` and ``pop_iclabel`` entry points raise
+``RuntimeError`` in that runtime; native Python behavior is unchanged.
+
+The browser host supplies the ONNX Runtime Web bridge by setting
+``globalThis.eegprep_iclabel_web`` before the first call. It is an object with
+one method and one property:
+
+.. code-block:: javascript
+
+   run(imageData, imageShape, psdmedData, psdmedShape, autocorrData, autocorrShape)
+   modelBytes  // the Uint8Array of the model that run(...) uses
+
+Each ``*Data`` argument is a flat ``Float32Array`` and each ``*Shape`` argument
+is an integer array: ``[N, 1, 32, 32]`` for ``image`` and ``[N, 1, 1, 100]`` for
+``psdmed`` and ``autocorr``, where ``N`` is four times the number of components
+(ICLabel classifies four augmented copies of each). ``run`` returns a ``Promise``
+that resolves to the flat ``Float32Array`` of the network output, seven class
+scores for each of the ``N`` rows. Before every call EEGPrep compares the
+SHA-256 digest of ``modelBytes`` with the packaged ``iclabel_int8.onnx`` and
+raises a ``RuntimeError`` naming both digests when they differ, so a stale or
+wrong model cannot classify silently. It also raises a ``RuntimeError`` when
+``run`` returns a NaN or infinite value. The reference implementation is
+``createIcLabelWebBridge`` in ``tools/pyodide/iclabel_web_bridge.mjs`` in the
+source repository; it creates one ``onnxruntime-web`` session from the bytes of
+the packaged ``iclabel_int8.onnx``, the 8-bit network meant for the browser.
+It runs on one thread unless the host passes ``numThreads`` in its options
+argument or has already set ``ort.env.wasm.numThreads`` itself, which the
+bridge then leaves alone. ONNX Runtime Web reads that count once, when its
+WebAssembly backend starts, so a host that already created another session
+decides it.
+
 Review components visually with ``pop_viewprops`` before removing them.
 
 DIPFIT
 ======
 
-DIPFIT helpers support standalone spherical workflows. They store model fields
-under ``EEG["dipfit"]["model"]`` and keep command strings replayable:
+DIPFIT helpers fit ``standardBESA`` with the four-shell BESA leadfield. They store
+model fields under ``EEG["dipfit"]["model"]`` and keep command strings replayable:
 
 .. code-block:: python
 

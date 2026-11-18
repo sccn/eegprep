@@ -6,6 +6,7 @@ from importlib import import_module
 from typing import Any
 
 _LAZY_EXPORTS = {
+    "design_eegfiltnew": ("eegprep.plugins.firfilt._filtering", "design_eegfiltnew"),
     "design_fir": ("eegprep.plugins.firfilt.design", "design_fir"),
     "design_kaiser": ("eegprep.plugins.firfilt.design", "design_kaiser"),
     "findboundaries": ("eegprep.plugins.firfilt.findboundaries", "findboundaries"),

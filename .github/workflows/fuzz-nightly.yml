@@ -125,6 +125,15 @@ jobs:
             --max-shrinks 4 \
             --file-issues
 
+      - name: Keep the MATLAB server log
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${EEGPREP_MATLAB_BATCH_DIR:-}" && -f "$EEGPREP_MATLAB_BATCH_DIR/server.log" ]]; then
+            mkdir -p fuzz-out
+            grep -v "${MLM_LICENSE_TOKEN:-}" "$EEGPREP_MATLAB_BATCH_DIR/server.log" > fuzz-out/matlab-server.log || true
+          fi
+
       - name: Upload fuzz artifacts
         if: always()
         uses: actions/upload-artifact@v4
