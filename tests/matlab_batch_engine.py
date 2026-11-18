@@ -22,6 +22,9 @@ from pathlib import Path
 import numpy as np
 import scipy.io
 
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.convertlocs import convertlocs
+
 # The slowest reference call in CI (std_precomp) is about 6 minutes. A wedged
 # eval, such as a menu dialog, never writes a response; leave headroom for that
 # call, then fail and let restart.sh replace the server so later tests are not
@@ -103,6 +106,108 @@ def _encode(value):
     return value
 
 
+def complete_reref_arguments(name: str, args: list) -> list:
+    """Give a ``pop_reref`` ``refloc`` every field the EEG channel locations carry.
+
+    ``reref.m`` copies ``fieldnames(EEG.chanlocs)`` off ``refloc`` with
+    ``getfield``. A struct that only has the coordinates the caller set raises
+    ``Unrecognized field name "sph_theta"``. ``nodatchans`` can hold the same
+    kind of location, so its fields are included too. Coordinates that can be
+    derived are filled; other missing fields are empty in the same way an
+    unset ``chanlocs`` entry is.
+    """
+    if name != "pop_reref" or len(args) < 2:
+        return list(args)
+    eeg = args[0]
+    if not isinstance(eeg, dict):
+        return list(args)
+    examples = _location_examples(eeg)
+    fields = _location_fields(examples)
+    if not fields:
+        return list(args)
+    completed = list(args)
+    index = 1
+    while index < len(completed) - 1:
+        if isinstance(completed[index], str) and completed[index] == "refloc":
+            completed[index + 1] = _complete_refloc_value(completed[index + 1], fields, examples)
+            index += 2
+            continue
+        index += 1
+    return completed
+
+
+def _location_examples(eeg: dict) -> list[dict]:
+    info = eeg.get("chaninfo")
+    nodatchans = info.get("nodatchans") if isinstance(info, dict) else None
+    return [*chanlocs_as_list(eeg.get("chanlocs")), *chanlocs_as_list(nodatchans)]
+
+
+def _location_fields(examples: list[dict]) -> tuple[str, ...]:
+    fields: list[str] = []
+    for location in examples:
+        if not isinstance(location, dict):
+            continue
+        for name in location:
+            if name not in fields:
+                fields.append(name)
+    return tuple(fields)
+
+
+def _complete_refloc_value(value, fields: tuple[str, ...], examples: list[dict]):
+    if isinstance(value, dict):
+        return _complete_location(value, fields, examples)
+    if isinstance(value, (list, tuple)) and value and all(isinstance(item, dict) for item in value):
+        return [_complete_location(item, fields, examples) for item in value]
+    return value
+
+
+def _complete_location(location: dict, fields: tuple[str, ...], examples: list[dict]) -> dict:
+    derived = _derived_location(location)
+    completed = {}
+    for name in fields:
+        if name in location and not _is_blank(location[name]):
+            completed[name] = location[name]
+        elif name in derived and not _is_blank(derived[name]):
+            completed[name] = derived[name]
+        else:
+            completed[name] = _blank_like(name, examples)
+    for name, item in location.items():
+        if name not in completed:
+            completed[name] = item
+    return completed
+
+
+def _derived_location(location: dict) -> dict:
+    try:
+        derived = convertlocs(dict(location), "auto")
+    except (TypeError, ValueError):
+        return {}
+    return derived if isinstance(derived, dict) else {}
+
+
+def _is_blank(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    if isinstance(value, (list, tuple)):
+        return len(value) == 0
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    return False
+
+
+def _blank_like(name: str, examples: list[dict]):
+    for location in examples:
+        if not isinstance(location, dict) or name not in location:
+            continue
+        value = location[name]
+        if isinstance(value, str) or (isinstance(value, np.ndarray) and value.dtype.kind in "US"):
+            return ""
+        return np.array([])
+    return np.array([])
+
+
 def _decode(value):
     """loadmat result -> what matlab.engine would have returned."""
     if not isinstance(value, np.ndarray):
@@ -161,7 +266,8 @@ class BatchEngine:
 
         def method(*args, nargout=1, **kwargs):
             extra = [item for k, v in kwargs.items() if k not in ("background", "stdout", "stderr") for item in (k, v)]
-            return self._request("call", name, [*args, *extra], nargout)
+            prepared = complete_reref_arguments(name, [*args, *extra])
+            return self._request("call", name, prepared, nargout)
 
         return method
 
