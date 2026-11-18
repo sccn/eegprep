@@ -325,33 +325,11 @@ def test_three_rms_windows_skip_zero_fit_widths():
     assert np.isfinite(state["T"]).all()
 
 
-def _remove_windows(scores: np.ndarray, max_bad: int, zmin: float, zmax: float) -> np.ndarray:
-    ordered = np.sort(scores, axis=0)
-    channels = scores.shape[0]
-    remove = np.zeros(scores.shape[1], dtype=bool)
-    if zmax > 0:
-        index = max(min(channels - max_bad - 1, channels - 1), 0)
-        remove |= ordered[index] > zmax
-    if zmin < 0:
-        index = max(min(max_bad, channels - 1), 0)
-        remove |= ordered[index] < zmin
-    return remove
+def test_flat_channel_reference_keeps_241_samples():
+    """A zero-variance channel is the highest score and uses a high-amplitude slot.
 
-
-def _kept_samples(n_samples: int, offsets: np.ndarray, width: int, removed: np.ndarray) -> np.ndarray:
-    mask = np.ones(n_samples, dtype=bool)
-    for window in np.flatnonzero(removed):
-        start = int(offsets[window])
-        mask[start : start + width] = False
-    return mask
-
-
-def test_flat_channel_dropout_is_not_the_nan_sort_reference():
-    """A dead channel is below the lower bound. EEGLAB's 0/0 sorts as the highest window.
-
-    Scoring that channel as 0 keeps 329 samples. The NaN sort keeps 241.
-    The dropout reading keeps 198. ASR on the zero-score reference differs
-    from the NaN sort by 99.09315492805 at flat index 21475 (#642).
+    Channels 12 through 28, starting at sample 4097, 1278 samples, flat
+    channel 8. The calibration reference keeps 241 samples (#642).
     """
     case = FuzzCase(
         "clean_asr",
@@ -370,37 +348,17 @@ def test_flat_channel_dropout_is_not_the_nan_sort_reference():
         1.0,
         return_diagnostics=True,
     )
-    scores = np.array(diag["zscores"], dtype=np.float64, copy=True)
-    assert np.all(np.isneginf(scores[8]))
-    max_bad = int(diag["criteria"]["max_bad_channels"])
-    offsets = np.asarray(diag["window_offsets"])
-    width = int(diag["window_length"])
+    assert int(np.asarray(kept).sum()) == 241
+    assert np.all(np.isposinf(diag["zscores"][8]))
+    assert not np.any(np.isnan(diag["zscores"]))
 
-    def mask_for(channel_score: float) -> np.ndarray:
-        edited = scores.copy()
-        edited[8] = channel_score
-        removed = _remove_windows(edited, max_bad, -3.5, 5.5)
-        return _kept_samples(data.shape[1], offsets, width, removed)
-
-    zero_mask = mask_for(0.0)
-    nan_mask = mask_for(np.nan)
-    assert int(zero_mask.sum()) == 329
-    assert int(nan_mask.sum()) == 241
-    assert int(np.asarray(kept).sum()) == 198
-    assert not np.array_equal(nan_mask, kept)
-
-    def calibrated(mask: np.ndarray) -> np.ndarray:
-        cleaned = clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=data[:, mask], window_len=1.0)
-        return np.asarray(cleaned["data"], dtype=np.float64)
-
-    zero_out = calibrated(zero_mask)
-    nan_out = calibrated(nan_mask)
     produced = np.asarray(clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=0.075, window_len=1.0)["data"])
-    np.testing.assert_array_equal(produced, calibrated(np.asarray(kept, dtype=bool)))
-    gap = np.abs(zero_out - nan_out)
-    np.testing.assert_allclose(gap.max(), 99.09315492805484, rtol=0, atol=1e-9)
-    assert int(np.argmax(gap)) == 21475
-    np.testing.assert_allclose(np.abs(produced - nan_out).max(), 84.64567352985684, rtol=0, atol=1e-9)
+    reference = np.asarray(
+        clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=data[:, np.asarray(kept, dtype=bool)], window_len=1.0)["data"]
+    )
+    np.testing.assert_array_equal(produced, reference)
+    digest = hashlib.sha256(np.ascontiguousarray(produced, dtype=np.float64).tobytes()).hexdigest()
+    assert digest == "3f9712334d066b830bb116dfac888da9d4e5398e8392ff050a0af4da1cbd8dcf"
 
 
 def test_asr_only_flat_channel_stays_exactly_zero():

@@ -106,9 +106,9 @@ correlation.
 ``xmax`` to ``xmin + (pnts - 1) / srate`` only when that duration is off the
 sample grid. A recording whose fit widths round to 1 or less raises
 ``ValueError``, and ``clean_asr`` calibrates on the whole recording instead.
-Eleven to twenty-two windows still fit. A channel whose RMS is zero in every
-window is below the lower power bound in every window when another channel
-has energy in a window.
+Eleven to twenty-two windows still fit. A channel whose window RMS values are
+all equal has scale 0 and is the highest score in every window, so it uses a
+high-amplitude bad-channel slot.
 
 .. _cleaning_inputs:
 

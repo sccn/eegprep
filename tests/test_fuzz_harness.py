@@ -50,9 +50,7 @@ from tests.fuzz.harness import (
     suspend_option_single,
     thaw_params,
     tolerance_for,
-    _flat_nan_sort_is_known,
     _flat_nullspace_roundoff_is_known,
-    _nan_sort_reference,
     _InputObserver,
     _caught_evidence,
     _seen_input,
@@ -2221,47 +2219,6 @@ def _flat_case(channels, start, length, flat_channel, params) -> tuple[FuzzCase,
     return case, materialize_eeg(case)
 
 
-def test_flat_channel_nan_sort_is_not_a_divergence():
-    case, eeg = _flat_case(
-        tuple(range(12, 29)),
-        4097,
-        1278,
-        8,
-        {"entry": "clean_asr", "cutoff": 3.0, "ref_maxbadchannels": 0.075, "window_len": 1.0},
-    )
-    reference = _nan_sort_reference(eeg, thaw_params(case.params))
-    assert reference is not None
-    nan_out = np.asarray(
-        clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=reference, window_len=1.0)["data"],
-        dtype=np.float64,
-    )
-
-    def nan_oracle(_case, _dataset):
-        return nan_out
-
-    accepted = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(nan_oracle), load_tolerances())
-    assert accepted.diverged is False
-    assert "#642" in accepted.detail
-
-    def shifted(_case, _dataset):
-        data = nan_out.copy()
-        data[0, 0] += 1.0
-        return data
-
-    rejected = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(shifted), load_tolerances())
-    assert rejected.diverged is True
-    assert "#642" not in rejected.detail
-
-    def flat_signal(_case, _dataset):
-        data = nan_out.copy()
-        data[8, 0] = 1.0
-        return data
-
-    written = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(flat_signal), load_tolerances())
-    assert written.diverged is True
-    assert "#642" not in written.detail
-
-
 def test_flat_channel_roundoff_is_not_a_divergence():
     case, eeg = _flat_case(
         tuple(range(17, 32)),
@@ -2313,4 +2270,3 @@ def test_flat_channel_roundoff_is_not_a_divergence():
     loud = produced.copy()
     loud[11, 0] = 1.0
     assert not _flat_nullspace_roundoff_is_known(case, eeg, zero, SideResult(True, loud, 128.0, None, None), tolerance)
-    assert not _flat_nan_sort_is_known(case, eeg, zero, noisy, tolerance)

@@ -72,8 +72,9 @@ def clean_windows(
     of clean EEG power in that channel. When the generalized-Gaussian fit does
     not return a positive scale, that estimate is the median and MAD of the
     window RMS values, and windows outside the thresholds are still removed.
-    A channel whose RMS is zero in every window is below the lower bound in
-    every window when another channel has energy in a window. The fit's width
+    A channel whose window RMS values are all equal has scale 0 and is the
+    highest score in every window, so it uses a high-amplitude bad-channel
+    slot. The fit's width
     grid is ``round(n * (max_width:-step:min_width))``. A
     rounded width of 1 or less raises ``ValueError``, which is the MATLAB
     indexing error in that loop. Eleven to twenty-two windows still fit.
@@ -182,17 +183,13 @@ def clean_windows(
     logger.info('Determining time window rejection thresholds...')
 
     wz = np.zeros((C, W), dtype=float)
-    order = list(reversed(range(C)))
-    rms_rows = []
-    for c in order:
+    for c in reversed(range(C)):
         Xsq = EEG['data'][c, :] ** 2  # power
         # Gather samples for all windows using broadcasting (W, N)
         indices = offsets[:, None] + wnd[None, :]
-        rms_rows.append(np.sqrt(np.sum(Xsq[indices], axis=1) / N))
-    any_energy = any(np.any(rms) for rms in rms_rows)
-    for c, rms in zip(order, rms_rows, strict=True):
-        if any_energy and not np.any(rms):
-            wz[c, :] = -np.inf
+        rms = np.sqrt(np.sum(Xsq[indices], axis=1) / N)
+        if rms.size and np.all(rms == rms.flat[0]):
+            wz[c, :] = np.inf
             continue
         mu, sig = _window_rms_mu_sigma(
             rms,
@@ -214,7 +211,9 @@ def clean_windows(
         # upper threshold – check the (max_bad_channels+1)-th largest value
         idx_hi = C - max_bad_channels - 1  # zero-based index
         idx_hi = max(min(idx_hi, C - 1), 0)
-        remove_mask |= swz[idx_hi, :] > zmax
+        highest = swz[idx_hi, :]
+        # +inf is a zero-variance channel. It holds this rank, and the threshold applies to a finite score.
+        remove_mask |= np.isfinite(highest) & (highest > zmax)
     if zmin < 0:
         # lower threshold – check the (max_bad_channels+1)-th smallest value
         idx_lo = max_bad_channels
