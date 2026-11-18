@@ -270,8 +270,8 @@ Use them after ICA:
    figures, com = pop_dipplot(EEG, [1], summary="on", return_com=True)
 
 Changing the head-model menu fills the file fields for the selected template.
-The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid and a
-spherical leadfield. ``pop_dipfit_loreta`` then reports that FieldTrip source
+The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid. The
+leadfield uses the selected head model. ``pop_dipfit_loreta`` then reports that FieldTrip source
 analysis is not bundled.
 
 MRI-derived BEM creation, AFNI atlas clipping, LORETA analysis, and STUDY-level

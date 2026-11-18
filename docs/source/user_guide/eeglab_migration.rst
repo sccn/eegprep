@@ -98,6 +98,31 @@ the limits. Cancelling the menu discards its changes.
      - MATLAB-only LIMO, FieldTrip STUDY source statistics, MRI BEM creation,
        AFNI atlas clipping, and unavailable ICLabel network artifacts fail
        clearly instead of being faked.
+   * - DIPFIT MNI model
+     - The default head model is the packaged dipoli boundary-element volume
+       from DIPFIT ``standard_vol.mat``. Grid search uses EEGLAB's
+       ``linspace(-85,85,24)`` and ``linspace(0,85,12)`` points that fall
+       inside the brain mesh, then refines each dipole with SciPy BFGS.
+       That BFGS refinement has no inside-brain constraint, so a fit can
+       land outside the brain mesh with a lower residual than EEGLAB's.
+       Sample component 3 does this. The optimizer is the analogue of
+       ``fminunc`` and is not bit-identical to MATLAB. Components 1 and 2
+       of the sample dataset land within 1 mm of EEGLAB. On that sample,
+       component 3's lower residual than EEGLAB is an observation, not a
+       general rule. EEGLAB's settings
+       dialog switches a channel file whose name contains
+       ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
+       model and applies that file's cap385-to-MNI coregistration. A channel
+       file that matches no keyword keeps the template transform. An empty
+       transform is left unchanged and a fit logs a warning, because those
+       electrodes are not rotated into the head model.
+       ``standardBESA`` uses the four-shell leadfield (radii 71, 72, 79, and
+       85 mm; conductivities 0.33, 1, 0.0042, and 0.33). A custom
+       head-model file is a boundary-element volume when it contains
+       ``bnd``, ``mat``, and ``cond`` with type dipoli, bemcp, or openmeeg.
+       OpenMEEG is recognized and rejected. Any other head-model file raises
+       instead of falling back to the sphere. Creating a bemcp or dipoli
+       system matrix from an MRI, and eLORETA, stay unsupported.
    * - Scripts
      - Assign return values explicitly outside ``eegprep-console``.
 
@@ -303,6 +328,22 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time. ``test_pop_reref_keeps_a_nan_on_its_channel`` locks the
        EEGPrep result.
+   * - Float32 average reference
+     - ``pop_reref`` and ``reref`` sum the reference in float64 and cast once
+       back to float32. EEGLAB multiplies a single-precision reference matrix.
+       On ds003061 sub-001 (64 channels, 194048 samples, peak 259369.28125 µV)
+       that EEGLAB product differs from the correctly rounded float32 result
+       by at most 0.15625 µV (RMS 0.004684294629 µV). An OpenBLAS Haswell
+       single-precision product of the same recording differs from the EEGLAB
+       result by 0.109375 µV (RMS 0.00235126327796 µV) and changes with the
+       thread count. The correctly rounded float32 values are at most
+       0.0078125 µV from the exact real average (RMS 0.000584188801266 µV).
+       ``test_average_reference_matches_matlab_on_64_channel_float32`` compares
+       EEGPrep with the exactly rounded float32 result at 1e-5 µV and checks
+       that EEGPrep is at least as close to that result as EEGLAB.
+       ``test_float32_average_reference_matches_exact_rounding`` locks the
+       same rounding on a large-magnitude input whose float32 channel sum is
+       not the real sum.
    * - Repeated ``pop_select`` trials
      - With ``sorttrial='off'``, a repeated trial is kept at its first
        position. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``.
@@ -397,6 +438,21 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
        and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
        out Z, Y, X here and X, Z, Y in EEGLAB.
+   * - One-value ``pop_epoch`` ``valuelim``
+     - A single limit is a symmetric exclusive bound. ``valuelim=[50]``
+       keeps an epoch only when every sample is strictly inside (-50, 50).
+       The value 50 itself is an outlier. With limits ``[-0.5, -0.1]`` at
+       64 Hz that window is 26 samples, so two ``rt`` events whose samples
+       are 10 are returned as shape ``(29, 26, 2)``. A sample of 50 in one
+       window drops that epoch, and samples of -60 drop both.
+       ``pop_epoch.m`` lines 37-39 and ``epoch.m`` lines 19-21 describe
+       this rule on pin ``d0963be9``. ``pop_epoch.m`` line 224 passes a
+       one-element limit through unchanged, and ``epoch.m`` lines 133-136
+       read the second element only after the first comparison succeeds.
+       A scalar 50 therefore rejects every epoch whose minimum is not
+       above 50, which is why the same two windows come back empty.
+       ``test_single_valuelim_is_a_symmetric_bound`` locks the EEGPrep
+       result.
    * - Continuous rejection with ``trials`` 0
      - ``eeg_eegrej`` sets ``trials`` from the data shape before checking
        events, so a stored 0 does not delete events past sample 1.
@@ -410,8 +466,8 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        channel properties and View extended component properties on the Plot
        menu.
    * - LORETA-KEY leadfield
-     - The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius and a
-       spherical leadfield. FieldTrip's LORETA-KEY atlas and eLORETA source
+     - The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius. The
+       leadfield uses the selected head model. FieldTrip's LORETA-KEY atlas and eLORETA source
        analysis are not bundled. ``pop_dipfit_loreta`` asks for
        ``pop_leadfield`` when ``EEG.dipfit.sourcemodel`` is missing, then
        reports the missing FieldTrip backend.
@@ -468,6 +524,45 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_headplot`` returns the dataset. EEGPrep writes the spline file
        onto the dataset during the call and returns the figures, so the
        history command does not assign over ``EEG``.
+   * - DIPFIT ``standardBESA`` forward model
+     - ``model="standardBESA"`` uses the four-shell concentric sphere in
+       ``standard_BESA.mat`` (radii 71, 72, 79, and 85 mm; conductivities
+       0.33, 1, 0.0042, and 0.33). The grid and nonlinear fit follow DIPFIT.
+       ``model="standardBEM"`` uses the packaged dipoli volume described above.
+   * - Degenerate electrode positions
+     - ``clean_channels``, spherical ``eeg_interp``, ``spheric_spline``,
+       ``sphericalSplineInterpolate``, and ``headplot`` raise ``ValueError``
+       when Cartesian electrode positions are identical or collinear. Planar
+       or nearly planar positions, including a ring around the head, produce
+       a ``UserWarning`` and the call still runs. The test uses singular
+       values of the centered position matrix, which are unchanged by
+       translation and uniform scaling. A uniform hemispherical shell has
+       thickness ratio 1/2; an axis below one quarter of that ratio is
+       treated as missing. Inverse-distance and space-time interpolation
+       stay quiet on a planar cap and raise only when the flat coordinates
+       are identical or collinear. ``eeg_interp`` classifies the channels
+       it interpolates from once three or more remain, so a collinear strip
+       raises even when the filled-in channels sit off that strip. Two
+       distinct source channels are not rejected for collinearity alone.
+       The whole located montage is still classified, so an identical or
+       collinear montage still raises and a planar montage still warns.
+       Two identical source channels raise. EEGLAB
+       ``clean_channels`` and
+       ``eeg_interp`` do not test the layout, so a collinear montage can
+       come back as a channel deletion or an interpolation that does not
+       reflect the recording.
+   * - Empty ``topoplot`` locations
+     - An interpolated ``topoplot`` raises ``ValueError`` when channel
+       locations are ``None`` or empty. The message names ``topoplot`` and
+       says to load locations with ``pop_chanedit`` or ``pop_readlocs``.
+       A blank map with an empty location list draws the head.
+       ``plot_channel_location`` uses that blank map when a channel has no
+       stored location.
+       EEGLAB replaces an empty ``loc_file`` with ``DEFAULT_ELOC``
+       (``chan.locs``, ``icadefs.m`` line 232) at ``topoplot.m`` lines
+       358-362, then passes that filename to ``readlocs``.
+       ``test_missing_or_empty_channel_locations_name_the_problem`` locks
+       the EEGPrep error.
 
 Plugin Migration
 ================

@@ -20,12 +20,23 @@ Unreleased
   properties stay available beside Tools > Classify components using ICLabel.
 - Changing the DIPFIT head-model menu fills the file fields for the selected
   template. Browse is enabled for a custom head model.
-- The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid and a
-  spherical leadfield. ``pop_dipfit_loreta`` names ``pop_leadfield`` when no
-  leadfield is stored.
+- The leadfield dialog's LORETA-KEY choice builds a 20 mm in-head grid. The
+  leadfield uses the selected head model. ``pop_dipfit_loreta`` names
+  ``pop_leadfield`` when no leadfield is stored.
 - Autofit accepts the plot text ``'normlen' 'on'`` and shows the dipole
   figure. A ``linspace`` string entered for the coarse-fit grid stays in the
   history command.
+- ``reref`` and ``pop_reref`` sum an average reference in float64 and cast
+  once back to the input dtype, so a float32 recording stays float32 and the
+  result does not depend on the BLAS kernel or thread count. On the
+  64-channel float32 ds003061 sub-001 recording (194048 samples, peak
+  259369.28125 µV), EEGLAB's single-precision product differs from this
+  correctly rounded float32 result by at most 0.15625 µV (RMS
+  0.004684294629 µV). The same EEGLAB result differs from an OpenBLAS
+  Haswell float32 product by 0.109375 µV (RMS 0.00235126327796 µV), and
+  that Haswell result changes with the thread count. Correctly rounded
+  float32 is at most 0.0078125 µV from the exact real average (RMS
+  0.000584188801266 µV) (#579).
 - **BREAKING: ICLabel needs the** ``iclabel`` **extra, and** ``eegprep[torch]`` **no longer enables it.**
   ``iclabel`` and ``pop_iclabel`` now classify with ``onnxruntime``, the Open Neural Network Exchange (ONNX) runtime, instead of PyTorch.
   The package ships ``iclabel.onnx``, the full-precision network, and ``iclabel_int8.onnx``, an 8-bit copy for browsers, in place of ``netICL.mat``.
@@ -157,6 +168,10 @@ Unreleased
   those traces. Event latency statistics use epoch-relative milliseconds. The
   statistics figure shows the trimmed mean, the quantiles, and the
   Kolmogorov-Smirnov result, and it marks the selected channel (F83, F85, F87).
+- ``topoplot`` raises ``ValueError`` when an interpolated map has ``None`` or
+  empty channel locations. The message names ``topoplot`` and points to
+  ``pop_chanedit`` or ``pop_readlocs``. A blank map with an empty location
+  list still draws the head (#509).
 
 - Import dialogs expose data shape, sampling, metadata, channel selection,
   ranges, event fields, units, alignment, and epoch options. Cancel preserves

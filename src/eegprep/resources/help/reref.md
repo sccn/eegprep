@@ -28,3 +28,7 @@ Outputs:
 
 - `dataout`: input data converted to the new reference.
 - `chanlocs`: updated channel locations when location data is provided.
+
+Average reference on float32 data is computed in float64 and stored as float32,
+and results can differ from EEGLAB's single-precision product by up to 0.16 µV
+on large-amplitude recordings (see the EEGLAB migration guide).

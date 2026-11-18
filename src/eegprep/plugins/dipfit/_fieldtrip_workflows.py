@@ -12,7 +12,7 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._fitting import (
-    DEFAULT_HEAD_RADIUS_MM,
+    default_search_grids,
     dipfit_gridsearch as run_gridsearch,
     dipfit_nonlinear as run_nonlinear,
     dipfit_reject,
@@ -77,7 +77,7 @@ def pop_dipfit_gridsearch(
     renderer: Any | None = None,
     return_com: bool = False,
 ):
-    """Run a standalone spherical coarse grid search for ICA components."""
+    """Run a coarse grid search for ICA components."""
     if EEG is None:
         return (None, "") if return_com else None
     ensure_channel_locations(EEG)
@@ -97,13 +97,14 @@ def pop_dipfit_gridsearch(
     count = component_count(EEG)
     components = one_based_indices(select, limit=count, default_all=True)
     reject_value = _blank_to_none(reject)
+    x_default, y_default, z_default = default_search_grids(EEG)
     out = run_gridsearch(EEG, component=components, xgrid=xgrid, ygrid=ygrid, zgrid=zgrid, reject=reject_value)
     command = dipfit_history(
         "pop_dipfit_gridsearch",
         components,
-        _history_grid(xgrid, np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)),
-        _history_grid(ygrid, np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)),
-        _history_grid(zgrid, np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 6)),
+        _history_grid(xgrid, x_default),
+        _history_grid(ygrid, y_default),
+        _history_grid(zgrid, z_default),
         None if reject_value is None else float(reject_value),
     )
     return (out, command) if return_com else out
@@ -218,7 +219,7 @@ def pop_leadfield(
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Compute a standalone spherical leadfield for explicit source points."""
+    """Compute a leadfield for explicit source points."""
     if EEG is None:
         return (None, "") if return_com else None
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
@@ -352,7 +353,7 @@ def pop_dipfit_gridsearch_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="reject", value="40"),
         ),
         known_differences=(
-            "EEGPrep uses a deterministic spherical leadfield backend; FieldTrip BEM fitting is still not bundled.",
+            "standardBEM uses the packaged dipoli leadfield. standardBESA uses the four-shell BESA leadfield.",
         ),
     )
 
@@ -444,7 +445,7 @@ def pop_multifit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("pushbutton", "Help", tag="plot_help", enabled=False),
         ),
         known_differences=(
-            "EEGPrep autofit uses a native spherical leadfield backend; FieldTrip BEM fitting is still not bundled.",
+            "standardBEM autofit uses the packaged dipoli leadfield. standardBESA autofit uses the four-shell BESA leadfield.",
         ),
     )
 
@@ -495,8 +496,8 @@ def pop_leadfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "The LORETA-KEY choice builds EEGPrep's 20 mm in-head grid and a spherical leadfield.",
-            "Colin27, ICBM152, and AFNI atlas files are not bundled.",
+            "The LORETA-KEY choice builds a 20 mm in-head grid. The leadfield uses the selected head model.",
+            "Colin27, ICBM152, and AFNI atlas files are not bundled. MRI source-model construction and eLORETA are not implemented.",
         ),
     )
 
@@ -683,10 +684,10 @@ def _make_bilateral_starting_models(EEG: dict[str, Any], components: list[int]) 
     axis = 0 if coordformat == "mni" else 1
     for component in components:
         model = models[component - 1]
-        first = np.asarray(model.get("posxyz", [40.0, 0.0, 30.0]), dtype=float).reshape(-1, 3)[0]
-        first[axis] = abs(first[axis]) or 40.0
+        first = np.asarray(model.get("posxyz", [0.0, -40.0, 30.0]), dtype=float).reshape(-1, 3)[0]
         second = first.copy()
-        second[axis] = -second[axis]
+        first[axis] = -40.0
+        second[axis] = 40.0
         moment = np.asarray(model.get("momxyz", [0.0, 0.0, 0.0]), dtype=float).reshape(-1, 3)[0]
         model.update(
             {

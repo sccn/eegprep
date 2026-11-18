@@ -11,9 +11,11 @@ from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._utils import (
     STANDARD_TEMPLATES,
     apply_template,
+    channel_template_filename,
     coordinate_channel_indices,
     copy_eeg,
     dipfit_history,
+    lookupchantemplate,
     one_based_indices,
     template_by_name,
     template_form_state,
@@ -31,8 +33,9 @@ def pop_dipfit_settings(
     """Configure DIPFIT settings without requiring an EEGLAB runtime.
 
     EEGPrep stores the same key DIPFIT fields that EEGLAB records on
-    ``EEG.dipfit``. The standard spherical fitting path is standalone; BEM
-    head-model assets and MRI co-registration remain explicit backend limits.
+    ``EEG.dipfit``. ``standardBEM`` loads the packaged MNI boundary-element
+    model at fit time. Creating a new BEM system matrix from an MRI remains
+    unavailable.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -64,7 +67,14 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     chanfile = str(dipfit.get("chanfile") or template.chanfile)
     coordformat = str(dipfit.get("coordformat") or template.coordformat or "MNI")
     coord_index = {"spherical": 1, "mni": 2}.get(coordformat.lower(), 4)
-    coord_transform = dipfit.get("coord_transform", template.coord_transform)
+    stored_transform = dipfit.get("coord_transform")
+    found, looked_up = lookupchantemplate(channel_template_filename(EEG), template)
+    if stored_transform:
+        coord_transform = stored_transform
+    elif found:
+        coord_transform = looked_up
+    else:
+        coord_transform = template.coord_transform
     coreg_text = " ".join(f"{float(value):g}" for value in coord_transform) if coord_transform else ""
     browse_enabled = selected_model == len(STANDARD_TEMPLATES)
     return DialogSpec(
@@ -134,8 +144,8 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "EEGPrep records DIPFIT settings and uses them for native spherical fitting.",
-            "Changing the head-model menu fills the file fields for the selected template. Browse is enabled for a custom head model. Co-register stays disabled.",
+            "EEGPrep keeps the MNI boundary-element model selected when a channel file name contains standard-10-5-cap385, and fills that file's cap385-to-MNI transform. standardBESA fits use the four-shell BESA leadfield.",
+            "Changing the head-model menu fills the file fields for the selected template. Browse is enabled for a custom head model. Co-register stays disabled. Head-model creation from an MRI is not implemented.",
         ),
         row_spacing=10,
     )
@@ -174,15 +184,17 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
     existing = out.get("dipfit")
     dipfit = dict(existing) if isinstance(existing, dict) else {}
     if "model" in options and str(options["model"]).strip():
-        apply_template(dipfit, template_by_name(options["model"]))
+        template = template_by_name(options["model"])
+        apply_template(dipfit, template)
+        found, transform = lookupchantemplate(channel_template_filename(out), template)
+        if found:
+            dipfit["coord_transform"] = transform
     for key in ("hdmfile", "mrifile", "chanfile", "coordformat"):
         value = options.get(key)
         if value not in (None, ""):
             dipfit[key] = value
     if "coord_transform" in options:
-        transform = _numeric_list(options["coord_transform"])
-        if transform:
-            dipfit["coord_transform"] = transform
+        dipfit["coord_transform"] = _numeric_list(options["coord_transform"])
     usable = coordinate_channel_indices(out)
     nbchan = int(out.get("nbchan", len(usable)) or len(usable))
     if "chanomit" in options and str(options.get("chanomit", "")).strip():
@@ -214,10 +226,16 @@ def _index_list(value: Any) -> list[int]:
 
 
 def _template_index(dipfit: dict[str, Any]) -> int:
-    hdmfile = str(dipfit.get("hdmfile") or "").lower()
+    hdmfile = str(dipfit.get("hdmfile") or "").replace("\\", "/").lower()
+    model = str(dipfit.get("model") or "").strip().lower()
     for index, template in enumerate(STANDARD_TEMPLATES, start=1):
-        if template.hdmfile.lower() == hdmfile or template.shortname.lower() == str(dipfit.get("model", "")).lower():
+        if template.shortname and model == template.shortname.lower():
             return index
+        template_file = template.hdmfile.replace("\\", "/").lower()
+        if template_file and hdmfile.endswith(template_file):
+            return index
+    if hdmfile:
+        return len(STANDARD_TEMPLATES)
     return 2
 
 
