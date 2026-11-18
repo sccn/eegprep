@@ -987,8 +987,6 @@ def draw_cases(function: str, *, seed_value: int, examples: int) -> list[FuzzCas
 
 
 def _generate_cases(builder, seed_value: int, examples: int, function: str) -> list[FuzzCase]:
-    if hasattr(builder, "generate"):
-        return list(builder.generate(seed_value, examples))
     cases = []
     for index in range(examples):
         draw = Draw(mix_seed(seed_value, function, index))
@@ -1328,7 +1326,7 @@ def build_strategies(info: SeedInfo) -> dict:
         if not user and draw.choice((False, False, False, True)):
             spec = _draw_epoched_spec(draw)
             srate = _event_targets().recording(spec.source).srate
-            params = _filter_edges(draw, "lowpass", srate)
+            params = _filter_edges(draw, "lowpass", srate / 2.0)
             params.update({"filtorder": 40, "minphase": False, "usefftfilt": False})
         else:
             spec = _draw_spec(draw, info, user)
