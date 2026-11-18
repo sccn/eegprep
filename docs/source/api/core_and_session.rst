@@ -33,6 +33,7 @@ Dataset containers, validation, and the shared session that the GUI and ``eegpre
    eegprep.eeg_eventtypes
    eegprep.eeg_getepochevent
    eegprep.eeg_getdatact
+   eegprep.eeg_getversion
    eegprep.eeg_insertbound
    eegprep.eeg_urlatency
    eegprep.eeg_retrieve
