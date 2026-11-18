@@ -17,6 +17,7 @@ import pytest
 
 from eegprep.functions.sigprocfunc.runamica import (
     _write_data_file,
+    _write_param_file,
     is_amica_available,
     runamica,
 )
@@ -39,6 +40,13 @@ def test_write_data_file_matlab_layout(tmp_path, layout):
     expected = np.array([1.25, 10.5, -2.5, 20.25, 3.75, -30.75], dtype='<f4')
     assert path.read_bytes() == expected.tobytes()
     np.testing.assert_array_equal(np.fromfile(path, dtype='<f4').reshape(2, 3, order='F'), data)
+
+
+def test_write_param_file_keeps_stop_thresholds(tmp_path):
+    path = _write_param_file(str(tmp_path), {'files': 'x.fdt', 'outdir': str(tmp_path), 'data_dim': 2, 'field_dim': 3})
+    params = dict(line.split(maxsplit=1) for line in open(path).read().splitlines())
+    assert float(params['min_dll']) == 1e-9
+    assert float(params['min_grad_norm']) == 1e-7
 
 
 def _make_synthetic_sources(n_channels, n_samples, seed=42):
