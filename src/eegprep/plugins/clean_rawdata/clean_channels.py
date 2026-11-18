@@ -24,6 +24,31 @@ logger = logging.getLogger(__name__)
 DEFAULT_RANSAC_SEED = 5489
 
 
+def _coord_or_nan(value: Any) -> float:
+    """Return a finite float coordinate, or ``np.nan`` when a channel has no location."""
+    if value is None or isinstance(value, bool):
+        return np.nan
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return np.nan
+        try:
+            scalar = float(text)
+        except ValueError:
+            return np.nan
+        return scalar if np.isfinite(scalar) else np.nan
+    if isinstance(value, (list, tuple, np.ndarray)):
+        arr = np.asarray(value)
+        if arr.size != 1:
+            return np.nan
+        return _coord_or_nan(arr.reshape(-1)[0])
+    try:
+        scalar = float(value)
+    except (TypeError, ValueError):
+        return np.nan
+    return scalar if np.isfinite(scalar) else np.nan
+
+
 def clean_channels(
     EEG: Dict[str, Any],
     corr_threshold: float = 0.8,
@@ -142,12 +167,13 @@ def clean_channels(
         X = EEG['data'].T
         noise_mask = np.zeros(C, dtype=bool)  # transpose added in MATLAB comment
 
-    xyz = [[ch.get(coord, np.nan) for ch in EEG['chanlocs']] for coord in ['X', 'Y', 'Z']]
-    xyz = [[x if not (isinstance(x, np.ndarray) and x.size == 0) else np.nan for x in xyz_sub] for xyz_sub in xyz]
-    xyz = np.asarray([np.asarray([np.nan if x is None else x for x in row], dtype=float) for row in xyz])
-    if np.mean(np.any(np.isnan(xyz), axis=0)) > 0.5:
-        raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
+    xyz = np.asarray(
+        [[_coord_or_nan(ch.get(coord)) for ch in EEG['chanlocs']] for coord in ('X', 'Y', 'Z')],
+        dtype=float,
+    )
     usable_channels = np.where(~np.any(np.isnan(xyz), axis=0))[0]
+    if usable_channels.size <= len(EEG['chanlocs']) * 0.5:
+        raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
 
     locs = xyz[:, usable_channels].T
     validate_electrode_positions(locs, operation="clean_channels")

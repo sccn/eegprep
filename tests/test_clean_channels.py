@@ -121,3 +121,41 @@ def test_long_fir_keeps_the_fft_path():
     signal = np.random.default_rng(3).normal(size=20000)
     filtered = filtfilt_fast(coefficients, 1, signal)
     np.testing.assert_allclose(filtered, _legacy_fft_filtfilt(coefficients, signal))
+
+
+@pytest.mark.parametrize("missing_coord", ["", [], (), np.array([]), None, np.nan])
+def test_unlocated_auxiliary_channels_do_not_break_clean_channels(missing_coord):
+    """Auxiliary channels (e.g. EOG) with blank or empty X/Y/Z coordinates are excluded from usable_channels."""
+    eeg = _located_eeg(8, 800, 128.0)
+    # Give the 6 located channels 3-D extent so validate_electrode_positions does not warn
+    for idx in range(6):
+        eeg["chanlocs"][idx]["Z"] = float((-1) ** idx * (0.2 + 0.05 * idx))
+    # Mark the last 2 channels (e.g. EOG) as having no coordinates
+    for idx in (6, 7):
+        eeg["chanlocs"][idx]["X"] = missing_coord
+        eeg["chanlocs"][idx]["Y"] = missing_coord
+        eeg["chanlocs"][idx]["Z"] = missing_coord
+
+    kept, diag = clean_channels(
+        eeg,
+        subset_size=0.25,
+        corr_threshold=-1.0,
+        noise_threshold=100.0,
+        num_samples=4,
+        return_diagnostics=True,
+    )
+    assert kept["nbchan"] == 8
+    np.testing.assert_array_equal(diag["usable_channels"], np.arange(6))
+
+
+def test_half_or_fewer_located_channels_raises_location_error():
+    """clean_channels.m requires strictly more than 50% of channels to have valid X, Y, Z locations."""
+    eeg = _located_eeg(6, 800, 128.0)
+    for idx in (3, 4, 5):
+        eeg["chanlocs"][idx]["X"] = ""
+        eeg["chanlocs"][idx]["Y"] = ""
+        eeg["chanlocs"][idx]["Z"] = ""
+
+    with pytest.raises(ValueError, match="most of your channels should have X,Y,Z location measurements"):
+        clean_channels(eeg, subset_size=0.25, num_samples=4)
+
