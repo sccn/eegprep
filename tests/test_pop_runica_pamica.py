@@ -24,7 +24,13 @@ from scipy.optimize import linear_sum_assignment
 from threadpoolctl import threadpool_info
 
 from eegprep import pop_loadset
-from eegprep.functions.popfunc.eeg_pamica import PamicaFitError, _limited_threads, eeg_pamica
+from eegprep.functions.popfunc import eeg_pamica as pamica_module
+from eegprep.functions.popfunc.eeg_pamica import (
+    PamicaFitError,
+    _limited_threads,
+    _require_thread_count,
+    eeg_pamica,
+)
 from eegprep.functions.popfunc.pop_runica import pop_runica
 from eegprep.functions.sigprocfunc.runamica import is_amica_available
 from tests.fixtures import create_test_eeg
@@ -520,6 +526,57 @@ def test_high_environment_thread_pools_still_replay_exactly():
         check=False,
     )
     assert completed.returncode == 0, completed.stdout + "\n" + completed.stderr
+
+
+class _OpenMPPool:
+    """One loaded OpenMP library. ``accepts`` is false when ``omp_set_num_threads`` does nothing."""
+
+    def __init__(self, filepath, count, *, accepts=True):
+        self.filepath = filepath
+        self.count = count
+        self.accepts = accepts
+        self.sets = []
+
+    def get_num_threads(self):
+        return self.count
+
+    def set_num_threads(self, count):
+        self.sets.append(count)
+        if self.accepts:
+            self.count = count
+
+
+class _OpenMPController:
+    def __init__(self, pools):
+        self.lib_controllers = pools
+
+    def select(self, user_api):
+        assert user_api == "openmp"
+        return self
+
+
+class _TorchThreads:
+    def get_num_threads(self):
+        return 4
+
+
+def test_a_real_openmp_pool_stuck_at_one_still_rejects_the_count(monkeypatch):
+    stub = _OpenMPPool(r"D:\venv\Lib\site-packages\torch\lib\libiompstubs5md.dll", 1, accepts=False)
+    real = _OpenMPPool(r"D:\venv\Lib\site-packages\torch\lib\libiomp5md.dll", 1, accepts=True)
+    monkeypatch.setattr(
+        pamica_module,
+        "threadpool_info",
+        lambda: [{"user_api": "blas", "internal_api": "openblas", "num_threads": 4}],
+    )
+    monkeypatch.setattr(pamica_module, "ThreadpoolController", lambda: _OpenMPController([stub, real]))
+
+    with pytest.raises(RuntimeError, match=r"openmp/libiomp5md\.dll is 1") as caught:
+        _require_thread_count(_TorchThreads(), 4)
+
+    assert "libiompstubs" not in str(caught.value)
+    assert real.count == 1
+    assert real.sets == []
+    assert stub.sets == []
 
 
 def test_threads_are_limited_for_the_run_and_restored_after():
