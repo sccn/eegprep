@@ -575,7 +575,18 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
         or _same_pop_select_channel_range(message, oracle_message)
         or _same_pop_select_notime(message, oracle_message)
         or _same_pop_epoch_eventindices(message, oracle_message)
+        or _same_empty_rms_fit(message, oracle)
     )
+
+
+def _same_empty_rms_fit(message: str, oracle: SideResult) -> bool:
+    """asr_calibrate.m guards length(rms)==1 and then indexes X(1,:) in the fit.
+
+    S == N makes ``1:step:(S-N)`` empty, so that guard does not run.
+    """
+    if "Fewer than 2 calibration windows" not in message or "got 0" not in message:
+        return False
+    return _fit_failure_stack(oracle)
 
 
 def _same_pop_select_channel_range(message: str, oracle_message: str) -> bool:
@@ -1604,7 +1615,11 @@ def _fit_failure_stack(oracle: SideResult) -> bool:
         return False
     identifier = oracle.error_identifier or ""
     message = oracle.error_message or ""
-    return identifier == "MATLAB:badsubscript" or "Index in position 1 is invalid" in message
+    return (
+        identifier == "MATLAB:badsubscript"
+        or "Index in position 1 is invalid" in message
+        or "Index in position 1 exceeds array bounds" in message
+    )
 
 
 def _zero_width_reference(eeg: dict, params: dict) -> bool:

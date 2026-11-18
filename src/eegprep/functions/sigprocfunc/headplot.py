@@ -25,6 +25,7 @@ from eegprep.functions.sigprocfunc.coregister import (
     normalise_coregistration_transform,
     traditional_transform_matrix,
 )
+from eegprep.functions.sigprocfunc.electrode_geometry import validate_electrode_positions
 
 DEFAULT_MESH = "mheadnew.mat"
 DEFAULT_TRANSFORM = DEFAULT_COREGISTER_TRANSFORM
@@ -189,6 +190,8 @@ def headplot_setup(
     The generated file is a MATLAB ``.mat`` file with the conventional
     ``.spl`` extension. It contains the spline matrices and transformed
     electrode positions needed for later :func:`headplot` calls.
+    Identical or collinear channel positions raise ``ValueError``. Planar
+    positions warn and the spline file is still written.
     """
     preview_mode = _normalise_plotmeshonly(plotmeshonly)
     locs = chanlocs_as_list(chanlocs)
@@ -199,6 +202,7 @@ def headplot_setup(
     labels = _channel_labels(locs, selected)
     coordinates = _channel_xyz(locs, selected)
     coordinates = _rotate_for_nosedir(coordinates, str(chaninfo.get("nosedir", "+x")))
+    validate_electrode_positions(coordinates, operation="headplot")
     transform_array = _normalise_transform(transform)
     transformed = _apply_transform(coordinates, transform_array)
     unit_electrodes = _normalise_to_head_sphere(transformed)
