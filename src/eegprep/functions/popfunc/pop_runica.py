@@ -18,7 +18,7 @@ from eegprep.functions.popfunc.eeg_amica import eeg_amica
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_pamica import eeg_pamica
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
-from eegprep.functions.popfunc.eeg_runica import apply_runica_data_rank, eeg_runica
+from eegprep.functions.popfunc.eeg_runica import _pca_option_key, apply_runica_data_rank, eeg_runica
 
 
 _ALGORITHMS = (
@@ -245,7 +245,7 @@ def _runica_on_dataset(EEG, icatype, options, *, reorder, chanind):
 def _options_for_ica_backend(EEG, icatype, options):
     if icatype != "runica":
         return options
-    return apply_runica_data_rank(EEG["data"], options, pca_requested="pca" in options)
+    return apply_runica_data_rank(EEG["data"], options, pca_requested=_pca_option_key(options) is not None)
 
 
 def _runica_on_datasets(EEG, *, dataset, icatype, options, reorder, chanind, concatenate, concatcond):

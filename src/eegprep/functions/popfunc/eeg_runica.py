@@ -21,10 +21,16 @@ _RUNICA_RANK_EIGEN_TOLERANCE = 1e-7
 
 
 def _matlab_eps(value):
-    # MATLAB eps(0) is eps(1); np.spacing(0) is a subnormal gap.
     if value == 0.0:
         return float(np.finfo(np.float64).eps)
     return float(np.spacing(value))
+
+
+def _pca_option_key(options):
+    for key in options:
+        if str(key).lower() == "pca":
+            return key
+    return None
 
 
 def _matlab_matrix_rank(data):
@@ -58,7 +64,7 @@ def eeglab_data_rank(data, *, pca_requested):
 def apply_runica_data_rank(data, options, *, pca_requested):
     """Return ``options`` with ``pca`` set from :func:`eeglab_data_rank` when needed."""
     options = dict(options)
-    if pca_requested:
+    if pca_requested or _pca_option_key(options) is not None:
         logger.warning(
             "you have used PCA to reduce dimensionality so ICA "
             "is not modeling the entire data, only the PCA-reduced data."
@@ -106,7 +112,7 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     EEG = copy.deepcopy(EEG)
 
     data = flatten_ica_data(EEG['data'].astype('float64'))
-    if 'pca' not in kwargs:
+    if _pca_option_key(kwargs) is None:
         kwargs = apply_runica_data_rank(data, kwargs, pca_requested=False)
 
     weights, sphere, compvars, bias, signs, lrates = runica(data, **kwargs)

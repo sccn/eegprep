@@ -23,7 +23,7 @@ from scipy.optimize import linear_sum_assignment
 
 from eegprep.functions.sigprocfunc.runica import runica
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-from eegprep.functions.popfunc.eeg_runica import eeg_runica
+from eegprep.functions.popfunc.eeg_runica import _matlab_eps, eeg_runica
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_runica import pop_runica
@@ -392,6 +392,35 @@ def test_pop_runica_average_referenced_sample_keeps_the_signal_subspace():
     np.testing.assert_allclose(reconstructed, data, rtol=1e-5, atol=1e-5)
     unmixing = output["icaweights"] @ output["icasphere"]
     assert np.linalg.norm(unmixing @ np.ones(32)) < 1e-5 * np.linalg.norm(unmixing)
+
+
+def test_matlab_eps_at_zero_is_eps_of_one():
+    machine_eps = float(np.finfo(np.float64).eps)
+    assert _matlab_eps(0.0) == machine_eps
+    assert _matlab_eps(1.0) == float(np.spacing(1.0))
+    assert _matlab_eps(0.0) != float(np.spacing(0.0))
+
+
+def test_pop_runica_matches_an_uppercase_pca_key():
+    generator = np.random.default_rng(1)
+    data = generator.standard_normal((4, 500))
+    data[3] = data[0]
+
+    output, command = pop_runica(
+        _eeg_from(data),
+        options={"PCA": 2},
+        maxsteps=1,
+        verbose="off",
+        rndreset="off",
+        return_com=True,
+    )
+    direct = eeg_runica(_eeg_from(data), PCA=2, maxsteps=1, verbose="off", rndreset="off")
+
+    assert output["icaweights"].shape == (2, 4)
+    assert direct["icaweights"].shape == (2, 4)
+    assert "'PCA', 2" in command
+    assert command.lower().count("'pca'") == 1
+    assert "'pca', 3" not in command
 
 
 def test_pop_runica_keeps_an_explicit_pca_option():
