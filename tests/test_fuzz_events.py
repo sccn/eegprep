@@ -154,8 +154,9 @@ def test_original_draws_match_the_golden_snapshot():
 _INTEGER_LITERAL_PROBE = """
 import importlib.util
 import sys
+import tempfile
 from pathlib import Path
-probe = Path("/tmp") / f"eegprep_fuzz_integer_literals_{__import__('os').getpid()}.py"
+probe = Path(tempfile.gettempdir()) / f"eegprep_fuzz_integer_literals_{__import__('os').getpid()}.py"
 values = [128, 256, 512, 1024, 2048, 4096, 0x3FF00000, 0x40862E42, 0x3FE62E43]
 values.extend(range(1000, 1600))
 probe.write_text("\\n".join(f"LITERAL_{index} = {value}" for index, value in enumerate(values)) + "\\n")
