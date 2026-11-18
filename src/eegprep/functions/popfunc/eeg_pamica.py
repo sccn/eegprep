@@ -238,20 +238,6 @@ def _openmp_library_is_stub(lib):
     return "libiompstubs" in _openmp_library_filename(lib).lower()
 
 
-def _openmp_setter_changes_count(lib, count):
-    """Return whether ``omp_set_num_threads`` changes the count ``lib`` reports.
-
-    The count from before the probe is restored when the getter raises.
-    """
-    probe = 1 if count != 1 else 2
-    lib.set_num_threads(probe)
-    try:
-        reported = lib.get_num_threads()
-    finally:
-        lib.set_num_threads(count)
-    return reported is not None and int(reported) != count
-
-
 def _require_thread_count(torch, threads):
     """Return ``threads`` when torch intra-op, every BLAS pool, and every live OpenMP pool use it."""
     intra = int(torch.get_num_threads())
@@ -269,7 +255,6 @@ def _require_thread_count(torch, threads):
         count = lib.get_num_threads()
         if count is None or int(count) == threads or _openmp_library_is_stub(lib):
             continue
-        _openmp_setter_changes_count(lib, int(count))
         mismatches.append(f"openmp/{_openmp_library_filename(lib)} is {int(count)}")
     if mismatches:
         raise RuntimeError(f"requested {threads} threads but " + "; ".join(mismatches))

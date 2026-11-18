@@ -28,7 +28,6 @@ from eegprep.functions.popfunc import eeg_pamica as pamica_module
 from eegprep.functions.popfunc.eeg_pamica import (
     PamicaFitError,
     _limited_threads,
-    _openmp_setter_changes_count,
     _require_thread_count,
     eeg_pamica,
 )
@@ -532,18 +531,17 @@ def test_high_environment_thread_pools_still_replay_exactly():
 class _OpenMPPool:
     """One loaded OpenMP library. ``accepts`` is false when ``omp_set_num_threads`` does nothing."""
 
-    def __init__(self, filepath, count, *, accepts=True, getter_error=None):
+    def __init__(self, filepath, count, *, accepts=True):
         self.filepath = filepath
         self.count = count
         self.accepts = accepts
-        self.getter_error = getter_error
+        self.sets = []
 
     def get_num_threads(self):
-        if self.getter_error is not None:
-            raise self.getter_error
         return self.count
 
     def set_num_threads(self, count):
+        self.sets.append(count)
         if self.accepts:
             self.count = count
 
@@ -562,18 +560,9 @@ class _TorchThreads:
         return 4
 
 
-def test_an_openmp_probe_restores_the_count_when_the_getter_raises():
-    pool = _OpenMPPool(r"C:\torch\lib\libiomp5md.dll", 4, getter_error=RuntimeError("getter failed"))
-
-    with pytest.raises(RuntimeError, match="getter failed"):
-        _openmp_setter_changes_count(pool, 4)
-
-    assert pool.count == 4
-
-
 def test_a_real_openmp_pool_stuck_at_one_still_rejects_the_count(monkeypatch):
     stub = _OpenMPPool(r"D:\venv\Lib\site-packages\torch\lib\libiompstubs5md.dll", 1, accepts=False)
-    real = _OpenMPPool(r"D:\venv\Lib\site-packages\torch\lib\libiomp5md.dll", 1, accepts=False)
+    real = _OpenMPPool(r"D:\venv\Lib\site-packages\torch\lib\libiomp5md.dll", 1, accepts=True)
     monkeypatch.setattr(
         pamica_module,
         "threadpool_info",
@@ -586,6 +575,8 @@ def test_a_real_openmp_pool_stuck_at_one_still_rejects_the_count(monkeypatch):
 
     assert "libiompstubs" not in str(caught.value)
     assert real.count == 1
+    assert real.sets == []
+    assert stub.sets == []
 
 
 def test_threads_are_limited_for_the_run_and_restored_after():
