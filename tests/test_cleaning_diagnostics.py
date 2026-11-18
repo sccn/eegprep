@@ -195,7 +195,8 @@ def test_clean_channels_diagnostics_are_the_arrays_that_decide_removal():
     expected |= report["noise_flags"]
     np.testing.assert_array_equal(report["detected_channels"], expected)
     np.testing.assert_array_equal(report["removed_channels"], expected)
-    assert report["removal_suppressed"] is None
+    assert "removal_suppressed" not in report
+    assert "window_len_samples" not in report["criteria"]
     assert report["correlations"].shape == (len(report["usable_channels"]), len(report["window_offsets"]))
     assert cleaned["nbchan"] == source["nbchan"] - 1
     assert prepared["nbchan"] == source["nbchan"]
@@ -244,6 +245,8 @@ def test_nolocs_diagnostics_keep_sorted_correlations_and_the_retained_rows():
     assert correlations.shape[0] == source["nbchan"]
     assert correlations.shape[1] == source["nbchan"]
     assert report["window_offsets"].shape[0] == correlations.shape[2]
+    assert "window_len_samples" not in report["criteria"]
+    assert report["window_length"] == int(source["srate"])
     assert "best_correlation" not in report
     assert cleaned["nbchan"] <= source["nbchan"]
 
@@ -337,6 +340,7 @@ def test_window_diagnostics_expose_offsets_zscores_and_prior_mask_composition():
     np.testing.assert_array_equal(report["window_offsets"], matlab_window_offsets(n_samples, n_window, step))
     assert report["zscores"].shape == (source["nbchan"], len(report["window_offsets"]))
     assert report["window_length"] == int(np.floor(n_window))
+    assert "window_len_samples" not in report["criteria"]
     assert not np.allclose(report["zscores"], 0.0)
     zmin, zmax = report["criteria"]["zthresholds"]
     ordered = np.sort(report["zscores"], axis=0)

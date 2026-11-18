@@ -62,7 +62,8 @@ def clean_channels_nolocs(
         self-correlation. ``criteria['retained_correlation_rows']`` are the
         rows compared with ``min_corr`` after the most-correlated fraction is
         dropped. ``flagged`` is true where every retained row is below
-        ``min_corr``. Channel indices and sample offsets are 0-based positions
+        ``min_corr``. ``window_length`` is the sample count of each window.
+        Channel indices and sample offsets are 0-based positions
         in the input. The returned boolean array is this detection result,
         including an all-true array when every channel is flagged and kept.
         ``diagnostics['removed_channels']`` is true only for channels deleted
@@ -169,7 +170,6 @@ def clean_channels_nolocs(
                 'min_corr': float(min_corr),
                 'ignored_quantile': float(ignored_quantile),
                 'window_len': window_len_seconds,
-                'window_len_samples': float(window_len),
                 'max_broken_time': max_broken_time_argument,
                 'max_broken_time_samples': float(max_broken_time),
                 'linenoise_aware': bool(linenoise_aware),

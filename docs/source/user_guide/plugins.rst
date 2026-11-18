@@ -189,14 +189,18 @@ channel is flagged when every retained row is below ``min_corr``. The
 boolean array returned beside the dataset is that detection result. It is
 all true when every channel is flagged and then kept.
 
-``clean_windows`` reports window offsets, the window length in samples, and
-the RMS z-score of each channel in each window. ``clean_flatlines`` reports
-which channels exceeded the flat-line duration.
+``clean_windows`` reports ``window_offsets`` and ``window_length``, the sample
+count of each window, and the RMS z-score of each channel in each window.
+``clean_channels`` and ``clean_channels_nolocs`` use that same
+``window_length``. ``clean_flatlines`` reports which channels exceeded the
+flat-line duration.
 
 ``detected_channels`` is the criterion. ``removed_channels`` in the report is
 what the call deleted. When every channel is flagged and none is removed,
-``removal_suppressed`` gives the reason and ``clean_channel_mask`` is left
-as it was, including staying absent. A prior mask is returned as
+``clean_channels_nolocs`` and ``clean_flatlines`` set ``removal_suppressed``
+to the reason and leave ``clean_channel_mask`` as it was, including staying
+absent. ``clean_channels`` raises ``ValueError`` when more than 75% of
+channels are flagged. A prior mask is returned as
 ``prior_clean_channel_mask`` or ``prior_clean_sample_mask``.
 
 .. code-block:: python

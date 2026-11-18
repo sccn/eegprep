@@ -105,11 +105,12 @@ def clean_windows(
         Range for the *beta* shape parameter in the generalised Gaussian used
         for distribution fitting.
     return_diagnostics : bool
-        When true, also return a dict with the window offsets, window length,
-        per-channel RMS z-scores, the criteria, and any prior
-        ``clean_sample_mask``. Channel indices and sample offsets are 0-based
-        positions in the input. ``window_flags`` is true for windows rejected
-        from those z-scores. ``zscores`` has shape ``(channels, windows)``.
+        When true, also return a dict with the window offsets,
+        ``window_length`` (the sample count of each window), per-channel RMS
+        z-scores, the criteria, and any prior ``clean_sample_mask``. Channel
+        indices and sample offsets are 0-based positions in the input.
+        ``window_flags`` is true for windows rejected from those z-scores.
+        ``zscores`` has shape ``(channels, windows)``.
 
     The input dataset is deep-copied and is not modified. Samples are
     processed in float64 and the returned dataset stores them in the input
@@ -242,7 +243,7 @@ def clean_windows(
 
     etc = EEG['etc']
     prior_clean_sample_mask = None
-    if return_diagnostics and isinstance(etc, dict) and 'clean_sample_mask' in etc:
+    if return_diagnostics and 'clean_sample_mask' in etc:
         prior_clean_sample_mask = np.asarray(etc['clean_sample_mask'], dtype=bool).copy()
     if 'clean_sample_mask' in etc:
         prev_mask = np.asarray(etc['clean_sample_mask']).astype(bool)
@@ -258,9 +259,7 @@ def clean_windows(
 
     if not return_diagnostics:
         return EEG, sample_mask
-    stored_mask = etc.get('clean_sample_mask') if isinstance(etc, dict) else None
-    if stored_mask is not None:
-        stored_mask = np.asarray(stored_mask, dtype=bool).copy()
+    stored_mask = np.asarray(etc['clean_sample_mask'], dtype=bool).copy()
     step_size_values = tuple(float(value) for value in np.asarray(step_sizes, dtype=float).reshape(-1))
     return (
         EEG,
@@ -272,7 +271,6 @@ def clean_windows(
                 'max_bad_channels_argument': requested_max_bad_channels,
                 'zthresholds': (float(zthresholds[0]), float(zthresholds[1])),
                 'window_len': float(window_len),
-                'window_len_samples': float(N),
                 'window_step': float(step),
                 'window_overlap': float(window_overlap),
                 'max_dropout_fraction': float(max_dropout_fraction),

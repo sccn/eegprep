@@ -75,12 +75,12 @@ def clean_channels(
         sample offsets are 0-based positions in the input. Correlations cover
         ``usable_channels`` only. ``usable_locations`` and ``projector`` are
         the arguments and result of ``calc_projector`` for
-        ``RandomState(seed)``. ``detected_channels`` is the removal
-        criterion and ``removed_channels`` is what this call deleted. More
-        than 75% flagged raises ``ValueError`` instead of keeping those
-        channels, so ``removal_suppressed`` is ``None`` on a returned report.
-        ``clean_channel_mask`` on the dataset is true for original channels
-        that remain. It is left unchanged when nothing is removed.
+        ``RandomState(seed)``. ``window_length`` is the sample count of each
+        window. ``detected_channels`` is the removal criterion and
+        ``removed_channels`` is what this call deleted. More than 75% flagged
+        raises ``ValueError``. ``clean_channel_mask`` on the dataset is true
+        for original channels that remain. It is left unchanged when nothing
+        is removed.
 
     The input ``data`` array is replaced with float64. When nothing is
     removed, the same dataset object is returned and ``etc`` is unchanged.
@@ -216,7 +216,6 @@ def clean_channels(
             'corr_threshold': float(corr_threshold),
             'noise_threshold': float(noise_threshold),
             'window_len': window_len_seconds,
-            'window_len_samples': int(window_len),
             'max_broken_time': max_broken_time_argument,
             'max_broken_time_samples': float(max_broken_time),
             'num_samples': int(num_samples),
@@ -237,7 +236,6 @@ def clean_channels(
         'flagged_window_counts': np.sum(flagged, axis=1),
         'detected_channels': np.array(removed_channels, dtype=bool, copy=True),
         'removed_channels': np.array(removed_channels, dtype=bool, copy=True),
-        'removal_suppressed': None,
         'prior_clean_channel_mask': prior_clean_channel_mask,
         'clean_channel_mask': copy_clean_channel_mask(EEG),
     }
