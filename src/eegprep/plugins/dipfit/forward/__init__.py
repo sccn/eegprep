@@ -1,5 +1,5 @@
 """FieldTrip forward-model entry points used by DIPFIT.
 
-Concentric-sphere EEG leadfields live here. Boundary-element models plug into
-``ft_compute_leadfield`` by head-model type.
+``ft_compute_leadfield`` dispatches concentric spheres and boundary-element
+models by head-model type.
 """

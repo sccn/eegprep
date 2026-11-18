@@ -108,6 +108,20 @@ class TestTopoplot(unittest.TestCase):
             outside_values = Zi[outside_head]
             self.assertTrue(np.all(np.isnan(outside_values)))
 
+    def test_missing_or_empty_channel_locations_name_the_problem(self):
+        message = (
+            r"topoplot: Channel locations are required\. "
+            r"Load locations with pop_chanedit or pop_readlocs before plotting\."
+        )
+        with self.assertRaisesRegex(ValueError, message):
+            topoplot(np.arange(4.0), None, noplot="on")
+        with self.assertRaisesRegex(ValueError, message):
+            topoplot(np.arange(4.0), [], noplot="on")
+        with self.assertRaisesRegex(ValueError, message):
+            topoplot(np.arange(4.0), np.array([]), noplot="on")
+        with self.assertRaisesRegex(ValueError, message):
+            topoplot([], None, style="blank", noplot="on")
+
     def test_topo_screen_coords_cardinal_directions(self):
         """Pin the shared polar-to-screen orientation contract (nose up, EEGLAB left-right).
 

@@ -601,5 +601,43 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
         self.assertEqual(indices, [0, 1])
 
 
+def test_single_valuelim_is_a_symmetric_bound():
+    """A one-element valuelim is ± that amplitude, and the bounds are outliers.
+
+    pop_epoch.m lines 37-39 and epoch.m lines 19-21 describe this. The
+    implementation at pop_epoch.m:224 and epoch.m:133-136 never expands a
+    scalar, so a value of 50 rejects every epoch whose minimum is not above 50.
+    """
+    srate = 64.0
+    points = 200
+    eeg = create_test_eeg(n_channels=29, n_samples=points, srate=srate)
+    eeg["data"] = np.full((29, points), 10.0)
+    eeg["event"] = [
+        {"type": "rt", "latency": 80.0},
+        {"type": "rt", "latency": 140.0},
+    ]
+
+    kept, indices = pop_epoch(eeg, ["rt"], [-0.5, -0.1], valuelim=[50.0])
+
+    assert kept["data"].shape == (29, 26, 2)
+    assert kept["trials"] == 2
+    assert indices == [0, 1]
+    assert np.max(np.abs(kept["data"])) == 10.0
+
+    on_bound = copy.deepcopy(eeg)
+    on_bound["data"][0, 50] = 50.0
+    bounded, bounded_indices = pop_epoch(on_bound, ["rt"], [-0.5, -0.1], valuelim=[50.0])
+    assert bounded["trials"] == 1
+    assert bounded_indices == [1]
+    assert np.max(np.abs(bounded["data"])) == 10.0
+
+    outside = copy.deepcopy(eeg)
+    outside["data"][:] = -60.0
+    rejected, rejected_indices = pop_epoch(outside, ["rt"], [-0.5, -0.1], valuelim=[50.0])
+    assert rejected["data"].shape == (29, 26, 0)
+    assert rejected["trials"] == 0
+    assert rejected_indices == []
+
+
 if __name__ == '__main__':
     unittest.main()

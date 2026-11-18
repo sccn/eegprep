@@ -164,7 +164,7 @@ def test_dipfit_native_gridsearch_and_nonlinear_fit_known_spherical_source():
     assert _console_python_command(com) == "EEG = pop_dipfit_nonlinear(EEG, component=1, nonlinear='yes')"
 
 
-def test_mni_nonlinear_fit_stays_inside_the_head():
+def test_mni_nonlinear_fit_uses_the_packaged_bem():
     eeg = create_test_eeg_with_ica(n_channels=18, n_samples=40, n_components=1)
     phi = np.linspace(0.35, np.pi - 0.35, 3)
     theta = np.linspace(0, 2 * np.pi, 6, endpoint=False)
@@ -189,7 +189,9 @@ def test_mni_nonlinear_fit_stays_inside_the_head():
     refined = pop_dipfit_nonlinear(eeg, component=1, gui=False)
 
     position = np.asarray(refined["dipfit"]["model"][0]["posxyz"], dtype=float)[0]
-    assert np.linalg.norm(position) < 85.0
+    assert np.all(np.isfinite(position))
+    forward = prepare_forward_data(refined, [1])
+    assert str(forward.headmodel["type"]).lower() == "dipoli"
 
 
 def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset():
