@@ -1,0 +1,6 @@
+﻿compute\_spectra
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: compute_spectra

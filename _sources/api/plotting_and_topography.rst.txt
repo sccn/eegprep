@@ -8,7 +8,9 @@ event rasters, artifact review plots, and replayable scalp movies. Movie frames
 are returned as ``uint8`` RGB arrays so they can be inspected in notebooks,
 tested headlessly, encoded by downstream tools, or replayed with ``seemovie``.
 The ``movieframes`` argument follows EEGLAB's 1-based public indexing
-convention.
+convention. ``spectopo`` draws the spectra from ``compute_spectra``. The same
+estimator, line-noise excess, and robust channel amplitude are available
+without a figure; see :ref:`spectrum_summaries`.
 
 ``savefig`` writes a Matplotlib figure to a MATLAB ``.fig`` file that
 ``openfig`` can open. The file stores the figure, its axes, and the lines,

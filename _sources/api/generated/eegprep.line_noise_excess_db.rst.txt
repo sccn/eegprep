@@ -1,0 +1,6 @@
+﻿line\_noise\_excess\_db
+=======================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: line_noise_excess_db

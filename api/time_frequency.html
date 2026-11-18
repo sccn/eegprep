@@ -63,7 +63,7 @@
     <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="angtimewarp" href="generated/eegprep.angtimewarp.html" />
+    <link rel="next" title="compute_spectra" href="generated/eegprep.compute_spectra.html" />
     <link rel="prev" title="windows" href="generated/eegprep.windows.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -280,6 +280,10 @@
   
 
   
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
 </div>
 
     </header>
@@ -441,6 +445,9 @@
 <li class="toctree-l1"><a class="reference internal" href="ica_and_components.html">ICA and Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Time-Frequency</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.compute_spectra.html">compute_spectra</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.line_noise_excess_db.html">line_noise_excess_db</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.channel_robust_amplitude.html">channel_robust_amplitude</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.angtimewarp.html">angtimewarp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.bootstat.html">bootstat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.crossf.html">crossf</a></li>
@@ -557,59 +564,114 @@ name/value pairs. The Python names <code class="docutils literal notranslate"><s
 <code class="docutils literal notranslate"><span class="pre">max_std_for_absolute</span></code>, and <code class="docutils literal notranslate"><span class="pre">max_std_for_relative</span></code> do the same thing.
 Returned epoch indices are zero-based. Defaults are a baseline of 0 and no
 standard-deviation rejection.</p>
+<section id="spectrum-summaries">
+<span id="id1"></span><h2>Spectrum summaries<a class="headerlink" href="#spectrum-summaries" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">compute_spectra</span></code> is the Welch estimator behind <code class="docutils literal notranslate"><span class="pre">spectopo</span></code>. It does not
+draw a figure, and importing it does not import Matplotlib. The result is
+power spectral density in dB: <code class="docutils literal notranslate"><span class="pre">10</span> <span class="pre">*</span> <span class="pre">log10</span></code> of SciPy’s
+<code class="docutils literal notranslate"><span class="pre">welch(...,</span> <span class="pre">scaling=&quot;density&quot;)</span></code> samples. It is not
+<code class="docutils literal notranslate"><span class="pre">scaling=&quot;spectrum&quot;</span></code> bin power, and it is not the integral of density over
+a 1 Hz band. The frequency grid is <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">*</span> <span class="pre">srate</span> <span class="pre">/</span> <span class="pre">nfft</span></code>. With the default
+segment length <code class="docutils literal notranslate"><span class="pre">min(round(srate),</span> <span class="pre">pnts)</span></code> (half away from zero) and the
+default <code class="docutils literal notranslate"><span class="pre">nfft</span></code> equal to that length, the spacing is 1 Hz when <code class="docutils literal notranslate"><span class="pre">srate</span></code> is
+an integer and the recording contains at least one second. The grid starts
+at 0 Hz and stops at the Nyquist rate when <code class="docutils literal notranslate"><span class="pre">nfft</span></code> is even, or at the
+greatest grid frequency at or below Nyquist when <code class="docutils literal notranslate"><span class="pre">nfft</span></code> is odd. No sample
+is above the Nyquist rate.</p>
+<p>To read the 1–70 Hz portion, index the returned frequencies. The selected
+columns are still density samples at those frequencies:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">channel_robust_amplitude</span><span class="p">,</span> <span class="n">compute_spectra</span><span class="p">,</span> <span class="n">line_noise_excess_db</span>
+
+<span class="n">spectra</span><span class="p">,</span> <span class="n">freqs</span><span class="p">,</span> <span class="n">_std</span> <span class="o">=</span> <span class="n">compute_spectra</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">],</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;pnts&quot;</span><span class="p">],</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;srate&quot;</span><span class="p">])</span>
+<span class="n">in_band</span> <span class="o">=</span> <span class="p">(</span><span class="n">freqs</span> <span class="o">&gt;=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">freqs</span> <span class="o">&lt;=</span> <span class="mf">70.0</span><span class="p">)</span>
+<span class="n">band_db</span> <span class="o">=</span> <span class="n">spectra</span><span class="p">[:,</span> <span class="n">in_band</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Epochs are averaged in linear density and converted to dB once. A 3-D array
+is <code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">samples,</span> <span class="pre">epochs)</span></code>. A 2-D array whose sample count is a
+multiple of <code class="docutils literal notranslate"><span class="pre">pnts</span></code> is unstacked in column-major order, so epoch <code class="docutils literal notranslate"><span class="pre">k</span></code>
+occupies samples <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">*</span> <span class="pre">pnts</span></code> through <code class="docutils literal notranslate"><span class="pre">(k</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">pnts</span></code>. dB values are not
+averaged across epochs.</p>
+<p><code class="docutils literal notranslate"><span class="pre">line_noise_excess_db</span></code> uses that default spectrum. For each requested
+frequency the excess is the line bin minus the arithmetic mean of
+<code class="docutils literal notranslate"><span class="pre">neighbours</span></code> bins on each side, with the line bin itself excluded. The mean
+is taken on the dB values. The default frequencies are 50 and 60 Hz and the
+default neighborhood is one bin on each side. The result has shape
+<code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">len(freqs))</span></code>. A frequency above <code class="docutils literal notranslate"><span class="pre">srate</span> <span class="pre">/</span> <span class="pre">2</span></code> raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. A frequency that misses every returned bin by more than
+1e-6 Hz also raises, as does a neighbor window that would leave the grid.
+A line on the
+Nyquist bin has no upper neighbor.</p>
+<p><code class="docutils literal notranslate"><span class="pre">channel_robust_amplitude</span></code> pools every sample of a channel, including every
+epoch, and returns <code class="docutils literal notranslate"><span class="pre">median(|x</span> <span class="pre">-</span> <span class="pre">median(x)|)</span> <span class="pre">/</span> <span class="pre">norm.ppf(0.75)</span></code>. The scale
+factor is approximately 1.4826, from
+<code class="docutils literal notranslate"><span class="pre">scipy.stats.median_abs_deviation(...,</span> <span class="pre">scale=&quot;normal&quot;)</span></code>, so the value
+estimates a normal standard deviation. Units are the units of <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;]</span></code>.
+A channel that contains a NaN has amplitude NaN. Neither helper modifies the
+dataset.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.angtimewarp.html#eegprep.angtimewarp" title="eegprep.angtimewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.angtimewarp</span></code></a>(ev_latency, new_latency, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.compute_spectra.html#eegprep.compute_spectra" title="eegprep.compute_spectra"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.compute_spectra</span></code></a>(data, frames, srate, *)</p></td>
+<td><p>Return Welch power-spectral-density spectra in dB, shaped <code class="docutils literal notranslate"><span class="pre">channels</span> <span class="pre">x</span> <span class="pre">frequencies</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.line_noise_excess_db.html#eegprep.line_noise_excess_db" title="eegprep.line_noise_excess_db"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.line_noise_excess_db</span></code></a>(eeg[, freqs, ...])</p></td>
+<td><p>Return excess log-density at line frequencies over neighboring bins, in dB.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.channel_robust_amplitude.html#eegprep.channel_robust_amplitude" title="eegprep.channel_robust_amplitude"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.channel_robust_amplitude</span></code></a>(eeg)</p></td>
+<td><p>Return a normal-scaled MAD amplitude for each channel.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.angtimewarp.html#eegprep.angtimewarp" title="eegprep.angtimewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.angtimewarp</span></code></a>(ev_latency, new_latency, ...)</p></td>
 <td><p>Warp an angular time series and wrap results to <code class="docutils literal notranslate"><span class="pre">(-pi,</span> <span class="pre">pi]</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.bootstat.html#eegprep.bootstat" title="eegprep.bootstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.bootstat</span></code></a>(args, statistic, *[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.bootstat.html#eegprep.bootstat" title="eegprep.bootstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.bootstat</span></code></a>(args, statistic, *[, ...])</p></td>
 <td><p>Accumulate surrogate statistics and return EEGLAB-style thresholds.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.crossf.html#eegprep.crossf" title="eegprep.crossf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.crossf</span></code></a>(x, y, frames, tlimits, srate)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.crossf.html#eegprep.crossf" title="eegprep.crossf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.crossf</span></code></a>(x, y, frames, tlimits, srate)</p></td>
 <td><p>Compute legacy <code class="docutils literal notranslate"><span class="pre">crossf</span></code> outputs using EEGPrep's <code class="docutils literal notranslate"><span class="pre">newcrossf</span></code> core.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.newcrossf.html#eegprep.newcrossf" title="eegprep.newcrossf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newcrossf</span></code></a>(x, y, frames, tlimits, srate)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newcrossf.html#eegprep.newcrossf" title="eegprep.newcrossf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newcrossf</span></code></a>(x, y, frames, tlimits, srate)</p></td>
 <td><p>Compute an EEGLAB-like event-related coherence decomposition.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newtimef.html#eegprep.newtimef" title="eegprep.newtimef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimef</span></code></a>(data, frames, tlimits, srate)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.newtimef.html#eegprep.newtimef" title="eegprep.newtimef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimef</span></code></a>(data, frames, tlimits, srate)</p></td>
 <td><p>Compute an EEGLAB-like ERSP/ITC time-frequency decomposition.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.newtimefbaseln.html#eegprep.newtimefbaseln" title="eegprep.newtimefbaseln"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimefbaseln</span></code></a>(power, timesout, *[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newtimefbaseln.html#eegprep.newtimefbaseln" title="eegprep.newtimefbaseln"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimefbaseln</span></code></a>(power, timesout, *[, ...])</p></td>
 <td><p>Apply EEGLAB average baseline correction to absolute power.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newtimefitc.html#eegprep.newtimefitc" title="eegprep.newtimefitc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimefitc</span></code></a>(tfdecomp[, itctype])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.newtimefitc.html#eegprep.newtimefitc" title="eegprep.newtimefitc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimefitc</span></code></a>(tfdecomp[, itctype])</p></td>
 <td><p>Compute EEGLAB-style inter-trial coherence.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.newtimefpowerunit.html#eegprep.newtimefpowerunit" title="eegprep.newtimefpowerunit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimefpowerunit</span></code></a>([params])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newtimefpowerunit.html#eegprep.newtimefpowerunit" title="eegprep.newtimefpowerunit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimefpowerunit</span></code></a>([params])</p></td>
 <td><p>Return the display unit implied by <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> baseline settings.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html#eegprep.newtimeftrialbaseln" title="eegprep.newtimeftrialbaseln"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimeftrialbaseln</span></code></a>(power, timesout, *)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html#eegprep.newtimeftrialbaseln" title="eegprep.newtimeftrialbaseln"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimeftrialbaseln</span></code></a>(power, timesout, *)</p></td>
 <td><p>Apply trial-level divisive or standardized baseline correction.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.make_timewarp.html#eegprep.make_timewarp" title="eegprep.make_timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.make_timewarp</span></code></a>(eeg, event_sequence, *args)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.make_timewarp.html#eegprep.make_timewarp" title="eegprep.make_timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.make_timewarp</span></code></a>(eeg, event_sequence, *args)</p></td>
 <td><p>Select epochs containing an ordered event sequence.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pac.html#eegprep.pac" title="eegprep.pac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac</span></code></a>(X, Y, srate, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pac.html#eegprep.pac" title="eegprep.pac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac</span></code></a>(X, Y, srate, **kwargs)</p></td>
 <td><p>Compute phase-amplitude coupling from epoched signals.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pac_cont.html#eegprep.pac_cont" title="eegprep.pac_cont"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac_cont</span></code></a>(X, Y, srate, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pac_cont.html#eegprep.pac_cont" title="eegprep.pac_cont"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac_cont</span></code></a>(X, Y, srate, **kwargs)</p></td>
 <td><p>Compute sliding-window phase-amplitude coupling from continuous data.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html#eegprep.tf_cycle_calc" title="eegprep.tf_cycle_calc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.tf_cycle_calc</span></code></a>([freqs, width, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html#eegprep.tf_cycle_calc" title="eegprep.tf_cycle_calc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.tf_cycle_calc</span></code></a>([freqs, width, ...])</p></td>
 <td><p>Calculate Morlet wavelet cycles from temporal or spectral width.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.timef.html#eegprep.timef" title="eegprep.timef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timef</span></code></a>(data, frames, tlimits, srate)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.timef.html#eegprep.timef" title="eegprep.timef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timef</span></code></a>(data, frames, tlimits, srate)</p></td>
 <td><p>Compute legacy <code class="docutils literal notranslate"><span class="pre">timef</span></code> outputs using EEGPrep's <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> core.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.timefreq.html#eegprep.timefreq" title="eegprep.timefreq"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timefreq</span></code></a>(data, srate, *[, frames, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.timefreq.html#eegprep.timefreq" title="eegprep.timefreq"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timefreq</span></code></a>(data, srate, *[, frames, ...])</p></td>
 <td><p>Return EEGLAB-like spectral estimates for each trial.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.timewarp.html#eegprep.timewarp" title="eegprep.timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timewarp</span></code></a>(ev_latency, new_latency)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.timewarp.html#eegprep.timewarp" title="eegprep.timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timewarp</span></code></a>(ev_latency, new_latency)</p></td>
 <td><p>Return the linear interpolation matrix that warps event latencies.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+</section>
 </section>
 
 
@@ -632,11 +694,11 @@ standard-deviation rejection.</p>
       </div>
     </a>
     <a class="right-next"
-       href="generated/eegprep.angtimewarp.html"
+       href="generated/eegprep.compute_spectra.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">angtimewarp</p>
+        <p class="prev-next-title">compute_spectra</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -646,6 +708,24 @@ standard-deviation rejection.</p>
             </div>
             
             
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spectrum-summaries">Spectrum summaries</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>

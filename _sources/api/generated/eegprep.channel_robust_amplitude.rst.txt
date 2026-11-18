@@ -1,0 +1,6 @@
+﻿channel\_robust\_amplitude
+==========================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: channel_robust_amplitude

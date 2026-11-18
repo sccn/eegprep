@@ -550,7 +550,9 @@ event rasters, artifact review plots, and replayable scalp movies. Movie frames
 are returned as <code class="docutils literal notranslate"><span class="pre">uint8</span></code> RGB arrays so they can be inspected in notebooks,
 tested headlessly, encoded by downstream tools, or replayed with <code class="docutils literal notranslate"><span class="pre">seemovie</span></code>.
 The <code class="docutils literal notranslate"><span class="pre">movieframes</span></code> argument follows EEGLAB’s 1-based public indexing
-convention.</p>
+convention. <code class="docutils literal notranslate"><span class="pre">spectopo</span></code> draws the spectra from <code class="docutils literal notranslate"><span class="pre">compute_spectra</span></code>. The same
+estimator, line-noise excess, and robust channel amplitude are available
+without a figure; see <a class="reference internal" href="time_frequency.html#spectrum-summaries"><span class="std std-ref">Spectrum summaries</span></a>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">savefig</span></code> writes a Matplotlib figure to a MATLAB <code class="docutils literal notranslate"><span class="pre">.fig</span></code> file that
 <code class="docutils literal notranslate"><span class="pre">openfig</span></code> can open. The file stores the figure, its axes, and the lines,
 images, and text on those axes, including data, limits, colors, scales, and

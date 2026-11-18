@@ -635,6 +635,17 @@ channels. A one-channel reference shorter than one RMS window raises
 calibration skips a zero fit width, including a reference that leaves
 three RMS windows
 (#576, #577, #578, #581, #582, #583, #584).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compute_spectra</span></code> is exported from the package root and can be imported
+without Matplotlib. It returns Welch density in dB on the FFT grid, with
+1 Hz spacing when the sampling rate is an integer and the record is at
+least one second. That is a density sample at each grid frequency, not
+power integrated over a band. Epochs are averaged in linear power before
+the dB conversion. <code class="docutils literal notranslate"><span class="pre">line_noise_excess_db</span></code> subtracts the mean of the
+neighboring dB bins, and <code class="docutils literal notranslate"><span class="pre">channel_robust_amplitude</span></code> is a normal-scaled
+MAD (about 1.4826 times the raw MAD) in the units of the data. A requested
+line above Nyquist raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. <code class="docutils literal notranslate"><span class="pre">spectopo</span></code> numeric output is
+unchanged. Importing <code class="docutils literal notranslate"><span class="pre">eegprep.functions.sigprocfunc</span></code> no longer loads
+Matplotlib; its plotting helpers load on first use (#536).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> turns a missing or empty <code class="docutils literal notranslate"><span class="pre">etc</span></code> into <code class="docutils literal notranslate"><span class="pre">{}</span></code> and leaves
 <code class="docutils literal notranslate"><span class="pre">eeglabvers</span></code> unset. A <code class="docutils literal notranslate"><span class="pre">.set</span></code> file written with an empty <code class="docutils literal notranslate"><span class="pre">etc</span></code> reloads
 as a dictionary, so <code class="docutils literal notranslate"><span class="pre">clean_flatlines</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_drifts</span></code>, and
