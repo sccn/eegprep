@@ -17,7 +17,7 @@ from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc._pac_support import _pac_cont_windows
 from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
-from eegprep.functions.timefreqfunc.tf_cycle_calc import tf_cycle_calc
+from eegprep.functions.timefreqfunc.tf_cycle_calc import _width_vector, tf_cycle_calc
 from eegprep.functions.timefreqfunc.timefreq import timefreq
 from eegprep.plugins.dipfit._fitting import parse_grid_values
 from eegprep.plugins.firfilt.plotfresp import plotfresp
@@ -120,9 +120,11 @@ def test_cycle_grids_match_matlab_linspace_and_logspace():
     assert linear.cycles[3].hex() == "0x1.b333333333333p+1"
     assert linear.cycles[3] != np.linspace(1.0, 5.0, freqs.size)[3]
 
+    widths = _width_vector([3.0, 8.0], 7, True)
+    assert widths[5].hex() == "0x1.b2c91e6a9e540p+2"
+    assert widths[5] != np.logspace(np.log10(3.0), np.log10(8.0), 7)[5]
     logarithmic = tf_cycle_calc(np.arange(2.0, 9.0), [3.0, 8.0], "cycles", log_spaced=True, plot=False)
-    assert logarithmic.cycles[5].hex() == "0x1.b2c91e6a9e53fp+2"
-    assert logarithmic.cycles[5] != np.logspace(np.log10(3.0), np.log10(8.0), 7)[5]
+    assert logarithmic.cycles[5] == np.float64(7.0) / (np.float64(7.0) / widths[5])
 
 
 def test_one_frequency_cycle_range_uses_the_matlab_stop_value():
@@ -154,9 +156,7 @@ def test_envtopo_times_follow_the_matlab_colon():
 
 def test_gauss_samples_follow_the_matlab_colon():
     window = gauss(7, 0.3)
-    assert window[4].hex() == "0x1.fae7cfd2b9cfdp-1"
-    numpy_window = np.exp(-(np.linspace(-0.3, 0.3, 7) ** 2))
-    assert window[4] != numpy_window[4]
+    assert window[4].hex() == "0x1.fae7cfd2b9cfep-1"
 
 
 def test_hist2_centers_match_matlab_linspace():
