@@ -332,7 +332,8 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        channels (48 NaNs), so the masks differ at 44 samples. The flat
        channel does not create that gap. ``test_pop_reref_keeps_a_nan_on_its_channel``
        and ``test_pop_reref_keepref_on_keeps_a_four_sample_nan_on_its_channel``
-       lock the EEGPrep result.
+       lock the EEGPrep result. The nightly comparison already treats this
+       matrix spread as a match when the finite samples agree.
    * - Float32 average reference
      - ``pop_reref`` and ``reref`` sum the reference in float64 and cast once
        back to float32. EEGLAB multiplies a single-precision reference matrix.

@@ -940,13 +940,15 @@ EEGPrep's subtraction keeps that NaN on its channel. A 12 by 36 crop at
 64 Hz that keeps both reference channels, with one channel flat and a
 4-sample NaN on a different non-reference channel, is that match: 4 NaNs
 against 48, a 44-sample mask gap. The flat channel does not create it.
+``test_keepref_on_two_reference_nan_spread_is_not_filed`` locks that draw.
+Finite samples still have to match the subtraction and the matrix product.
 The next pipeline step then starts from that subtraction, so later steps
 are not compared on the NaN-filled matrix product. ``eeg_eegrej`` with a
 stored ``trials`` of 0 is a match when the data agree and MATLAB's events
 are exactly the Python events whose latency is at most 1. A missing
-``trials`` value does not count. The next pipeline step then starts from the Python EEG. An
-edge draw sets that stored 0 on about half of the non-user ``eeg_eegrej``
-cases. ``pop_select`` with ``sorttrial='off'`` and a repeated trial is a
+``trials`` value does not count. The next pipeline step then starts from
+the Python EEG. An edge draw sets that stored 0 on about half of the
+non-user ``eeg_eegrej`` cases. ``pop_select`` with ``sorttrial='off'`` and a repeated trial is a
 match when EEGPrep kept the first copy and EEGLAB's ``unique_bc`` kept the
 last (``pop_select.m`` lines 282-286); the next step starts from the
 first-copy dataset. An epoched ``pop_select`` ``notime`` that misses both

@@ -285,6 +285,62 @@ def test_explicit_reref_numeric_error_still_diverges_when_nans_match():
     assert outcome.diverged is True
 
 
+def _kept_reference_matrix(data: np.ndarray, refs: tuple[int, ...]) -> np.ndarray:
+    refmatrix = np.eye(data.shape[0])
+    refmatrix[:, list(refs)] -= 1.0 / len(refs)
+    with np.errstate(invalid="ignore"):
+        return refmatrix @ np.asarray(data, dtype=np.float64)
+
+
+def test_keepref_on_two_reference_nan_spread_is_not_filed():
+    """Issue #645 is the same refmatrix NaN spread, with both references kept."""
+    case = FuzzCase(
+        "pop_reref",
+        EEGSpec(
+            channels=tuple(range(10, 22)),
+            start=20295,
+            length=36,
+            decimate=2,
+            nan_channel=6,
+            nan_start=28,
+            nan_length=4,
+            flat_channel=8,
+        ),
+        freeze_params({"exclude": (), "keepref": "on", "ref": (0, 5)}),
+    )
+    eeg = materialize_eeg(case)
+    data = np.asarray(eeg["data"], dtype=np.float64)
+    assert data.shape == (12, 36)
+    assert float(eeg["srate"]) == 64.0
+    assert np.all(data[8] == 0.0)
+    python_data = np.asarray(dispatch_python(case, eeg)["data"])
+    matrix = _kept_reference_matrix(data, (0, 5))
+    diverged, error_class, count, rel, _detail = compare_data(python_data, matrix, 64.0, 64.0, Tolerance(1e-6, 1e-6))
+    assert diverged is True
+    assert error_class == "nan-mask"
+    assert count == 44.0
+    assert rel == 0.0
+
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        PythonBackend(),
+        _Backend(lambda _case, dataset: _kept_reference_matrix(dataset["data"], (0, 5))),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+
+    def shifted(_case, dataset):
+        out = _kept_reference_matrix(dataset["data"], (0, 5))
+        out = np.array(out, copy=True)
+        out[1, 0] += 1.0
+        return out
+
+    filed = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(shifted), load_tolerances())
+    assert filed.diverged is True
+
+
 def _asr_case(*, length: int, start: int) -> FuzzCase:
     return FuzzCase(
         "clean_asr",
