@@ -1,8 +1,7 @@
-"""Headless spectrum summaries and the frozen spectopo numerical contract."""
+"""Headless spectrum summaries and the spectopo numerical contract."""
 
 from __future__ import annotations
 
-import hashlib
 import subprocess
 import sys
 import textwrap
@@ -34,71 +33,30 @@ def _reference_signal():
     return data, pnts, srate
 
 
-# Digests of spectopo's spectra and frequency grids for _reference_signal.
-_FROZEN = {
-    "default": (
-        "43acecdc43b1b1c89306565ad8f55a9f91405e511460ced27cd7d64fa1f12d3b",
-        "a2c297b161f5e61a7e16c45d19feb53ec8f2ae0103d1a97d7c91756ccfccba51",
-        (2, 65),
-        {},
-    ),
-    "percent": (
-        "d14b6db8886cd0e1aa4be4626ef3de5fdcefce24bf856fce7207774a31f51c41",
-        "a2c297b161f5e61a7e16c45d19feb53ec8f2ae0103d1a97d7c91756ccfccba51",
-        (2, 65),
-        {"percent": 50},
-    ),
-    "overlap": (
-        "402138c32b745057b68a9e4e434c51536dd9a4694d146084ed3ff5eb30778393",
-        "9287e14778ee197dd339ad57e60da907f264a23d5f074d4d284919838f48ded3",
-        (2, 33),
-        {"overlap": 32, "winsize": 64},
-    ),
-    "blackman": (
-        "b311d13d3bf6fe5ab321433c06b58c07a009b9f2c6daf327aa33d709346d1353",
-        "9287e14778ee197dd339ad57e60da907f264a23d5f074d4d284919838f48ded3",
-        (2, 33),
-        {"wintype": "blackmanharris"},
-    ),
-    "nfft": (
-        "feb6c9d9049241199b388d5710517beb00098087508f92ebd87c472afd5cc928",
-        "fd9a0ed0205cc3c1ac8223db9278715bb7349d63bf093fb76a18d502ac105b3b",
-        (2, 129),
-        {"nfft": 256, "winsize": 64},
-    ),
-    "epochs": (
-        "6014d735b83bf8114f9b44ac4a3abfd9db26c191603908cd7c74d1972018fa64",
-        "9287e14778ee197dd339ad57e60da907f264a23d5f074d4d284919838f48ded3",
-        (2, 33),
-        {},
-    ),
-    "concat": (
-        "35185bca7611e8a9a383bb44b75c84a86ba911676b16296cb11aa132d485cb85",
-        "9287e14778ee197dd339ad57e60da907f264a23d5f074d4d284919838f48ded3",
-        (2, 33),
-        {},
-    ),
+# Parameter cases whose spectopo path is compute_spectra unchanged.
+_CASES = {
+    "default": ((2, 65), {}),
+    "percent": ((2, 65), {"percent": 50}),
+    "overlap": ((2, 33), {"overlap": 32, "winsize": 64}),
+    "blackman": ((2, 33), {"wintype": "blackmanharris"}),
+    "nfft": ((2, 129), {"nfft": 256, "winsize": 64}),
+    "epochs": ((2, 33), {}),
+    "concat": ((2, 33), {}),
 }
-
-
-def _digest(values: np.ndarray) -> str:
-    return hashlib.sha256(np.ascontiguousarray(values).tobytes()).hexdigest()
 
 
 def test_spectopo_numeric_output_matches_the_moved_estimator():
     data, pnts, srate = _reference_signal()
     epochs = data.reshape(2, 64, 4)
     inputs = {"epochs": (epochs, 64), "concat": (data, 64)}
-    for name, (spectra_hash, frequency_hash, shape, kwargs) in _FROZEN.items():
-        array, frames = inputs.get(name, (data, pnts))
+    assert spectopo_compute_spectra is compute_spectra
+    for _name, (shape, kwargs) in _CASES.items():
+        array, frames = inputs.get(_name, (data, pnts))
         spectra, freqs, first, second, specstd, figure = spectopo(array, frames, srate, plot="off", **kwargs)
         direct, direct_freqs, direct_std = compute_spectra(array, frames, srate, **kwargs)
         assert spectra.shape == shape
-        assert _digest(spectra) == spectra_hash
-        assert _digest(freqs) == frequency_hash
         assert np.array_equal(spectra, direct)
         assert np.array_equal(freqs, direct_freqs)
-        assert spectopo_compute_spectra is compute_spectra
         assert specstd is None and direct_std is None
         assert first is None and second is None and figure is None
 

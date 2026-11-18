@@ -10,6 +10,7 @@ import copy
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 import hashlib
+import importlib
 import json
 import logging
 import math
@@ -58,6 +59,29 @@ _ORIGINAL_FUNCTIONS = (
     "pop_resample",
     "clean_asr",
     "pop_clean_rawdata",
+)
+
+# Hypothesis mixes integer literals from local modules that are already imported
+# into st.integers draws. The sigprocfunc package used to import these on load.
+_SIGPROC_CONSTANT_MODULES = (
+    "eegprep.functions.sigprocfunc.cbar",
+    "eegprep.functions.sigprocfunc.celltomat",
+    "eegprep.functions.sigprocfunc.copyaxis",
+    "eegprep.functions.sigprocfunc.eyelike",
+    "eegprep.functions.sigprocfunc.fastif",
+    "eegprep.functions.sigprocfunc.forcelocs",
+    "eegprep.functions.sigprocfunc.headplot",
+    "eegprep.functions.sigprocfunc.matsel",
+    "eegprep.functions.sigprocfunc.mattocell",
+    "eegprep.functions.sigprocfunc.nan_mean",
+    "eegprep.functions.sigprocfunc.openbdf",
+    "eegprep.functions.sigprocfunc.plotcurve",
+    "eegprep.functions.sigprocfunc.quantile",
+    "eegprep.functions.sigprocfunc.readbdf",
+    "eegprep.functions.sigprocfunc.sbplot",
+    "eegprep.functions.sigprocfunc.shuffle",
+    "eegprep.functions.sigprocfunc.slider",
+    "eegprep.functions.sigprocfunc.writegdf",
 )
 
 logger = logging.getLogger(__name__)
@@ -1280,6 +1304,9 @@ def build_strategies(info: SeedInfo) -> dict:
     # Hypothesis unions literals from local modules already imported at draw time.
     # Loading the event targets first makes that set independent of import order.
     import tests.fuzz.targets  # noqa: F401
+
+    for module_name in _SIGPROC_CONSTANT_MODULES:
+        importlib.import_module(module_name)
 
     @st.composite
     def eegfiltnew(draw):
