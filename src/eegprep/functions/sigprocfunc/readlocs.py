@@ -10,6 +10,7 @@ import numpy as np
 import scipy.io
 from scipy.io.matlab import mat_struct
 
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
 from eegprep.functions.miscfunc.value_parsing import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
@@ -194,8 +195,18 @@ def _read_locs(source: Any, options: dict[str, Any]) -> list[dict[str, Any]]:
     return locs
 
 
+def _format_fields(format_option: Any) -> Any:
+    if is_cell(format_option):
+        return cell_items(format_option)
+    if isinstance(format_option, np.ndarray):
+        if format_option.size == 0:
+            return None
+        return [str(item) for item in format_option.reshape(-1)]
+    return format_option
+
+
 def _read_text_locations(path: Path, filetype: str, options: dict[str, Any]) -> list[dict[str, Any]]:
-    format_option = options.get("format")
+    format_option = _format_fields(options.get("format"))
     if format_option:
         fields = tuple(str(item) for item in format_option)
         skipline = int(options.get("skiplines") or 0)
@@ -326,7 +337,7 @@ def _read_text_rows(path: Path, skipline: int) -> list[list[str]]:
 
 
 def _resolve_filetype(path: Path, options: dict[str, Any]) -> str:
-    if options.get("format"):
+    if _format_fields(options.get("format")):
         return "custom"
     requested = str(options.get("filetype") or "").strip().lower()
     if requested and requested != "autodetect":

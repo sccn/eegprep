@@ -45,6 +45,12 @@ def epoch(data, events, lim, **kwargs):
     g = {}
     g['srate'] = kwargs.get('srate', 1)
     g['valuelim'] = kwargs.get('valuelim', [-np.inf, np.inf])
+    if isinstance(lim, np.ndarray):
+        lim = np.asarray(lim, dtype=float).reshape(-1)
+    if isinstance(g['valuelim'], np.ndarray):
+        g['valuelim'] = np.asarray(g['valuelim'], dtype=float).reshape(-1)
+    if isinstance(events, np.ndarray):
+        events = np.asarray(events, dtype=float).reshape(-1)
     g['verbose'] = kwargs.get('verbose', 'on')
     g['allevents'] = _as_1d(kwargs.get('allevents', []))
     g['alleventrange'] = np.asarray(kwargs.get('alleventrange', lim), dtype=float)

@@ -9,6 +9,7 @@ import warnings
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec, field_text
 from eegprep.functions.popfunc._event_utils import (
@@ -37,6 +38,8 @@ def pop_selectevent(
     **kwargs: Any,
 ):
     """Select, rename, or delete events using EEGLAB ``pop_selectevent`` semantics."""
+    if isinstance(EEG, np.ndarray) and EEG.dtype.names:
+        EEG = as_dataset_list(EEG)
     options = parse_key_value_args(args, kwargs)
     if gui is None:
         gui = not bool(options)

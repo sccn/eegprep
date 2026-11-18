@@ -13,6 +13,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.miscfunc.linspace import linspace
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
@@ -292,7 +293,14 @@ def _processing_options(EEG: dict[str, Any], events: list[dict[str, Any]], optio
 def _normalise_types(types: Any) -> Any:
     if types is None:
         return []
+    if is_cell(types):
+        items = cell_items(types)
+        if len(items) == 1 and isinstance(items[0], str):
+            return items[0]
+        return items
     if isinstance(types, np.ndarray):
+        if types.size == 0:
+            return []
         types = types.tolist()
     if isinstance(types, bytes):
         return types.decode("utf-8")

@@ -17,68 +17,55 @@ def _gap(reason: str, raises: type[BaseException] | tuple[type[BaseException], .
     return ExpectedFailure(f"{reason} (#430)", raises)
 
 
-def _boundary(raises: type[BaseException] | tuple[type[BaseException], ...]) -> ExpectedFailure:
-    return ExpectedFailure(BOUNDARY, raises)
-
-
 STRUCT = "MATLAB struct and cell inputs arrive as lists, object arrays, or structured arrays"
 SHAPE = "the result shape does not follow the MATLAB row, column, or empty-array contract"
 INDEX = "an EEGLAB index or dimension is 1-based"
 NAMEVALUE = "MATLAB name/value arguments are not accepted"
 OUTPUTS = "the function does not return the MATLAB output count"
-TRUTH = "a MATLAB array is used as a logical condition"
 STUDY = "the sample STUDY fixture is not valid UTF-8"
 VALUES = "numeric or text values do not match the MATLAB result"
-EVENT_EDIT = "an event-field edit is passed as a MATLAB cell rather than an index, field, and value"
 RMART = (
     "rmart.m:94 returns when rem(length(data), nchans) == 0, inverting the "
     "divisibility test, so the documented regression never runs; EEGPrep keeps "
     "the reachable correction. This is a permanent EEGLAB difference"
 )
-BOUNDARY = "boundary converter (#430 PR-A)"
 
 PYTHON_BACKEND_XFAILS = {
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_clear": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_explicit_pairs": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_fiducials": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_invalid_fiducials": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_labels": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_none": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_pair": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_unpair": _gap(STRUCT, AttributeError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_chaninds_uses_original_epoched_recording": _gap(
-        STRUCT, ValueError
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_clear": _gap(OUTPUTS, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_explicit_pairs": _gap(SHAPE, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_fiducials": _gap(SHAPE, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_invalid_fiducials": _gap(SHAPE, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_labels": _gap(SHAPE, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_none": _gap(SHAPE, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_pair": _gap(SHAPE, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_unpair": _gap(SHAPE, AssertionError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_no_match": _gap(SHAPE, AttributeError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_latency": _gap(SHAPE, AssertionError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_time_window": _gap(
+        SHAPE, AssertionError
     ),
-    "tests/test_core_event_eeglab_tests.py::test_reference_eventtypes_preserves_inverted_source_condition": _gap(
-        STRUCT, ValueError
-    ),
-    "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_no_match": _gap(STRUCT, AttributeError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_latency": _gap(STRUCT, ValueError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_time_window": _gap(STRUCT, ValueError),
     "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_duration_old_and_new_calls": _gap(
-        STRUCT, ValueError
+        SHAPE, AssertionError
     ),
     "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_four_argument_window": _gap(
-        STRUCT, ValueError
+        SHAPE, AssertionError
     ),
-    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_without_epoch_field": _gap(STRUCT, ValueError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_insertbound_original_epoched_events": _gap(
-        STRUCT, ValueError
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_without_epoch_field": _gap(
+        SHAPE, AssertionError
     ),
     "tests/test_core_event_eeglab_tests.py::test_reference_matchchans_original_complete_locations": _gap(
-        STRUCT, TypeError
+        SHAPE, AssertionError
     ),
-    "tests/test_core_event_eeglab_tests.py::test_reference_mergechan_uses_original_montages": _gap(STRUCT, TypeError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_mergelocs_uses_original_montages": _gap(STRUCT, TypeError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_urlatency_boundary_durations": _gap(STRUCT, ValueError),
-    "tests/test_eeg_decodechan.py::test_reference_decodechan_original_channel_names": _gap(STRUCT, ValueError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_mergechan_uses_original_montages": _gap(SHAPE, TypeError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_mergelocs_uses_original_montages": _gap(SHAPE, TypeError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_urlatency_boundary_durations": _gap(SHAPE, AssertionError),
     "tests/test_eeg_interp.py::test_reference_interp_original_methods_and_shuffled_montage": _gap(STRUCT, TypeError),
     "tests/test_eeg_options.py::test_reference_eeg_readoptions_backup": _gap(STRUCT, ValueError),
-    "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_multiple_case": _gap(STRUCT, TypeError),
-    "tests/test_eeg_store.py::test_reference_eeg_store_original_general_case": _gap(STRUCT, TypeError),
-    "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_case": _gap(STRUCT, TypeError),
-    "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_new_case": _gap(STRUCT, TypeError),
-    "tests/test_eeg_store.py::test_reference_eeg_store_original_new_case": _gap(STRUCT, TypeError),
+    "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_multiple_case": _gap(SHAPE, TypeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_general_case": _gap(SHAPE, TypeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_case": _gap(SHAPE, TypeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_new_case": _gap(SHAPE, AttributeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_new_case": _gap(SHAPE, TypeError),
     "tests/test_eegh.py::test_reference_eegh_add_multiple_history": _gap(STRUCT, TypeError),
     "tests/test_eegh.py::test_reference_eegh_add_multiple_history_default_empty": _gap(STRUCT, TypeError),
     "tests/test_finputcheck.py::test_reference_finputcheck_original_regression_fixture": _gap(STRUCT, TypeError),
@@ -87,42 +74,27 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_readneurodat_original_file": _gap(STRUCT, TypeError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_all_fields": _gap(STRUCT, AssertionError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_partial_fields": _gap(STRUCT, AssertionError),
-    "tests/test_misc_data_event_eeglab_tests.py::test_reference_unique_cell_string_original_mixed_cells": _gap(
-        STRUCT, AttributeError
-    ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_dataset_array": _gap(
-        STRUCT, AttributeError
+        SHAPE, AttributeError
     ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_delete_unselected_events": _gap(
-        STRUCT, AttributeError
-    ),
-    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_allowed": _gap(
-        STRUCT, AttributeError
-    ),
-    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_error": _gap(
-        STRUCT, AttributeError
-    ),
-    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_explicit_error_nonempty_selection": _gap(
-        STRUCT, AttributeError
+        SHAPE, IndexError
     ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_inverse_epochs": _gap(
-        STRUCT, AttributeError
-    ),
-    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_keep_epochs_delete_events": _gap(
-        STRUCT, AttributeError
+        SHAPE, AssertionError
     ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_retains_matching_epochs": _gap(
-        STRUCT, AttributeError
+        SHAPE, AssertionError
     ),
-    "tests/test_phase2_file_channel_location.py::test_reference_convertlocs_cart2all": _gap(STRUCT, AttributeError),
+    "tests/test_phase2_file_channel_location.py::test_reference_convertlocs_cart2all": _gap(SHAPE, AssertionError),
     "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_nine_recorded_location_calls": _gap(
         STRUCT, TypeError
     ),
     "tests/test_phase2_file_channel_location.py::test_reference_readeetraklocs_original_file": _gap(
-        STRUCT, AttributeError
+        SHAPE, AttributeError
     ),
     "tests/test_phase2_file_channel_location.py::test_reference_readegilocs_all_original_channel_counts": _gap(
-        STRUCT, AttributeError
+        SHAPE, AttributeError
     ),
     "tests/test_pop_interp.py::test_reference_pop_interp_original_locations_and_recording": _gap(STRUCT, TypeError),
     "tests/test_pop_reref.py::test_reference_pop_reref_original_bugzilla_270_input": _gap(STRUCT, TypeError),
@@ -138,12 +110,12 @@ PYTHON_BACKEND_XFAILS = {
         STRUCT, TypeError
     ),
     "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_newset_original_eight_datasets_and_saved_files": _gap(
-        STRUCT, AttributeError
+        SHAPE, AttributeError
     ),
     "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_selectevent_original_overlapping_epoch_workflow": _gap(
         STRUCT, AttributeError
     ),
-    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_mattocell": _gap(STRUCT, AttributeError),
+    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_mattocell": _gap(SHAPE, AttributeError),
     "tests/test_bdf_records_eeglab_tests.py::test_upstream_readbdf_original_record_selection": _gap(
         SHAPE, AssertionError
     ),
@@ -206,7 +178,7 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_default_time_unit": _gap(INDEX, IndexError),
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_general_case": _gap(INDEX, IndexError),
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_single_epoch_broadcast": _gap(INDEX, IndexError),
-    "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case": _gap(INDEX, IndexError),
+    "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case": _gap(SHAPE, AssertionError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart": _gap(RMART, ValueError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_gauss": _gap(INDEX, IndexError),
     "tests/test_pop_adjustevents.py::test_reference_adjustevents_continuous": _gap(INDEX, IndexError),
@@ -272,29 +244,10 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_pop_rmbase.py::test_reference_rmbase": _gap(OUTPUTS, AssertionError),
     "tests/test_rejection_workflows.py::test_reference_pop_rejchan": _gap(OUTPUTS, AssertionError),
     "tests/test_rejection_workflows.py::test_reference_pop_rejtrend": _gap(OUTPUTS, AssertionError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_original_39_calls": _gap(TRUTH, ValueError),
-    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_filtering": _gap(TRUTH, ValueError),
-    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_final_rejection": _gap(TRUTH, ValueError),
-    "tests/test_eegh.py::test_reference_eegh_empty_command": _gap(TRUTH, ValueError),
-    "tests/test_misc_data_event_eeglab_tests.py::test_reference_shortread_original_two_million_samples": _gap(
-        TRUTH, ValueError
-    ),
-    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_copyset_recorded_dataset_calls": _gap(
-        TRUTH, ValueError
-    ),
-    "tests/test_phase2_file_channel_location.py::test_reference_floatread_offset": _gap(TRUTH, ValueError),
-    "tests/test_phase2_file_channel_location.py::test_reference_readlocs_bugzilla_339": _gap(TRUTH, ValueError),
     "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_importevent_original_text_file": _gap(
         "importevent returns a list of event dicts rather than a MATLAB struct array",
         AttributeError,
     ),
-    "tests/test_sample_data_pop_functions.py::test_reference_saveh_original_global_and_recording_history": _gap(
-        TRUTH, ValueError
-    ),
-    "tests/test_sample_data_pop_functions.py::test_reference_select_original_time_trials_and_channel": _gap(
-        TRUTH, ValueError
-    ),
-    "tests/test_vararg2str.py::test_reference_vararg2str_all_eight_original_calls": _gap(TRUTH, ValueError),
     "tests/test_study_params_eeglab_tests.py::test_reference_pop_dipparams[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),
@@ -322,22 +275,7 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),
-    "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _boundary(AssertionError),
-    "tests/test_getkeyval.py::test_reference_getkeyval_original_string_cases": _boundary(AssertionError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch]": _boundary(ValueError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch_after_rejection]": (
-        _boundary(ValueError)
-    ),
-    "tests/test_pop_epoch.py::test_reference_pop_epoch_original_square_event_workflow": _boundary(ValueError),
-    "tests/test_legacy_signal_io_eeglab_tests.py::test_reference_blockave": _boundary(ValueError),
-    "tests/test_getkeyval.py::test_reference_getkeyval_original_evaluated_matrix": _boundary(SyntaxError),
-    "tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording": _gap(
-        EVENT_EDIT, ValueError
-    ),
-    "tests/test_runica.py::test_reference_runica_pca": ExpectedFailure(
-        "boundary converter (#430 PR-A)",
-        TypeError,
-    ),
+    "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(SHAPE, AssertionError),
 }
 
 PYTHON_BACKEND_SUBTEST_XFAILS = {
@@ -356,7 +294,7 @@ PYTHON_BACKEND_SUBTEST_XFAILS = {
         "(case='allevents')": _gap(NAMEVALUE, ValueError),
     },
     "tests/test_sigprocfunc_plotting_eeglab_tests.py::test_reference_forcelocs_complete_original_coordinates": {
-        "(source='x')": _gap(STRUCT, AttributeError),
-        "(source='y')": _gap(STRUCT, AttributeError),
+        "(source='x')": _gap(SHAPE, AssertionError),
+        "(source='y')": _gap(SHAPE, AssertionError),
     },
 }

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from eegprep.functions.adminfunc.eeg_hist import eeg_hist
+from eegprep.functions.miscfunc.matlab_inputs import scalar_index
 
 
 def eegh(
@@ -25,6 +28,7 @@ def eegh(
         command on its own line and leaves commands that contain ``pop_loadset``
         unrecorded.
     """
+    command = _coerce_command(command)
     if isinstance(command, str) and command.strip().lower() == "find":
         return _find_history(history if _is_command_history(history) else [], None)
     if command is None:
@@ -45,6 +49,15 @@ def eegh(
         _append_eeg_history(history, normalized)
         return history
     return normalized
+
+
+def _coerce_command(command: Any) -> Any:
+    if isinstance(command, np.ndarray) and command.size == 0:
+        return None
+    index = scalar_index(command)
+    if index is not None and isinstance(command, np.ndarray):
+        return index
+    return command
 
 
 def eegh_find(history: list[str], text: str) -> str:

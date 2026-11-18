@@ -5,7 +5,10 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
+
 from eegprep.functions.adminfunc.storage import dataset_with_loaded_data, offload_storedisk_datasets
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, matlab_ints
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -16,9 +19,11 @@ def eeg_retrieve(
     """Return dataset(s) from ``ALLEEG`` using EEGLAB-facing 1-based indices.
 
     Scalar index ``0`` returns an empty EEG dataset and leaves ``ALLEEG``
-    unchanged, matching EEGLAB's no-current-dataset state.
+    unchanged, matching EEGLAB's no-current-dataset state. ``ALLEEG`` may be a
+    struct array. A numeric array of indices selects several datasets.
     """
-    alleeg = [] if ALLEEG is None else list(ALLEEG)
+    alleeg = as_dataset_list(ALLEEG)
+    index = _normalize_requested_index(index)
     if isinstance(index, (list, tuple)):
         indices = [int(item) for item in index]
         datasets = [dataset_with_loaded_data(_dataset_at(alleeg, item)) for item in indices]
@@ -33,6 +38,17 @@ def eeg_retrieve(
         alleeg[current - 1] = deepcopy(dataset)
     offload_storedisk_datasets(alleeg, {current})
     return dataset, alleeg, current
+
+
+def _normalize_requested_index(index: Any) -> Any:
+    if isinstance(index, np.ndarray):
+        ints = matlab_ints(index)
+        if ints is None:
+            raise TypeError("eeg_retrieve index must be an integer or a vector of integers")
+        if index.size == 1:
+            return ints[0]
+        return ints
+    return index
 
 
 def _is_occupied(alleeg: list[dict[str, Any]], index: int) -> bool:

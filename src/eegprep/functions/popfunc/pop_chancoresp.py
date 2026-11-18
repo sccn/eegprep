@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 
@@ -51,8 +54,8 @@ def _subcommand(command: str, *args: Any) -> tuple[Any, ...]:
         ind2 = int(args[1])
         labels1 = _labels(args[2])
         labels2 = _labels(args[3])
-        chanlist1 = list(args[4]) if len(args) > 4 else []
-        chanlist2 = list(args[5]) if len(args) > 5 else []
+        chanlist1 = _index_list(args[4]) if len(args) > 4 else []
+        chanlist2 = _index_list(args[5]) if len(args) > 5 else []
         str1 = str(args[6]) if len(args) > 6 else ""
         str2 = str(args[7]) if len(args) > 7 else ""
         if name == "pair":
@@ -76,6 +79,10 @@ def _subcommand(command: str, *args: Any) -> tuple[Any, ...]:
 
 
 def _labels(chans: Any) -> list[str]:
+    if is_cell(chans):
+        items = cell_items(chans)
+        if all(isinstance(item, str) for item in items):
+            return [str(item) for item in items]
     if isinstance(chans, dict) and "label" in chans:
         labels = chans["label"]
         return [str(label) for label in labels]
@@ -122,9 +129,24 @@ def _first_alias(labels: list[str], aliases: tuple[str, ...]) -> int | None:
 
 
 def _indices_option(value: Any) -> list[int]:
-    if value in (None, "", []):
+    if value is None:
+        return []
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return []
+    elif value in ("", []):
         return []
     return [int(item) for item in parse_numeric_sequence(value, dtype=int)]
+
+
+def _index_list(value: Any) -> list[int]:
+    if value is None:
+        return []
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return []
+        return [int(item) for item in value.reshape(-1)]
+    return [int(item) for item in value]
 
 
 def _list_text(

@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell, matlab_true
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 
 
@@ -25,16 +26,24 @@ def vararg2str(
     implementation likewise does not use it during conversion.
     """
     del inputnum
-    values = list(arguments) if isinstance(arguments, (list, tuple)) else [arguments]
+    values = _argument_values(arguments)
     names = _padded(inputnames, len(values), "")
     raw_strings = _padded(nostrconv, len(values), False)
     rendered = []
     for value, name, raw_string in zip(values, names, raw_strings):
-        if name:
+        if matlab_true(name):
             rendered.append(str(name))
         else:
-            rendered.append(_format_value(value, raw_string=bool(raw_string)))
+            rendered.append(_format_value(value, raw_string=matlab_true(raw_string)))
     return ",".join(rendered)
+
+
+def _argument_values(arguments: Any) -> list[Any]:
+    if is_cell(arguments):
+        return cell_items(arguments)
+    if isinstance(arguments, (list, tuple)):
+        return list(arguments)
+    return [arguments]
 
 
 def _matlab_history_value(value: Any) -> str:
@@ -56,7 +65,14 @@ def _looks_numeric(value: str) -> bool:
 
 
 def _padded(values: Sequence[Any] | None, length: int, default: Any) -> list[Any]:
-    result = [] if values is None else list(values)
+    if values is None:
+        result: list[Any] = []
+    elif is_cell(values):
+        result = cell_items(values)
+    elif isinstance(values, np.ndarray):
+        result = list(np.asarray(values).reshape(-1))
+    else:
+        result = list(values)
     return (result + [default] * length)[:length]
 
 

@@ -5,8 +5,21 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
+
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, struct_records
+
+
+def _datasets_or_one(eeg: Any) -> Any:
+    if isinstance(eeg, np.ndarray) and eeg.dtype.names:
+        return struct_records(eeg) or []
+    if isinstance(eeg, np.ndarray) and eeg.dtype == object and eeg.size:
+        items = list(eeg.ravel(order="F"))
+        if all(isinstance(item, dict) for item in items):
+            return items
+    return eeg
 
 
 def _normalize_index(index: int | None, alleeg: list[dict[str, Any]]) -> int:
@@ -27,8 +40,13 @@ def eeg_store(
     storeSetIndex: int | list[int] | tuple[int, ...] | None = None,
     *_args: Any,
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | list[dict[str, Any]], int | list[int]]:
-    """Store EEG in ``ALLEEG`` using EEGLAB-facing 1-based indices."""
-    alleeg = [] if ALLEEG is None else list(ALLEEG)
+    """Store EEG in ``ALLEEG`` using EEGLAB-facing 1-based indices.
+
+    ``ALLEEG`` and ``EEG`` may be MATLAB struct arrays of datasets. The stored
+    collection is still a Python list of dataset dicts.
+    """
+    alleeg = as_dataset_list(ALLEEG)
+    EEG = _datasets_or_one(EEG)
 
     if isinstance(EEG, list):
         indices = list(storeSetIndex) if isinstance(storeSetIndex, (list, tuple)) else [None] * len(EEG)

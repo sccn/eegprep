@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import is_matlab_empty
+
 
 def shortread(
     filename: str | Path,
@@ -30,6 +32,8 @@ def shortread(
 
 
 def _dtype(format: str | None) -> np.dtype:
+    if is_matlab_empty(format):
+        format = None
     text = str(format or "native").lower()
     if text in {"", "n", "native"}:
         return np.dtype("i2")

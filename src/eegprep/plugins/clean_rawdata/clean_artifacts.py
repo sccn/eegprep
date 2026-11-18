@@ -20,6 +20,24 @@ from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 
 
 logger = logging.getLogger(__name__)
+
+
+def _is_off(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.lower() == "off"
+    return isinstance(value, np.ndarray) and value.size == 0
+
+
+def _numeric_pair(value: Any, name: str) -> tuple[float, float]:
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1).tolist()
+    if not isinstance(value, (tuple, list)) or len(value) != 2:
+        raise ValueError(f"{name} must be a (low, high) pair or 'off'.")
+    return float(value[0]), float(value[1])
+
+
 _DISTANCE_MODES = {
     'euclidian': None,
     'euclidean': None,
@@ -193,16 +211,14 @@ def clean_artifacts(
             EEG['nbchan'] = len(keep_idx)
 
     #                     1) Flat‑line channel removal
-    if FlatlineCriterion not in (None, 'off'):
+    if not _is_off(FlatlineCriterion):
         logger.info('Detecting flat line channels...')
         EEG = clean_flatlines(EEG, max_flatline_duration=float(FlatlineCriterion))
 
     #                        2) High‑pass filtering
-    if Highpass not in (None, 'off'):
-        if not isinstance(Highpass, (tuple, list)) or len(Highpass) != 2:
-            raise ValueError('Highpass must be a (low, high) tuple or None/"off".')
+    if not _is_off(Highpass):
         logger.info('Applying high‑pass filter...')
-        EEG = clean_drifts(EEG, tuple(Highpass))
+        EEG = clean_drifts(EEG, _numeric_pair(Highpass, "Highpass"))
     # Keep a point-in-time snapshot after HP for optional return. Deep-copy so
     # later stages that mutate EEG['etc'] (channel/sample masks) do not bleed
     # into the returned high-pass dataset.
@@ -210,9 +226,9 @@ def clean_artifacts(
 
     #            3) Channel cleaning (noisy / disconnected)
     removed_channels = np.zeros(EEG['nbchan'], dtype=bool)
-    if ChannelCriterion not in (None, 'off') or LineNoiseCriterion not in (None, 'off'):
-        chancorr_crit = 0.0 if ChannelCriterion in (None, 'off') else float(ChannelCriterion)
-        line_crit = 100.0 if LineNoiseCriterion in (None, 'off') else float(LineNoiseCriterion)
+    if not _is_off(ChannelCriterion) or not _is_off(LineNoiseCriterion):
+        chancorr_crit = 0.0 if _is_off(ChannelCriterion) else float(ChannelCriterion)
+        line_crit = 100.0 if _is_off(LineNoiseCriterion) else float(LineNoiseCriterion)
         try:
             # Match MATLAB clean_artifacts.m line 254:
             # clean_channels(EEG,chancorr_crit,line_crit,[],channel_crit_maxbad_time, num_samples)
@@ -248,7 +264,7 @@ def clean_artifacts(
 
     #                     4) Burst repair via ASR
     BUR = EEG  # default in case ASR is skipped
-    if BurstCriterion not in (None, 'off'):
+    if not _is_off(BurstCriterion):
         logger.info('Applying ASR burst repair...')
         # Snapshot the pre-repair data to compare against the ASR-repaired
         # result; clean_asr returns a fresh dataset (BUR) and leaves EEG intact.
@@ -294,12 +310,15 @@ def clean_artifacts(
             EEG = BUR
 
     #                     5) Post‑clean windows stage
-    if WindowCriterion not in (None, 'off') and WindowCriterionTolerances not in (None, 'off'):
+    if not _is_off(WindowCriterion) and not _is_off(WindowCriterionTolerances):
         logger.info('Final post‑processing – removing irrecoverable windows...')
+        tolerances = WindowCriterionTolerances
+        if isinstance(tolerances, np.ndarray):
+            tolerances = tuple(float(value) for value in tolerances.reshape(-1))
         EEG, _ = clean_windows(
             EEG,
             max_bad_channels=float(WindowCriterion),
-            zthresholds=WindowCriterionTolerances,
+            zthresholds=tolerances,
         )
 
     logger.info('Use vis_artifacts to compare the cleaned data to the original.')

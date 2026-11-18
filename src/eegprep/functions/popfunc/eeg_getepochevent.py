@@ -131,9 +131,17 @@ def _parse_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, A
     unknown = set(options) - _OPTION_NAMES
     if unknown:
         raise TypeError(f"unknown eeg_getepochevent options: {sorted(unknown)}")
-    if not np.asarray(options["timewin"]).size:
-        options["timewin"] = [-np.inf, np.inf]
+    options["timewin"] = _as_time_window(options["timewin"])
     return options
+
+
+def _as_time_window(value: Any) -> list[float]:
+    array = np.asarray(value, dtype=float).reshape(-1)
+    if array.size == 0:
+        return [-np.inf, np.inf]
+    if array.size != 2:
+        raise ValueError("time window must contain two values")
+    return [float(array[0]), float(array[1])]
 
 
 def _is_numeric_pair(value: Any) -> bool:

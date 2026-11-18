@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._event_utils import event_field_names, events_as_list, normalize_one_based_indices
@@ -282,6 +283,8 @@ def _ordered_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> list[tupl
 
 
 def _change_args(value: Any) -> tuple[int, str, Any]:
+    if is_cell(value):
+        value = cell_items(value)
     if not isinstance(value, (list, tuple)) or len(value) != 3:
         raise ValueError("changefield requires [event_index, field, value]")
     return int(value[0]), str(value[1]), value[2]
