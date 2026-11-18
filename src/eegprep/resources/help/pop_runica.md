@@ -19,6 +19,7 @@ Inputs:
   without a seed or `w_init`, initialization uses the identity matrix.
   An explicit `w_init` matrix takes precedence over the seed.
   For pAMICA, options are `eeg_pamica` keywords such as `max_iter`, `n_mix`, `seed` (default 5489), `block_size`, `threads` (default 1) and `pcakeep`.
+  `threads` is the torch intra-op and NumPy and SciPy BLAS and OpenMP count for that fit. The record stores the count those pools actually used.
   A setting not passed takes eegprep's `runamica15` default (`_AMICA_DEFAULTS`), which differs from EEGLAB's `runamica15.m` in places.
   The run is recorded in `EEG.etc.pamica`, with the `pamica` version, `backend` and `pipeline`, and the settings that reproduce it.
   The same seed, data, settings and versions give bit-identical weights in float64 on the CPU with one thread, on one machine; that is pamica's promise.

@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- A pAMICA fit runs at its ``threads`` argument for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools, then restores those counts.
+  ``EEG["etc"]["pamica"]["threads"]`` stores that count when the pools actually used it, and replaying the record runs at the same count.
 - ``pop_runica`` with ``runica`` reduces a rank-deficient recording, including
   an average-referenced one, to the estimated data rank and records that
   ``pca`` value in history. An explicit ``pca`` is kept. ``eeg_runica``

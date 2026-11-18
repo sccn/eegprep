@@ -4,7 +4,8 @@ import copy
 from contextlib import contextmanager
 
 import numpy as np
-from threadpoolctl import threadpool_limits
+import scipy.linalg
+from threadpoolctl import ThreadpoolController, threadpool_info, threadpool_limits
 
 from eegprep.extras import install_command
 from ..miscfunc.misc import finite_matmul
@@ -113,8 +114,10 @@ def eeg_pamica(
     device : str
         Torch device. Only ``'cpu'`` is covered by the reproducibility statement above.
     threads : int
-        Threads for torch and the BLAS libraries during the run, restored afterwards. A larger
-        count is reproducible only on the host where it was measured.
+        Threads for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools
+        during the run, restored afterwards. The record stores the count those
+        pools actually ran with. A larger count is reproducible only on the host
+        where it was measured.
     pcakeep : int | None
         Number of principal components to keep. Default: every channel pAMICA finds full rank.
         pAMICA ignores it when ``do_sphere=False``. The record keeps the value requested in
@@ -141,7 +144,7 @@ def eeg_pamica(
     settings = {**_EEGLAB_DEFAULTS, **amica_options}
     fit_arguments = {name: settings[name] for name in _FIT_ARGUMENTS}
     backend_options = {name: value for name, value in settings.items() if name not in _FIT_ARGUMENTS}
-    with _limited_threads(torch, threads):
+    with _limited_threads(torch, threads) as threads_used:
         model = pamica.AMICA(n_models=n_models, n_mix=n_mix, device=device, verbose=False)
         model.fit(
             data,
@@ -153,7 +156,6 @@ def eeg_pamica(
             **fit_arguments,
             **backend_options,
         )
-        threads_used = torch.get_num_threads()
 
     stop_reason = model.stop_reason_
     history = np.asarray(model.ll_history_, dtype=np.float64)
@@ -217,13 +219,68 @@ def _import_pamica():
     return pamica, torch, AMICATorchNG._DEGENERATE_STOP_REASONS
 
 
+def _exercise_blas():
+    """Initialize the NumPy and SciPy OpenBLAS copies."""
+    matrix = np.ones((32, 32), dtype=np.float64)
+    np.linalg.svd(matrix, full_matrices=False)
+    scipy.linalg.svd(matrix, full_matrices=False)
+
+
+def _openmp_setter_changes_count(lib, count):
+    """Return whether ``omp_set_num_threads`` changes the count ``lib`` reports.
+
+    Torch ships ``libiompstubs5md.dll`` beside ``libiomp5md.dll``. The stub
+    exports the OpenMP entry points and its getter stays at 1, so threadpoolctl
+    lists it as a pool. The real runtime follows the requested count in both
+    directions.
+    """
+    probe = 1 if count != 1 else 2
+    lib.set_num_threads(probe)
+    reported = lib.get_num_threads()
+    lib.set_num_threads(count)
+    return reported is not None and int(reported) != count
+
+
+def _require_thread_count(torch, threads):
+    """Return ``threads`` when torch intra-op, every BLAS pool, and every live OpenMP pool use it."""
+    intra = int(torch.get_num_threads())
+    mismatches = []
+    if intra != threads:
+        mismatches.append(f"torch intra-op is {intra}")
+    for pool in threadpool_info():
+        if pool["user_api"] != "blas":
+            continue
+        count = pool["num_threads"]
+        if count is None or int(count) == threads:
+            continue
+        mismatches.append(f"blas/{pool['internal_api']} is {int(count)}")
+    for lib in ThreadpoolController().select(user_api="openmp").lib_controllers:
+        count = lib.get_num_threads()
+        if count is None or int(count) == threads or not _openmp_setter_changes_count(lib, int(count)):
+            continue
+        filename = str(lib.filepath).replace("\\", "/").rsplit("/", 1)[-1]
+        mismatches.append(f"openmp/{filename} is {int(count)}")
+    if mismatches:
+        raise RuntimeError(f"requested {threads} threads but " + "; ".join(mismatches))
+    return threads
+
+
 @contextmanager
 def _limited_threads(torch, threads):
-    """Limit torch and the BLAS libraries to ``threads`` threads, and restore both afterwards."""
+    """Run the block at ``threads`` intra-op and BLAS/OpenMP threads, then restore them.
+
+    The BLAS copies are initialized first, so their first call cannot put the
+    environment count back.
+    """
+    threads = int(threads)
+    _exercise_blas()
     previous = torch.get_num_threads()
     torch.set_num_threads(threads)
     try:
         with threadpool_limits(limits=threads):
-            yield
+            _exercise_blas()
+            running = _require_thread_count(torch, threads)
+            yield running
+            _require_thread_count(torch, threads)
     finally:
         torch.set_num_threads(previous)
