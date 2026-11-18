@@ -49,6 +49,19 @@ def test_write_param_file_keeps_stop_thresholds(tmp_path):
     assert float(params['min_grad_norm']) == 1e-7
 
 
+def test_default_stop_thresholds_read_back_under_f15_12(tmp_path):
+    path = _write_param_file(str(tmp_path), {'files': 'x.fdt', 'outdir': str(tmp_path), 'data_dim': 2, 'field_dim': 3})
+    parsed = {}
+    for line in open(path).read().splitlines():
+        key, field = line.split(maxsplit=1)
+        if key in ('min_dll', 'min_grad_norm'):
+            parsed[key] = float(f'{field:<15}'[:15])
+    assert parsed['min_dll'] == 1e-9
+    assert parsed['min_grad_norm'] == 1e-7
+    assert parsed['min_dll'] != 0
+    assert parsed['min_grad_norm'] != 0
+
+
 def _make_synthetic_sources(n_channels, n_samples, seed=42):
     """Create mixed sinusoidal sources for ICA testing."""
     rng = np.random.RandomState(seed)
