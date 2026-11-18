@@ -653,6 +653,24 @@ EEGPrep follows that help text. An omitted <code class="docutils literal notrans
 <code class="docutils literal notranslate"><span class="pre">RandomState(5489)</span></code>, the MT19937 stream <code class="docutils literal notranslate"><span class="pre">pythoncompat</span></code> selects at line
 814 (<code class="docutils literal notranslate"><span class="pre">rng(5489,</span> <span class="pre">'twister')</span></code>), rather than the legacy <code class="docutils literal notranslate"><span class="pre">rand('state',</span> <span class="pre">0)</span></code>
 stream. <code class="docutils literal notranslate"><span class="pre">rndreset='on'</span></code> seeds from the clock.</p>
+<p>A direct call does not reduce rank. On average-referenced data the
+sphering matrix is <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">inv(sqrtm(cov(data)))</span></code>. That matrix is defined
+on the signal subspace and is numerically undefined along the
+average-reference direction, where the gain comes from rounding in
+<code class="docutils literal notranslate"><span class="pre">cov</span></code> and <code class="docutils literal notranslate"><span class="pre">sqrtm</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> passes <code class="docutils literal notranslate"><span class="pre">pca</span></code> when its rank
+estimate is below the channel count. Compare spheres on the signal
+subspace, or compare the <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> decomposition to the rank-reduced
+PCA projection.</p>
+<p>On the average-referenced tutorial recording, the rank-31 PCA projectors
+from <code class="docutils literal notranslate"><span class="pre">eig</span></code> agree between EEGLAB d0963be9 (MATLAB R2025b) and EEGPrep to
+2.3e-13, and the <code class="docutils literal notranslate"><span class="pre">runica</span></code> projectors agree to 1.7e-13. EEGPrep’s
+<code class="docutils literal notranslate"><span class="pre">icawinv</span> <span class="pre">&#64;</span> <span class="pre">icaweights</span> <span class="pre">&#64;</span> <span class="pre">icasphere</span> <span class="pre">&#64;</span> <span class="pre">data</span></code> stays on that projector to
+5.4e-13. After EEGLAB scales components to RMS microvolt and recomputes
+the activations, its <code class="docutils literal notranslate"><span class="pre">icawinv</span> <span class="pre">*</span> <span class="pre">icaweights</span> <span class="pre">*</span> <span class="pre">icasphere</span> <span class="pre">*</span> <span class="pre">data</span></code> leaves
+its own projector by 5.7e-8 (root-mean-square relative to the data
+7.1e-10). The mixing maps still match after sign and order alignment:
+the minimum absolute correlation is <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">-</span> <span class="pre">3.7e-14</span></code> and the maximum
+absolute difference is 6.3e-7.</p>
 </section>
 <section id="matlab-parity-validation-report">
 <h2>MATLAB Parity Validation Report<a class="headerlink" href="#matlab-parity-validation-report" title="Link to this heading">#</a></h2>

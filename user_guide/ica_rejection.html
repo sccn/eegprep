@@ -593,6 +593,26 @@ selected channel count. For example, <code class="docutils literal notranslate">
 fewer component than channels, which is useful after average referencing. The
 initial unmixing matrix is sized to the reduced decomposition while remaining
 deterministic.</p>
+<p><code class="docutils literal notranslate"><span class="pre">runica</span></code> estimates that rank when <code class="docutils literal notranslate"><span class="pre">pca</span></code> is omitted. Average referencing
+leaves one near-null direction, so a 32-channel recording is decomposed into
+31 components. The estimate uses the first 3000 frames and keeps the smaller
+of the matrix rank and the number of covariance eigenvalues above <code class="docutils literal notranslate"><span class="pre">1e-7</span></code>.
+The history command records the <code class="docutils literal notranslate"><span class="pre">pca</span></code> value. Pass <code class="docutils literal notranslate"><span class="pre">pca</span></code> to choose a
+different count; a negative value subtracts from the channel count and is not
+replaced by the estimate. The decomposition dialog applies the estimate on
+the same path as the console. <code class="docutils literal notranslate"><span class="pre">eeg_runica</span></code> applies the same estimate when
+<code class="docutils literal notranslate"><span class="pre">pca</span></code> is omitted. <code class="docutils literal notranslate"><span class="pre">bids_preproc</span></code> calls <code class="docutils literal notranslate"><span class="pre">eeg_runica</span></code> for its runica
+stage, so that stage reduces rank the same way. A direct <code class="docutils literal notranslate"><span class="pre">runica(data)</span></code>
+call does not reduce rank. Its sphering matrix is
+<code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">inv(sqrtm(cov(data)))</span></code>, which is not meaningful along the
+average-reference direction.</p>
+<p>The rank-31 reconstruction is the PCA projection of the recording. On the
+average-referenced tutorial data, EEGPrep stays on that projection to
+5.4e-13. EEGLAB’s projectors agree with EEGPrep’s to 2.3e-13 before scaling.
+After EEGLAB scales components to RMS microvolt and recomputes the
+activations, <code class="docutils literal notranslate"><span class="pre">icawinv</span> <span class="pre">*</span> <span class="pre">icaweights</span> <span class="pre">*</span> <span class="pre">icasphere</span> <span class="pre">*</span> <span class="pre">data</span></code> leaves EEGLAB’s own
+projection by 5.7e-8, which is 7.1e-10 of the data root-mean-square. The
+mixing maps still agree after accounting for sign and order.</p>
 <p>Picard starts from an identity matrix by default. To choose a reproducible
 random starting point, call <code class="docutils literal notranslate"><span class="pre">eeg_picard(EEG,</span> <span class="pre">random_state=42)</span></code> or pass
 <code class="docutils literal notranslate"><span class="pre">options={&quot;seed&quot;:</span> <span class="pre">42}</span></code> to <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> with <code class="docutils literal notranslate"><span class="pre">icatype=&quot;picard&quot;</span></code>.

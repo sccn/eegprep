@@ -491,6 +491,16 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> with <code class="docutils literal notranslate"><span class="pre">runica</span></code> reduces a rank-deficient recording, including
+an average-referenced one, to the estimated data rank and records that
+<code class="docutils literal notranslate"><span class="pre">pca</span></code> value in history. An explicit <code class="docutils literal notranslate"><span class="pre">pca</span></code> is kept. <code class="docutils literal notranslate"><span class="pre">eeg_runica</span></code>
+applies the same reduction when <code class="docutils literal notranslate"><span class="pre">pca</span></code> is omitted, and <code class="docutils literal notranslate"><span class="pre">bids_preproc</span></code>’s
+runica stage calls <code class="docutils literal notranslate"><span class="pre">eeg_runica</span></code>, so that stage inherits it. A direct
+<code class="docutils literal notranslate"><span class="pre">runica</span></code> call still spheres every channel; that sphere is not meaningful
+along the average-reference null direction. On the average-referenced
+tutorial recording, EEGLAB’s scaled <code class="docutils literal notranslate"><span class="pre">icawinv</span> <span class="pre">*</span> <span class="pre">icaweights</span> <span class="pre">*</span> <span class="pre">icasphere</span> <span class="pre">*</span> <span class="pre">data</span></code>
+leaves its own rank-31 projection by 5.7e-8; EEGPrep’s product stays
+within 5.4e-13 (#567).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">reref</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> sum an average reference in float64 and cast
 once back to the input dtype, so a float32 recording stays float32 and the
 result does not depend on the BLAS kernel or thread count. On the
