@@ -5,6 +5,7 @@ This module tests the EEGLAB compatibility functions that provide
 Python interfaces to MATLAB/Octave EEGLAB functions.
 """
 
+import copy
 import struct
 import unittest
 from pathlib import Path
@@ -358,6 +359,67 @@ def test_matlab_bridge_restores_icaact_from_the_data(eeglab_matlab_engine):
     actual = np.reshape(np.asarray(activations, dtype=np.float64), expected.shape, order="F")
     residual = np.abs(actual - np.asarray(expected, dtype=np.float64))
     assert np.all(residual <= bound)
+
+
+def _sample_crop(*, trials: int, empty: bool = False) -> dict:
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    eeg = copy.deepcopy(source)
+    if empty:
+        eeg["data"] = np.zeros((30, 64, 0), dtype=np.float64)
+        eeg["pnts"] = 64
+    else:
+        eeg["data"] = np.array(np.asarray(source["data"])[:30, :4096], dtype=np.float64, copy=True)
+        eeg["pnts"] = 4096
+    eeg["nbchan"] = 30
+    eeg["trials"] = trials
+    eeg["xmax"] = (int(eeg["pnts"]) - 1) / float(eeg["srate"])
+    assert eeg["datfile"] == "eeglab_data.fdt"
+    return eeg
+
+
+class _LoadSetEngine:
+    def __init__(self):
+        self.evals: list[str] = []
+        self.saved_trials: float | None = None
+
+    def eval(self, code, nargout=0):
+        del nargout
+        self.evals.append(code)
+        if code.startswith("EEG = pop_loadset("):
+            path = code.split("'", 2)[1]
+            saved = scipy.io.loadmat(path, squeeze_me=True)
+            self.saved_trials = float(np.asarray(saved["trials"]).reshape(-1)[0])
+
+
+def test_stale_continuous_trials_survive_the_matlab_roundtrip():
+    """trials=0 on a continuous array is not an empty epoch stack.
+
+    Two-file save would ask for shape (nbchan, pnts, 0). pop_loadset then
+    runs eeg_checkset, which drops events and replaces the count, so the
+    count has to be put back after the file is loaded.
+    """
+    eeg = _sample_crop(trials=0)
+    engine = _LoadSetEngine()
+    try:
+        MatlabWrapper(engine).eeg_eegrej(eeg, np.array([[1.0, 10.0]]))
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        assert "does not match metadata shape" not in str(exc)
+    assert eeg["trials"] == 0
+    assert engine.saved_trials == 1.0
+    restore_at = next(index for index, code in enumerate(engine.evals) if code == "EEG.trials = 0;")
+    call_at = next(index for index, code in enumerate(engine.evals) if "eeg_eegrej" in code)
+    assert restore_at < call_at
+
+
+def test_empty_epoch_stack_is_not_rewritten_as_continuous():
+    eeg = _sample_crop(trials=0, empty=True)
+    engine = _LoadSetEngine()
+    try:
+        MatlabWrapper(engine).eeg_eegrej(eeg, np.array([[1.0, 10.0]]))
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        assert "does not match metadata shape" not in str(exc)
+    assert engine.saved_trials == 0.0
+    assert all(code != "EEG.trials = 0;" for code in engine.evals)
 
 
 class TestMatlabWrapper(DebuggableTestCase):

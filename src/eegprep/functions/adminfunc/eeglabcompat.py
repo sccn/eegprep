@@ -87,6 +87,29 @@ def _saved_two_files(eeg: dict) -> bool:
     return False
 
 
+def _stale_continuous_trials(eeg: dict) -> bool:
+    """True when ``trials`` is 0 but the array is still a continuous recording.
+
+    An empty epoch stack is ``(nbchan, pnts, 0)``. A stored 0 on a 2-D array is
+    the count ``eeg_checkset.m`` lines 440-449 read before lines 821-826
+    replace it from ``size(data, 3)``.
+    """
+    trials = eeg.get("trials")
+    if isinstance(trials, bool) or not isinstance(trials, (int, float, np.integer, np.floating)):
+        return False
+    if int(trials) != 0:
+        return False
+    data = eeg.get("data")
+    if isinstance(data, (str, bytes)) or data is None:
+        return False
+    array = np.asarray(data)
+    if array.ndim != 2 or array.size == 0 or array.shape[0] == 0:
+        return False
+    nbchan = int(eeg.get("nbchan") or array.shape[0])
+    pnts = int(eeg.get("pnts") or array.shape[1])
+    return array.shape == (nbchan, pnts) and pnts > 0
+
+
 def matlab_held_data(data, eeg: dict | None = None) -> np.ndarray:
     """Return ``data`` as ``pop_loadset`` leaves ``EEG.data``.
 
@@ -328,11 +351,22 @@ class MatlabWrapper:
                 else:
                     self.engine.eval("args.args = {};", nargout=0)
 
+                roundtrip_eeg = args[0] if args else None
+                restore_stale_trials = False
+                if needs_roundtrip and _stale_continuous_trials(args[0]):
+                    # Two-file save reads trials 0 as an empty epoch stack.
+                    # pop_loadset's eeg_checkset then drops events and replaces
+                    # the count, so write 1 and put 0 back after the load.
+                    roundtrip_eeg = dict(args[0])
+                    roundtrip_eeg["trials"] = 1
+                    restore_stale_trials = True
                 if needs_roundtrip:
-                    pop_saveset(args[0], temp_filename1)
-                    save_double_input(args[0]["data"], input_double_filename, args[0])
+                    pop_saveset(roundtrip_eeg, temp_filename1)
+                    save_double_input(roundtrip_eeg["data"], input_double_filename, roundtrip_eeg)
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
                     self.engine.eval(matlab_restore_input(input_double_filename), nargout=0)
+                    if restore_stale_trials:
+                        self.engine.eval("EEG.trials = 0;", nargout=0)
 
                 logger.debug("Running in MATLAB/Octave: %s", eval_str)
                 self.engine.eval(eval_str, nargout=0)
