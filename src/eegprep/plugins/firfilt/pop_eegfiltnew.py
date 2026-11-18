@@ -33,6 +33,10 @@ def pop_eegfiltnew(
 ):
     """Filter EEG data with the Hamming-windowed FIR from ``design_eegfiltnew``.
 
+    The input dataset is not modified. Filtering returns a new dataset.
+    Samples are filtered in float64 and restored to float32 when the input
+    samples were float32.
+
     Returns the filtered dataset, or ``(EEG, com)`` when ``return_com`` is true.
     ``com`` records the requested options. Each applied design is appended to
     ``EEG["etc"]["eegfiltnew"]`` with the sampling rate, 1-based channels,

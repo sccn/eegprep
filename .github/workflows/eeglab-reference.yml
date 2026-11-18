@@ -126,6 +126,47 @@ jobs:
           path: eeglab_tests
           key: eeglab-tests-${{ steps.pins.outputs.suite-commit }}-${{ steps.pins.outputs.eeglab-commit }}
 
+      # ds003061 is in the eeglab_tests checkout. ds003194 is not, and the
+      # OpenNeuro import comparison reads snapshot 1.0.3 from openneuro/ds003194.
+      - name: Restore ds003194 cache
+        id: ds003194-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: openneuro/ds003194
+          key: openneuro-ds003194-1.0.3-nepo01
+
+      - name: Fetch ds003194
+        if: steps.ds003194-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="openneuro/ds003194"
+          base="https://s3.amazonaws.com/openneuro.org/ds003194"
+          rm -rf "$root"
+          while read -r name expect; do
+            mkdir -p "$root/$(dirname "$name")"
+            curl -fsSL --retry 3 --retry-delay 2 -o "$root/$name" "$base/$name"
+            actual=$(md5sum "$root/$name" | awk '{print $1}')
+            if [[ "$actual" != "$expect" ]]; then
+              echo "::error title=ds003194 checksum::$name is $actual, expected $expect"
+              exit 1
+            fi
+          done <<'EOF'
+          dataset_description.json d6c9c445496b24e7076212a411576642
+          participants.tsv 16a17f7dfb39a7ae04d252625d507999
+          sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_eeg.edf bc0195c10cb4cd4e0060da2aa038a540
+          sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_eeg.json c98296e820b362c11aefc675f7f4655d
+          sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_channels.tsv f42d3d659f616806327448396e9f126d
+          sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_events.tsv 615c998fd0a5379290590210248aab43
+          EOF
+
+      - name: Save ds003194 cache
+        if: steps.ds003194-cache.outputs.cache-hit != 'true' && matrix.shard == 'heavy'
+        uses: actions/cache/save@v4
+        with:
+          path: openneuro/ds003194
+          key: openneuro-ds003194-1.0.3-nepo01
+
       - name: Require MATLAB batch token
         run: |
           if [[ -z "$MLM_LICENSE_TOKEN" ]]; then

@@ -10,6 +10,29 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_runica`` with ``runica`` reduces a rank-deficient recording, including
+  an average-referenced one, to the estimated data rank and records that
+  ``pca`` value in history. An explicit ``pca`` is kept. ``eeg_runica``
+  applies the same reduction when ``pca`` is omitted, and ``bids_preproc``'s
+  runica stage calls ``eeg_runica``, so that stage inherits it. A direct
+  ``runica`` call still spheres every channel; that sphere is not meaningful
+  along the average-reference null direction. On the average-referenced
+  tutorial recording, EEGLAB's scaled ``icawinv * icaweights * icasphere * data``
+  leaves its own rank-31 projection by 5.7e-8; EEGPrep's product stays
+  within 5.4e-13 (#567).
+- ``clean_channels``, ``clean_channels_nolocs``, ``clean_windows``, and
+  ``clean_flatlines`` return the noise scores, correlations, flags, window
+  offsets, and z-scores they already compute when ``return_diagnostics=True``.
+  Default return values are unchanged. Channels that are flagged and then
+  kept are reported separately, and that case does not write an all-false
+  ``clean_channel_mask`` (#535).
+- ``clean_channels`` accepts ``seed`` (default 5489), draws RANSAC subsets
+  from ``numpy.random.RandomState`` in the same order, and records the seed
+  in the diagnostics (#540).
+- The clean_rawdata guide and the cleaning, filtering, and selection
+  docstrings record which calls replace float32 samples with float64, which
+  return the same object, and which leave the input unchanged. Copy a
+  dataset first when the original recording must be preserved (#541).
 - An empty ``EEG.dipfit`` array is treated as missing dipole settings.
 - Extended channel properties open the topography, ERP image, and spectrum
   dashboard. Extended component properties open that dashboard with the
