@@ -61,9 +61,7 @@ _ORIGINAL_FUNCTIONS = (
     "pop_clean_rawdata",
 )
 
-# Hypothesis mixes integer literals from local modules that are already imported
-# into st.integers draws. The sigprocfunc package used to import these on load.
-_SIGPROC_CONSTANT_MODULES = (
+_PREIMPORTED_SIGPROC_MODULES_FOR_HYPOTHESIS_LOCAL_CONSTANTS = (
     "eegprep.functions.sigprocfunc.cbar",
     "eegprep.functions.sigprocfunc.celltomat",
     "eegprep.functions.sigprocfunc.copyaxis",
@@ -1305,7 +1303,7 @@ def build_strategies(info: SeedInfo) -> dict:
     # Loading the event targets first makes that set independent of import order.
     import tests.fuzz.targets  # noqa: F401
 
-    for module_name in _SIGPROC_CONSTANT_MODULES:
+    for module_name in _PREIMPORTED_SIGPROC_MODULES_FOR_HYPOTHESIS_LOCAL_CONSTANTS:
         importlib.import_module(module_name)
 
     @st.composite
