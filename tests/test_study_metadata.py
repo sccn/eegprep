@@ -235,6 +235,33 @@ def test_pop_loadstudy_decodes_mat_uint16_chars_as_latin1(tmp_path):
     assert study["etc"]["oldfilepath"] == "/old/study"
 
 
+def test_pop_loadstudy_keeps_ragged_measure_cells(tmp_path):
+    # EEGLAB stores changrp.erpdata as a cell array whose cells have different
+    # column counts. A rectangular numeric conversion cannot represent that.
+    erpdata = np.empty((2, 1), dtype=object)
+    erpdata[0, 0] = np.array([1.0, 2.0])
+    erpdata[1, 0] = np.array([3.0, 4.0, 5.0, 6.0, 7.0])
+    path = tmp_path / "ragged.study"
+    savemat(
+        path,
+        {
+            "STUDY": {
+                "name": "Ragged",
+                "filename": "ragged.study",
+                "filepath": str(tmp_path),
+                "changrp": {"name": "Cz", "erpdata": erpdata},
+            }
+        },
+        do_compression=False,
+    )
+
+    study, alleeg = pop_loadstudy(path, load_datasets=False)
+
+    assert alleeg == []
+    saved = study["changrp"][0]["erpdata"]
+    assert [int(np.asarray(row).size) for row in saved] == [2, 5]
+
+
 def test_pop_loadstudy_rebases_a_moved_study_onto_its_new_directory(tmp_path):
     dataset_dir = tmp_path / "s02"
     dataset_dir.mkdir()

@@ -16,7 +16,6 @@ from eegprep.functions.popfunc._matlab_fields import convert_matlab
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study
-from eegprep.functions.studyfunc.std_checkfiles import std_checkfiles
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
 
@@ -90,7 +89,6 @@ def pop_loadstudy(
     _warn_legacy_design(study)
     alleeg = _load_datasets(study) if load_datasets else []
     study, alleeg = std_checkset(study, alleeg)
-    std_checkfiles(study, alleeg)
     study["saved"] = "yes"
     command_kwargs: dict[str, Any] = {"filename": path.name, "filepath": str(path.parent)}
     if not load_datasets:
