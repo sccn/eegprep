@@ -93,6 +93,7 @@ fit_eeg_distribution_for_compiling.m
 topoplot_data.mat
 eeglab_data_with_ica_tmp_out.set
 sample_data/ds002680/
+/openneuro/
 out_dir
 figures
 sample_notebooks/octave-workspace
