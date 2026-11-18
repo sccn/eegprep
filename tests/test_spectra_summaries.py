@@ -262,6 +262,31 @@ def test_numerical_imports_do_not_load_matplotlib():
     assert result.stdout.strip() == "ok"
 
 
+def test_sigprocfunc_exports_are_functions_in_either_import_order():
+    orders = (
+        """
+        from eegprep.functions.sigprocfunc.readbdf import readbdf as from_submodule
+        from eegprep.functions.sigprocfunc import readbdf as from_package
+        """,
+        """
+        from eegprep.functions.sigprocfunc import readbdf as from_package
+        from eegprep.functions.sigprocfunc.readbdf import readbdf as from_submodule
+        """,
+    )
+    check = """
+        import inspect
+        assert inspect.isfunction(from_package)
+        assert inspect.isfunction(from_submodule)
+        assert from_package is from_submodule
+        print("ok")
+        """
+    for order in orders:
+        code = textwrap.dedent(order + check)
+        result = subprocess.run([sys.executable, "-c", code], check=False, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "ok"
+
+
 def test_package_root_exports_the_numerical_functions():
     import eegprep
 

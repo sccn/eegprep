@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 from importlib import import_module
+from types import ModuleType
 from typing import Any
 
 # Importing this package must not import Matplotlib. Plotting helpers load on
@@ -31,15 +33,17 @@ _LAZY_EXPORTS = {
 __all__ = list(_LAZY_EXPORTS)
 
 
-def __getattr__(name: str) -> Any:
-    try:
-        module_name, attr_name = _LAZY_EXPORTS[name]
-    except KeyError as exc:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
-    value = getattr(import_module(module_name), attr_name)
-    globals()[name] = value
-    return value
+class _SigProcFuncModule(ModuleType):
+    def __getattribute__(self, name: str) -> Any:
+        exports = ModuleType.__getattribute__(self, "_LAZY_EXPORTS")
+        if name in exports:
+            module_name, attr_name = exports[name]
+            return getattr(import_module(module_name), attr_name)
+        return ModuleType.__getattribute__(self, name)
+
+    def __dir__(self) -> list[str]:
+        exports = ModuleType.__getattribute__(self, "_LAZY_EXPORTS")
+        return sorted(set(exports) | set(ModuleType.__dir__(self)))
 
 
-def __dir__() -> list[str]:
-    return sorted(set(_LAZY_EXPORTS) | set(globals()))
+sys.modules[__name__].__class__ = _SigProcFuncModule
