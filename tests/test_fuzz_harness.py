@@ -18,6 +18,7 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
 from tests.fixtures import create_test_eeg
+from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 from tests.fuzz.harness import (
@@ -599,18 +600,22 @@ _REFERENCE_DATA_ERROR = (
 
 @pytest.mark.parametrize("case", [_REREF_2E5, _REREF_1E5])
 def test_average_reref_survey_compares_the_float64_product(case):
-    """The filed 1e-5 gap is the float32 product. The survey compares float64."""
+    """A float32 crop stays within the float64 survey tolerance.
+
+    The nightly survey compares float64 with EEGLAB. Average reference of
+    the same crop stored as float32 used to miss that float64 result by
+    about 1e-5. The float64 sum, cast once to float32, stays inside the
+    approved pop_reref tolerance.
+    """
     eeg = materialize_eeg(case)
     assert eeg["data"].dtype == np.float64
     wide = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
-    narrow = np.asarray(
-        dispatch_python(case, {**eeg, "data": np.asarray(eeg["data"], dtype=np.float32)})["data"],
-        dtype=np.float64,
-    )
+    narrow_eeg = dispatch_python(case, {**eeg, "data": np.asarray(eeg["data"], dtype=np.float32)})
+    assert np.asarray(narrow_eeg["data"]).dtype == np.float32
+    narrow = np.asarray(narrow_eeg["data"], dtype=np.float64)
     tolerance = load_tolerances()["pop_reref"]
-    diverged, _, max_abs, _, _ = compare_data(narrow, wide, 128.0, 128.0, tolerance)
-    assert diverged is True
-    assert 1e-6 < max_abs < 1e-3
+    diverged, _, _max_abs, _, detail = compare_data(narrow, wide, 128.0, 128.0, tolerance)
+    assert diverged is False, detail
     assert compare_data(wide, wide, 128.0, 128.0, tolerance)[0] is False
 
 
@@ -1125,6 +1130,63 @@ def test_one_rms_window_message_does_not_hide_a_different_error():
         side_from_error(RuntimeError("Index in position 1 is invalid.")),
         Tolerance(0.0, 1e-6),
         _ONE_WINDOW_ASR,
+        "abc",
+    )
+    assert outcome.diverged is True
+
+
+def _zero_window_fit_error():
+    from tests.matlab_batch_engine import MatlabExecutionError
+
+    return MatlabExecutionError(
+        "Index in position 1 exceeds array bounds.",
+        identifier="MATLAB:badsubscript",
+        stack=(
+            "  asr_calibrate>fit_eeg_distribution (line 388)\n"
+            "  asr_calibrate>asr_calibrate (line 206)\n"
+            "  clean_asr>clean_asr (line 180)\n"
+        ),
+    )
+
+
+def _zero_window_python_error():
+    return ASRCalibrationError(
+        "asr_calibrate: Fewer than 2 calibration windows: got 0 from 64 samples with window length 64. "
+        "Two 0.5 s RMS windows at 128 Hz need at least 87 samples; "
+        "use a longer recording or set BurstCriterion='off'."
+    )
+
+
+def test_zero_rms_windows_match_the_fit_subscript():
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec((0, 1, 2, 3), 0, 64, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 10.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+    outcome = judge(
+        side_from_error(_zero_window_python_error()),
+        side_from_error(_zero_window_fit_error()),
+        Tolerance(0.0, 1e-6),
+        case,
+        "abc",
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
+    assert "got 0 from 64 samples" in outcome.detail
+    assert "Index in position 1 exceeds array bounds" in outcome.detail
+
+
+def test_zero_rms_windows_do_not_match_a_bare_index_error():
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec((0, 1, 2, 3), 0, 64, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 10.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+    outcome = judge(
+        side_from_error(_zero_window_python_error()),
+        side_from_error(RuntimeError("Index in position 1 exceeds array bounds.")),
+        Tolerance(0.0, 1e-6),
+        case,
         "abc",
     )
     assert outcome.diverged is True

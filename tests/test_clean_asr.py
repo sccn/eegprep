@@ -124,6 +124,23 @@ def test_empty_calibration_names_the_missing_window():
         asr_calibrate(np.ones((2, 0)), 128.0)
 
 
+def test_sixty_four_samples_have_no_calibration_window():
+    """S == N yields an empty RMS colon. asr_calibrate.m only guards length 1."""
+    eeg = {
+        "data": np.ones((4, 64)),
+        "srate": 128.0,
+        "nbchan": 4,
+        "pnts": 64,
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": 63 / 128,
+        "event": [],
+    }
+    with pytest.raises(ASRCalibrationError, match=r"got 0 from 64 samples with window length 64") as raised:
+        clean_asr(eeg, cutoff=10.0, ref_maxbadchannels=0.075, ref_tolerances=(-3.5, 5.5), ref_wndlen=1.0)
+    assert "need at least 87 samples" in str(raised.value)
+
+
 def test_very_short_recording_still_calibrates_with_reference_off():
     """24 channels, 62 samples at 64 Hz. EEGLAB's fit indexes with width 0."""
     source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
