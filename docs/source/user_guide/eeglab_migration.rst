@@ -291,6 +291,20 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``clean_artifacts.m`` lines 270-275 catch the error and return the
        recording unchanged (#582). EEGPrep skips non-positive widths and
        still calibrates on that reference.
+   * - All-zero channel during ASR
+     - A channel with no energy in any calibration window is below the lower
+       power bound in every window when another channel has energy in a
+       window, so it uses a bad-channel slot on the low side.
+       ``clean_windows.m`` evaluates ``(0-0)/0``, and ``sort`` places
+       that NaN in the highest window, so the channel uses the high-amplitude
+       slot (#642). On the 17-channel crop starting at sample 4097, with
+       cutoff 3, ``ref_maxbadchannels`` 0.075, and a 1 s processing window,
+       the NaN sort keeps 241 samples and this dropout reading keeps 198.
+       Scoring the zero scale as 0 keeps 329, and ASR on that reference
+       differs from the NaN sort by 99.09315492805 at flat index 21475.
+       An all-zero channel that ASR repairs stays exactly zero. MATLAB's
+       ``sqrtm`` does not force that zero, and the residual on that channel
+       is roundoff (#643).
    * - One-channel ``clean_windows`` sort
      - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
        One channel is one row, so MATLAB sorts that row across time and the

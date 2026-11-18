@@ -28,6 +28,11 @@ Unreleased
   ``signalstat`` histogram centers, the blank scalp placeholder, and
   contour levels are unchanged: EEGLAB does not build them with
   ``linspace`` or a colon (#568).
+- ``clean_windows`` counts a channel whose RMS is zero in every window as below the lower power bound in every window when another channel has energy in a window.
+  EEGLAB's ``(0-0)/0`` is NaN, and ``sort`` places that channel in the highest window, so it spends a high-amplitude bad-channel slot (#642).
+  On the 17-channel crop from sample 4097, that NaN sort keeps 241 samples, this dropout reading keeps 198, and scoring the zero scale as 0 keeps 329.
+  ASR on the zero-score reference differs from the NaN sort by 99.09315492805 at flat index 21475.
+  An all-zero channel stays exactly zero through ASR. MATLAB's ``sqrtm`` leaves a roundoff residual on that channel (#643).
 - A pAMICA fit runs at its ``threads`` argument for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools, then restores those counts.
   ``EEG["etc"]["pamica"]["threads"]`` stores that count when the pools actually used it, and replaying the record runs at the same count.
   The OpenMP check recognizes Torch's ``libiompstubs`` library by its filename. Any other OpenMP pool that is not at the requested count still raises.

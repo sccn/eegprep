@@ -1739,6 +1739,170 @@ def _channel_axis_reference_is_short(eeg: dict, params: dict, python: SideResult
     return 0 < selected < needed and f"has {selected} samples" in message
 
 
+def _window_remove_mask(scores: np.ndarray, max_bad: int, zmin: float, zmax: float) -> np.ndarray:
+    ordered = np.sort(scores, axis=0)
+    channels = int(scores.shape[0])
+    remove = np.zeros(scores.shape[1], dtype=bool)
+    if zmax > 0:
+        index = max(min(channels - max_bad - 1, channels - 1), 0)
+        remove |= ordered[index] > zmax
+    if zmin < 0:
+        index = max(min(max_bad, channels - 1), 0)
+        remove |= ordered[index] < zmin
+    return remove
+
+
+def _sample_mask_from_windows(n_samples: int, offsets: np.ndarray, width: int, removed: np.ndarray) -> np.ndarray:
+    mask = np.ones(n_samples, dtype=bool)
+    for window in np.flatnonzero(removed):
+        start = int(offsets[window])
+        mask[start : start + width] = False
+    return mask
+
+
+def _exactly_zero_rows(data: np.ndarray) -> np.ndarray:
+    return np.all(np.asarray(data, dtype=np.float64) == 0.0, axis=1)
+
+
+def _failed_samples_are_on_rows(
+    candidate: np.ndarray,
+    oracle_data: np.ndarray,
+    rows: np.ndarray,
+    candidate_srate: float,
+    oracle_srate: float,
+    tolerance: Tolerance,
+) -> bool:
+    """True when every sample past the approved limit lies on ``rows``."""
+    diverged, kind, *_rest = compare_data(candidate, oracle_data, candidate_srate, oracle_srate, tolerance)
+    if not diverged or kind != "numeric":
+        return False
+    finite = np.isfinite(candidate) & np.isfinite(oracle_data)
+    diff = np.abs(candidate - oracle_data)
+    limit = tolerance.abs + tolerance.rel * np.abs(oracle_data)
+    failed = finite & (diff > limit)
+    if not np.any(failed):
+        return False
+    return not np.any(np.any(failed, axis=1) & ~rows)
+
+
+def _nan_sort_reference(eeg: dict, params: dict) -> np.ndarray | None:
+    """Samples ``clean_windows.m`` keeps when a dead channel scores NaN.
+
+    ``(0-0)/0`` is NaN, and ``sort`` places NaN last, so the channel spends a
+    high-amplitude slot. EEGPrep scores that channel below the lower bound.
+    ``None`` means the two readings keep the same samples, or the fit throws.
+    """
+    ref = params.get("ref_maxbadchannels")
+    if "cutoff" not in params or isinstance(ref, (str, bool)) or not isinstance(ref, (int, float)):
+        return None
+    tolerances = _effective_reference_tolerances(params)
+    try:
+        _cleaned, kept, diag = clean_windows(
+            copy.deepcopy(eeg),
+            float(ref),
+            tolerances,
+            1.0,
+            return_diagnostics=True,
+        )
+    except ValueError:
+        return None
+    data = np.asarray(eeg["data"], dtype=np.float64)
+    flat = _exactly_zero_rows(data)
+    if not np.any(flat):
+        return None
+    scores = np.array(diag["zscores"], dtype=np.float64, copy=True)
+    if scores.shape[0] != flat.shape[0] or not np.all(np.isneginf(scores[flat])):
+        return None
+    scores[flat] = np.nan
+    criteria = diag["criteria"]
+    remove = _window_remove_mask(
+        scores,
+        int(criteria["max_bad_channels"]),
+        float(tolerances[0]),
+        float(tolerances[1]),
+    )
+    nan_kept = _sample_mask_from_windows(
+        data.shape[1],
+        np.asarray(diag["window_offsets"]),
+        int(diag["window_length"]),
+        remove,
+    )
+    if not np.any(nan_kept) or np.array_equal(nan_kept, np.asarray(kept, dtype=bool)):
+        return None
+    return data[:, nan_kept]
+
+
+def _asr_from_reference(eeg: dict, params: dict, reference: np.ndarray) -> dict:
+    kwargs: dict = {"cutoff": float(params["cutoff"]), "ref_maxbadchannels": reference}
+    window = params.get("window_len")
+    if params.get("entry") != "clean_rawdata" and window is not None:
+        kwargs["window_len"] = float(window)
+    return clean_asr(copy.deepcopy(eeg), **kwargs)
+
+
+def _flat_nan_sort_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """EEGLAB's dead-channel z-score sorts as the highest window.
+
+    The oracle has to match ASR on that NaN-sort reference. A residual that
+    fails the approved limit has to sit on a channel that is identically zero
+    and that this calibration left at zero.
+    """
+    if case.function != "clean_asr" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None:
+        return False
+    params = thaw_params(case.params)
+    reference = _nan_sort_reference(eeg, params)
+    if reference is None:
+        return False
+    try:
+        produced = dispatch_python(case, copy.deepcopy(eeg))
+        alternate = _asr_from_reference(eeg, params, reference)
+    except ValueError:
+        return False
+    srate = float(eeg["srate"])
+    oracle_srate = float(oracle.srate if oracle.srate is not None else srate)
+    python_data = np.asarray(python.data, dtype=np.float64)
+    produced_data = np.asarray(produced["data"], dtype=np.float64)
+    if compare_data(python_data, produced_data, srate, srate, tolerance)[0]:
+        return False
+    alternate_data = np.asarray(alternate["data"], dtype=np.float64)
+    oracle_data = np.asarray(oracle.data, dtype=np.float64)
+    flat = _exactly_zero_rows(np.asarray(eeg["data"], dtype=np.float64))
+    if alternate_data.shape != oracle_data.shape or not np.all(alternate_data[flat] == 0.0):
+        return False
+    diverged, *_rest = compare_data(alternate_data, oracle_data, srate, oracle_srate, tolerance)
+    if not diverged:
+        return True
+    return _failed_samples_are_on_rows(alternate_data, oracle_data, flat, srate, oracle_srate, tolerance)
+
+
+def _flat_nullspace_roundoff_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """An all-zero channel stays zero. MATLAB's ``sqrtm`` does not.
+
+    The approved tolerance still applies to every channel that carries signal.
+    """
+    if case.function != "clean_asr" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None:
+        return False
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    python_data = np.asarray(python.data, dtype=np.float64)
+    oracle_data = np.asarray(oracle.data, dtype=np.float64)
+    if original.ndim != 2 or python_data.shape != original.shape or oracle_data.shape != original.shape:
+        return False
+    flat = _exactly_zero_rows(original)
+    if not np.any(flat) or not np.all(python_data[flat] == 0.0):
+        return False
+    srate = float(eeg["srate"])
+    oracle_srate = float(oracle.srate if oracle.srate is not None else srate)
+    return _failed_samples_are_on_rows(python_data, oracle_data, flat, srate, oracle_srate, tolerance)
+
+
 def _one_channel_sort_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
     """``clean_windows.m`` sorts a one-row score matrix across time.
 
@@ -2101,6 +2265,32 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             "known difference: pop_rmbase.m mean() spreads a baseline NaN across the channel",
             digest,
         )
+    if outcome.diverged and _flat_nullspace_roundoff_is_known(case, eeg, python, oracle, tolerance):
+        # A zero row stays a zero row through the covariance square root and
+        # the reconstruction. MATLAB's sqrtm leaves a roundoff residual there.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known difference: an all-zero channel stays zero through ASR (#643)",
+            digest,
+        )
+    if outcome.diverged and _flat_nan_sort_is_known(case, eeg, python, oracle, tolerance):
+        # clean_windows.m scores an all-zero channel as (0-0)/0. sort places
+        # that NaN in the highest window, so it spends a high-amplitude slot.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known EEGLAB defect: a flat channel's 0/0 z-score sorts as the highest window (#642)",
+            digest,
+        )
     if outcome.diverged and case.function == "pop_rmbase" and _event_targets().rmbase_boundary_offset(case, eeg):
         # pop_rmbase.m shifts segment indices when the baseline starts after
         # sample 1. EEGPrep removes the mean of the listed samples.
@@ -2186,6 +2376,12 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         known_valuelim = outcome.diverged and _scalar_valuelim_is_known(
             step, current, python_side, oracle_side, tolerance
         )
+        known_flat_zero = outcome.diverged and _flat_nullspace_roundoff_is_known(
+            step, current, python_side, oracle_side, tolerance
+        )
+        known_flat_nan = outcome.diverged and _flat_nan_sort_is_known(
+            step, current, python_side, oracle_side, tolerance
+        )
         if (
             not known_reref
             and not known_trials
@@ -2193,6 +2389,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             and not known_rmbase_mean
             and not known_trials_order
             and not known_valuelim
+            and not known_flat_zero
+            and not known_flat_nan
             and (outcome.diverged or outcome.error_class != "match")
         ):
             returned = _outcome(
@@ -2211,11 +2409,18 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         # Continue from the Python EEG when MATLAB's output is the known
         # defect: a NaN spread by the reference matrix, events dropped
         # because trials was still 0, a one-element valuelim that rejected
-        # every epoch, or mean() filling a channel from one baseline NaN.
-        # Later steps then see a real signal.
-        if (known_reref or known_trials or known_trials_order or known_rmbase_mean or known_valuelim) and _eeg_dict(
-            _python_eeg
-        ) is not None:
+        # every epoch, mean() filling a channel from one baseline NaN, a
+        # flat channel scored as the highest window, or a flat channel left
+        # with square-root roundoff. Later steps then see a real signal.
+        if (
+            known_reref
+            or known_trials
+            or known_trials_order
+            or known_rmbase_mean
+            or known_valuelim
+            or known_flat_zero
+            or known_flat_nan
+        ) and _eeg_dict(_python_eeg) is not None:
             nxt = _python_eeg
         else:
             nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg
@@ -2235,6 +2440,12 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             last_detail = f"{name}: known difference: a one-element pop_epoch valuelim is a symmetric bound"
         elif known_rmbase_mean:
             last_detail = f"{name}: known difference: pop_rmbase.m mean() spreads a baseline NaN across the channel"
+        elif known_flat_zero:
+            last_detail = f"{name}: known difference: an all-zero channel stays zero through ASR (#643)"
+        elif known_flat_nan:
+            last_detail = (
+                f"{name}: known EEGLAB defect: a flat channel's 0/0 z-score sorts as the highest window (#642)"
+            )
         elif known_rmbase:
             last_detail = (
                 f"{name}: known divergence: continuous pop_rmbase with a boundary "

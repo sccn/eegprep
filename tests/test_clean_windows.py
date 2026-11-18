@@ -273,5 +273,32 @@ def test_prior_mask_is_written_into_the_kept_indices(caplog):
     assert "overwritten" not in caplog.text
 
 
+def test_all_zero_channel_is_below_the_lower_bound():
+    """A channel with no energy is a dropout in every window.
+
+    One allowed bad channel keeps the windows. None allowed removes every
+    window, because the dead channel is below the lower bound in each one.
+    """
+    data = np.ones((3, 1536), dtype=np.float64)
+    data[2] = 0.0
+    _cleaned, mask, diag = clean_windows(
+        _eeg(data),
+        max_bad_channels=1,
+        zthresholds=(-3.5, 5.5),
+        return_diagnostics=True,
+    )
+    assert np.all(np.isneginf(diag["zscores"][2]))
+    assert not diag["window_flags"].any()
+    assert mask.all()
+
+    _cleaned, _mask, rejected = clean_windows(
+        _eeg(data),
+        max_bad_channels=0,
+        zthresholds=(-3.5, 5.5),
+        return_diagnostics=True,
+    )
+    assert rejected["window_flags"].all()
+
+
 if __name__ == '__main__':
     unittest.main()

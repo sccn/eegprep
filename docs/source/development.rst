@@ -895,9 +895,12 @@ same shape, dtype, NaN, +Inf, -Inf, and values before any numeric comparison.
 An identity transfer of values float32 cannot represent runs before the
 other sanity cases. If that check fails, the job fails and does not open an
 issue. A MATLAB exception, and a cleaning wrapper that returns its input
-unchanged, are oracle failures. The two known EEGLAB ASR defects (a zero
-fit width on the reference that was actually selected, and ``sort(wz)``
-across time on one channel) are not filed. Other mismatches are shrunk on
+unchanged, are oracle failures. The known EEGLAB ASR defects (a zero
+fit width on the reference that was actually selected, ``sort(wz)``
+across time on one channel, and a flat channel whose ``(0-0)/0`` z-score
+sorts as the highest window) are not filed. An all-zero channel that stays
+exactly zero is not filed when every other channel still passes the approved
+``clean_asr`` tolerance. Other mismatches are shrunk on
 the failure mechanism, saved under the ``fuzz-repros`` artifact with the
 oracle identifier and stack, and filed (at most three new issues a night)
 with the labels ``fuzz`` and ``fuzz-unconfirmed``. Repeated findings group

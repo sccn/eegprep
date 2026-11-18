@@ -50,6 +50,9 @@ from tests.fuzz.harness import (
     suspend_option_single,
     thaw_params,
     tolerance_for,
+    _flat_nan_sort_is_known,
+    _flat_nullspace_roundoff_is_known,
+    _nan_sort_reference,
     _InputObserver,
     _caught_evidence,
     _seen_input,
@@ -2207,3 +2210,86 @@ def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
     assert result.functions["pop_reref"]["divergences"] >= 2
     assert len(result.divergences) == 1
     assert result.divergences[0].signature == "pop_reref|numeric|data"
+
+
+def _flat_case(channels, start, length, flat_channel, params) -> tuple[FuzzCase, dict]:
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(channels, start, length, 1, -1, 0, 0, flat_channel=flat_channel),
+        freeze_params(params),
+    )
+    return case, materialize_eeg(case)
+
+
+def test_flat_channel_nan_sort_is_not_a_divergence():
+    case, eeg = _flat_case(
+        tuple(range(12, 29)),
+        4097,
+        1278,
+        8,
+        {"entry": "clean_asr", "cutoff": 3.0, "ref_maxbadchannels": 0.075, "window_len": 1.0},
+    )
+    reference = _nan_sort_reference(eeg, thaw_params(case.params))
+    assert reference is not None
+    nan_out = np.asarray(
+        clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=reference, window_len=1.0)["data"],
+        dtype=np.float64,
+    )
+
+    def nan_oracle(_case, _dataset):
+        return nan_out
+
+    accepted = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(nan_oracle), load_tolerances())
+    assert accepted.diverged is False
+    assert "#642" in accepted.detail
+
+    def shifted(_case, _dataset):
+        data = nan_out.copy()
+        data[0, 0] += 1.0
+        return data
+
+    rejected = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(shifted), load_tolerances())
+    assert rejected.diverged is True
+    assert "#642" not in rejected.detail
+
+
+def test_flat_channel_roundoff_is_not_a_divergence():
+    case, eeg = _flat_case(
+        tuple(range(17, 32)),
+        324,
+        564,
+        11,
+        {"entry": "clean_rawdata", "cutoff": 10.0, "ref_maxbadchannels": 0.2, "window_len": 1.0},
+    )
+    produced = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
+    assert np.all(produced[11] == 0.0)
+    residual = produced.copy()
+    residual[11, 0] = 5.787370582766016e-12
+
+    def oracle(_case, _dataset):
+        return residual
+
+    accepted = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(oracle), load_tolerances())
+    assert accepted.diverged is False
+    assert "#643" in accepted.detail
+    assert "#642" not in accepted.detail
+
+    def also_real(_case, _dataset):
+        data = residual.copy()
+        data[6, 541] += 1.0
+        return data
+
+    rejected = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(also_real), load_tolerances())
+    assert rejected.diverged is True
+
+    tolerance = Tolerance(0.0, 1e-6)
+    zero = SideResult(True, produced, 128.0, None, None)
+    noisy = SideResult(True, residual, 128.0, None, None)
+    assert _flat_nullspace_roundoff_is_known(case, eeg, zero, noisy, tolerance)
+    assert not _flat_nullspace_roundoff_is_known(case, eeg, noisy, zero, tolerance)
+    bumped = residual.copy()
+    bumped[0, 0] += 1.0
+    assert not _flat_nullspace_roundoff_is_known(
+        case, eeg, zero, SideResult(True, bumped, 128.0, None, None), tolerance
+    )
+    assert not _flat_nan_sort_is_known(case, eeg, zero, noisy, tolerance)
