@@ -1056,6 +1056,29 @@ history command does not assign over <code class="docutils literal notranslate">
 infinite-medium kernel. FieldTrip’s boundary-element leadfield is not
 in this dispatch yet, so those dipole positions do not match EEGLAB.</p></td>
 </tr>
+<tr class="row-even"><td><p>Degenerate electrode positions</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>, spherical <code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code>, <code class="docutils literal notranslate"><span class="pre">spheric_spline</span></code>,
+<code class="docutils literal notranslate"><span class="pre">sphericalSplineInterpolate</span></code>, and <code class="docutils literal notranslate"><span class="pre">headplot</span></code> raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
+when Cartesian electrode positions are identical or collinear. Planar
+or nearly planar positions, including a ring around the head, produce
+a <code class="docutils literal notranslate"><span class="pre">UserWarning</span></code> and the call still runs. The test uses singular
+values of the centered position matrix, which are unchanged by
+translation and uniform scaling. A uniform hemispherical shell has
+thickness ratio 1/2; an axis below one quarter of that ratio is
+treated as missing. Inverse-distance and space-time interpolation
+stay quiet on a planar cap and raise only when the flat coordinates
+are identical or collinear. <code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code> classifies the channels
+it interpolates from once three or more remain, so a collinear strip
+raises even when the filled-in channels sit off that strip. Two
+distinct source channels are not rejected for collinearity alone.
+The whole located montage is still classified, so an identical or
+collinear montage still raises and a planar montage still warns.
+Two identical source channels raise. EEGLAB
+<code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> and
+<code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code> do not test the layout, so a collinear montage can
+come back as a channel deletion or an interpolation that does not
+reflect the recording.</p></td>
+</tr>
 </tbody>
 </table>
 </div>

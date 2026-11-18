@@ -580,7 +580,16 @@ a subset of the requested channel structure.</p>
 <dt>dtype<span class="classifier">str or dtype, optional</span></dt><dd><p>Precision for the spherical-spline computation. The default follows
 the floating-point dtype of <code class="docutils literal notranslate"><span class="pre">EEG['data']</span></code>, and uses <code class="docutils literal notranslate"><span class="pre">float64</span></code> when
 the data are not floating point. Pass <code class="docutils literal notranslate"><span class="pre">&quot;float32&quot;</span></code> for the
-lower-memory path.</p>
+lower-memory path. Identical or collinear electrode positions raise
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. Planar positions warn. With three or more channels
+left to interpolate from, those source positions are checked on
+their own, so a collinear strip raises even when the filled-in
+channels sit off the strip. Two distinct source channels are not
+rejected for collinearity alone; the whole located montage is
+still classified and can raise or warn. Two identical source
+channels raise. Inverse-distance and space-time
+interpolation stay quiet on a planar layout and raise only when
+the flat coordinates are identical or collinear.</p>
 </dd>
 </dl>
 </section>

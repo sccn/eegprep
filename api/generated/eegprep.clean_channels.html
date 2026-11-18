@@ -592,6 +592,9 @@ the number of channels raises <code class="docutils literal notranslate"><span c
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]</p>
 </dd>
 </dl>
+<p>Identical or collinear electrode positions raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.
+Planar or nearly planar positions, including a ring, warn and channel
+removal still runs. EEGLAB does not reject those layouts.</p>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <p>EEG : data set with bad channels removed</p>
