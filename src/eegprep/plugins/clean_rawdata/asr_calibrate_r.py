@@ -8,7 +8,7 @@ import scipy.linalg
 import scipy.signal
 
 from ...functions.miscfunc.misc import finite_matmul, round_mat
-from .asr_calibrate import ASRCalibrationError, spectral_shaping_filter_available
+from .asr_calibrate import ASRCalibrationError, _raise_for_nonpositive_fit_width, spectral_shaping_filter_available
 from .private.riemann import rasr_nonlinear_eigenspace
 from .private.stats import fit_eeg_distribution, geometric_median
 from .private.windows import matlab_window_offsets
@@ -60,8 +60,9 @@ def asr_calibrate_r(
 
     Raises:
         ASRCalibrationError: The spectral shaping filter cannot be designed,
-            the calibration is shorter than one RMS window, or fewer than two
-            RMS windows can be formed.
+            the calibration is shorter than one RMS window, fewer than two
+            RMS windows can be formed, or a fit width rounds to a non-positive
+            value.
         ValueError: ``X`` is not a channels-by-samples array.
 
     Returns:
@@ -112,6 +113,7 @@ def asr_calibrate_r(
             f"Two {window_len:g} s RMS windows at {srate:g} Hz need at least {minimum} samples; "
             f"use a longer recording or set BurstCriterion='off'."
         )
+    _raise_for_nonpositive_fit_width(len(window_starts), min_clean_fraction, "asr_calibrate_r")
 
     blocksize = max(blocksize, math.ceil((channels * channels * samples * 8 * 3 * 2) / (maxmem * (2**21))))
 

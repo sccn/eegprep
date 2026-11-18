@@ -6,6 +6,7 @@ import numpy as np
 import scipy.signal
 import scipy.linalg
 
+from ...functions.miscfunc.matlab_colon import matlab_colon
 from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul, round_mat
 from .private.covariance import cov_mean, cov_shrinkage
 from .private.stats import fit_eeg_distribution, geometric_median
@@ -14,9 +15,32 @@ from .private.yulewalk import yulewalk
 
 logger = logging.getLogger(__name__)
 
+# fit_eeg_distribution defaults. asr_calibrate.m passes only the clean and dropout fractions.
+_FIT_QUANTILES = (0.022, 0.6)
+_FIT_WIDTH_STEP = 0.01
+
 
 class ASRCalibrationError(ValueError):
     """ASR could not build a calibration state from this recording."""
+
+
+def _raise_for_nonpositive_fit_width(n_windows: int, min_clean_fraction: float, source: str) -> None:
+    """Raise when ``round(n * (max_width:-step:min_width))`` contains a non-positive width.
+
+    ``asr_calibrate.m`` indexes ``X(m,:)`` for every width in that colon.
+    """
+    max_width = _FIT_QUANTILES[1] - _FIT_QUANTILES[0]
+    min_width = float(min_clean_fraction) * max_width
+    widths = matlab_colon(max_width, -_FIT_WIDTH_STEP, min_width)
+    if widths.size == 0:
+        return
+    rounded = np.asarray(round_mat(n_windows * widths))
+    if np.any(rounded <= 0):
+        raise ASRCalibrationError(
+            f"{source}: {n_windows} RMS windows are too few for the fit width grid. "
+            "round(n * width) includes a non-positive width. "
+            "Use a longer recording or set BurstCriterion='off'."
+        )
 
 
 def spectral_shaping_filter_available(srate: float) -> bool:
@@ -129,8 +153,8 @@ def asr_calibrate(
     ------
     ASRCalibrationError
         The default spectral breakpoints are not monotonic at ``srate``, the
-        calibration is shorter than one RMS window, or fewer than two RMS
-        windows can be formed.
+        calibration is shorter than one RMS window, fewer than two RMS
+        windows can be formed, or a fit width rounds to a non-positive value.
     """
     X = np.asarray(X, dtype=float)
     if X.ndim != 2:
@@ -288,6 +312,7 @@ def asr_calibrate(
             f"Two {window_len:g} s RMS windows at {srate:g} Hz need at least {minimum} samples; "
             f"use a longer recording or set BurstCriterion='off'."
         )
+    _raise_for_nonpositive_fit_width(len(window_starts), min_clean_fraction, "asr_calibrate")
 
     window_indices = window_starts[:, None] + np.arange(N)
 
