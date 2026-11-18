@@ -881,6 +881,106 @@ def test_zero_trial_epoch_disagreement_stays_on_pop_epoch(mutate, error_class, d
     assert detail in outcome.detail
 
 
+def _scalar_valuelim_eeg():
+    eeg = create_test_eeg(n_channels=29, n_samples=200, srate=64.0)
+    eeg["data"] = np.full((29, 200), 10.0)
+    eeg["event"] = [
+        {"type": "rt", "latency": 80.0},
+        {"type": "rt", "latency": 140.0},
+    ]
+    return eeg
+
+
+def _scalar_valuelim_case(valuelim, *, pipeline=False):
+    params = freeze_params({"types": ["rt"], "lim": [-0.5, -0.1], "valuelim": valuelim})
+    spec = EEGSpec(tuple(range(29)), 0, 200, 1, -1, 0, 0, srate_hz=64.0)
+    if not pipeline:
+        return FuzzCase("pop_epoch", spec, params)
+    return FuzzCase(
+        "pipeline",
+        spec,
+        freeze_params({}),
+        pipeline=(
+            ("pop_epoch", params),
+            ("pop_select", freeze_params({"trial": [1], "sorttrial": "on"})),
+        ),
+    )
+
+
+def _reject_every_epoch(_case, dataset):
+    output = dispatch_python(_case, dataset)
+    eeg = copy.deepcopy(output[0] if isinstance(output, tuple) else output)
+    data = np.asarray(eeg["data"])
+    eeg["data"] = np.zeros((data.shape[0], data.shape[1], 0), dtype=np.float64)
+    eeg["pnts"] = data.shape[1]
+    eeg["trials"] = 0
+    return eeg
+
+
+def test_scalar_valuelim_empty_oracle_is_not_filed():
+    case = _scalar_valuelim_case([50.0])
+    outcome = evaluate_case(
+        case,
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _CallBackend(_reject_every_epoch),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+    assert "symmetric bound" in outcome.detail
+
+    shifted = _scalar_valuelim_case([50.0])
+
+    def different_window(_case, dataset):
+        eeg = _reject_every_epoch(_case, dataset)
+        eeg["data"] = np.zeros((eeg["data"].shape[0], eeg["pnts"] + 1, 0), dtype=np.float64)
+        eeg["pnts"] += 1
+        return eeg
+
+    filed = evaluate_case(
+        shifted,
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _CallBackend(different_window),
+        load_tolerances(),
+    )
+    assert filed.diverged is True
+    assert filed.error_class == "shape"
+
+    interval = evaluate_case(
+        _scalar_valuelim_case([-50.0, 50.0]),
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _CallBackend(_reject_every_epoch),
+        load_tolerances(),
+    )
+    assert interval.diverged is True
+    assert interval.error_class == "shape"
+
+
+def test_pipeline_scalar_valuelim_continues_from_python():
+    seen = []
+
+    class _Oracle:
+        def run_raw(self, step, dataset):
+            if step.function != "pop_epoch":
+                seen.append((int(dataset["trials"]), np.asarray(dataset["data"]).shape))
+                return dispatch_python(step, dataset)
+            return _reject_every_epoch(step, dataset)
+
+    outcome = evaluate_case(
+        _scalar_valuelim_case([50.0], pipeline=True),
+        lambda _case: _scalar_valuelim_eeg(),
+        PythonBackend(),
+        _Oracle(),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert seen[0][0] == 2
+    assert seen[0][1][:2] == (29, 26)
+
+
 def test_duplicate_trial_order_is_not_filed():
     eeg = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=5)
     data = np.zeros((1, 4, 5))

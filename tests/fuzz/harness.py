@@ -1401,6 +1401,39 @@ def _stale_zero_trials_is_known(
     return kept == oracle.events and len(python.events) > len(oracle.events)
 
 
+def _scalar_valuelim_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """True when a one-element ``valuelim`` rejected every EEGLAB epoch.
+
+    ``pop_epoch.m`` line 224 passes a scalar through. ``epoch.m`` lines 133-136
+    read the upper bound only after the minimum is above the first element.
+    EEGPrep keeps epochs whose samples lie strictly inside ± that value, and
+    the window's channel and point counts still match.
+    """
+    if case.function != "pop_epoch" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None or oracle.trials != 0:
+        return False
+    valuelim = thaw_params(case.params).get("valuelim")
+    if not isinstance(valuelim, (list, tuple)) or len(valuelim) != 1:
+        return False
+    oracle_data = np.asarray(oracle.data)
+    if oracle_data.ndim != 3 or oracle_data.shape[2] != 0:
+        return False
+    plane = _kept_epoch_plane(python.data)
+    return plane == (int(oracle_data.shape[0]), int(oracle_data.shape[1]))
+
+
+def _kept_epoch_plane(data: np.ndarray) -> tuple[int, int] | None:
+    array = np.asarray(data)
+    if array.ndim == 2 and array.shape[0] > 0 and array.shape[1] > 0:
+        return int(array.shape[0]), int(array.shape[1])
+    if array.ndim == 3 and array.shape[0] > 0 and array.shape[1] > 0 and array.shape[2] > 0:
+        return int(array.shape[0]), int(array.shape[1])
+    return None
+
+
 def _duplicate_trial_order_is_known(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
 ) -> bool:
@@ -2002,6 +2035,19 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             "known difference: eeg_eegrej keeps events when trials was 0",
             digest,
         )
+    if outcome.diverged and _scalar_valuelim_is_known(case, eeg, python, oracle, tolerance):
+        # epoch.m:133-136 reads the second valuelim element only after the
+        # minimum clears the first, so a scalar rejects every epoch.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known difference: a one-element pop_epoch valuelim is a symmetric bound",
+            digest,
+        )
     if outcome.diverged and _duplicate_trial_order_is_known(case, eeg, python, oracle, tolerance):
         # pop_select.m:282-286 uses unique_bc, which keeps the last copy of a
         # repeated trial. EEGPrep keeps the first.
@@ -2108,12 +2154,16 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         known_trials_order = outcome.diverged and _duplicate_trial_order_is_known(
             step, current, python_side, oracle_side, tolerance
         )
+        known_valuelim = outcome.diverged and _scalar_valuelim_is_known(
+            step, current, python_side, oracle_side, tolerance
+        )
         if (
             not known_reref
             and not known_trials
             and not known_rmbase
             and not known_rmbase_mean
             and not known_trials_order
+            and not known_valuelim
             and (outcome.diverged or outcome.error_class != "match")
         ):
             returned = _outcome(
@@ -2131,9 +2181,10 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             return _remember_oracle(returned, oracle_side)
         # Continue from the Python EEG when MATLAB's output is the known
         # defect: a NaN spread by the reference matrix, events dropped
-        # because trials was still 0, or mean() filling a channel from one
-        # baseline NaN. Later steps then see a real signal.
-        if (known_reref or known_trials or known_trials_order or known_rmbase_mean) and _eeg_dict(
+        # because trials was still 0, a one-element valuelim that rejected
+        # every epoch, or mean() filling a channel from one baseline NaN.
+        # Later steps then see a real signal.
+        if (known_reref or known_trials or known_trials_order or known_rmbase_mean or known_valuelim) and _eeg_dict(
             _python_eeg
         ) is not None:
             nxt = _python_eeg
@@ -2151,6 +2202,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             last_detail = f"{name}: known difference: eeg_eegrej keeps events when trials was 0"
         elif known_trials_order:
             last_detail = f"{name}: known difference: pop_select keeps the first copy of a repeated trial"
+        elif known_valuelim:
+            last_detail = f"{name}: known difference: a one-element pop_epoch valuelim is a symmetric bound"
         elif known_rmbase_mean:
             last_detail = f"{name}: known difference: pop_rmbase.m mean() spreads a baseline NaN across the channel"
         elif known_rmbase:
