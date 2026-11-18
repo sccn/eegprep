@@ -645,9 +645,9 @@ assertions at each processing boundary.</p>
 <p>Two optional boundaries remain explicit. <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> needs the ICLabel
 model runtime; callers that already have compatible seven-class probabilities
 can use <code class="docutils literal notranslate"><span class="pre">pop_icflag</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_subcomp</span></code> independently. Dataset-level
-spherical DIPFIT fitting and leadfield construction run standalone, while
-MRI/BEM/LORETA workflows that require FieldTrip fail clearly until an external
-source-analysis backend is configured.</p>
+DIPFIT fitting runs standalone for the packaged MNI boundary-element model and
+for the four-shell <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> model. MRI head-model creation and eLORETA still fail
+clearly.</p>
 <p>Store reusable plot and statistics choices on the STUDY before plotting:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_erpparams</span><span class="p">,</span> <span class="n">pop_statparams</span>
 
@@ -748,9 +748,13 @@ the <code class="docutils literal notranslate"><span class="pre">kmeans</span></
 </section>
 <section id="dipfit-source-localization">
 <h2>DIPFIT Source Localization<a class="headerlink" href="#dipfit-source-localization" title="Link to this heading">#</a></h2>
-<p>EEGPrep includes standalone DIPFIT-compatible spherical workflows for ICA
-component source localization. Configure DIPFIT metadata first, then run a
-coarse grid search, nonlinear refinement, and dipole plotting:</p>
+<p>EEGPrep includes standalone DIPFIT workflows for ICA component source
+localization. The default head model is the packaged MNI boundary-element
+volume. <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> uses the four-shell BESA leadfield. A custom
+head-model file is read as a boundary-element volume when it contains
+<code class="docutils literal notranslate"><span class="pre">bnd</span></code>, <code class="docutils literal notranslate"><span class="pre">mat</span></code>, and <code class="docutils literal notranslate"><span class="pre">cond</span></code> with type dipoli, bemcp, or openmeeg.
+Configure DIPFIT metadata first, then run a coarse grid search, nonlinear
+refinement, and dipole plotting:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep.plugins.dipfit.pop_dipfit_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_dipfit_settings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eegprep.plugins.dipfit.pop_dipfit_gridsearch</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_dipfit_gridsearch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eegprep.plugins.dipfit.pop_dipfit_nonlinear</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_dipfit_nonlinear</span>
@@ -770,7 +774,8 @@ coarse grid search, nonlinear refinement, and dipole plotting:</p>
 <span class="n">figures</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_dipplot</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">summary</span><span class="o">=</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="n">projlines</span><span class="o">=</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> fits an average-referenced four-shell BESA leadfield and stores
+<p>The selected head model produces an average-referenced leadfield. <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code>
+uses the four-shell BESA model. Fitting stores
 <code class="docutils literal notranslate"><span class="pre">posxyz</span></code>, <code class="docutils literal notranslate"><span class="pre">momxyz</span></code>, <code class="docutils literal notranslate"><span class="pre">rv</span></code>, <code class="docutils literal notranslate"><span class="pre">diffmap</span></code>, <code class="docutils literal notranslate"><span class="pre">sourcepot</span></code>, and <code class="docutils literal notranslate"><span class="pre">datapot</span></code> in
 <code class="docutils literal notranslate"><span class="pre">EEG.dipfit.model</span></code>. Command history stays replayable from
 <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_multifit</span></code> chains the DIPFIT 24 by 24 by 12 grid
@@ -779,11 +784,12 @@ optional dipole plotting. MNI boundary-element settings do not use that
 four-shell model.</p>
 <p>The deprecated EEGLAB aliases <code class="docutils literal notranslate"><span class="pre">pop_dipfit_batch</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_dipfit_manual</span></code>
 remain available for script compatibility.</p>
-<p><code class="docutils literal notranslate"><span class="pre">pop_leadfield</span></code> can compute four-shell or infinite-medium leadfields for explicit source points
-provided as an <code class="docutils literal notranslate"><span class="pre">Nx3</span></code> array, <code class="docutils literal notranslate"><span class="pre">{&quot;pos&quot;:</span> <span class="pre">...}</span></code> dictionary, or simple file with
-source positions. MRI-derived BEM headmodel creation, AFNI atlas clipping, and
-LORETA source analysis remain explicit backend limits and fail clearly rather
-than producing placeholder source-localization outputs.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_leadfield</span></code> computes leadfields for explicit source points provided as
+an <code class="docutils literal notranslate"><span class="pre">Nx3</span></code> array, <code class="docutils literal notranslate"><span class="pre">{&quot;pos&quot;:</span> <span class="pre">...}</span></code> dictionary, or simple file with source
+positions. <code class="docutils literal notranslate"><span class="pre">standardBEM</span></code> uses the packaged dipoli model and <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code>
+uses the four-shell BESA model. MRI-derived BEM headmodel creation, AFNI atlas
+clipping, and LORETA source analysis remain explicit backend limits and fail
+clearly rather than producing placeholder source-localization outputs.</p>
 </section>
 <section id="session-synchronization">
 <h2>Session Synchronization<a class="headerlink" href="#session-synchronization" title="Link to this heading">#</a></h2>

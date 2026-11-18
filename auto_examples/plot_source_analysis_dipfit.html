@@ -513,9 +513,9 @@ to download the full example code.</p>
 Mirrors EEGLAB’s “Source analysis” tutorial workflow: choose a head model,
 coarse-fit component dipoles on a grid, refine them, then read the resulting
 <code class="docutils literal notranslate"><span class="pre">EEG.dipfit.model</span></code> entries.</p>
-<p><code class="docutils literal notranslate"><span class="pre">model=&quot;standardBESA&quot;</span></code> uses the four-shell BESA leadfield (radii 71, 72, 79,
-and 85 mm). The MNI boundary-element template is not the FieldTrip BEM model,
-so those fits still use an infinite-medium kernel.</p>
+<p>This example selects <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code>, which uses the four-shell BESA leadfield
+(radii 71, 72, 79, and 85 mm). The default DIPFIT model is the packaged MNI
+boundary-element volume.</p>
 <img src="../_images/sphx_glr_plot_source_analysis_dipfit_001.png" srcset="../_images/sphx_glr_plot_source_analysis_dipfit_001.png" alt="DIPFIT dipoles (Spherical), Sagittal, Coronal, Axial" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channels=32 trials=80 components=32
 EEG = pop_dipfit_settings(EEG, model=&#39;standardBESA&#39;)
 coordformat=Spherical hdmfile=standard_BESA/standard_BESA.mat
@@ -583,7 +583,7 @@ pop_dipplot(EEG, [1, 2, 3], cornermri=&#39;on&#39;)
 <span class="nb">print</span><span class="p">(</span><a href="https://docs.python.org/3/builtins/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">com</span></a><span class="p">)</span>
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 3.007 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 3.926 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-source-analysis-dipfit-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/8e399d4d6528c5ec1ccacd99d4703bc4/plot_source_analysis_dipfit.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_source_analysis_dipfit.ipynb</span></code></a></p>

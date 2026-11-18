@@ -652,8 +652,9 @@
 <span class="sig-name descname"><span class="pre">pop_dipfit_settings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gui</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">renderer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_com</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_dipfit_settings" title="Link to this definition">#</a></dt>
 <dd><p>Configure DIPFIT settings without requiring an EEGLAB runtime.</p>
 <p>EEGPrep stores the same key DIPFIT fields that EEGLAB records on
-<code class="docutils literal notranslate"><span class="pre">EEG.dipfit</span></code>. The standard spherical fitting path is standalone; BEM
-head-model assets and MRI co-registration remain explicit backend limits.</p>
+<code class="docutils literal notranslate"><span class="pre">EEG.dipfit</span></code>. <code class="docutils literal notranslate"><span class="pre">standardBEM</span></code> loads the packaged MNI boundary-element
+model at fit time. Creating a new BEM system matrix from an MRI remains
+unavailable.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
