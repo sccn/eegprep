@@ -1,7 +1,11 @@
+import io
 from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy.io import savemat
+from scipy.io.matlab._mio5 import MatFile5Writer, VarWriter5
+from scipy.io.matlab._mio5_params import miUINT16, mxCHAR_CLASS
 
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
@@ -184,6 +188,138 @@ def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
     assert loaded_alleeg[0]["setname"] == "saved"
     assert reloaded["name"] == "Dataset resave study"
     assert "resavedatasets='on'" in command
+
+
+class _Latin1CharWriter(VarWriter5):
+    """Write MATLAB char arrays as uint16 code points, which is what EEGLAB saves."""
+
+    def write_char(self, arr, codec="ascii"):
+        text = arr.item() if getattr(arr, "shape", None) == () else "".join(map(str, np.atleast_1d(arr).reshape(-1)))
+        if text.isascii():
+            return super().write_char(arr, codec)
+        codes = np.array([ord(character) for character in text], dtype="<u2")
+        self.write_header((1, codes.size), mxCHAR_CLASS)
+        self.write_element(codes, mdtype=miUINT16)
+
+
+def _write_uint16_study(path: Path, study: dict) -> None:
+    buffer = io.BytesIO()
+    writer = MatFile5Writer(buffer, do_compression=False, unicode_strings=False)
+    writer.write_file_header()
+    writer._matrix_writer = _Latin1CharWriter(writer)
+    writer._matrix_writer.write_top(study, b"STUDY", False)
+    path.write_bytes(buffer.getvalue())
+
+
+def test_pop_loadstudy_decodes_mat_uint16_chars_as_latin1(tmp_path):
+    # MATLAB char is uint16. scipy's default utf-8 codec turns 0xE4/0xB8 into
+    # U+FFFD or raises; EEGLAB keeps the Latin-1 characters.
+    path = tmp_path / "latin.study"
+    _write_uint16_study(
+        path,
+        {
+            "name": "ä¸",
+            "notes": "café",
+            "filename": "latin.study",
+            "filepath": "/old/study",
+            "design": {"name": "Design ä", "variable": []},
+        },
+    )
+
+    study, alleeg = pop_loadstudy(path, load_datasets=False)
+
+    assert alleeg == []
+    assert study["name"] == "ä¸"
+    assert study["notes"] == "café"
+    assert study["design"][0]["name"] == "Design ä"
+    assert study["etc"]["oldfilepath"] == "/old/study"
+
+
+def test_pop_loadstudy_rebases_a_moved_study_onto_its_new_directory(tmp_path):
+    dataset_dir = tmp_path / "s02"
+    dataset_dir.mkdir()
+    pop_saveset(_eeg("saved", subject="S01", condition="target"), str(dataset_dir / "saved.set"))
+    old_root = "C:\\recordings\\study"
+    study_path = tmp_path / "moved.study"
+    savemat(
+        study_path,
+        {
+            "STUDY": {
+                "name": "Moved",
+                "filename": "moved.study",
+                "filepath": old_root,
+                "datasetinfo": {
+                    "filename": "saved.set",
+                    "filepath": old_root + "\\s02",
+                    "subject": "S01",
+                    "condition": "target",
+                    "index": np.array([[1.0]]),
+                },
+            }
+        },
+        do_compression=False,
+    )
+
+    study, alleeg = pop_loadstudy(study_path)
+
+    assert study["filepath"] == str(tmp_path)
+    assert study["etc"]["oldfilepath"] == old_root
+    assert Path(alleeg[0]["filepath"]) == dataset_dir
+    assert alleeg[0]["setname"] == "saved"
+    assert study["datasetinfo"][0]["subject"] == "S01"
+    assert study["datasetinfo"][0]["filepath"] == str(dataset_dir)
+
+
+def test_pop_loadstudy_finds_a_dataset_by_its_parent_folder_name(tmp_path):
+    dataset_dir = tmp_path / "s02"
+    dataset_dir.mkdir()
+    pop_saveset(_eeg("saved", subject="S02"), str(dataset_dir / "saved.set"))
+    study_path = tmp_path / "fallback.study"
+    savemat(
+        study_path,
+        {
+            "STUDY": {
+                "name": "Fallback",
+                "filename": "fallback.study",
+                "filepath": "/old/study",
+                "datasetinfo": {
+                    "filename": "saved.set",
+                    "filepath": "/elsewhere/s02",
+                    "subject": "S02",
+                    "index": np.array([[1.0]]),
+                },
+            }
+        },
+        do_compression=False,
+    )
+
+    _study, alleeg = pop_loadstudy(study_path)
+
+    assert Path(alleeg[0]["filepath"]) == dataset_dir
+
+
+def test_pop_loadstudy_missing_mat_dataset_names_the_file(tmp_path):
+    study_path = tmp_path / "missing.study"
+    savemat(
+        study_path,
+        {
+            "STUDY": {
+                "name": "Missing",
+                "filename": "missing.study",
+                "filepath": str(tmp_path),
+                "datasetinfo": {
+                    "filename": "missing.set",
+                    "filepath": str(tmp_path),
+                    "subject": "S01",
+                    "index": np.array([[1.0]]),
+                },
+            }
+        },
+        do_compression=False,
+    )
+
+    with pytest.raises(FileNotFoundError, match="missing.set"):
+        pop_loadstudy(study_path)
 
 
 def test_pop_loadstudy_missing_dataset_fails_without_realigning_metadata(tmp_path):
