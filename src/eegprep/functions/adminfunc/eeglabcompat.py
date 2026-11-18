@@ -88,26 +88,14 @@ def _saved_two_files(eeg: dict) -> bool:
 
 
 def _stale_continuous_trials(eeg: dict) -> bool:
-    """True when ``trials`` is 0 but the array is still a continuous recording.
+    """True when ``trials`` is 0 but ``data`` is still a 2-D continuous array.
 
     An empty epoch stack is ``(nbchan, pnts, 0)``. A stored 0 on a 2-D array is
     the count ``eeg_checkset.m`` lines 440-449 read before lines 821-826
     replace it from ``size(data, 3)``.
     """
-    trials = eeg.get("trials")
-    if isinstance(trials, bool) or not isinstance(trials, (int, float, np.integer, np.floating)):
-        return False
-    if int(trials) != 0:
-        return False
-    data = eeg.get("data")
-    if isinstance(data, (str, bytes)) or data is None:
-        return False
-    array = np.asarray(data)
-    if array.ndim != 2 or array.size == 0 or array.shape[0] == 0:
-        return False
-    nbchan = int(eeg.get("nbchan") or array.shape[0])
-    pnts = int(eeg.get("pnts") or array.shape[1])
-    return array.shape == (nbchan, pnts) and pnts > 0
+    data = np.asarray(eeg["data"])
+    return eeg["trials"] == 0 and data.ndim == 2 and data.size > 0
 
 
 def matlab_held_data(data, eeg: dict | None = None) -> np.ndarray:
