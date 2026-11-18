@@ -22,9 +22,6 @@ from typing import Callable
 
 import numpy as np
 import scipy.io
-from hypothesis import HealthCheck, Phase, Verbosity, given, seed, settings
-from hypothesis import strategies as st
-
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab, matlab_held_data
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -48,6 +45,7 @@ from tests.fuzz.catalog import (
     thaw_params,
     tolerance_key_for,
 )
+from tests.fuzz.draw import Draw, mix_seed
 from tests.fuzz.issues import publish_findings
 from tests.fuzz.targets import python_select
 from tests.matlab_batch_engine import install
@@ -72,12 +70,6 @@ _RMBASE_ROUNDOFF_EPS_FACTOR = 4
 _RMBASE_ROUNDOFF_DETAIL = "known difference: platform-specific pop_rmbase baseline-mean summation roundoff (#542)"
 
 Materialize = Callable[["FuzzCase"], dict]
-
-
-class _Divergence(Exception):
-    def __init__(self, outcome: "Outcome"):
-        super().__init__(outcome.signature)
-        self.outcome = outcome
 
 
 @dataclass(frozen=True)
@@ -110,6 +102,7 @@ class EEGSpec:
     artifact_start: int = 0
     artifact_length: int = 0
     prior_mask: str = ""
+    flat_channel: int = -1
 
 
 @dataclass(frozen=True)
@@ -119,6 +112,7 @@ class FuzzCase:
     params: tuple
     sanity: bool = False
     pipeline: tuple = ()
+    trace: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -394,6 +388,8 @@ def _materialize_legacy(case: FuzzCase) -> dict:
         # Sanity checks the bridge with values whose mean is exact in float32
         # and float64, rather than with the sample recording.
         cropped = _exact_reref_signal(cropped.shape)
+    if spec.flat_channel >= 0:
+        cropped[spec.flat_channel, :] = 0.0
     if spec.nan_channel >= 0 and spec.nan_length > 0:
         stop = spec.nan_start + spec.nan_length
         if spec.nan_channel >= cropped.shape[0] or spec.nan_start < 0 or stop > cropped.shape[1]:
@@ -987,13 +983,63 @@ def draw_cases(function: str, *, seed_value: int, examples: int) -> list[FuzzCas
     strategies = default_strategies()
     if function not in strategies:
         strategies = _with_event_strategies(strategies)
-    found: list[FuzzCase] = []
+    return _generate_cases(strategies[function], seed_value, examples, function)
 
-    def body(case: FuzzCase) -> None:
-        found.append(case)
 
-    run_given(strategies[function], seed_value, examples, (Phase.generate,), body)
-    return found
+def _generate_cases(builder, seed_value: int, examples: int, function: str) -> list[FuzzCase]:
+    if hasattr(builder, "generate"):
+        return list(builder.generate(seed_value, examples))
+    cases = []
+    for index in range(examples):
+        draw = Draw(mix_seed(seed_value, function, index))
+        cases.append(replace(builder(draw), trace=tuple(draw.trace)))
+    return cases
+
+
+def shrink_case(builder, case: FuzzCase, signature: str, evaluate, budget: int) -> FuzzCase:
+    """Move one failing case toward the low end of each recorded draw."""
+    counter = {"n": 0}
+    best = case
+
+    def attempt(values: list[int]) -> FuzzCase | None:
+        draw = Draw(0, forced=tuple(values))
+        candidate = replace(builder(draw), trace=tuple(draw.trace))
+        outcome = evaluate(candidate, budget=budget, counter=counter)
+        if outcome is not None and outcome.diverged and outcome.signature == signature:
+            return candidate
+        return None
+
+    progressed = True
+    while progressed and best.trace and counter["n"] < budget:
+        progressed = False
+        ranked = sorted(
+            range(len(best.trace)),
+            key=lambda index: best.trace[index][0] - best.trace[index][1],
+            reverse=True,
+        )
+        for index in ranked:
+            if counter["n"] >= budget or index >= len(best.trace):
+                break
+            value, low, _high = best.trace[index]
+            if value <= low:
+                continue
+            lo = low
+            hi = value
+            while lo + 1 < hi and counter["n"] < budget:
+                mid = (lo + hi) // 2
+                trial = [item[0] for item in best.trace]
+                if index >= len(trial):
+                    break
+                trial[index] = mid
+                found = attempt(trial)
+                if found is not None and found != best:
+                    best = found
+                    progressed = True
+                    break
+                lo = mid
+            if progressed:
+                break
+    return best
 
 
 def run_session(
@@ -1078,13 +1124,10 @@ def run_session(
                 if name not in strategies:
                     continue
                 found: list[Outcome] = []
-
-                def body(case: FuzzCase, found=found) -> None:
+                for case in _generate_cases(strategies[name], seed_value, examples, name):
                     outcome = evaluate(case)
                     if outcome is not None:
                         found.append(outcome)
-
-                run_given(strategies[name], seed_value, examples, (Phase.generate,), body)
                 survey.extend(found)
             by_signature: dict[str, Outcome] = {}
             for outcome in survey:
@@ -1094,16 +1137,14 @@ def run_session(
             confirmed: list[Outcome] = []
             for original in ordered:
                 strategy_name = original.report if original.report in strategies else original.case.function
-                shrunk = shrink_signature(
+                shrunk = shrink_case(
                     strategies[strategy_name],
-                    seed_value,
-                    examples,
+                    original.case,
                     original.signature,
                     evaluate,
                     shrink_budget,
                 )
-                candidate = shrunk or original
-                fresh = evaluate(candidate.case, fresh=True)
+                fresh = evaluate(shrunk, fresh=True)
                 if fresh.diverged and fresh.report == original.report and fresh.error_class == original.error_class:
                     fresh.confirmed = True
                     confirmed.append(fresh)
@@ -1219,7 +1260,7 @@ def write_repro(directory: Path, outcome: Outcome, seed_value: int, eeg: dict) -
     directory.mkdir(parents=True, exist_ok=True)
     stem = repro_stem(outcome.signature) or f"known-{outcome.case.function}-{outcome.input_sha256[:16]}"
     json_path = directory / f"{stem}.json"
-    outcome.repro_command = f"uv run python -m tests.fuzz reproduce repros/{json_path.name}"
+    outcome.repro_command = _repro_command(json_path)
     payload = {
         "signature": outcome.signature,
         "seed": seed_value,
@@ -1276,45 +1317,58 @@ def render_summary(result: SessionResult) -> str:
 
 
 def build_strategies(info: SeedInfo) -> dict:
-    """Hypothesis strategies for the nightly targets. Draws shrink toward smaller crops."""
-    # Hypothesis unions literals from local modules already imported at draw time.
-    # Loading the event targets first makes that set independent of import order.
-    import tests.fuzz.targets  # noqa: F401
+    """Case builders for the original nightly targets.
 
-    @st.composite
-    def eegfiltnew(draw):
-        spec = _draw_spec(draw, info)
-        return FuzzCase("pop_eegfiltnew", spec, freeze_params(_draw_filter(draw, info.srate / spec.decimate)))
+    Each builder reads only ``Draw``. The first choice is the common call, so
+    shrinking walks toward that call.
+    """
 
-    @st.composite
-    def reref(draw):
-        spec = _draw_spec(draw, info)
-        return FuzzCase("pop_reref", spec, freeze_params(_draw_reref(draw, len(spec.channels))))
+    def eegfiltnew(draw: Draw):
+        user = _user_bias(draw)
+        if not user and draw.choice((False, False, False, True)):
+            spec = _draw_epoched_spec(draw)
+            srate = _event_targets().recording(spec.source).srate
+            params = _filter_edges(draw, "lowpass", srate)
+            params.update({"filtorder": 40, "minphase": False, "usefftfilt": False})
+        else:
+            spec = _draw_spec(draw, info, user)
+            params = _draw_filter(draw, info.srate / spec.decimate, len(spec.channels), user)
+        return FuzzCase("pop_eegfiltnew", spec, freeze_params(params))
 
-    @st.composite
-    def resample(draw):
-        spec = _draw_spec(draw, info)
-        freq = draw(st.sampled_from([64, 90, 96, 100, 120, 160, 200, 256]))
-        return FuzzCase("pop_resample", spec, freeze_params({"freq": freq}))
+    def reref(draw: Draw):
+        user = _user_bias(draw)
+        spec = _draw_spec(draw, info, user)
+        return FuzzCase("pop_reref", spec, freeze_params(_draw_reref(draw, len(spec.channels), user)))
 
-    @st.composite
-    def asr(draw):
-        spec = _draw_spec(draw, info)
-        return FuzzCase("clean_asr", spec, freeze_params(_draw_asr(draw, "clean_asr")))
+    def resample(draw: Draw):
+        user = _user_bias(draw)
+        if draw.choice((False, False, False, True)):
+            spec = _draw_epoched_spec(draw)
+            srate = _event_targets().recording(spec.source).srate
+        else:
+            spec = _draw_spec(draw, info, user)
+            srate = info.srate / spec.decimate
+        return FuzzCase("pop_resample", spec, freeze_params(_draw_resample(draw, srate, user)))
 
-    @st.composite
-    def rawdata(draw):
-        spec = _draw_spec(draw, info)
-        return FuzzCase("clean_asr", spec, freeze_params(_draw_asr(draw, "clean_rawdata")))
+    def asr(draw: Draw):
+        user = _user_bias(draw)
+        # 32 Hz makes the default ASR breakpoints non-monotonic. clean_asr raises.
+        spec = _draw_spec(draw, info, user, max_decimate=2)
+        return FuzzCase("clean_asr", spec, freeze_params(_draw_asr(draw, "clean_asr", user)))
 
-    strategies = {
-        "pop_eegfiltnew": eegfiltnew(),
-        "pop_reref": reref(),
-        "pop_resample": resample(),
-        "clean_asr": asr(),
-        "pop_clean_rawdata": rawdata(),
+    def rawdata(draw: Draw):
+        user = _user_bias(draw)
+        # The GUI and bids presets need several 1 s windows. 32 Hz is below the ASR filter.
+        spec = _draw_spec(draw, info, user, min_seconds=8.0, max_decimate=2)
+        return FuzzCase("clean_asr", spec, freeze_params(_draw_asr(draw, "clean_rawdata", user)))
+
+    return {
+        "pop_eegfiltnew": eegfiltnew,
+        "pop_reref": reref,
+        "pop_resample": resample,
+        "clean_asr": asr,
+        "pop_clean_rawdata": rawdata,
     }
-    return strategies
 
 
 def _with_event_strategies(strategies: dict) -> dict:
@@ -1322,47 +1376,6 @@ def _with_event_strategies(strategies: dict) -> dict:
     merged = dict(strategies)
     merged.update(_event_targets().extra_strategies(info, EEGSpec, FuzzCase, freeze_params))
     return merged
-
-
-def run_given(strategy, seed_value: int, examples: int, phases, body: Callable) -> None:
-    """Run a Hypothesis search. ``body`` may raise ``_Divergence`` to shrink that case."""
-
-    def _inner(case):
-        body(case)
-
-    wrapped = given(case=strategy)(_inner)
-    wrapped = settings(
-        max_examples=examples,
-        phases=phases,
-        database=None,
-        deadline=None,
-        derandomize=False,
-        print_blob=False,
-        report_multiple_bugs=False,
-        suppress_health_check=list(HealthCheck),
-        verbosity=Verbosity.quiet,
-    )(wrapped)
-    wrapped = seed(seed_value)(wrapped)
-    wrapped()
-
-
-def shrink_signature(strategy, seed_value: int, examples: int, signature: str, evaluate, budget: int) -> Outcome | None:
-    counter = {"n": 0}
-    found = {"outcome": None}
-
-    def body(case: FuzzCase) -> None:
-        outcome = evaluate(case, budget=budget, counter=counter)
-        if outcome is None:
-            return
-        if outcome.diverged and outcome.signature == signature:
-            found["outcome"] = outcome
-            raise _Divergence(outcome)
-
-    try:
-        run_given(strategy, seed_value, examples, (Phase.generate, Phase.shrink), body)
-    except _Divergence as exc:
-        return exc.outcome
-    return found["outcome"]
 
 
 def _explicit_reref_nan_is_oracle_defect(
@@ -1598,7 +1611,7 @@ def _asr_short_calibration_is_oracle_defect(
     if case.function != "clean_asr" or not python.ok or not oracle.ok or oracle.data is None:
         return False
     params = thaw_params(case.params)
-    if isinstance(params["ref_maxbadchannels"], str):
+    if "ref_maxbadchannels" not in params or isinstance(params["ref_maxbadchannels"], str):
         return False
     if not _fit_eeg_distribution_throws(_calibration_window_count(int(eeg["pnts"]), float(eeg["srate"]))):
         return False
@@ -1696,7 +1709,7 @@ def _pop_clean_rawdata_zero_width_is_known(
     if python.data is None or oracle.data is None:
         return False
     params = thaw_params(case.params)
-    if params.get("entry") != "clean_rawdata":
+    if params.get("entry") != "clean_rawdata" or "ref_maxbadchannels" not in params or "cutoff" not in params:
         return False
     original = np.asarray(eeg["data"], dtype=np.float64)
     oracle_gap, *_rest = compare_data(original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance)
@@ -2293,17 +2306,12 @@ def dispatch_python(case: FuzzCase, eeg: dict):
     if case.function == "pop_eegfiltnew":
         return pop_eegfiltnew(eeg, gui=False, plotfreqz=False, **_filter_kwargs(params))
     if case.function == "pop_reref":
-        kwargs = {"gui": False}
-        if params["ref"] or params["keepref"] != "off":
-            kwargs["keepref"] = params["keepref"]
-        if params["exclude"]:
-            kwargs["exclude"] = [index + 1 for index in params["exclude"]]
-        return pop_reref(eeg, [index + 1 for index in params["ref"]], **kwargs)
+        return pop_reref(eeg, [index + 1 for index in params["ref"]], **_reref_kwargs(params))
     if case.function == "pop_resample":
-        return pop_resample(eeg, float(params["freq"]), gui=False)
+        return pop_resample(eeg, float(params["freq"]), **_resample_kwargs(params))
     if case.function == "clean_asr":
         if params["entry"] == "clean_rawdata":
-            return pop_clean_rawdata(eeg, gui=False, **_rawdata_options(params))
+            return pop_clean_rawdata(eeg, gui=False, **_clean_options(params))
         return clean_asr(eeg, **_asr_kwargs(params))
     if case.function == "pipeline":
         return run_pipeline(case, eeg, dispatch_python)
@@ -2341,17 +2349,20 @@ def dispatch_matlab(engine, case: FuzzCase, eeg: dict):
     if case.function == "pop_reref":
         ref = np.array([index + 1 for index in params["ref"]], dtype=float) if params["ref"] else np.array([])
         args = [ref]
-        if params["ref"] or params["keepref"] != "off":
-            args.extend(["keepref", params["keepref"]])
-        if params["exclude"]:
-            args.extend(["exclude", np.array([index + 1 for index in params["exclude"]], dtype=float)])
+        kwargs = _reref_kwargs(params)
+        kwargs.pop("gui", None)
+        for key, value in kwargs.items():
+            args.extend([key, value])
         return engine.pop_reref(eeg, *args)
     if case.function == "pop_resample":
-        return engine.pop_resample(eeg, float(params["freq"]))
+        args = [float(params["freq"])]
+        if "fc" in params or "df" in params:
+            args.extend([float(params.get("fc", 0.9)), float(params.get("df", 0.2))])
+        return engine.pop_resample(eeg, *args)
     if case.function == "clean_asr":
         if params["entry"] == "clean_rawdata":
             args = []
-            for key, value in _rawdata_options(params).items():
+            for key, value in _clean_options(params).items():
                 args.extend([key, value])
             return engine.pop_clean_rawdata(eeg, *args)
         return engine.clean_asr(eeg, *_matlab_asr_args(params))
@@ -2401,6 +2412,7 @@ _SPEC_JSON_DEFAULTS = (
     ("artifact_start", 0),
     ("artifact_length", 0),
     ("prior_mask", ""),
+    ("flat_channel", -1),
 )
 
 
@@ -2427,6 +2439,14 @@ def spec_to_json(spec: EEGSpec) -> dict:
 
 def repro_stem(signature: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", signature).strip("-")
+
+
+def _repro_command(path: Path) -> str:
+    try:
+        shown = path.resolve().relative_to(REPO_ROOT)
+    except ValueError:
+        shown = path
+    return f"uv run python -m tests.fuzz reproduce {shown.as_posix()}"
 
 
 def side_from_call(result) -> SideResult:
@@ -2702,74 +2722,238 @@ def _copy_channel(channel):
     return copy.deepcopy(channel.item() if isinstance(channel, np.ndarray) else channel)
 
 
-def _draw_spec(draw, info: SeedInfo) -> EEGSpec:
-    short = draw(st.sampled_from([False, False, False, False, True]))
+_USER_BIAS = (True, True, True, True, True, True, True, False, False, False)
+_OLD_REFERENCE = "oldref"
+_HIGHPASS_HZ = (1.0, 1.0, 2.0, 0.5)
+_LOWPASS_HZ = (30.0, 40.0, 40.0, 45.0)
+_BANDPASS_HZ = ((1.0, 40.0), (0.5, 30.0), (1.0, 30.0), (2.0, 45.0))
+_NOTCH_HZ = ((49.0, 51.0), (59.0, 61.0))
+
+
+def _user_bias(draw: Draw) -> bool:
+    return bool(draw.choice(_USER_BIAS))
+
+
+def _crop_length(info: SeedInfo, seconds: float) -> int:
+    return min(info.n_samples, _MAX_LENGTH, max(_MIN_LENGTH, int(round(seconds * info.srate))))
+
+
+def _draw_spec(draw: Draw, info: SeedInfo, user: bool, *, min_seconds: float = 4.0, max_decimate: int = 4) -> EEGSpec:
+    if user:
+        seconds = tuple(value for value in (4.0, 8.0, 8.0, 12.0) if value >= min_seconds)
+        length = _crop_length(info, draw.choice(seconds))
+        max_start = info.n_samples - length
+        if max_start and draw.choice((False, False, False, True)):
+            start = draw.integers(0, min(max_start, max(info.n_samples // 10, 1)))
+        else:
+            start = 0
+        return EEGSpec(tuple(range(info.n_channels)), start, length, 1, -1, 0, 0)
+    short = draw.choice((False, False, False, True))
     if short:
-        length = draw(st.integers(32, min(_SHORT_MAX, info.n_samples)))
+        length = draw.integers(32, min(_SHORT_MAX, info.n_samples))
     else:
-        length = draw(st.integers(_MIN_LENGTH, min(_MAX_LENGTH, info.n_samples)))
-    decimate = draw(st.sampled_from([1, 1, 1, 2, 4]))
+        length = draw.integers(_MIN_LENGTH, min(_MAX_LENGTH, info.n_samples))
+    decimate = draw.choice((1, 1, 2, 4) if max_decimate >= 4 else (1, 1, 2))
     while length * decimate > info.n_samples and decimate > 1:
         decimate //= 2
     span = length * decimate
     max_start = info.n_samples - span
-    start = draw(st.integers(0, max_start)) if max_start else 0
-    count = draw(st.integers(1, info.n_channels))
+    start = draw.integers(0, max_start) if max_start else 0
+    count = draw.integers(1, info.n_channels)
     offset_max = info.n_channels - count
-    offset = draw(st.integers(0, offset_max)) if offset_max else 0
-    inject = draw(st.sampled_from([False, False, False, True]))
-    if inject:
-        nan_channel = draw(st.integers(0, count - 1))
-        nan_length = draw(st.integers(1, min(4, length)))
-        nan_start = draw(st.integers(0, length - nan_length))
+    offset = draw.integers(0, offset_max) if offset_max else 0
+    if draw.choice((False, False, False, True)):
+        nan_channel = draw.integers(0, count - 1)
+        nan_length = draw.integers(1, min(4, length))
+        nan_start = draw.integers(0, length - nan_length)
     else:
         nan_channel, nan_start, nan_length = -1, 0, 0
-    return EEGSpec(tuple(range(offset, offset + count)), start, length, decimate, nan_channel, nan_start, nan_length)
+    flat_channel = draw.integers(0, count - 1) if draw.choice((False, False, False, True)) else -1
+    return EEGSpec(
+        tuple(range(offset, offset + count)),
+        start,
+        length,
+        decimate,
+        nan_channel,
+        nan_start,
+        nan_length,
+        flat_channel=flat_channel,
+    )
 
 
-def _draw_filter(draw, srate: float) -> dict:
+def _draw_epoched_spec(draw: Draw) -> EEGSpec:
+    rec = _event_targets().recording("eeglab_data_epochs_ica")
+    choices = tuple(count for count in (4, 8, 16, rec.trials) if 1 <= count <= rec.trials)
+    count = draw.choice(choices)
+    start = 0 if rec.trials == count else draw.integers(0, rec.trials - count)
+    return EEGSpec(
+        tuple(range(rec.nbchan)),
+        start,
+        count,
+        1,
+        -1,
+        0,
+        0,
+        source=rec.name,
+        events="keep",
+    )
+
+
+def _filter_edges(draw: Draw, kind: str, nyquist: float) -> dict:
+    lowpass = tuple(hz for hz in _LOWPASS_HZ if hz < nyquist * 0.9)
+    highpass = tuple(hz for hz in _HIGHPASS_HZ if 0.0 < hz < nyquist)
+    bands = tuple(pair for pair in _BANDPASS_HZ if pair[0] < pair[1] < nyquist * 0.9)
+    notches = tuple(pair for pair in _NOTCH_HZ if pair[1] < nyquist)
+    if kind == "notch" and notches:
+        low, high = draw.choice(notches)
+        return {"locutoff": low, "hicutoff": high, "revfilt": True}
+    if kind == "bandpass" and bands:
+        low, high = draw.choice(bands)
+        return {"locutoff": low, "hicutoff": high, "revfilt": False}
+    if kind == "lowpass" and lowpass:
+        return {"locutoff": None, "hicutoff": draw.choice(lowpass), "revfilt": False}
+    if highpass:
+        return {"locutoff": draw.choice(highpass), "hicutoff": None, "revfilt": False}
+    return {"locutoff": None, "hicutoff": max(1.0, round(nyquist * 0.5, 4)), "revfilt": False}
+
+
+def _invalid_filter(draw: Draw, nyquist: float) -> dict:
+    """Calls EEGLAB rejects: a cutoff on Nyquist, an odd order, or an order below the transition."""
+    kind = draw.choice(("nyquist", "odd-order", "order-too-low"))
+    common = {"minphase": False, "usefftfilt": False, "revfilt": False}
+    if kind == "odd-order":
+        return {**common, "locutoff": 1.0, "hicutoff": None, "filtorder": 101}
+    if kind == "order-too-low" and nyquist > 61.0:
+        return {**common, "locutoff": 59.0, "hicutoff": 61.0, "revfilt": True, "filtorder": 40}
+    return {**common, "locutoff": None, "hicutoff": float(nyquist), "filtorder": None}
+
+
+def _draw_filter(draw: Draw, srate: float, n_channels: int, user: bool) -> dict:
     nyquist = srate / 2.0
-    kind = draw(st.sampled_from(["lowpass", "highpass", "bandpass", "notch"]))
-    order = draw(st.sampled_from([40, 60, 80, 100]))
-    minphase = draw(st.sampled_from([False, False, True]))
-    usefftfilt = draw(st.sampled_from([False, False, True]))
-    common = {"filtorder": order, "minphase": minphase, "usefftfilt": usefftfilt}
-    if kind == "lowpass":
-        high = draw(st.integers(5, max(5, int(nyquist * 0.6))))
-        return {**common, "locutoff": None, "hicutoff": high, "revfilt": False}
-    if kind == "highpass":
-        low = draw(st.integers(1, max(1, min(8, int(nyquist * 0.25)))))
-        return {**common, "locutoff": low, "hicutoff": None, "revfilt": False}
-    low = draw(st.integers(1, max(1, min(10, int(nyquist * 0.3)))))
-    high_min = low + 4
-    high_max = max(high_min, min(int(nyquist) - 1, int(nyquist * 0.7)))
-    high = high_min if high_max <= high_min else draw(st.integers(high_min, high_max))
-    return {**common, "locutoff": low, "hicutoff": high, "revfilt": kind == "notch"}
+    if user:
+        kind = draw.choice(("highpass", "highpass", "lowpass", "lowpass", "bandpass", "notch"))
+        params = _filter_edges(draw, kind, nyquist)
+        params.update({"filtorder": None, "minphase": False, "usefftfilt": False})
+        return params
+    if draw.choice((False, False, False, True)):
+        params = _invalid_filter(draw, nyquist)
+    else:
+        kind = draw.choice(("highpass", "lowpass", "bandpass", "notch"))
+        params = _filter_edges(draw, kind, nyquist)
+        if kind == "lowpass" and draw.choice((False, True)):
+            params["hicutoff"] = round(nyquist * draw.choice((0.5, 0.75, 0.9)), 4)
+        params.update(
+            {
+                "filtorder": draw.choice((None, 40, 80, 100, 200)),
+                "minphase": draw.choice((False, False, True)),
+                "usefftfilt": draw.choice((False, False, True)),
+            }
+        )
+    if n_channels > 1 and draw.choice((False, False, False, True)):
+        count = draw.integers(1, n_channels - 1)
+        params["channels"] = list(range(1, count + 1))
+    return params
 
 
-def _draw_reref(draw, n_channels: int) -> dict:
-    mode = draw(st.sampled_from(["average", "average", "channel", "pair"]))
-    if mode == "channel":
-        ref = (draw(st.integers(0, n_channels - 1)),)
-    elif mode == "pair" and n_channels >= 2:
-        first = draw(st.integers(0, n_channels - 2))
-        second = draw(st.integers(first + 1, n_channels - 1))
+def _reference_location(name: str) -> dict:
+    return {
+        "labels": name,
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 1.0,
+        "theta": 0.0,
+        "radius": 0.0,
+        "type": "REF",
+        "ref": "common",
+    }
+
+
+def _draw_reref(draw: Draw, n_channels: int, user: bool) -> dict:
+    if user:
+        mode = draw.choice(("average", "average", "average", "average", "exclude", "refloc", "channel", "channel"))
+        if mode == "channel":
+            return {
+                "ref": (draw.integers(0, n_channels - 1),),
+                "keepref": draw.choice(("off", "on")),
+                "exclude": (),
+            }
+        if mode == "exclude" and n_channels > 1:
+            return {"ref": (), "keepref": "off", "exclude": (draw.integers(0, n_channels - 1),)}
+        if mode == "refloc":
+            return {"ref": (), "keepref": "off", "exclude": (), "refloc": _OLD_REFERENCE}
+        return {"ref": (), "keepref": "off", "exclude": ()}
+    if draw.choice((False, False, True)) and n_channels >= 2:
+        first = draw.integers(0, n_channels - 2)
+        second = draw.integers(first + 1, n_channels - 1)
         ref = (first, second)
+    elif draw.choice((False, True)):
+        ref = (draw.integers(0, n_channels - 1),)
     else:
         ref = ()
     excluded = [index for index in range(n_channels) if index not in ref]
-    use_exclude = bool(excluded) and draw(st.sampled_from([False, False, True]))
-    exclude = (draw(st.sampled_from(excluded)),) if use_exclude else ()
-    keepref = "off" if not ref else draw(st.sampled_from(["off", "on"]))
-    return {"ref": ref, "keepref": keepref, "exclude": exclude}
+    exclude = ()
+    if excluded and draw.choice((False, True)):
+        count = 1 if len(excluded) == 1 else draw.integers(1, min(3, len(excluded)))
+        picked = [excluded[draw.integers(0, len(excluded) - 1)] for _ in range(count)]
+        exclude = tuple(sorted(set(picked)))
+    params = {"ref": ref, "keepref": "off" if not ref else draw.choice(("off", "on", "on")), "exclude": exclude}
+    if not ref and draw.choice((False, False, True)):
+        params["refloc"] = _OLD_REFERENCE
+    return params
 
 
-def _draw_asr(draw, entry: str) -> dict:
+def _resample_frequencies(srate: float, candidates: tuple[float, ...]) -> tuple[float, ...]:
+    found = []
+    for freq in candidates:
+        value = round(float(freq), 4)
+        if 1.0 < value <= 512.0 and value not in found:
+            found.append(value)
+    return tuple(found)
+
+
+def _draw_resample(draw: Draw, srate: float, user: bool) -> dict:
+    if user:
+        options = _resample_frequencies(srate, (srate, srate / 2.0, srate * 2.0, 100.0, 250.0, 256.0))
+        return {"freq": draw.choice(options)}
+    options = _resample_frequencies(
+        srate,
+        (90.0, 96.0, 120.0, 160.0, 200.0, srate * 1.5, srate - 0.5, 32.0),
+    )
+    params = {"freq": draw.choice(options)}
+    if draw.choice((False, False, True)):
+        params["fc"] = draw.choice((0.8, 0.9, 0.95))
+        params["df"] = draw.choice((0.1, 0.2, 0.3))
+    return params
+
+
+def _clean_preset(burst: float, rejection: str, highpass) -> dict:
+    return {
+        "entry": "clean_rawdata",
+        "FlatlineCriterion": 5.0,
+        "Highpass": highpass,
+        "ChannelCriterion": 0.8,
+        "LineNoiseCriterion": 4.0,
+        "BurstCriterion": burst,
+        "WindowCriterion": 0.25,
+        "BurstRejection": rejection,
+        "WindowCriterionTolerances": ("-inf", 7.0),
+        "ChannelCriterionMaxBadTime": 0.5,
+        "Distance": "euclidian",
+    }
+
+
+def _draw_asr(draw: Draw, entry: str, user: bool) -> dict:
+    if entry == "clean_rawdata" and user:
+        preset = draw.choice(("gui", "gui", "bids", "burst"))
+        if preset == "gui":
+            return _clean_preset(20.0, "on", "off")
+        if preset == "bids":
+            return _clean_preset(5.0, "off", (0.25, 0.75))
     return {
         "entry": entry,
-        "cutoff": draw(st.sampled_from([5.0, 5.0, 3.0, 10.0, 20.0])),
-        "ref_maxbadchannels": draw(st.sampled_from(["off", "off", "off", 0.075, 0.2])),
-        "window_len": draw(st.sampled_from([None, None, 0.5, 1.0])),
+        "cutoff": draw.choice((5.0, 5.0, 20.0, 3.0) if user else (5.0, 3.0, 10.0, 20.0)),
+        "ref_maxbadchannels": draw.choice((0.075, 0.075, "off") if user else (0.075, "off", 0.2, 0.05)),
+        "window_len": draw.choice((None, None, None) if user else (None, 0.5, 1.0)),
     }
 
 
@@ -2806,7 +2990,35 @@ def _filter_kwargs(params: dict) -> dict:
         kwargs["locutoff"] = params["locutoff"]
     if params["hicutoff"] is not None:
         kwargs["hicutoff"] = params["hicutoff"]
+    if params.get("channels"):
+        kwargs["channels"] = [int(index) for index in params["channels"]]
     return kwargs
+
+
+def _reref_kwargs(params: dict) -> dict:
+    kwargs = {"gui": False}
+    if params["ref"] or params["keepref"] != "off":
+        kwargs["keepref"] = params["keepref"]
+    if params["exclude"]:
+        kwargs["exclude"] = [index + 1 for index in params["exclude"]]
+    if params.get("refloc"):
+        kwargs["refloc"] = _reference_location(str(params["refloc"]))
+    return kwargs
+
+
+def _resample_kwargs(params: dict) -> dict:
+    kwargs = {"gui": False}
+    if "fc" in params:
+        kwargs["fc"] = float(params["fc"])
+    if "df" in params:
+        kwargs["df"] = float(params["df"])
+    return kwargs
+
+
+def _clean_options(params: dict) -> dict:
+    if "FlatlineCriterion" not in params:
+        return _rawdata_options(params)
+    return _event_targets()._rawdata_kwargs({key: value for key, value in params.items() if key != "entry"})
 
 
 def _asr_kwargs(params: dict) -> dict:

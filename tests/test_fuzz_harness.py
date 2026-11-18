@@ -11,7 +11,6 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import scipy.io
-from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -1504,7 +1503,6 @@ def test_same_seed_draws_the_same_cases():
 
 
 def test_shrink_reduces_channel_count_to_the_failure_boundary(tmp_path):
-    strategy = st.integers(1, 8).map(lambda n: _reref_case(n))
     result = run_session(
         seed_value=7,
         output_dir=tmp_path,
@@ -1513,7 +1511,7 @@ def test_shrink_reduces_channel_count_to_the_failure_boundary(tmp_path):
         max_shrinks=2,
         python_backend=_Backend(_identity),
         oracle_backend=_Backend(_diverge_over_two_channels),
-        strategies={"pop_reref": strategy},
+        strategies={"pop_reref": lambda draw: _reref_case(draw.integers(1, 8))},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
     )
@@ -1539,7 +1537,7 @@ def test_sanity_failure_does_not_file_divergence_issues(tmp_path):
         examples=3,
         python_backend=_Backend(_identity),
         oracle_backend=_Backend(explode),
-        strategies={"pop_reref": st.just(_reref_case(2))},
+        strategies={"pop_reref": lambda draw: _reref_case(2)},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
         tracker=tracker,
@@ -1651,7 +1649,7 @@ def test_reproduce_reruns_and_rejects_a_changed_input_hash(tmp_path):
         shrink_budget=2,
         python_backend=python,
         oracle_backend=oracle,
-        strategies={"pop_reref": st.just(_reref_case(4))},
+        strategies={"pop_reref": lambda draw: _reref_case(4)},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
     )
@@ -2072,7 +2070,6 @@ def test_signature_is_stable_for_one_defect_and_distinct_for_two():
 
 
 def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
-    strategy = st.sampled_from([_reref_case(3), _reref_case(6)])
     result = run_session(
         seed_value=11,
         output_dir=tmp_path,
@@ -2081,7 +2078,7 @@ def test_survey_shrinks_one_signature_for_one_defect(tmp_path):
         max_shrinks=4,
         python_backend=_Backend(_identity),
         oracle_backend=_Backend(_diverge_over_two_channels),
-        strategies={"pop_reref": strategy},
+        strategies={"pop_reref": lambda draw: draw.choice((_reref_case(3), _reref_case(6)))},
         sanity=[_reref_case(1, sanity=True)],
         materialize=_ones,
     )

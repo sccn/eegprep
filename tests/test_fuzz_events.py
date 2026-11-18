@@ -81,15 +81,20 @@ def test_select_adapter_converts_channel_numbers_only(option, selection):
 
 
 def test_select_duplicate_draw_uses_cropped_channel_count():
-    cases = draw_cases("pop_select", seed_value=20261105, examples=4)
-    duplicate_cases = [case for case in cases if "channel" in thaw_params(case.params)]
-    assert duplicate_cases
-    for case in duplicate_cases:
-        nbchan = len(case.spec.channels)
-        assert thaw_params(case.params)["channel"] == [1, 1, nbchan, 2]
-        eeg = materialize_eeg(case)
-        out = dispatch_python(case, eeg)
-        np.testing.assert_array_equal(out["data"], eeg["data"][[0, 1, nbchan - 1]])
+    duplicate = None
+    for seed_value in range(20261105, 20261125):
+        for case in draw_cases("pop_select", seed_value=seed_value, examples=8):
+            params = thaw_params(case.params)
+            if params.get("channel") == [1, 1, len(case.spec.channels), 2]:
+                duplicate = case
+                break
+        if duplicate is not None:
+            break
+    assert duplicate is not None
+    nbchan = len(duplicate.spec.channels)
+    eeg = materialize_eeg(duplicate)
+    out = dispatch_python(duplicate, eeg)
+    np.testing.assert_array_equal(out["data"], eeg["data"][[0, 1, nbchan - 1]])
 
 
 class _ShiftedOracle:
@@ -101,12 +106,15 @@ class _ShiftedOracle:
 
 
 _DRAW_SCRIPT = """
+import hashlib
 import json
 from pathlib import Path
+from tests.fuzz.catalog import FUNCTION_NAMES
 from tests.fuzz.harness import draw_cases, spec_to_json, thaw_params
 golden = json.loads(Path("tests/fuzz/golden_draws_20261012.json").read_text())
-names = ("pop_eegfiltnew", "pop_reref", "pop_resample", "clean_asr", "pop_clean_rawdata")
-for name in names:
+original = ("pop_eegfiltnew", "pop_reref", "pop_resample", "clean_asr", "pop_clean_rawdata")
+blob = []
+for name in FUNCTION_NAMES:
     drawn = []
     for case in draw_cases(name, seed_value=20261012, examples=4):
         drawn.append({
@@ -115,30 +123,72 @@ for name in names:
             "sanity": case.sanity,
             "spec": spec_to_json(case.spec),
         })
-    assert drawn == golden[name], name
+    if name in original:
+        assert drawn == golden[name], name
+    blob.append({"function": name, "cases": drawn})
+print("DRAWHASH " + hashlib.sha256(json.dumps(blob, sort_keys=True).encode()).hexdigest())
 """
 
 
+def _draw_in_subprocess(prelude: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-c", prelude + "\n" + _DRAW_SCRIPT],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def test_original_draws_match_the_golden_snapshot():
-    completed = subprocess.run(
-        [sys.executable, "-c", _DRAW_SCRIPT],
-        cwd=Path(__file__).resolve().parents[1],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    completed = _draw_in_subprocess("")
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
-def test_original_draws_do_not_depend_on_import_order():
-    completed = subprocess.run(
-        [sys.executable, "-c", "import tests.fuzz.targets\n" + _DRAW_SCRIPT],
-        cwd=Path(__file__).resolve().parents[1],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert completed.returncode == 0, completed.stdout + completed.stderr
+# Hypothesis 6.169 copies integer literals from every already-imported local
+# module into its integer draws. These imports are the two that moved the
+# golden file: the sigprocfunc package (its eager init loads the submodule
+# literals a lazy init would leave out) and gauss (fdlibm exp constants).
+# The probe is a new local module full of literals outside the -100..100 band
+# Hypothesis already upweights, so a later module is covered too.
+_INTEGER_LITERAL_PROBE = """
+import importlib.util
+import sys
+from pathlib import Path
+probe = Path("/tmp") / f"eegprep_fuzz_integer_literals_{__import__('os').getpid()}.py"
+values = [128, 256, 512, 1024, 2048, 4096, 0x3FF00000, 0x40862E42, 0x3FE62E43]
+values.extend(range(1000, 1600))
+probe.write_text("\\n".join(f"LITERAL_{index} = {value}" for index, value in enumerate(values)) + "\\n")
+spec = importlib.util.spec_from_file_location("eegprep_fuzz_integer_literals", probe)
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+import eegprep.functions.sigprocfunc
+import eegprep.functions.miscfunc.gauss
+"""
+
+
+@pytest.mark.parametrize(
+    "prelude",
+    [
+        "",
+        "import eegprep.functions.sigprocfunc.eegfilt",
+        "import eegprep.plugins.firfilt.pop_eegfiltnew",
+        "import eegprep.functions.sigprocfunc.runica",
+        "import tests.fuzz.targets",
+        "import eegprep.functions.sigprocfunc",
+        "import eegprep.functions.miscfunc.gauss",
+        _INTEGER_LITERAL_PROBE,
+    ],
+)
+def test_draws_do_not_depend_on_import_order(prelude):
+    fresh = _draw_in_subprocess("")
+    other = _draw_in_subprocess(prelude)
+    assert fresh.returncode == 0, fresh.stdout + fresh.stderr
+    assert other.returncode == 0, other.stdout + other.stderr
+    fresh_hash = [line for line in fresh.stdout.splitlines() if line.startswith("DRAWHASH ")]
+    other_hash = [line for line in other.stdout.splitlines() if line.startswith("DRAWHASH ")]
+    assert fresh_hash == other_hash
 
 
 def test_old_repro_spec_materializes_like_a_legacy_crop():
