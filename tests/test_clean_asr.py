@@ -13,17 +13,17 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from eegprep.functions.miscfunc.matlab_colon import matlab_colon
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError, asr_calibrate
-from eegprep.plugins.clean_rawdata.private.stats import fit_eeg_distribution
 from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from tests.fuzz.catalog import freeze_params
-from tests.fuzz.harness import EEGSpec, FuzzCase, compare_data, load_tolerances, materialize_eeg
+from tests.fuzz.harness import EEGSpec, FuzzCase, load_tolerances, materialize_eeg
 
 # Nightly fuzz crop clean_asr|numeric|1e1, seed 20261031.
 _NAN_TAIL_SHA256 = "f98111327da99e56c5c9bf58d5ca02364023868af91ce44d4354caa79065e4d6"
@@ -142,8 +142,8 @@ def test_sixty_four_samples_have_no_calibration_window():
     assert "need at least 87 samples" in str(raised.value)
 
 
-def test_very_short_recording_still_calibrates_with_reference_off():
-    """24 channels, 62 samples at 64 Hz. EEGLAB's fit indexes with width 0."""
+def test_very_short_recording_with_reference_off_raises():
+    """24 channels, 62 samples at 64 Hz are three RMS windows and a zero fit width."""
     source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
     sample_index = np.arange(90, 90 + 62 * 2, 2)
     data = np.array(np.asarray(source["data"])[np.ix_(range(24), sample_index)], dtype=np.float64)
@@ -158,16 +158,15 @@ def test_very_short_recording_still_calibrates_with_reference_off():
         "xmax": (data.shape[1] - 1) / srate,
         "event": [],
     }
-    cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
-    assert cleaned["data"].shape == data.shape
-    assert np.max(np.abs(cleaned["data"] - data)) > 1.0
+    with pytest.raises(ASRCalibrationError, match=r"3 RMS windows are too few for the fit width grid"):
+        clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
 
 
 _ISSUE_526_SHA256 = "5f90669b03649cfc1fbd82a6cdabd4cda1b3dc43d7adb22db5bbaba07fd19569"
 
 
-def test_issue_526_two_rms_windows_are_still_cleaned():
-    """21 channels, 89 samples at 128 Hz. EEGLAB indexes width 0 and returns the input."""
+def test_issue_526_two_rms_windows_raise_and_pop_keeps_the_samples():
+    """21 channels, 89 samples at 128 Hz are two RMS windows and a zero fit width."""
     source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
     data = np.array(np.asarray(source["data"])[np.ix_(range(10, 31), np.arange(49, 49 + 89))], dtype=np.float64)
     digest = hashlib.sha256(np.ascontiguousarray(data, dtype=np.float64).tobytes()).hexdigest()
@@ -183,7 +182,8 @@ def test_issue_526_two_rms_windows_are_still_cleaned():
         "xmax": (data.shape[1] - 1) / srate,
         "event": [],
     }
-    cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+    with pytest.raises(ASRCalibrationError, match=r"2 RMS windows are too few for the fit width grid"):
+        clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
     popped = pop_clean_rawdata(
         eeg,
         gui=False,
@@ -196,11 +196,9 @@ def test_issue_526_two_rms_windows_are_still_cleaned():
         BurstCriterionRefMaxBadChns="off",
         BurstRejection="off",
     )
-    np.testing.assert_array_equal(popped["data"], cleaned["data"])
-    assert cleaned["data"].shape == (21, 89)
-    gap, error_class, *_rest = compare_data(cleaned["data"], data, srate, srate, load_tolerances()["clean_asr"])
-    assert gap is True
-    assert error_class == "numeric"
+    np.testing.assert_array_equal(popped["data"], data)
+    assert popped["srate"] == srate
+    assert popped["data"].shape == (21, 89)
 
 
 def test_low_sampling_rate_calibration_names_the_spectral_filter():
@@ -301,28 +299,48 @@ def test_trailing_nans_are_reflected_before_processing_zeros_them():
     np.testing.assert_allclose(gap.max() / signal_scale, 0.15200149020594309, rtol=0, atol=1e-9)
 
 
-def test_three_rms_windows_skip_zero_fit_widths():
-    """A 124-sample reference at 128 Hz has three RMS windows and a zero fit width.
-
-    ``asr_calibrate.m`` line 392 rounds ``3*(0.578:-0.01:0.1445)`` and line 395
-    indexes that width. EEGPrep skips the non-positive widths.
-    """
+@pytest.mark.parametrize(("samples", "windows"), [(89, 2), (124, 3)])
+def test_two_or_three_rms_windows_raise(samples, windows):
+    """``round(n * width)`` includes 0 for two or three RMS windows."""
     srate = 128.0
-    samples = 124
     window = int(round_mat(0.5 * srate))
     offsets = matlab_window_offsets(samples, window, window * (1.0 - 0.66))
-    assert offsets.tolist() == [0, 22, 44]
+    assert len(offsets) == windows
     max_width = 0.6 - 0.022
-    widths = np.int32(round_mat(3 * np.arange(max_width, 0.25 * max_width, -0.01)))
-    assert 0 in widths
-    mu, sig, alpha, beta = fit_eeg_distribution(np.array([1.0, 1.1, 0.9]))
-    assert np.isfinite([mu, sig, alpha, beta]).all()
-    time = np.arange(samples) / srate
-    signal = np.vstack([np.sin(2 * np.pi * 8 * time), np.cos(2 * np.pi * 10 * time)])
-    state = asr_calibrate(signal, srate, cutoff=5.0)
-    assert state["M"].shape == (2, 2)
-    assert np.isfinite(state["M"]).all()
-    assert np.isfinite(state["T"]).all()
+    widths = np.asarray(round_mat(windows * matlab_colon(max_width, -0.01, 0.25 * max_width)))
+    assert np.any(widths <= 0)
+    signal = np.random.default_rng(samples).standard_normal((4, samples))
+    with pytest.raises(ASRCalibrationError, match=rf"{windows} RMS windows are too few for the fit width grid"):
+        asr_calibrate(signal, srate, cutoff=5.0)
+
+
+def test_flat_channel_241_samples_still_runs_asr():
+    """The #642 flat-channel crop, shortened to 241 samples, still calibrates.
+
+    Reference selection cannot fit its one-second windows and falls back to
+    the whole crop. That crop has nine 0.5 s RMS windows, and every fit width
+    rounds to at least 1.
+    """
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    channels = list(range(12, 29))
+    data = np.array(np.asarray(source["data"])[np.ix_(channels, np.arange(4097, 4097 + 241))], dtype=np.float64)
+    data[8, :] = 0.0
+    srate = float(source["srate"])
+    window = int(round_mat(0.5 * srate))
+    assert len(matlab_window_offsets(data.shape[1], window, window * (1.0 - 0.66))) == 9
+    eeg = {
+        "data": data,
+        "srate": srate,
+        "nbchan": int(data.shape[0]),
+        "pnts": int(data.shape[1]),
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (data.shape[1] - 1) / srate,
+        "event": [],
+    }
+    cleaned = clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=0.075, ref_tolerances=(-3.5, 5.5), ref_wndlen=1.0)
+    assert cleaned["data"].shape == data.shape
+    assert np.max(np.abs(cleaned["data"] - data)) > 1.0
 
 
 def test_flat_channel_reference_keeps_241_samples():

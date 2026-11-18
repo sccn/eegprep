@@ -94,15 +94,16 @@ def clean_artifacts(
         relative to calibration data are repaired (or removed if BurstRejection='on').
         'off' skips ASR. Default 5.0. ASR is skipped, with a warning, when the
         default spectral shaping filter cannot be designed, when the calibration
-        is shorter than one RMS window, or when fewer than two of those
-        windows can be formed. That includes Riemannian calibration, whose
-        default window is 0.1 s. The recording at this stage is left unchanged.
-        A requested window-removal stage still runs. EEGLAB catches only the
-        Euclidean ``clean_asr`` call (``clean_artifacts.m`` lines 270-275) and
-        returns before that stage. The Riemannian call (lines 267-268) is
+        is shorter than one RMS window, when fewer than two of those windows
+        can be formed, or when a fit width rounds to a non-positive value.
+        That includes Riemannian calibration, whose default window is 0.1 s.
+        The recording at this stage is left unchanged and its sampling rate is
+        kept. A requested window-removal stage still runs. EEGLAB
+        catches only the Euclidean ``clean_asr`` call (``clean_artifacts.m``
+        lines 270-275) and returns before that stage and before the rounded
+        sampling rate is restored. The Riemannian call (lines 267-268) is
         outside that ``try``/``catch``. Two or three Euclidean RMS windows
-        still calibrate. EEGLAB indexes a rounded width of 0 and returns the
-        recording unchanged; those widths are skipped here.
+        include a rounded width of 0 (``asr_calibrate.m`` lines 392-395).
     WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.

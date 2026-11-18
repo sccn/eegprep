@@ -308,6 +308,96 @@ def test_riemannian_one_window_still_raises_from_clean_asr():
     _assert_one_riemannian_window(eeg)
 
 
+def _three_window_reference_recording():
+    """32 channels, samples 2000:3024 of eeglab_data.set.
+
+    ``clean_windows(..., 0.075, [-inf, 5.5], 1)`` keeps 117 samples, which is
+    three 0.5 s RMS windows at 128 Hz.
+    """
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    data = np.array(np.asarray(source["data"])[:, 2000 : 2000 + 1024], dtype=np.float64)
+    srate = float(source["srate"])
+    return {
+        "data": data,
+        "srate": srate,
+        "nbchan": int(data.shape[0]),
+        "pnts": int(data.shape[1]),
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (data.shape[1] - 1) / srate,
+        "event": [],
+        "chanlocs": source["chanlocs"],
+    }
+
+
+def _artifact_options(**extra):
+    options = {
+        "FlatlineCriterion": "off",
+        "Highpass": "off",
+        "ChannelCriterion": "off",
+        "LineNoiseCriterion": "off",
+        "BurstCriterion": 5.0,
+        "BurstCriterionRefMaxBadChns": 0.075,
+        "BurstCriterionRefTolerances": (-np.inf, 5.5),
+        "WindowCriterion": 0.25,
+        "WindowCriterionTolerances": (-np.inf, 7),
+    }
+    options.update(extra)
+    return options
+
+
+def test_three_window_reference_skips_asr_and_still_removes_windows():
+    eeg = _three_window_reference_recording()
+    original = np.array(eeg["data"], copy=True)
+    cleaned, _hp, burst, _removed = clean_artifacts(eeg, **_artifact_options())
+    skipped, _hp_off, _burst_off, _removed_off = clean_artifacts(eeg, **_artifact_options(BurstCriterion="off"))
+    np.testing.assert_array_equal(eeg["data"], original)
+    np.testing.assert_array_equal(burst["data"], original)
+    np.testing.assert_array_equal(cleaned["data"], skipped["data"])
+    assert cleaned["pnts"] < original.shape[1]
+    assert cleaned["srate"] == eeg["srate"]
+    assert "clean_sample_mask" in cleaned["etc"]
+    popped = pop_clean_rawdata(eeg, gui=False, **_artifact_options())
+    np.testing.assert_array_equal(popped["data"], cleaned["data"])
+    assert popped["srate"] == eeg["srate"]
+
+
+def test_skipped_asr_keeps_the_sampling_rate_and_removes_windows():
+    """A non-integer rate stays put when the fit width grid cannot be indexed.
+
+    ``clean_artifacts.m`` rounds the sampling rate before ASR and restores it
+    only after that call returns. The ``return`` on lines 270-275 leaves the
+    rounded rate and does not reach ``clean_windows``.
+    """
+    rng = np.random.default_rng(651)
+    srate = 100.5
+    samples = 800
+    data = rng.standard_normal((8, samples)) * 0.5
+    data[:, 300:420] += 40.0
+    reference = rng.standard_normal((8, 100)) * 0.5
+    eeg = {
+        "data": data,
+        "srate": srate,
+        "nbchan": 8,
+        "pnts": samples,
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (samples - 1) / srate,
+        "event": [],
+    }
+    options = _artifact_options(BurstCriterionRefMaxBadChns=reference)
+    cleaned, _hp, burst, _removed = clean_artifacts(eeg, **options)
+    skipped, *_rest = clean_artifacts(eeg, **_artifact_options(BurstCriterion="off"))
+    np.testing.assert_array_equal(burst["data"], data)
+    np.testing.assert_array_equal(cleaned["data"], skipped["data"])
+    assert cleaned["pnts"] < samples
+    assert cleaned["srate"] == srate
+    assert int(round(srate)) != srate
+    popped = pop_clean_rawdata(eeg, gui=False, **options)
+    np.testing.assert_array_equal(popped["data"], cleaned["data"])
+    assert popped["srate"] == srate
+
+
 def test_short_calibration_still_runs_window_removal():
     eeg = _issue_524_eeg()
     with pytest.raises(ValueError, match="Not enough data for even a single window"):
