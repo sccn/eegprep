@@ -18,6 +18,7 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
 from tests.fixtures import create_test_eeg
+from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
 from tests.fuzz.harness import (
@@ -1145,8 +1146,6 @@ def _zero_window_fit_error():
 
 
 def _zero_window_python_error():
-    from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError
-
     return ASRCalibrationError(
         "asr_calibrate: Fewer than 2 calibration windows: got 0 from 64 samples with window length 64. "
         "Two 0.5 s RMS windows at 128 Hz need at least 87 samples; "
