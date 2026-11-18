@@ -87,6 +87,8 @@ def clean_asr(
     short for the generalized-Gaussian fit still drops high-power windows; the
     window scale is then the median and MAD of each channel's window RMS.
     EEGLAB's fit throws in that situation and calibrates on every sample.
+    A channel whose window RMS values are all equal has scale 0 and is the
+    highest score in every window, so it uses a high-amplitude bad-channel slot.
     Two or three calibration RMS windows make a fit width round to zero and
     raise ``ASRCalibrationError``. Fewer than two calibration RMS windows, and
     a calibration shorter than one window, raise ``ASRCalibrationError`` too.

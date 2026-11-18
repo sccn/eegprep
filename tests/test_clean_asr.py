@@ -22,6 +22,8 @@ from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+from tests.fuzz.catalog import freeze_params
+from tests.fuzz.harness import EEGSpec, FuzzCase, load_tolerances, materialize_eeg
 
 # Nightly fuzz crop clean_asr|numeric|1e1, seed 20261031.
 _NAN_TAIL_SHA256 = "f98111327da99e56c5c9bf58d5ca02364023868af91ce44d4354caa79065e4d6"
@@ -339,6 +341,74 @@ def test_flat_channel_241_samples_still_runs_asr():
     cleaned = clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=0.075, ref_tolerances=(-3.5, 5.5), ref_wndlen=1.0)
     assert cleaned["data"].shape == data.shape
     assert np.max(np.abs(cleaned["data"] - data)) > 1.0
+
+
+def test_flat_channel_reference_keeps_241_samples():
+    """A zero-variance channel is the highest score and uses a high-amplitude slot.
+
+    Channels 12 through 28, starting at sample 4097, 1278 samples, flat
+    channel 8. The calibration reference keeps 241 samples (#642).
+    """
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(12, 29)), 4097, 1278, 1, -1, 0, 0, flat_channel=8),
+        freeze_params({"entry": "clean_asr", "cutoff": 3.0, "ref_maxbadchannels": 0.075, "window_len": 1.0}),
+    )
+    eeg = materialize_eeg(case)
+    data = np.asarray(eeg["data"], dtype=np.float64)
+    assert data.shape == (17, 1278)
+    assert np.all(data[8] == 0.0)
+
+    _cleaned, kept, diag = clean_windows(
+        eeg,
+        0.075,
+        (-3.5, 5.5),
+        1.0,
+        return_diagnostics=True,
+    )
+    kept = np.asarray(kept, dtype=bool)
+    # Inclusive bounds of the three kept stretches on this crop.
+    expected_indices = np.concatenate((np.arange(607, 740), np.arange(955, 1001), np.arange(1216, 1278)))
+    assert expected_indices.size == 241
+    np.testing.assert_array_equal(np.flatnonzero(kept), expected_indices)
+    assert np.all(np.isposinf(diag["zscores"][8]))
+    assert not np.any(np.isnan(diag["zscores"]))
+
+    produced = np.asarray(clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=0.075, window_len=1.0)["data"])
+    reference = np.asarray(clean_asr(eeg, cutoff=3.0, ref_maxbadchannels=data[:, kept], window_len=1.0)["data"])
+    tolerance = load_tolerances()["clean_asr"]
+    np.testing.assert_allclose(produced, reference, rtol=tolerance.rel, atol=tolerance.abs)
+    assert np.all(produced[8] == 0.0)
+
+
+def test_asr_only_flat_channel_stays_exactly_zero():
+    """The repaired flat channel is exactly zero. MATLAB's sqrtm residual is roundoff (#643).
+
+    Index 3925 is channel 6, sample 541, a repaired sample, not the flat channel.
+    """
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(17, 32)), 324, 564, 1, -1, 0, 0, flat_channel=11),
+        freeze_params({"entry": "clean_rawdata", "cutoff": 10.0, "ref_maxbadchannels": 0.2, "window_len": 1.0}),
+    )
+    eeg = materialize_eeg(case)
+    cleaned = pop_clean_rawdata(
+        eeg,
+        gui=False,
+        FlatlineCriterion="off",
+        Highpass="off",
+        ChannelCriterion="off",
+        LineNoiseCriterion="off",
+        WindowCriterion="off",
+        BurstCriterion=10.0,
+        BurstCriterionRefMaxBadChns=0.2,
+        BurstRejection="off",
+    )
+    data = np.asarray(cleaned["data"], dtype=np.float64)
+    assert data.shape == (15, 564)
+    assert np.count_nonzero(data == 0.0) == data.shape[1]
+    assert np.all(data[11] == 0.0)
+    assert data[6, 541] != 0.0
 
 
 if __name__ == '__main__':

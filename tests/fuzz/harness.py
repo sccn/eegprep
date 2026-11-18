@@ -431,6 +431,8 @@ _CLEAN_WINDOW_OVERLAP = 0.66
 _ASR_REF_WNDLEN = 1.0
 # asr_calibrate's RMS window. clean_asr does not forward its processing window_len.
 _ASR_CALIB_WINDOW = 0.5
+# A dead channel's oracle residual may be this fraction of the live-channel scale.
+_FLAT_CHANNEL_ROUNDOFF_REL = 1e-9
 
 
 def _matlab_colon(start: float, step: float, stop: float) -> np.ndarray:
@@ -1751,6 +1753,70 @@ def _channel_axis_reference_is_short(eeg: dict, params: dict, python: SideResult
     return 0 < selected < needed and f"has {selected} samples" in message
 
 
+def _exactly_zero_rows(data: np.ndarray) -> np.ndarray:
+    return np.all(np.asarray(data, dtype=np.float64) == 0.0, axis=1)
+
+
+def _failed_samples_are_on_rows(
+    candidate: np.ndarray,
+    oracle_data: np.ndarray,
+    rows: np.ndarray,
+    candidate_srate: float,
+    oracle_srate: float,
+    tolerance: Tolerance,
+) -> bool:
+    """True when every sample past the approved limit lies on ``rows``."""
+    diverged, kind, *_rest = compare_data(candidate, oracle_data, candidate_srate, oracle_srate, tolerance)
+    if not diverged or kind != "numeric":
+        return False
+    finite = np.isfinite(candidate) & np.isfinite(oracle_data)
+    diff = np.abs(candidate - oracle_data)
+    limit = tolerance.abs + tolerance.rel * np.abs(oracle_data)
+    failed = finite & (diff > limit)
+    if not np.any(failed):
+        return False
+    return not np.any(np.any(failed, axis=1) & ~rows)
+
+
+def _flat_rows_are_roundoff(oracle_data: np.ndarray, rows: np.ndarray) -> bool:
+    """The oracle values on ``rows`` stay at roundoff next to the live signal."""
+    live = ~rows
+    if not np.any(live):
+        return False
+    scale = float(np.nanmax(np.abs(oracle_data[live])))
+    residual = float(np.nanmax(np.abs(oracle_data[rows])))
+    if not np.isfinite(scale) or scale == 0.0 or not np.isfinite(residual):
+        return False
+    return residual <= _FLAT_CHANNEL_ROUNDOFF_REL * scale
+
+
+def _flat_nullspace_roundoff_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """An all-zero channel stays zero. MATLAB's ``sqrtm`` leaves a roundoff residual.
+
+    That residual has to stay at most 1e-9 of the live-channel scale. The
+    approved tolerance still applies everywhere else.
+    """
+    if case.function != "clean_asr" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None:
+        return False
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    python_data = np.asarray(python.data, dtype=np.float64)
+    oracle_data = np.asarray(oracle.data, dtype=np.float64)
+    if original.ndim != 2 or python_data.shape != original.shape or oracle_data.shape != original.shape:
+        return False
+    flat = _exactly_zero_rows(original)
+    if not np.any(flat) or not np.all(python_data[flat] == 0.0):
+        return False
+    srate = float(eeg["srate"])
+    oracle_srate = float(oracle.srate if oracle.srate is not None else srate)
+    return _failed_samples_are_on_rows(
+        python_data, oracle_data, flat, srate, oracle_srate, tolerance
+    ) and _flat_rows_are_roundoff(oracle_data, flat)
+
+
 def _one_channel_sort_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
     """``clean_windows.m`` sorts a one-row score matrix across time.
 
@@ -2113,6 +2179,19 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             "known difference: pop_rmbase.m mean() spreads a baseline NaN across the channel",
             digest,
         )
+    if outcome.diverged and _flat_nullspace_roundoff_is_known(case, eeg, python, oracle, tolerance):
+        # A zero row stays a zero row through the covariance square root and
+        # the reconstruction. MATLAB's sqrtm leaves a roundoff residual there.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known difference: an all-zero channel stays zero through ASR (#643)",
+            digest,
+        )
     if outcome.diverged and case.function == "pop_rmbase" and _event_targets().rmbase_boundary_offset(case, eeg):
         # pop_rmbase.m shifts segment indices when the baseline starts after
         # sample 1. EEGPrep removes the mean of the listed samples.
@@ -2198,6 +2277,9 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         known_valuelim = outcome.diverged and _scalar_valuelim_is_known(
             step, current, python_side, oracle_side, tolerance
         )
+        known_flat_zero = outcome.diverged and _flat_nullspace_roundoff_is_known(
+            step, current, python_side, oracle_side, tolerance
+        )
         if (
             not known_reref
             and not known_trials
@@ -2205,6 +2287,7 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             and not known_rmbase_mean
             and not known_trials_order
             and not known_valuelim
+            and not known_flat_zero
             and (outcome.diverged or outcome.error_class != "match")
         ):
             returned = _outcome(
@@ -2223,11 +2306,12 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         # Continue from the Python EEG when MATLAB's output is the known
         # defect: a NaN spread by the reference matrix, events dropped
         # because trials was still 0, a one-element valuelim that rejected
-        # every epoch, or mean() filling a channel from one baseline NaN.
-        # Later steps then see a real signal.
-        if (known_reref or known_trials or known_trials_order or known_rmbase_mean or known_valuelim) and _eeg_dict(
-            _python_eeg
-        ) is not None:
+        # every epoch, mean() filling a channel from one baseline NaN, or a
+        # flat channel left with square-root roundoff. Later steps then see a
+        # real signal.
+        if (
+            known_reref or known_trials or known_trials_order or known_rmbase_mean or known_valuelim or known_flat_zero
+        ) and _eeg_dict(_python_eeg) is not None:
             nxt = _python_eeg
         else:
             nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg
@@ -2247,6 +2331,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             last_detail = f"{name}: known difference: a one-element pop_epoch valuelim is a symmetric bound"
         elif known_rmbase_mean:
             last_detail = f"{name}: known difference: pop_rmbase.m mean() spreads a baseline NaN across the channel"
+        elif known_flat_zero:
+            last_detail = f"{name}: known difference: an all-zero channel stays zero through ASR (#643)"
         elif known_rmbase:
             last_detail = (
                 f"{name}: known divergence: continuous pop_rmbase with a boundary "

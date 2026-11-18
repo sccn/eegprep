@@ -293,6 +293,9 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        the sampling rate, and still run the final window stage.
        ``clean_artifacts.m`` lines 270-275 ``return`` before the sampling-rate
        restore (line 311) and before window removal (line 318) (#651).
+   * - All-zero channel after ASR
+     - EEGPrep returns exactly zero. MATLAB's ``sqrtm`` leaves a roundoff
+       residual on that channel (#643).
    * - One-channel ``clean_windows`` sort
      - ``clean_windows.m`` line 115 calls ``sort(wz)`` with no dimension.
        One channel is one row, so MATLAB sorts that row across time and the
