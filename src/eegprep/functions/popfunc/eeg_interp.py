@@ -48,8 +48,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         ``ValueError``. Planar positions warn. With three or more channels
         left to interpolate from, those source positions are checked on
         their own, so a collinear strip raises even when the filled-in
-        channels sit off the strip. Two source channels are always
-        collinear and are not rejected. Inverse-distance and space-time
+        channels sit off the strip. Two distinct source channels are not
+        rejected for collinearity alone; the whole located montage is
+        still classified and can raise or warn. Two identical source
+        channels raise. Inverse-distance and space-time
         interpolation stay quiet on a planar layout and raise only when
         the flat coordinates are identical or collinear.
 

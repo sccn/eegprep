@@ -462,7 +462,10 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        are identical or collinear. ``eeg_interp`` classifies the channels
        it interpolates from once three or more remain, so a collinear strip
        raises even when the filled-in channels sit off that strip. Two
-       source channels are always collinear and are not rejected. EEGLAB
+       distinct source channels are not rejected for collinearity alone.
+       The whole located montage is still classified, so an identical or
+       collinear montage still raises and a planar montage still warns.
+       Two identical source channels raise. EEGLAB
        ``clean_channels`` and
        ``eeg_interp`` do not test the layout, so a collinear montage can
        come back as a channel deletion or an interpolation that does not

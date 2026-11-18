@@ -103,10 +103,11 @@ def validate_interpolation_sources(montage: Any, sources: Any, *, operation: str
 
     Three or more source positions are classified on their own. Identical
     or collinear sources raise ``ValueError``, and planar sources warn.
-    Any two distinct positions are collinear, and EEGLAB still interpolates
-    from two good channels, so that case is not an error. With fewer than
-    three sources, the whole located montage is classified instead. Two
-    identical sources still raise.
+    Two distinct source positions are collinear by geometry, and that
+    collinearity alone does not raise. The whole located montage is
+    classified instead, so an identical or collinear montage still raises
+    and a planar montage still warns. Two identical source positions
+    raise before that montage check.
 
     Args:
         montage: Every located electrode, one row per channel.
