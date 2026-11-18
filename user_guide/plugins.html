@@ -634,7 +634,9 @@ correlation.</p>
 <code class="docutils literal notranslate"><span class="pre">xmax</span></code> to <code class="docutils literal notranslate"><span class="pre">xmin</span> <span class="pre">+</span> <span class="pre">(pnts</span> <span class="pre">-</span> <span class="pre">1)</span> <span class="pre">/</span> <span class="pre">srate</span></code> only when that duration is off the
 sample grid. A recording whose fit widths round to 1 or less raises
 <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, and <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> calibrates on the whole recording instead.
-Eleven to twenty-two windows still fit.</p>
+Eleven to twenty-two windows still fit. A channel whose window RMS values are
+all equal has scale 0 and is the highest score in every window, so it uses a
+high-amplitude bad-channel slot.</p>
 <section id="copies-dtypes-and-measured-criteria">
 <span id="cleaning-inputs"></span><h3>Copies, dtypes, and measured criteria<a class="headerlink" href="#copies-dtypes-and-measured-criteria" title="Link to this heading">#</a></h3>
 <p>Copy a dataset with <code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> before calling a function that

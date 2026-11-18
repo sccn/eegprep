@@ -509,6 +509,9 @@ samples, pixel bin edges, scroll ticks, log-image tick marks,
 <code class="docutils literal notranslate"><span class="pre">signalstat</span></code> histogram centers, the blank scalp placeholder, and
 contour levels are unchanged: EEGLAB does not build them with
 <code class="docutils literal notranslate"><span class="pre">linspace</span></code> or a colon (#568).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> ranks a channel whose window RMS values are all equal as the highest score in every window, so the channel uses a high-amplitude bad-channel slot (#642).
+On the 17-channel crop from sample 4097, with cutoff 3, <code class="docutils literal notranslate"><span class="pre">ref_maxbadchannels</span></code> 0.075, and a 1 s processing window, the calibration reference keeps 241 samples.
+An all-zero channel stays exactly zero through ASR. MATLAB’s <code class="docutils literal notranslate"><span class="pre">sqrtm</span></code> leaves a roundoff residual on that channel (#643).</p></li>
 <li><p>A pAMICA fit runs at its <code class="docutils literal notranslate"><span class="pre">threads</span></code> argument for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools, then restores those counts.
 <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;][&quot;threads&quot;]</span></code> stores that count when the pools actually used it, and replaying the record runs at the same count.
 The OpenMP check recognizes Torch’s <code class="docutils literal notranslate"><span class="pre">libiompstubs</span></code> library by its filename. Any other OpenMP pool that is not at the requested count still raises.</p></li>
