@@ -1,10 +1,19 @@
-"""fdlibm exp, bit for bit with the scalar reference."""
+"""fdlibm exp, sin, and cos, bit for bit with the scalar reference."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from eegprep.functions.miscfunc.ieee754 import _O_THRESHOLD, _U_THRESHOLD, _exp_scalar, cos, exp, sin
+from eegprep.functions.miscfunc.ieee754 import (
+    _O_THRESHOLD,
+    _U_THRESHOLD,
+    _cos_scalar,
+    _exp_scalar,
+    _sin_scalar,
+    cos,
+    exp,
+    sin,
+)
 
 
 def _bits(values: np.ndarray) -> np.ndarray:
@@ -78,6 +87,83 @@ def test_vector_exp_matches_the_scalar_reference():
     got_near = exp(near_zero)
     expected_near = np.array([_exp_scalar(value) for value in near_zero], dtype=np.float64)
     np.testing.assert_array_equal(_bits(got_near), _bits(expected_near))
+
+
+def _trig_sample() -> np.ndarray:
+    edges = [
+        0.0,
+        -0.0,
+        0.1,
+        -0.1,
+        1.0,
+        -1.0,
+        np.pi / 2.0,
+        -np.pi / 2.0,
+        np.pi,
+        -np.pi,
+        np.inf,
+        -np.inf,
+        np.nan,
+        np.nextafter(0.0, 1.0),
+        np.nextafter(0.0, -1.0),
+        np.finfo(np.float64).tiny,
+        -np.finfo(np.float64).tiny,
+        2.0**20,
+        -(2.0**20),
+        2.0**20 + 8.0,
+        -(2.0**23),
+        1.0e16,
+        -1.0e16,
+    ]
+    for high in (
+        0x3E3FFFFF,
+        0x3E400000,
+        0x3FD33333,
+        0x3FD33334,
+        0x3FE90000,
+        0x3FE90001,
+        0x3FE921FB,
+        0x3FE921FC,
+        0x3FF921FB,
+        0x4002D97B,
+        0x4002D97C,
+        0x413921FB,
+        0x413921FC,
+        0x7FF00000,
+    ):
+        word = _high_word(high)
+        edges.extend((word, -word, _high_word(high, 0xFFFFFFFF), -_high_word(high, 0xFFFFFFFF)))
+    generator = np.random.default_rng(20261118)
+    small = generator.uniform(-np.pi, np.pi, 4096)
+    medium = generator.uniform(-1.0e6, 1.0e6, 2048)
+    huge = generator.uniform(-1.0e8, 1.0e8, 512)
+    subnormal = np.ldexp(generator.integers(1, 2**52, size=128), -1074)
+    return np.concatenate([np.asarray(edges, dtype=np.float64), small, medium, huge, subnormal, -subnormal])
+
+
+def test_vector_sin_and_cos_match_the_scalar_reference():
+    values = _trig_sample()
+    with np.errstate(invalid="ignore", over="ignore"):
+        expected_sin = np.array([_sin_scalar(value) for value in values], dtype=np.float64)
+        expected_cos = np.array([_cos_scalar(value) for value in values], dtype=np.float64)
+    np.testing.assert_array_equal(_bits(sin(values)), _bits(expected_sin))
+    np.testing.assert_array_equal(_bits(cos(values)), _bits(expected_cos))
+
+    square = values[:100].reshape(10, 10)
+    expected_square_sin = expected_sin[:100].reshape(10, 10)
+    expected_square_cos = expected_cos[:100].reshape(10, 10)
+    assert sin(square).shape == square.shape
+    assert cos(square).shape == square.shape
+    np.testing.assert_array_equal(_bits(sin(square)), _bits(expected_square_sin))
+    np.testing.assert_array_equal(_bits(cos(square)), _bits(expected_square_cos))
+
+    scalar = sin(np.float64(-0.0))
+    assert scalar.shape == ()
+    assert _bits(scalar) == _bits(_sin_scalar(-0.0))
+    assert cos(np.float64(0.0)).shape == ()
+    assert _bits(cos(0.0)) == _bits(_cos_scalar(0.0))
+    assert sin(np.array([], dtype=np.float64)).shape == (0,)
+    assert cos(np.zeros((0, 3), dtype=np.float64)).shape == (0, 3)
 
 
 def test_sin_and_cos_match_fdlibm_bits():

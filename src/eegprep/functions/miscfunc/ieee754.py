@@ -488,6 +488,7 @@ _NPIO2_HW = (
     0x404921FB,
 )
 _TRIG_INIT_JK = (2, 3, 4, 6)
+_NPIO2_HW_ARRAY = np.asarray(_NPIO2_HW, dtype=np.uint32)
 
 
 def _trunc_int(value: float) -> int:
@@ -752,24 +753,223 @@ def _cos_scalar(value: float) -> np.float64:
     return _kernel_sin(head, tail, 1)
 
 
-def _apply(values: np.ndarray | float, function) -> np.ndarray:
+_HALF = _ONE / np.float64(2.0)
+
+
+def _unsigned_high(number: np.ndarray) -> np.ndarray:
+    return (number.view(np.uint64) >> np.uint64(32)).astype(np.uint32)
+
+
+def _exponent_field(number: np.ndarray) -> np.ndarray:
+    return (_unsigned_high(number).astype(np.int64) >> np.int64(20)) & np.int64(0x7FF)
+
+
+def _kernel_sin_array(number: np.ndarray, tail: np.ndarray, use_tail: np.ndarray | bool) -> np.ndarray:
+    absolute = _unsigned_high(number) & np.uint32(0x7FFFFFFF)
+    square = number * number
+    cube = square * number
+    remainder = _S2 + square * (_S3 + square * (_S4 + square * (_S5 + square * _S6)))
+    plain = number + cube * (_S1 + square * remainder)
+    adjusted = number - ((square * (_HALF * tail - cube * remainder) - tail) - cube * _S1)
+    polynomial = np.where(use_tail, adjusted, plain)
+    return np.where(absolute < np.uint32(0x3E400000), number, polynomial)
+
+
+def _kernel_cos_array(number: np.ndarray, tail: np.ndarray) -> np.ndarray:
+    absolute = _unsigned_high(number) & np.uint32(0x7FFFFFFF)
+    square = number * number
+    remainder = square * (_C1 + square * (_C2 + square * (_C3 + square * (_C4 + square * (_C5 + square * _C6)))))
+    inner = square * remainder - number * tail
+    half_square = square / np.float64(2.0)
+    small_result = _ONE - (half_square - inner)
+    wide = absolute > np.uint32(0x3FE90000)
+    quarter_bits = (absolute.astype(np.uint64) - np.uint64(0x00200000)) << np.uint64(32)
+    quarter = np.where(wide, np.float64(0.28125), quarter_bits.view(np.float64))
+    wide_result = (_ONE - quarter) - ((half_square - quarter) - inner)
+    polynomial = np.where(absolute < np.uint32(0x3FD33333), small_result, wide_result)
+    return np.where(absolute < np.uint32(0x3E400000), _ONE, polynomial)
+
+
+def _store_special(
+    mask: np.ndarray,
+    cycles: np.ndarray,
+    head: np.ndarray,
+    tail: np.ndarray,
+    count: int,
+    primary: np.ndarray,
+    low: np.ndarray,
+) -> None:
+    cycles[mask] = count
+    head[mask] = primary[mask]
+    tail[mask] = low[mask]
+
+
+def _reduce_array(number: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    flat = number.reshape(-1)
+    raw_high = _unsigned_high(flat)
+    negative = raw_high >= np.uint32(0x80000000)
+    absolute = raw_high & np.uint32(0x7FFFFFFF)
+    cycles = np.zeros(flat.shape, dtype=np.int64)
+    head = np.array(flat, dtype=np.float64, copy=True)
+    tail = np.zeros(flat.shape, dtype=np.float64)
+    use_tail = np.zeros(flat.shape, dtype=bool)
+
+    special = (absolute > np.uint32(0x3FE921FB)) & (absolute < np.uint32(0x4002D97C))
+    if np.any(special):
+        values = flat[special]
+        neg = negative[special]
+        near = absolute[special] == np.uint32(0x3FF921FB)
+        special_cycles = np.empty(values.shape, dtype=np.int64)
+        special_head = np.empty(values.shape, dtype=np.float64)
+        special_tail = np.empty(values.shape, dtype=np.float64)
+        reduced = values - _PIO2_1
+        primary = reduced - _PIO2_1T
+        _store_special(
+            ~neg & ~near,
+            special_cycles,
+            special_head,
+            special_tail,
+            1,
+            primary,
+            (reduced - primary) - _PIO2_1T,
+        )
+        reduced = values + _PIO2_1
+        primary = reduced + _PIO2_1T
+        _store_special(
+            neg & ~near,
+            special_cycles,
+            special_head,
+            special_tail,
+            -1,
+            primary,
+            (reduced - primary) + _PIO2_1T,
+        )
+        reduced = (values - _PIO2_1) - _PIO2_2
+        primary = reduced - _PIO2_2T
+        _store_special(
+            ~neg & near,
+            special_cycles,
+            special_head,
+            special_tail,
+            1,
+            primary,
+            (reduced - primary) - _PIO2_2T,
+        )
+        reduced = (values + _PIO2_1) + _PIO2_2
+        primary = reduced + _PIO2_2T
+        _store_special(
+            neg & near,
+            special_cycles,
+            special_head,
+            special_tail,
+            -1,
+            primary,
+            (reduced - primary) + _PIO2_2T,
+        )
+        cycles[special] = special_cycles
+        head[special] = special_head
+        tail[special] = special_tail
+        use_tail[special] = True
+
+    medium = (absolute >= np.uint32(0x4002D97C)) & (absolute <= np.uint32(0x413921FB))
+    if np.any(medium):
+        values = flat[medium]
+        magnitude = np.abs(values)
+        medium_cycles = np.trunc(magnitude * _INVPIO2 + _HALF).astype(np.int64)
+        scale = medium_cycles.astype(np.float64)
+        remainder = magnitude - scale * _PIO2_1
+        reduced_tail = scale * _PIO2_1T
+        reduced_head = remainder - reduced_tail
+        lookup = np.clip(medium_cycles - np.int64(1), 0, _NPIO2_HW_ARRAY.size - 1)
+        quick = (medium_cycles >= np.int64(1)) & (medium_cycles < np.int64(32))
+        quick &= absolute[medium] != _NPIO2_HW_ARRAY[lookup]
+        exponent = absolute[medium].astype(np.int64) >> np.int64(20)
+        second = ~quick & (exponent - _exponent_field(reduced_head) > np.int64(16))
+        if np.any(second):
+            saved = remainder[second]
+            step = scale[second] * _PIO2_2
+            second_remainder = saved - step
+            second_tail = scale[second] * _PIO2_2T - ((saved - second_remainder) - step)
+            second_head = second_remainder - second_tail
+            third = exponent[second] - _exponent_field(second_head) > np.int64(49)
+            if np.any(third):
+                saved = second_remainder[third]
+                step = scale[second][third] * _PIO2_3
+                third_remainder = saved - step
+                second_tail[third] = scale[second][third] * _PIO2_3T - ((saved - third_remainder) - step)
+                second_remainder[third] = third_remainder
+                second_head[third] = third_remainder - second_tail[third]
+            remainder[second] = second_remainder
+            reduced_tail[second] = second_tail
+            reduced_head[second] = second_head
+        low = (remainder - reduced_head) - reduced_tail
+        neg = negative[medium]
+        cycles[medium] = np.where(neg, -medium_cycles, medium_cycles)
+        head[medium] = np.where(neg, -reduced_head, reduced_head)
+        tail[medium] = np.where(neg, -low, low)
+        use_tail[medium] = True
+
+    shape = number.shape
+    return cycles.reshape(shape), head.reshape(shape), tail.reshape(shape), use_tail.reshape(shape)
+
+
+def _sincos_array(number: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    cycles, head, tail, use_tail = _reduce_array(number)
+    sine_tail = _kernel_sin_array(head, tail, True)
+    if np.any(~use_tail):
+        sine = np.where(use_tail, sine_tail, _kernel_sin_array(head, tail, False))
+    else:
+        sine = sine_tail
+    cosine_value = _kernel_cos_array(head, tail)
+    quadrant = cycles & np.int64(3)
+    sine_result = np.where(
+        quadrant == np.int64(0),
+        sine,
+        np.where(
+            quadrant == np.int64(1),
+            cosine_value,
+            np.where(quadrant == np.int64(2), -sine_tail, -cosine_value),
+        ),
+    )
+    cosine_result = np.where(
+        quadrant == np.int64(0),
+        cosine_value,
+        np.where(
+            quadrant == np.int64(1),
+            -sine_tail,
+            np.where(quadrant == np.int64(2), -cosine_value, sine_tail),
+        ),
+    )
+    large = (_unsigned_high(number) & np.uint32(0x7FFFFFFF)) > np.uint32(0x413921FB)
+    if np.any(large):
+        flat = number.reshape(-1)
+        sine_flat = sine_result.reshape(-1)
+        cosine_flat = cosine_result.reshape(-1)
+        for index in np.flatnonzero(large.reshape(-1)):
+            value = flat[index]
+            sine_flat[index] = _sin_scalar(value)
+            cosine_flat[index] = _cos_scalar(value)
+    return sine_result, cosine_result
+
+
+def _sincos(values: np.ndarray | float) -> tuple[np.ndarray, np.ndarray]:
     requested = np.asarray(values, dtype=np.float64)
-    flat = np.ascontiguousarray(requested).ravel()
-    output = np.empty(flat.shape, dtype=np.float64)
+    number = np.ascontiguousarray(requested)
     with np.errstate(invalid="ignore", over="ignore"):
-        for index, value in enumerate(flat):
-            output[index] = function(value)
-    return output.reshape(requested.shape)
+        sine, cosine = _sincos_array(number)
+    return sine.reshape(requested.shape), cosine.reshape(requested.shape)
 
 
 def sin(values: np.ndarray | float) -> np.ndarray:
     """Return fdlibm ``sin`` of each value."""
-    return _apply(values, _sin_scalar)
+    sine, _cosine = _sincos(values)
+    return sine
 
 
 def cos(values: np.ndarray | float) -> np.ndarray:
     """Return fdlibm ``cos`` of each value."""
-    return _apply(values, _cos_scalar)
+    _sine, cosine = _sincos(values)
+    return cosine
 
 
 def _exp_series(reduced: np.ndarray) -> np.ndarray:
