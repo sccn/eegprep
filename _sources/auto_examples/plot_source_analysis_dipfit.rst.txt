@@ -26,10 +26,11 @@ Mirrors EEGLAB's "Source analysis" tutorial workflow: choose a head model,
 coarse-fit component dipoles on a grid, refine them, then read the resulting
 ``EEG.dipfit.model`` entries.
 
-EEGPrep's bundled DIPFIT backend is a single-sphere analytic leadfield, so
-positions are approximate and will not match FieldTrip BEM coordinates.
+``model="standardBESA"`` uses the four-shell BESA leadfield (radii 71, 72, 79,
+and 85 mm). The MNI boundary-element template is not the FieldTrip BEM model,
+so those fits still use an infinite-medium kernel.
 
-.. GENERATED FROM PYTHON SOURCE LINES 13-64
+.. GENERATED FROM PYTHON SOURCE LINES 14-65
 
 
 
@@ -46,12 +47,12 @@ positions are approximate and will not match FieldTrip BEM coordinates.
     channels=32 trials=80 components=32
     EEG = pop_dipfit_settings(EEG, model='standardBESA')
     coordformat=Spherical hdmfile=standard_BESA/standard_BESA.mat
-    EEG = pop_dipfit_gridsearch(EEG, [1, 2, 3], [-85, -68, -51, -34, -17, 0, 17, 34, 51, 68, 85], [-
+    EEG = pop_dipfit_gridsearch(EEG, [1, 2, 3], [-85, -77.6086956521739, -70.21739130434783, -62.826
     EEG = pop_dipfit_nonlinear(EEG, component=1, nonlinear='yes')
     EEG = pop_multifit(EEG, [1, 2, 3], threshold=40, rmout='off', dipoles=1, dipplot='off')
-    IC1: posxyz=(  22.8,   -0.3,  -13.4) rv=2.1%
-    IC2: posxyz=(  -5.3,  -22.3,    1.1) rv=4.4%
-    IC3: posxyz=(  28.6,    0.7,  -23.9) rv=0.3%
+    IC1: posxyz=(  42.6,   -0.8,   -6.2) rv=2.6%
+    IC2: posxyz=( -13.3,  -44.4,    2.1) rv=4.3%
+    IC3: posxyz=(  68.6,    1.4,  -38.1) rv=0.4%
     pop_dipplot(EEG, [1, 2, 3], cornermri='on')
 
 
@@ -118,7 +119,7 @@ positions are approximate and will not match FieldTrip BEM coordinates.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.521 seconds)
+   **Total running time of the script:** (0 minutes 4.587 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_source_analysis_dipfit.py:

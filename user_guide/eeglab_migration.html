@@ -1031,6 +1031,14 @@ keeps small component weights visible.</p></td>
 onto the dataset during the call and returns the figures, so the
 history command does not assign over <code class="docutils literal notranslate"><span class="pre">EEG</span></code>.</p></td>
 </tr>
+<tr class="row-even"><td><p>DIPFIT <code class="docutils literal notranslate"><span class="pre">standardBEM</span></code> forward model</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">model=&quot;standardBESA&quot;</span></code> uses the four-shell concentric sphere in
+<code class="docutils literal notranslate"><span class="pre">standard_BESA.mat</span></code> (radii 71, 72, 79, and 85 mm; conductivities
+0.33, 1, 0.0042, and 0.33). The grid and nonlinear fit follow DIPFIT.
+<code class="docutils literal notranslate"><span class="pre">model=&quot;standardBEM&quot;</span></code> and other MNI settings still use an
+infinite-medium kernel. FieldTrip’s boundary-element leadfield is not
+in this dispatch yet, so those dipole positions do not match EEGLAB.</p></td>
+</tr>
 </tbody>
 </table>
 </div>

@@ -448,6 +448,13 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_headplot`` returns the dataset. EEGPrep writes the spline file
        onto the dataset during the call and returns the figures, so the
        history command does not assign over ``EEG``.
+   * - DIPFIT ``standardBEM`` forward model
+     - ``model="standardBESA"`` uses the four-shell concentric sphere in
+       ``standard_BESA.mat`` (radii 71, 72, 79, and 85 mm; conductivities
+       0.33, 1, 0.0042, and 0.33). The grid and nonlinear fit follow DIPFIT.
+       ``model="standardBEM"`` and other MNI settings still use an
+       infinite-medium kernel. FieldTrip's boundary-element leadfield is not
+       in this dispatch yet, so those dipole positions do not match EEGLAB.
 
 Plugin Migration
 ================

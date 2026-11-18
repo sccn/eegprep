@@ -736,8 +736,8 @@ decides it.</p>
 </section>
 <section id="dipfit">
 <h2>DIPFIT<a class="headerlink" href="#dipfit" title="Link to this heading">#</a></h2>
-<p>DIPFIT helpers support standalone spherical workflows. They store model fields
-under <code class="docutils literal notranslate"><span class="pre">EEG[&quot;dipfit&quot;][&quot;model&quot;]</span></code> and keep command strings replayable:</p>
+<p>DIPFIT helpers fit <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> with the four-shell BESA leadfield. They store
+model fields under <code class="docutils literal notranslate"><span class="pre">EEG[&quot;dipfit&quot;][&quot;model&quot;]</span></code> and keep command strings replayable:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_dipfit_settings</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;standardBESA&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_multifit</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
