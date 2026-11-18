@@ -890,8 +890,14 @@ and returns the recording.</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> leaves a NaN on a channel only when that sample or the
 reference subtracted from it is NaN. EEGLAB multiplies by a reference
 matrix that contains explicit zeros, so <code class="docutils literal notranslate"><span class="pre">0*NaN</span></code> marks every channel
-at that time. <code class="docutils literal notranslate"><span class="pre">test_pop_reref_keeps_a_nan_on_its_channel</span></code> locks the
-EEGPrep result.</p></td>
+at that time. A 12 by 36 crop at 64 Hz that keeps both reference
+channels, with one channel flat and a 4-sample NaN on a different
+non-reference channel, keeps those 4 NaNs. EEGLAB marks all 12
+channels (48 NaNs), so the masks differ at 44 samples. The flat
+channel does not create that gap. <code class="docutils literal notranslate"><span class="pre">test_pop_reref_keeps_a_nan_on_its_channel</span></code>
+and <code class="docutils literal notranslate"><span class="pre">test_pop_reref_keepref_on_keeps_a_four_sample_nan_on_its_channel</span></code>
+lock the EEGPrep result. The nightly comparison already treats this
+matrix spread as a match when the finite samples agree.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Float32 average reference</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> and <code class="docutils literal notranslate"><span class="pre">reref</span></code> sum the reference in float64 and cast once

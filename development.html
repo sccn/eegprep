@@ -1331,14 +1331,19 @@ baseline. One baseline NaN then fills the channel on the MATLAB side. The
 next step starts from the Python EEG. Explicit
 <code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> is the same kind of match, including inside the pipeline,
 when EEGLAB’s reference matrix spreads a NaN through <code class="docutils literal notranslate"><span class="pre">0*NaN</span></code> and
-EEGPrep’s subtraction keeps that NaN on its channel. The next pipeline
-step then starts from that subtraction, so later steps are not compared
-on the NaN-filled matrix product. <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> with a stored <code class="docutils literal notranslate"><span class="pre">trials</span></code>
-of 0 is a match when the data agree and MATLAB’s events are exactly the
-Python events whose latency is at most 1. A missing <code class="docutils literal notranslate"><span class="pre">trials</span></code> value does
-not count. The next pipeline step then starts from the Python EEG. An
-edge draw sets that stored 0 on about half of the non-user <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code>
-cases. <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> with <code class="docutils literal notranslate"><span class="pre">sorttrial='off'</span></code> and a repeated trial is a
+EEGPrep’s subtraction keeps that NaN on its channel. A 12 by 36 crop at
+64 Hz that keeps both reference channels, with one channel flat and a
+4-sample NaN on a different non-reference channel, is that match: 4 NaNs
+against 48, a 44-sample mask gap. The flat channel does not create it.
+<code class="docutils literal notranslate"><span class="pre">test_keepref_on_two_reference_nan_spread_is_not_filed</span></code> locks that draw.
+Finite samples still have to match the subtraction and the matrix product.
+The next pipeline step then starts from that subtraction, so later steps
+are not compared on the NaN-filled matrix product. <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> with a
+stored <code class="docutils literal notranslate"><span class="pre">trials</span></code> of 0 is a match when the data agree and MATLAB’s events
+are exactly the Python events whose latency is at most 1. A missing
+<code class="docutils literal notranslate"><span class="pre">trials</span></code> value does not count. The next pipeline step then starts from
+the Python EEG. An edge draw sets that stored 0 on about half of the
+non-user <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> cases. <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> with <code class="docutils literal notranslate"><span class="pre">sorttrial='off'</span></code> and a repeated trial is a
 match when EEGPrep kept the first copy and EEGLAB’s <code class="docutils literal notranslate"><span class="pre">unique_bc</span></code> kept the
 last (<code class="docutils literal notranslate"><span class="pre">pop_select.m</span></code> lines 282-286); the next step starts from the
 first-copy dataset. An epoched <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> <code class="docutils literal notranslate"><span class="pre">notime</span></code> that misses both

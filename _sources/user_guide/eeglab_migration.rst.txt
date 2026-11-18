@@ -326,8 +326,14 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
      - ``pop_reref`` leaves a NaN on a channel only when that sample or the
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
-       at that time. ``test_pop_reref_keeps_a_nan_on_its_channel`` locks the
-       EEGPrep result.
+       at that time. A 12 by 36 crop at 64 Hz that keeps both reference
+       channels, with one channel flat and a 4-sample NaN on a different
+       non-reference channel, keeps those 4 NaNs. EEGLAB marks all 12
+       channels (48 NaNs), so the masks differ at 44 samples. The flat
+       channel does not create that gap. ``test_pop_reref_keeps_a_nan_on_its_channel``
+       and ``test_pop_reref_keepref_on_keeps_a_four_sample_nan_on_its_channel``
+       lock the EEGPrep result. The nightly comparison already treats this
+       matrix spread as a match when the finite samples agree.
    * - Float32 average reference
      - ``pop_reref`` and ``reref`` sum the reference in float64 and cast once
        back to float32. EEGLAB multiplies a single-precision reference matrix.
