@@ -436,7 +436,7 @@ def _remove_refloc_from_removed_channels(EEG: dict, refloc: Any) -> None:
         return
     chaninfo = EEG.get("chaninfo", {})
     nodatchans = chaninfo.get("nodatchans", [])
-    if not nodatchans:
+    if _is_empty(nodatchans):
         raise ValueError("Missing reference channel information. Edit channels and add reference first.")
     labels = {str(loc.get("labels", "")).lower() for loc in _normalise_reflocs(refloc)}
     if not labels:

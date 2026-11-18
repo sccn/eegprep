@@ -992,3 +992,12 @@ def test_reref_rejects_invalid_one_based_identifiers(key, value):
     kwargs.setdefault("ref", [])
     with pytest.raises(ValueError, match=r"pop_reref:.*1\.\.4"):
         pop_reref(eeg, **kwargs)
+
+
+def test_reref_refloc_without_loaded_nodatchans_reports_missing_reference():
+    eeg = TestPopReref().create_simple_eeg()
+    # Loaded .set files store an empty chaninfo.nodatchans as an empty array.
+    eeg["chaninfo"] = {"nodatchans": np.array([])}
+    refloc = {"labels": "oldref", "X": 0.0, "Y": 0.0, "Z": 1.0, "type": "REF"}
+    with pytest.raises(ValueError, match="Missing reference channel information"):
+        pop_reref(eeg, [], refloc=refloc)
