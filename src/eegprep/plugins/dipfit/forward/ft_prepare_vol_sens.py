@@ -1,9 +1,8 @@
-"""Electrode preparation for spherical EEG head models.
+"""Electrode preparation for DIPFIT EEG head models.
 
-Port of the ``singlesphere`` / ``concentricspheres`` branch of FieldTrip
-``ft_prepare_vol_sens`` (fieldtrip-20250523). Electrodes are projected
-radially onto the outer sphere. Boundary-element models are left for the
-BEM forward-model port.
+Port of FieldTrip ``ft_prepare_vol_sens`` (fieldtrip-20250523). Concentric
+spheres project electrodes radially onto the outer sphere. Boundary-element
+models project them onto the skin and fold that transfer into ``mat``.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.plugins.dipfit.fieldtrip.bem import ft_prepare_vol_sens as prepare_bem_vol_sens
 from eegprep.plugins.dipfit.forward.ft_headmodeltype import (
     BEM_HEADMODELS,
     SPHERICAL_HEADMODELS,
@@ -23,26 +23,24 @@ from eegprep.plugins.dipfit.forward.ft_headmodeltype import (
 def ft_prepare_vol_sens(
     headmodel: dict[str, Any], sens: dict[str, Any] | np.ndarray
 ) -> tuple[dict[str, Any], dict[str, Any] | np.ndarray]:
-    """Project EEG electrodes onto the outer sphere of a concentric head model.
+    """Project EEG electrodes onto the head model.
 
     Args:
-        headmodel: Spherical volume conductor. ``r`` and ``cond`` (or ``c``)
-            are required. ``o`` is the sphere center, defaulting to the origin.
+        headmodel: Spherical volume (``r`` and ``cond``) or a boundary-element
+            volume (``bnd`` and ``mat``).
         sens: Electrode array ``(n, 3)`` or a mapping with ``elecpos``.
 
     Returns:
-        The normalized head model and the sensor description with ``elecpos``
-        on the outer sphere.
+        The prepared head model and the sensor description with projected
+        ``elecpos``.
     """
     model = normalize_headmodel(headmodel) if "r" in headmodel else dict(headmodel)
-    kind = ft_headmodeltype(model)
+    kind = ft_headmodeltype(model).lower()
     positions = _electrode_positions(sens)
+    if kind in BEM_HEADMODELS:
+        return prepare_bem_vol_sens(model, sens if isinstance(sens, dict) else {"elecpos": positions})
     if kind in SPHERICAL_HEADMODELS:
         positions = _project_to_outer_sphere(positions, model)
-    elif kind in BEM_HEADMODELS:
-        raise NotImplementedError(
-            f"{kind} electrode projection is not implemented; the FieldTrip BEM forward model owns that branch"
-        )
     else:
         raise ValueError(f"unsupported volume conductor model for EEG sensors: {kind}")
     if isinstance(sens, dict):

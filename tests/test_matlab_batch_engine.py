@@ -65,6 +65,76 @@ def test_timed_out_call_restarts_the_server_before_the_next_call(monkeypatch, tm
                 sys.modules[name] = module
 
 
+def test_pop_reref_refloc_gains_every_chanloc_field():
+    location = {
+        "theta": 0.0,
+        "radius": 0.50669,
+        "labels": "FPz",
+        "sph_theta": -0.0,
+        "sph_phi": -1.2,
+        "X": 0.9998,
+        "Y": 0.0,
+        "Z": -0.021,
+        "sph_radius": np.array([]),
+        "type": np.array([], dtype="U1"),
+        "ref": np.array([], dtype="U1"),
+        "urchan": 0,
+    }
+    nodata = {"labels": "FidNz", "type": "FID", "datachan": 0}
+    eeg = {"chanlocs": np.array([location], dtype=object), "chaninfo": {"nodatchans": [nodata]}}
+    partial = {
+        "labels": "oldref",
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 1.0,
+        "theta": 0.0,
+        "radius": 0.0,
+        "type": "REF",
+        "ref": "common",
+    }
+    prepared = matlab_batch_engine.complete_reref_arguments(
+        "pop_reref",
+        [eeg, np.array([]), "exclude", [6, 9], "keepref", "off", "refloc", partial],
+    )
+    refloc = prepared[-1]
+    for name in (*location, "datachan"):
+        assert name in refloc
+    assert refloc["labels"] == "oldref"
+    assert refloc["type"] == "REF"
+    assert refloc["ref"] == "common"
+    assert refloc["X"] == 0.0 and refloc["Z"] == 1.0
+    assert float(refloc["sph_theta"]) == pytest.approx(0.0)
+    assert float(refloc["sph_phi"]) == pytest.approx(90.0)
+    assert float(refloc["sph_radius"]) == pytest.approx(1.0)
+    assert partial.keys() == {"labels", "X", "Y", "Z", "theta", "radius", "type", "ref"}
+    untouched = matlab_batch_engine.complete_reref_arguments("pop_eegfiltnew", [eeg, partial])
+    assert untouched[1] is partial
+
+
+def test_batch_engine_pop_reref_sends_the_completed_refloc(tmp_path: Path):
+    eeg = {
+        "chanlocs": [{"labels": "Cz", "X": 0.0, "Y": 0.0, "Z": 1.0, "sph_theta": 0.0, "urchan": 1}],
+        "chaninfo": {"nodatchans": []},
+    }
+    engine = matlab_batch_engine.BatchEngine(tmp_path)
+    seen = {}
+
+    def capture(kind, name, args, nargout):
+        seen["kind"] = kind
+        seen["name"] = name
+        seen["args"] = args
+        seen["nargout"] = nargout
+        return "ok"
+
+    engine._request = capture
+    assert engine.pop_reref(eeg, np.array([]), "refloc", {"labels": "oldref", "X": 0.0, "Y": 0.0, "Z": 1.0}) == "ok"
+    refloc = seen["args"][3]
+    assert seen["name"] == "pop_reref"
+    assert refloc["labels"] == "oldref"
+    assert refloc["urchan"].size == 0
+    assert float(refloc["sph_theta"]) == pytest.approx(0.0)
+
+
 def test_publish_mat_hides_the_result_until_replace(monkeypatch, tmp_path: Path):
     destination = tmp_path / "res_1.mat"
     partial = destination.with_suffix(".part")

@@ -405,10 +405,10 @@ class _Side:
             return cleaned
         return self.wrapper.clean_artifacts(eeg, **CLEAN_PARAMS)
 
-    def picard(self, eeg):
+    def picard(self, eeg, **kwargs):
         if self.wrapper is None:
-            return eeg_picard(eeg)
-        return self.wrapper.eeg_picard(eeg)
+            return eeg_picard(eeg, **kwargs)
+        return self.wrapper.eeg_picard(eeg, **kwargs)
 
     def label(self, eeg):
         if self.wrapper is None:
@@ -692,6 +692,7 @@ def _chain_subject(subject, imported, engine):
     python = _Side()
     matlab = _Side(engine)
     summary = {}
+    imported = _as_float64(imported)
     python_ref, matlab_ref, max_abs, rms = _step_pair("reref", python.reref, matlab.reref, imported, imported)
     summary["reref"] = {"max_abs": max_abs, "rms": rms}
     python_ref = _as_float64(python_ref)
@@ -710,7 +711,13 @@ def _chain_subject(subject, imported, engine):
     assert _removed_labels(python_ref, python_eeg) == _removed_labels(matlab_ref, matlab_eeg)
     _assert_events_match(python_eeg, matlab_eeg)
 
-    python_eeg, matlab_eeg, _max_abs, _rms = _step_pair("picard", python.picard, matlab.picard, python_eeg, matlab_eeg)
+    python_eeg, matlab_eeg, _max_abs, _rms = _step_pair(
+        "picard",
+        lambda eeg: python.picard(eeg, tol=PICARD_TOL, max_iter=PICARD_MAX_ITER),
+        lambda eeg: matlab.picard(eeg, tol=PICARD_TOL, max_iter=PICARD_MAX_ITER),
+        python_eeg,
+        matlab_eeg,
+    )
     distance = amari_distance(_unmixing(python_eeg), np.asarray(matlab_eeg["icawinv"], dtype=float))
     mean_correlation, min_correlation = matched_mixing_correlation(python_eeg["icawinv"], matlab_eeg["icawinv"])
     summary["picard"] = {"amari": distance, "corr_min": min_correlation, "corr_mean": mean_correlation}

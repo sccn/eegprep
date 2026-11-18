@@ -131,8 +131,8 @@ def test_two_shell_padding_matches_a_repeated_outer_shell():
     )
 
 
-def test_bem_leadfields_stay_unimplemented_for_the_boundary_element_port():
-    with pytest.raises(NotImplementedError, match="bem"):
+def test_bem_type_reaches_the_boundary_element_branch():
+    with pytest.raises(ValueError, match="compartment boundaries"):
         ft_compute_leadfield(np.zeros(3), {"elecpos": _electrodes()}, {"type": "bem", "bnd": [], "mat": []})
 
 

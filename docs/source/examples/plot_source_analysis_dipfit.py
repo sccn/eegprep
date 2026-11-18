@@ -7,9 +7,9 @@ Mirrors EEGLAB's "Source analysis" tutorial workflow: choose a head model,
 coarse-fit component dipoles on a grid, refine them, then read the resulting
 ``EEG.dipfit.model`` entries.
 
-``model="standardBESA"`` uses the four-shell BESA leadfield (radii 71, 72, 79,
-and 85 mm). The MNI boundary-element template is not the FieldTrip BEM model,
-so those fits still use an infinite-medium kernel.
+This example selects ``standardBESA``, which uses the four-shell BESA leadfield
+(radii 71, 72, 79, and 85 mm). The default DIPFIT model is the packaged MNI
+boundary-element volume.
 """
 
 import matplotlib

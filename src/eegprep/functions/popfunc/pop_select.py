@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
     """Select EEG data using EEGLAB ``pop_select`` semantics.
 
+    The input dataset is deep-copied and is not modified. The returned
+    dataset keeps the input sample dtype.
+
     Numeric ``channel``, ``nochannel``, and ``rmchannel`` arguments use
     zero-based Python indices. The GUI uses one-based channel numbers.
     Channel labels can be used in either interface.

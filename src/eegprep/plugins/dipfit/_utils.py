@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import math
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -10,20 +12,29 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc.plot_utils import numeric_vector, python_literal
+from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_options_text, python_literal
+
+_QUOTED_PLOT_GAP = re.compile(r"""(?<=['"])\s+(?=['"])""")
 
 
 FIELDTRIP_LIMITATION = (
-    "This DIPFIT workflow requires MRI segmentation, a boundary-element head model, "
-    "LORETA, or other FieldTrip routines that are not bundled in standalone EEGPrep yet. "
-    "standardBESA grid search and nonlinear fitting use the four-shell BESA leadfield. "
-    "EEGPrep can also store DIPFIT settings, compute explicit-point leadfields, and plot "
-    "existing dipole models."
+    "This DIPFIT workflow builds a new MRI head model or runs eLORETA. EEGPrep "
+    "fits dipoles with the packaged MNI boundary-element model and the four-shell "
+    "standardBESA leadfield, but it does not create bemcp or dipoli system matrices "
+    "and it does not run FieldTrip eLORETA."
 )
 
 
 class DIPFITUnavailableError(RuntimeError):
     """Raised when a DIPFIT workflow needs an unavailable FieldTrip backend."""
+
+
+@dataclass(frozen=True)
+class CoordKeywordTransform:
+    """One ``dipfitdefs`` channel-file rule and its coregistration vector."""
+
+    keywords: tuple[str, ...]
+    transform: tuple[float, ...]
 
 
 @dataclass(frozen=True)
@@ -37,6 +48,35 @@ class DipfitTemplate:
     chanfile: str
     coordformat: str
     coord_transform: tuple[float, ...]
+    coord_transforms: tuple[CoordKeywordTransform, ...] = ()
+
+
+_BESA_TRANSFORMS: tuple[CoordKeywordTransform, ...] = (
+    CoordKeywordTransform(("standard-10-5-cap385",), ()),
+    CoordKeywordTransform(
+        ("standard_1005",),
+        (13.4299, 0.746361, -0.654923, 0.000878113, -0.0818352, 0.0023747, 0.852832, 0.941595, 0.85887),
+    ),
+    CoordKeywordTransform(
+        ("gsn", "sfp"),
+        (-0.254232, 0.0, -8.4081, 0.0, 0.00272526, 0.0, 8.59463, -10.9643, 10.4963),
+    ),
+    CoordKeywordTransform(("egi", "elp"), (0.0, 0.0, 0.0, 0.0, 0.02, 0.0, 85.0, 85.0, 85.0)),
+    CoordKeywordTransform(("egimff",), (0.0, 0.0, 0.0, 0.0, 0.02, 0.0, 8.5, 8.5, 8.5)),
+)
+_BEM_TRANSFORMS: tuple[CoordKeywordTransform, ...] = (
+    CoordKeywordTransform(("standard_1005",), (0.0, 0.0, 0.0, 0.0, 0.0, -math.pi / 2.0, 1.0, 1.0, 1.0)),
+    CoordKeywordTransform(
+        ("standard-10-5-cap385",),
+        (0.832146, -15.6287, 2.41142, 0.0812144, 0.000937391, -1.5732, 1.17419, 1.06011, 1.14846),
+    ),
+    CoordKeywordTransform(
+        ("gsn", "sfp"),
+        (0.0547605, -17.3653, -8.13178, 0.0755019, 0.00318357, -1.56963, 11.7138, 12.7933, 12.213),
+    ),
+    CoordKeywordTransform(("egi", "elp"), (0.0, -15.0, 0.0, 0.08, 0.0, -1.571, 102.0, 93.0, 100.0)),
+    CoordKeywordTransform(("egimff",), (0.0, -15.0, 0.0, 0.08, 0.0, -1.571, 10.2, 9.3, 10.0)),
+)
 
 
 STANDARD_TEMPLATES: tuple[DipfitTemplate, ...] = (
@@ -48,6 +88,7 @@ STANDARD_TEMPLATES: tuple[DipfitTemplate, ...] = (
         chanfile="standard_BESA/standard-10-5-cap385.elp",
         coordformat="Spherical",
         coord_transform=(),
+        coord_transforms=_BESA_TRANSFORMS,
     ),
     DipfitTemplate(
         name="Template Boundary Element Model (MNI)",
@@ -57,6 +98,7 @@ STANDARD_TEMPLATES: tuple[DipfitTemplate, ...] = (
         chanfile="standard_BEM/elec/standard_1005.elc",
         coordformat="MNI",
         coord_transform=(0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0),
+        coord_transforms=_BEM_TRANSFORMS,
     ),
     DipfitTemplate(
         name="Custom files/structures (Fieldtrip format)",
@@ -75,6 +117,39 @@ def copy_eeg(EEG: dict[str, Any]) -> dict[str, Any]:
     return copy.deepcopy(EEG)
 
 
+def dipfit_record(EEG: dict[str, Any]) -> dict[str, Any]:
+    """Return ``EEG.dipfit`` when it is a mapping.
+
+    An empty numeric placeholder is not a settings record. Using it in
+    ``value or {}`` raises ``ValueError`` because the array has no truth value.
+    """
+    dipfit = EEG.get("dipfit") if isinstance(EEG, dict) else None
+    if isinstance(dipfit, dict):
+        return dipfit
+    return {}
+
+
+def template_form_state(template: DipfitTemplate) -> dict[str, Any]:
+    """Return dialog field values for one head-model template."""
+    coord_index = {"spherical": 1, "mni": 2}.get(template.coordformat.lower(), 4)
+    transform = " ".join(f"{float(value):g}" for value in template.coord_transform)
+    return {
+        "hdmfile": template.hdmfile,
+        "mrifile": template.mrifile,
+        "chanfile": template.chanfile,
+        "coord_transform": transform,
+        "coordformat": coord_index,
+        "no_coreg": not bool(transform),
+        "browse": not bool(template.shortname),
+    }
+
+
+def matlab_plot_options(text: Any) -> dict[str, Any]:
+    """Parse plot options, including MATLAB ``'key' 'value'`` text."""
+    normalized = _QUOTED_PLOT_GAP.sub(", ", str(text or "").strip())
+    return parse_plot_options_text(normalized)
+
+
 def dipfit_history(function_name: str, *args: Any, assignment: bool = True, **kwargs: Any) -> str:
     """Build a valid Python command for GUI/console history."""
     pieces = ["EEG", *(python_literal(arg) for arg in args)]
@@ -91,6 +166,28 @@ def template_by_name(name: Any) -> DipfitTemplate:
             return template
     valid = ", ".join(template.shortname for template in STANDARD_TEMPLATES if template.shortname)
     raise ValueError(f"model must be one of {valid}")
+
+
+def lookupchantemplate(chanfile: str, template: DipfitTemplate) -> tuple[bool, list[float]]:
+    """Return the first coregistration whose keywords are all in ``chanfile``.
+
+    This follows EEGLAB ``lookupchantemplate``: every keyword must occur in the
+    lowercased channel-file name, and the first complete match wins. No match
+    returns an empty transform.
+    """
+    filename = str(chanfile or "").lower()
+    for rule in template.coord_transforms:
+        if rule.keywords and all(keyword.lower() in filename for keyword in rule.keywords):
+            return True, [float(value) for value in rule.transform]
+    return False, []
+
+
+def channel_template_filename(EEG: dict[str, Any]) -> str:
+    """Return ``EEG.chaninfo.filename`` when a dataset records one."""
+    chaninfo = EEG.get("chaninfo")
+    if isinstance(chaninfo, dict):
+        return str(chaninfo.get("filename") or "")
+    return ""
 
 
 def apply_template(dipfit: dict[str, Any], template: DipfitTemplate) -> None:
@@ -129,8 +226,8 @@ def ensure_channel_locations(EEG: dict[str, Any]) -> None:
 
 def ensure_dipfit_settings(EEG: dict[str, Any]) -> dict[str, Any]:
     """Return existing DIPFIT settings or raise an EEGLAB-like error."""
-    dipfit = EEG.get("dipfit")
-    if not isinstance(dipfit, dict) or not dipfit:
+    dipfit = dipfit_record(EEG)
+    if not dipfit:
         raise ValueError("General dipolefit settings not specified")
     if not dipfit.get("hdmfile") and not dipfit.get("vol"):
         raise ValueError("Dipolefit volume conductor model not specified")
@@ -165,8 +262,8 @@ def one_based_indices(value: Any, *, limit: int, default_all: bool = False) -> l
 
 def normalize_model_list(EEG: dict[str, Any]) -> list[dict[str, Any]]:
     """Return DIPFIT model entries as a list of dictionaries."""
-    dipfit = EEG.get("dipfit") or {}
-    models = dipfit.get("model", []) if isinstance(dipfit, dict) else []
+    dipfit = dipfit_record(EEG)
+    models = dipfit.get("model", [])
     if isinstance(models, dict):
         return [models]
     if isinstance(models, np.ndarray):

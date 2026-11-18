@@ -173,6 +173,9 @@ def show_marked_epochs_notice(parent: Any | None = None) -> None:
     box.setWindowTitle("Warning")
     box.setText(MARKED_EPOCHS_NOTICE)
     box.setObjectName("marked_epochs_notice")
+    # QMessageBox is application-modal by default. show() does not run a dialog
+    # loop, so that modality stays active and the next dialog.exec() waits on it.
+    box.setWindowModality(QtCore.Qt.WindowModality.NonModal)
     if parent is None:
         _notice_boxes.append(box)
         box.finished.connect(lambda _result, box=box: _forget_notice(box))

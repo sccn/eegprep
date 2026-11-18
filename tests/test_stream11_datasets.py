@@ -9,6 +9,7 @@ import pytest
 try:
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QDialogButtonBox, QFileDialog, QLineEdit, QMessageBox, QPushButton
+    from shiboken6 import Shiboken
 except ImportError:
     pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
 
@@ -24,25 +25,54 @@ from tests.test_stream11_menus import qapp as qapp
 pytestmark = [pytest.mark.gui, pytest.mark.modal_dialogs]
 
 
+def _dialog_identity(dialog):
+    # A named window stays one window even if Qt hands back a new wrapper.
+    # Pointers distinguish windows that were never given a name.
+    name = str(dialog.objectName() or "")
+    if name:
+        return ("name", name)
+    return ("ptr", tuple(int(pointer) for pointer in Shiboken.getCppPointer(dialog)))
+
+
 @pytest.fixture
 def dialogs(qapp):
     pending, seen, failures = [], [], []
+    # Accept and reject process Qt events, so this timer can see the same
+    # window again, including through a control inside it. Claim the window
+    # title before the handler runs. A handler that refuses the window is
+    # queued again and that window is closed.
+    done = set()
+    answered = set()
+    state = {"last": ""}
 
     def respond():
         dialog = qapp.activeModalWidget()
         if dialog is None:
             return
-        seen.append(dialog.windowTitle())
+        dialog = dialog.window()
+        title = str(dialog.windowTitle() or "")
+        identity = _dialog_identity(dialog)
+        if identity in done or (title and title in answered):
+            return
+        done.add(identity)
+        if title:
+            answered.add(title)
         if not pending:
-            failures.append(f"Unexpected dialog: {dialog.windowTitle()}")
+            failures.append(f"Unexpected dialog: {title}")
             dialog.reject()
             return
+        # Take the handler before running it. Accept can open the next
+        # window before it returns, and that window needs the following handler.
         handler = pending.pop(0)
         try:
             handler(dialog)
         except Exception as exc:
-            failures.append(str(exc))
-            dialog.reject()
+            pending.insert(0, handler)
+            state["last"] = str(exc)
+            if Shiboken.isValid(dialog):
+                dialog.reject()
+            return
+        seen.append(title)
 
     timer = QTimer()
     timer.timeout.connect(respond)
@@ -50,7 +80,7 @@ def dialogs(qapp):
     yield pending, seen
     timer.stop()
     assert not failures, failures
-    assert not pending, "A required dialog did not open"
+    assert not pending, f"A required dialog did not open: {state['last']}"
 
 
 def accept(dialog):
@@ -137,7 +167,12 @@ def test_f42_merge_opens_newset_and_cancel_preserves_datasets(qapp, dialogs, can
     session = make_session()
     window = build_main_window(session, include_plugins=False)
     pending, seen = dialogs
-    pending.append(accept)
+
+    def merge(dialog):
+        assert "pop_mergeset" in dialog.windowTitle()
+        accept(dialog)
+
+    pending.append(merge)
 
     def newset(dialog):
         assert "pop_newset" in dialog.windowTitle()
