@@ -366,3 +366,6 @@ def test_bem_leadfield_and_multifit_match_fieldtrip(eeglab_backend, eeglab_matla
     python_rv = np.asarray(payload["rv"], dtype=float).ravel()
     assert matlab_rv.shape == python_rv.shape == (3,)
     assert python_rv[2] <= matlab_rv[2]
+    eeg = pop_dipfit_settings(pop_loadset(str(_SAMPLE)), model="standardBEM")
+    forward = prepare_forward_data(eeg, [1, 2, 3])
+    assert not ft_inside_headmodel(python_positions[2:3], forward.headmodel).any()
