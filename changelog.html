@@ -491,6 +491,24 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Time axes, frequency grids, and cycle grids that are returned or used to
+pick a sample follow MATLAB <code class="docutils literal notranslate"><span class="pre">linspace</span></code> (<code class="docutils literal notranslate"><span class="pre">start</span> <span class="pre">+</span> <span class="pre">i</span> <span class="pre">*</span> <span class="pre">(stop</span> <span class="pre">-</span> <span class="pre">start)</span> <span class="pre">/</span> <span class="pre">(n</span> <span class="pre">-</span> <span class="pre">1)</span></code>,
+last sample equal to the stop, one sample equal to the stop) or the colon
+or <code class="docutils literal notranslate"><span class="pre">logspace</span></code> in the EEGLAB source. <code class="docutils literal notranslate"><span class="pre">EEG.times</span></code> for 7 points from 0 to
+1 ms differs in the sixth sample from NumPy. <code class="docutils literal notranslate"><span class="pre">envtopo</span></code> uses
+<code class="docutils literal notranslate"><span class="pre">xmin:sampint:xmax</span></code> in seconds. The <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> ERP time base ends at
+<code class="docutils literal notranslate"><span class="pre">tlimits(2)+0.000001</span></code>. <code class="docutils literal notranslate"><span class="pre">gauss</span></code> uses <code class="docutils literal notranslate"><span class="pre">-sds:incr:sds</span></code> and fdlibm
+<code class="docutils literal notranslate"><span class="pre">exp</span></code> on the whole window. <code class="docutils literal notranslate"><span class="pre">dftfilt</span></code> evaluates its phase and Hanning
+taper with fdlibm <code class="docutils literal notranslate"><span class="pre">sin</span></code> and <code class="docutils literal notranslate"><span class="pre">cos</span></code>. Log-spaced widths use fdlibm <code class="docutils literal notranslate"><span class="pre">10.^x</span></code>. Histogram centers,
+FDR thresholds, trend regressors, the <code class="docutils literal notranslate"><span class="pre">dftfilt</span></code> phase grid, color-bar
+ticks and labels, DIPFIT scan grids, and the topoplot mesh follow the
+same rule. A constant <code class="docutils literal notranslate"><span class="pre">hist2</span></code> widens a zero span before that spacing,
+so the bars have a width. The plotted head outline keeps 100 points,
+spaced with MATLAB <code class="docutils literal notranslate"><span class="pre">linspace</span></code>; EEGLAB’s circle uses 201. Colormap
+samples, pixel bin edges, scroll ticks, log-image tick marks,
+<code class="docutils literal notranslate"><span class="pre">signalstat</span></code> histogram centers, the blank scalp placeholder, and
+contour levels are unchanged: EEGLAB does not build them with
+<code class="docutils literal notranslate"><span class="pre">linspace</span></code> or a colon (#568).</p></li>
 <li><p>A pAMICA fit runs at its <code class="docutils literal notranslate"><span class="pre">threads</span></code> argument for torch intra-op and the NumPy and SciPy BLAS and OpenMP pools, then restores those counts.
 <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;][&quot;threads&quot;]</span></code> stores that count when the pools actually used it, and replaying the record runs at the same count.
 The OpenMP check recognizes Torch’s <code class="docutils literal notranslate"><span class="pre">libiompstubs</span></code> library by its filename. Any other OpenMP pool that is not at the requested count still raises.</p></li>
