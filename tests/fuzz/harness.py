@@ -48,7 +48,7 @@ from tests.fuzz.catalog import (
 from tests.fuzz.draw import Draw, mix_seed
 from tests.fuzz.issues import publish_findings
 from tests.fuzz.targets import python_select
-from tests.matlab_batch_engine import install
+from tests.matlab_batch_engine import complete_reref_arguments, install
 
 _ORIGINAL_FUNCTIONS = (
     "pop_eegfiltnew",
@@ -2351,7 +2351,8 @@ def dispatch_matlab(engine, case: FuzzCase, eeg: dict):
         kwargs.pop("gui", None)
         for key, value in kwargs.items():
             args.extend([key, value])
-        return engine.pop_reref(eeg, *args)
+        prepared = complete_reref_arguments("pop_reref", [eeg, *args])
+        return engine.pop_reref(*prepared)
     if case.function == "pop_resample":
         args = [float(params["freq"])]
         if "fc" in params or "df" in params:

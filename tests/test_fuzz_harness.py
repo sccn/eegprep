@@ -1639,6 +1639,71 @@ def test_github_tracker_sends_signature_and_labels():
     assert "fuzz-unconfirmed" in create
 
 
+def test_matlab_refloc_sent_to_the_batch_session_has_chanloc_fields():
+    case = FuzzCase(
+        "pop_reref",
+        EEGSpec(tuple(range(32)), 0, 32, 1, -1, 0, 0),
+        freeze_params({"ref": (), "keepref": "off", "exclude": (6, 9), "refloc": "oldref"}),
+    )
+    eeg = materialize_eeg(case)
+    captured = {}
+
+    class _Engine:
+        def pop_reref(self, *args):
+            captured["args"] = args
+            return eeg
+
+    dispatch_matlab(_Engine(), case, eeg)
+    args = captured["args"]
+    refloc = next(args[index + 1] for index, value in enumerate(args) if isinstance(value, str) and value == "refloc")
+    template = eeg["chanlocs"][0]
+    template = template.item() if isinstance(template, np.ndarray) and template.shape == () else template
+    assert set(template) <= set(refloc)
+    assert np.isfinite(float(refloc["sph_theta"]))
+    assert refloc["labels"] == "oldref"
+    assert refloc["type"] == "REF"
+
+
+def test_reproduce_matched_error_exits_zero_and_a_divergence_exits_one(tmp_path):
+    from tests.fuzz.__main__ import main
+
+    shared = {
+        "function": "pop_eegfiltnew",
+        "params": {
+            "filtorder": 101,
+            "hicutoff": None,
+            "locutoff": 1.0,
+            "minphase": False,
+            "revfilt": False,
+            "usefftfilt": False,
+        },
+        "spec": {
+            "channels": [0, 1],
+            "decimate": 1,
+            "length": 64,
+            "nan_channel": -1,
+            "nan_length": 0,
+            "nan_start": 0,
+            "start": 0,
+        },
+    }
+    repro = tmp_path / "odd-order.json"
+    repro.write_text(json.dumps(shared))
+    assert main(["reproduce", str(repro), "--oracle", "fake", "--fake-mode", "match"]) == 0
+
+    numeric = tmp_path / "average.json"
+    numeric.write_text(
+        json.dumps(
+            {
+                "function": "pop_reref",
+                "params": {"exclude": [], "keepref": "off", "ref": []},
+                "spec": shared["spec"],
+            }
+        )
+    )
+    assert main(["reproduce", str(numeric), "--oracle", "fake", "--fake-mode", "survey-diverge"]) == 1
+
+
 def test_reproduce_reruns_and_rejects_a_changed_input_hash(tmp_path):
     python = _Backend(_identity)
     oracle = _Backend(_diverge_over_two_channels)
