@@ -788,6 +788,10 @@ reaches stay finite.</p>
 <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_reref</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Float32 average reference is summed in float64 and stored as float32. On the
+64-channel ds003061 sub-001 recording (194048 samples, peak 259369.28125 µV),
+EEGLAB’s single-precision product differs from that correctly rounded float32
+result by at most 0.15625 µV. See <a class="reference internal" href="eeglab_migration.html#eeglab-migration"><span class="std std-ref">EEGLAB Migration Notes</span></a>.</p>
 <p>Interpolate known bad channels after channel removal or rejection:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_interp</span>
 

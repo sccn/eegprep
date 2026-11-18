@@ -491,6 +491,17 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">reref</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> sum an average reference in float64 and cast
+once back to the input dtype, so a float32 recording stays float32 and the
+result does not depend on the BLAS kernel or thread count. On the
+64-channel float32 ds003061 sub-001 recording (194048 samples, peak
+259369.28125 µV), EEGLAB’s single-precision product differs from this
+correctly rounded float32 result by at most 0.15625 µV (RMS
+0.004684294629 µV). The same EEGLAB result differs from an OpenBLAS
+Haswell float32 product by 0.109375 µV (RMS 0.00235126327796 µV), and
+that Haswell result changes with the thread count. Correctly rounded
+float32 is at most 0.0078125 µV from the exact real average (RMS
+0.000584188801266 µV) (#579).</p></li>
 <li><p><strong>BREAKING: ICLabel needs the</strong> <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> <strong>extra, and</strong> <code class="docutils literal notranslate"><span class="pre">eegprep[torch]</span></code> <strong>no longer enables it.</strong>
 <code class="docutils literal notranslate"><span class="pre">iclabel</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> now classify with <code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code>, the Open Neural Network Exchange (ONNX) runtime, instead of PyTorch.
 The package ships <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code>, the full-precision network, and <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code>, an 8-bit copy for browsers, in place of <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code>.
