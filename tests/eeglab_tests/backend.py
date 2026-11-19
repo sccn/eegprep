@@ -123,8 +123,9 @@ def _python_outputs(name, result, nargout):
 
 
 # These functions return the history command only when asked. MATLAB nargout
-# greater than one is that request.
-_NARGOUT_COMMAND = frozenset({"pop_comments"})
+# greater than one is that request. Other pop_* functions are left alone: their
+# extra outputs are data, not the command string.
+_NARGOUT_COMMAND = frozenset({"pop_comments", "pop_copyset", "pop_editeventfield"})
 
 
 def call_python(name, *args, nargout=1, **kwargs):

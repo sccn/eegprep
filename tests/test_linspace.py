@@ -155,7 +155,7 @@ def test_envtopo_times_follow_the_matlab_colon():
 
 
 def test_gauss_samples_follow_the_matlab_colon():
-    window = gauss(7, 0.3)
+    window = gauss(7, 0.3).reshape(-1)
     assert window[4].hex() == "0x1.fae7cfd2b9cfep-1"
 
 

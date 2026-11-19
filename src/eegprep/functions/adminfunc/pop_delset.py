@@ -4,18 +4,29 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, matlab_ints, restore_dataset_container
+
 
 def pop_delset(
-    ALLEEG: list[dict[str, Any]] | None,
-    indices: int | list[int] | tuple[int, ...],
-) -> tuple[list[dict[str, Any]], str]:
+    ALLEEG: list[dict[str, Any]] | np.ndarray | None,
+    indices: Any,
+) -> tuple[Any, str]:
     """Delete datasets from ``ALLEEG`` and return a history command.
 
     Like EEGLAB, each deleted slot is emptied in place (an empty slot is ``{}``) so
     the remaining datasets keep their numbers; trailing empty slots are dropped.
+    A structure array keeps its shape, including emptied slots. Indices may be
+    whole-number doubles.
     """
-    alleeg = [] if ALLEEG is None else list(ALLEEG)
-    delete_indices = [int(indices)] if isinstance(indices, int) else [int(index) for index in indices]
+    delete_indices = matlab_ints(indices)
+    if delete_indices is None:
+        raise ValueError(
+            "pop_delset: dataset indices must be whole numbers starting at 1. "
+            "Pass a loaded dataset number or a list of them."
+        )
+    alleeg = as_dataset_list(ALLEEG)
     for index in set(delete_indices):
         if index < 1:
             raise ValueError(
@@ -28,7 +39,9 @@ def pop_delset(
                 f"There are {len(alleeg)} dataset slots. Pass a number from 1 to {len(alleeg)}."
             )
         alleeg[index - 1] = {}
-    while alleeg and not alleeg[-1]:
-        alleeg.pop()
+    structured = isinstance(ALLEEG, np.ndarray) and bool(ALLEEG.dtype.names)
+    if not structured:
+        while alleeg and not alleeg[-1]:
+            alleeg.pop()
     command = f"ALLEEG = pop_delset( ALLEEG, {delete_indices} );"
-    return alleeg, command
+    return restore_dataset_container(ALLEEG, alleeg), command

@@ -11,14 +11,17 @@ from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
-def pop_expica(EEG: dict[str, Any], filename: str | Path, matrix: str = "weights") -> str:
+def pop_expica(EEG: dict[str, Any], whichica: str = "weights", filename: str | Path | None = None) -> str:
     """Export the ICA weight matrix or inverse weight matrix.
 
-    ``pop_expica.m`` line 79 writes the matrix with ``save -ascii``. Each
-    value is ``%16.7e`` and values in a row are concatenated, which is the
-    width MATLAB uses for that save flag.
+    Argument order matches ``pop_expica.m``: ``whichica`` is ``'weights'`` or
+    ``'inv'``, then the output path. ``pop_expica.m`` line 79 writes the matrix
+    with ``save -ascii``. Each value is ``%16.7e`` and values in a row are
+    concatenated, which is the width MATLAB uses for that save flag.
     """
-    matrix = str(matrix).lower()
+    if filename is None:
+        raise ValueError("pop_expica: a filename is required")
+    matrix = str(whichica).lower()
     if matrix in {"weights", "weight"}:
         values = finite_matmul(np.asarray(EEG.get("icaweights", [])), np.asarray(EEG.get("icasphere", [])))
     elif matrix in {"inv", "inverse", "icawinv"}:
@@ -35,4 +38,4 @@ def pop_expica(EEG: dict[str, Any], filename: str | Path, matrix: str = "weights
     rows = np.atleast_2d(np.asarray(values, dtype=float))
     text = "\n".join("".join(f"{float(value):16.7e}" for value in row) for row in rows)
     path.write_text(text + "\n", encoding="utf-8")
-    return f"LASTCOM = pop_expica(EEG, {format_history_value(path)}, {format_history_value(matrix)});"
+    return f"LASTCOM = pop_expica(EEG, {format_history_value(matrix)}, {format_history_value(path)});"

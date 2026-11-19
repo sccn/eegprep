@@ -19,9 +19,16 @@ def _gap(reason: str, raises: type[BaseException] | tuple[type[BaseException], .
 
 STRUCT = "MATLAB struct and cell inputs arrive as lists, object arrays, or structured arrays"
 SHAPE = "the result shape does not follow the MATLAB row, column, or empty-array contract"
-INDEX = "an EEGLAB index or dimension is 1-based"
-NAMEVALUE = "MATLAB name/value arguments are not accepted"
 OUTPUTS = "the function does not return the MATLAB output count"
+EVENT_CONTAINER = (
+    "EEG.event stays a list of dicts and EEG.eventdescription stays a list, "
+    "so MATLAB struct-array and character-array indexing does not apply"
+)
+EMPTY_STRUCT = (
+    "near.m returns false for two empty structs because its field loop never "
+    "runs, and EEG.etc and EEG.roi are empty dicts"
+)
+LOADED_EVENTS = "pop_loadset events are an object array of dicts, so field indexing fails before pop_adjustevents runs"
 STUDY = "the sample STUDY loads, but design values are still nested MATLAB cells"
 RMART = (
     "rmart.m:94 returns when rem(length(data), nchans) == 0, inverting the "
@@ -31,7 +38,7 @@ RMART = (
 
 PYTHON_BACKEND_XFAILS = {
     "tests/test_core_event_eeglab_tests.py::test_reference_matchchans_original_complete_locations": _gap(
-        "eeg_matchchans.m clears bglocs(1).bigchan on every iteration, so a match to the first large channel loses its index; EEGPrep keeps every match",
+        'eeg_matchchans.m clears bglocs(1).bigchan on every iteration, so a match to the first large channel loses its index; EEGPrep keeps every match',
         AssertionError,
     ),
     "tests/test_core_event_eeglab_tests.py::test_reference_mergechan_uses_original_montages": _gap(SHAPE, TypeError),
@@ -93,45 +100,33 @@ PYTHON_BACKEND_XFAILS = {
         STRUCT, AttributeError
     ),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_hungarian": _gap(
-        "several assignments share the minimum cost and the selected one differs",
-        AssertionError,
+        'several assignments share the minimum cost and the selected one differs', AssertionError
     ),
-    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_epoch_case": _gap(INDEX, IndexError),
-    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_latency_case": _gap(INDEX, IndexError),
-    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_clamps_out_of_range_latency": _gap(
-        INDEX, IndexError
-    ),
-    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_default_time_unit": _gap(INDEX, IndexError),
-    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_general_case": _gap(INDEX, IndexError),
-    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_single_epoch_broadcast": _gap(INDEX, IndexError),
     "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case": _gap(SHAPE, AssertionError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart": _gap(RMART, ValueError),
-    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_gauss": _gap(INDEX, IndexError),
-    "tests/test_pop_adjustevents.py::test_reference_adjustevents_continuous": _gap(INDEX, IndexError),
-    "tests/test_pop_adjustevents.py::test_reference_adjustevents_epoched": _gap(INDEX, IndexError),
+    "tests/test_pop_adjustevents.py::test_reference_adjustevents_continuous": _gap(LOADED_EVENTS, IndexError),
+    "tests/test_pop_adjustevents.py::test_reference_adjustevents_epoched": _gap(LOADED_EVENTS, IndexError),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_copyset_original_set_out": _gap(
-        NAMEVALUE, ValueError
+        EMPTY_STRUCT, AssertionError
     ),
-    "tests/test_pop_delset.py::test_reference_delset_original_datasets": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_add_field_file": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_add_field_file_indices": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_add_field_vector": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_delimiters": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_delold_invalid": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_delold_yes": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_description_missing_field": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_field_description": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_invalid_rename": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_latency_timeunit": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_modify_field": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_modify_field_indices": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_remove_missing_field": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_rename_field": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_rename_missing_field": _gap(NAMEVALUE, ValueError),
-    "tests/test_pop_editeventfield_current.py::test_reference_skip_lines": _gap(NAMEVALUE, ValueError),
-    "tests/test_sample_data_pop_functions.py::test_reference_expica_original_recording_and_ascii_outputs": _gap(
-        NAMEVALUE, ValueError
+    "tests/test_pop_editeventfield_current.py::test_reference_add_field_file": _gap(EVENT_CONTAINER, IndexError),
+    "tests/test_pop_editeventfield_current.py::test_reference_add_field_file_indices": _gap(
+        EVENT_CONTAINER, IndexError
     ),
+    "tests/test_pop_editeventfield_current.py::test_reference_add_field_vector": _gap(EVENT_CONTAINER, IndexError),
+    "tests/test_pop_editeventfield_current.py::test_reference_delimiters": _gap(EVENT_CONTAINER, IndexError),
+    "tests/test_pop_editeventfield_current.py::test_reference_delold_yes": _gap(EVENT_CONTAINER, AttributeError),
+    "tests/test_pop_editeventfield_current.py::test_reference_description_missing_field": _gap(
+        EVENT_CONTAINER, AssertionError
+    ),
+    "tests/test_pop_editeventfield_current.py::test_reference_field_description": _gap(EVENT_CONTAINER, TypeError),
+    "tests/test_pop_editeventfield_current.py::test_reference_invalid_rename": _gap(EVENT_CONTAINER, TypeError),
+    "tests/test_pop_editeventfield_current.py::test_reference_latency_timeunit": _gap(EVENT_CONTAINER, TypeError),
+    "tests/test_pop_editeventfield_current.py::test_reference_modify_field": _gap(EVENT_CONTAINER, IndexError),
+    "tests/test_pop_editeventfield_current.py::test_reference_modify_field_indices": _gap(EVENT_CONTAINER, IndexError),
+    "tests/test_pop_editeventfield_current.py::test_reference_rename_field": _gap(EVENT_CONTAINER, TypeError),
+    "tests/test_pop_editeventfield_current.py::test_reference_rename_missing_field": _gap(EVENT_CONTAINER, TypeError),
+    "tests/test_pop_editeventfield_current.py::test_reference_skip_lines": _gap(EVENT_CONTAINER, IndexError),
     "tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_channel_types": _gap(
         OUTPUTS, AssertionError
     ),
@@ -160,30 +155,20 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_rejection_workflows.py::test_reference_pop_rejchan": _gap(OUTPUTS, AssertionError),
     "tests/test_rejection_workflows.py::test_reference_pop_rejtrend": _gap(OUTPUTS, AssertionError),
     "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_importevent_original_text_file": _gap(
-        "importevent returns a list of event dicts rather than a MATLAB struct array",
-        AttributeError,
+        'importevent returns a list of event dicts rather than a MATLAB struct array', AttributeError
     ),
     "tests/test_study_workflows_eeglab_tests.py::test_reference_pop_clust[eeglab_sample_study0]": _gap(
-        "the sample STUDY loads, but preclustdata is a numeric array used as a condition",
-        ValueError,
+        'the sample STUDY loads, but preclustdata is a numeric array used as a condition', ValueError
     ),
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_makedesign[eeglab_sample_study0]": _gap(
         STUDY, TypeError
     ),
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
-        "the sample STUDY loads, but design is a list rather than a MATLAB struct array",
-        AttributeError,
+        'the sample STUDY loads, but design is a list rather than a MATLAB struct array', AttributeError
     ),
 }
 
 PYTHON_BACKEND_SUBTEST_XFAILS = {
-    "tests/test_epoch.py::test_reference_epoch_original_five_output_contracts": {
-        "(case='no_srate')": _gap(STRUCT, ValueError),
-        "(case='general')": _gap(NAMEVALUE, ValueError),
-        "(case='boundary')": _gap(NAMEVALUE, ValueError),
-        "(case='valuelim')": _gap(NAMEVALUE, ValueError),
-        "(case='allevents')": _gap(NAMEVALUE, ValueError),
-    },
     "tests/test_sigprocfunc_plotting_eeglab_tests.py::test_reference_forcelocs_complete_original_coordinates": {
         "(source='x')": _gap(SHAPE, AssertionError),
         "(source='y')": _gap(SHAPE, AssertionError),

@@ -1097,7 +1097,7 @@ def test_private_helpers_match_the_package_versions() -> None:
     for axis in (0, 1):
         np.testing.assert_allclose(engine._nan_mean(values, axis), nan_mean(values, axis), rtol=1e-13, equal_nan=True)
     for length, sds in ((7, 2.0), (40, 2.0), (64, 1.5)):
-        np.testing.assert_allclose(engine._gauss(length, sds), gauss(length, sds), rtol=1e-13)
+        np.testing.assert_allclose(engine._gauss(length, sds), gauss(length, sds).reshape(-1), rtol=1e-13)
     data, times = _noise()
     window = (times >= -50) & (times <= 20)
     expected = rmbase(data[np.newaxis], data.shape[0], np.flatnonzero(window) + 1)[0]
