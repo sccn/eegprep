@@ -2,30 +2,33 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from numbers import Integral
 from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import matlab_ints, scalar_index
 
-def getkeyval(command: str, variable: str | int, mode: str | int | Sequence[int] = "", default: Any = "") -> Any:
+
+def getkeyval(command: str, variable: Any, mode: Any = "", default: Any = "") -> Any:
     """Return an argument from an EEGLAB command-history expression.
 
-    String ``variable`` values address key/value arguments. Integer values use
-    EEGLAB-facing 1-based argument positions. ``mode="present"`` returns a
-    boolean-like integer, ``mode="full"`` includes the key in the returned
-    command fragment, and integer modes select 1-based elements from a numeric
-    vector value.
+    String ``variable`` values address key/value arguments. Integers,
+    whole-number floats, and 1-by-1 numeric arrays use EEGLAB-facing 1-based
+    argument positions, because MATLAB passes those positions as doubles.
+    ``mode="present"`` returns a boolean-like integer, ``mode="full"`` includes
+    the key in the returned command fragment, and integer modes select 1-based
+    elements from a numeric vector value. A whole-number vector is the same
+    kind of mode.
     """
     if not command:
         return default
     arguments = _split_arguments(command)
-    if isinstance(variable, Integral):
-        index = int(variable) - 1
+    position = scalar_index(variable)
+    if position is not None:
+        index = position - 1
         return arguments[index].strip() if 0 <= index < len(arguments) else default
 
-    key_index = _find_key(arguments, variable)
+    key_index = _find_key(arguments, str(variable))
     if isinstance(mode, str) and mode.lower() == "present":
         return int(key_index is not None)
     if key_index is None:
@@ -40,10 +43,21 @@ def getkeyval(command: str, variable: str | int, mode: str | int | Sequence[int]
     raw_value = arguments[key_index + 1].strip()
     if isinstance(mode, str) and mode.lower() == "full":
         return f"'{variable}', {raw_value}"
-    if isinstance(mode, Integral) or (isinstance(mode, Sequence) and not isinstance(mode, (str, bytes))):
-        indices = [int(mode)] if isinstance(mode, Integral) else [int(index) for index in mode]
+    indices = _mode_indices(mode)
+    if indices is not None:
         return _select_numeric_value(raw_value, indices, default)
     return _unquote(raw_value)
+
+
+def _mode_indices(mode: Any) -> list[int] | None:
+    if isinstance(mode, (str, bytes)):
+        return None
+    if isinstance(mode, np.ndarray) and (mode.dtype == object or mode.size == 0):
+        return None
+    indices = matlab_ints(mode)
+    if not indices:
+        return None
+    return indices
 
 
 def _split_arguments(command: str) -> list[str]:

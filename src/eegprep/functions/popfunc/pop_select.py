@@ -154,7 +154,9 @@ def _pop_select_apply(EEG, **kwargs):
         g['sorttrial'] = 'on' if g['sort'] else 'off'
 
     trial_set = np.array(g['trial'], dtype=int)
-    notrial_set = np.array(g['notrial'], dtype=int) if g['notrial'] else np.array([], dtype=int)
+    notrial = g['notrial']
+    has_notrial = notrial.size > 0 if isinstance(notrial, np.ndarray) else bool(notrial)
+    notrial_set = np.array(notrial, dtype=int) if has_notrial else np.array([], dtype=int)
 
     if g['sorttrial'].lower() == 'on':
         keep = np.setdiff1d(trial_set, notrial_set, assume_unique=False)

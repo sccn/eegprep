@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
 
@@ -47,6 +48,8 @@ def forcelocs(chanlocs: Any, *locations: Any) -> Any:
 
 
 def _parse_specification(specification: Any) -> tuple[float, str, list[str]]:
+    if is_cell(specification):
+        specification = cell_items(specification)
     values = list(specification)
     if len(values) < 3:
         raise ValueError("forcelocs specifications must be (value, axis, label, ...)")

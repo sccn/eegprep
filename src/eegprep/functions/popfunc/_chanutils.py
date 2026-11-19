@@ -7,14 +7,17 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import struct_records
+
 
 def chanlocs_as_list(chanlocs: Any) -> list[dict[str, Any]]:
     """Return channel-location structures as a Python list."""
-    if chanlocs is None:
+    if chanlocs is None or (isinstance(chanlocs, np.ndarray) and chanlocs.size == 0):
         return []
+    records = struct_records(chanlocs)
+    if records is not None:
+        return records
     if isinstance(chanlocs, np.ndarray):
-        if chanlocs.size == 0:
-            return []
         chanlocs = chanlocs.tolist()
     if isinstance(chanlocs, dict):
         return [chanlocs]

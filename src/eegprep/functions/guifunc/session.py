@@ -646,7 +646,11 @@ class EEGPrepSession:
 
     def add_history(self, command: str | None, *, notify: bool = True) -> None:
         """Append an EEGLAB-style command to session history."""
-        if not command:
+        if isinstance(command, np.ndarray) and command.size == 0:
+            if notify:
+                self.notify_changed()
+            return
+        if not isinstance(command, np.ndarray) and not command:
             if notify:
                 self.notify_changed()
             return

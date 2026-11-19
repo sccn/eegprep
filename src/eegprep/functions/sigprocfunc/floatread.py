@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell, is_matlab_empty, scalar_index
+
 
 def floatread(filename: str | Path, size: Any, format: str | None = None, offset: Any = 0) -> np.ndarray:
     """Read a binary float32 matrix using MATLAB/EEGLAB column ordering."""
@@ -22,6 +24,8 @@ def floatread(filename: str | Path, size: Any, format: str | None = None, offset
 
 
 def _dtype(format: str | None) -> np.dtype:
+    if is_matlab_empty(format):
+        format = None
     text = str(format or "native").lower()
     if text in {"native", "n", ""}:
         return np.dtype("f4")
@@ -33,9 +37,11 @@ def _dtype(format: str | None) -> np.dtype:
 
 
 def _offset(offset: Any) -> int:
+    if is_cell(offset):
+        offset = cell_items(offset)
     if isinstance(offset, (list, tuple)) and len(offset) == 2:
-        dims = [int(value) for value in offset[0]]
-        starts = [int(value) for value in offset[1]]
+        dims = [int(value) for value in np.asarray(offset[0]).reshape(-1)]
+        starts = [int(value) for value in np.asarray(offset[1]).reshape(-1)]
         if len(dims) != len(starts):
             raise ValueError("offset cell must contain matching dimensions and starts")
         flat = 0
@@ -46,7 +52,12 @@ def _offset(offset: Any) -> int:
             flat += stride * (start - 1)
             stride *= dim
         return flat
-    return int(offset or 0)
+    if is_matlab_empty(offset):
+        return 0
+    index = scalar_index(offset)
+    if index is not None:
+        return index
+    return int(offset)
 
 
 def _shape(size: Any, available: int) -> tuple[int, ...]:

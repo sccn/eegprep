@@ -18,9 +18,11 @@ from types import CodeType
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
+from eegprep.functions.miscfunc.matlab_inputs import scalar_index
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.adminfunc.pop_editoptions import load_eegprep_options
@@ -333,6 +335,13 @@ class ConsoleEegh:
         ``EEG = await pop_iclabel_async(EEG, 'default');``, cannot run synchronously,
         so ``eegh(n)`` returns an awaitable for it instead: use ``await eegh(n)``.
         """
+        if isinstance(command, np.ndarray) and command.size == 0:
+            self.bridge.session.clear_last_command()
+            self.bridge.pull_from_session()
+            return ""
+        index = scalar_index(command)
+        if index is not None and isinstance(command, np.ndarray):
+            command = index
         if command is None:
             return eegh(None, self.bridge.session.ALLCOM)
         if isinstance(command, str) and command.strip().lower() == "find":

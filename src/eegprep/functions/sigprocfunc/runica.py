@@ -25,11 +25,17 @@ import time
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
+from ..miscfunc.matlab_inputs import scalar_index
 from ..miscfunc.misc import finite_pinv
 from ..miscfunc.value_parsing import parse_key_value_args
 from . import runica_matmul as _runica_matmul
 
 logger = logging.getLogger(__name__)
+
+
+def _integral_count(value):
+    count = scalar_index(value)
+    return value if count is None else count
 
 
 def _kurtosis_columns(rng: np.random.RandomState, datalength: int, kurtsize: int) -> np.ndarray:
@@ -305,7 +311,7 @@ def runica(data, *args, **kwargs):
     weights = kwargs_lower.get('weight', weights)  # also accept 'weight'
     wts_passed = 0 if isinstance(weights, int) and weights == 0 else 1
 
-    ncomps = kwargs_lower.get('ncomps', chans)
+    ncomps = _integral_count(kwargs_lower.get('ncomps', chans))
     if ncomps is None or np.asarray(ncomps).size == 0:
         ncomps = chans
     biasflag = DEFAULT_BIASFLAG
@@ -327,7 +333,7 @@ def runica(data, *args, **kwargs):
     user_seed = kwargs_lower.get('seed', None)
 
     if 'pca' in kwargs_lower:
-        pca_val = kwargs_lower['pca']
+        pca_val = _integral_count(kwargs_lower['pca'])
         if ncomps < urchans and ncomps != pca_val:
             raise ValueError('runica(): Use either PCA or ICA dimension reduction')
         pcaflag = 'on'

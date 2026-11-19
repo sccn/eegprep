@@ -1,5 +1,10 @@
 """EEG channel decoding functions."""
 
+import numpy as np
+
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+
 
 def eeg_decodechan(
     chanlocs,
@@ -10,8 +15,8 @@ def eeg_decodechan(
     """Resolve channel identifiers to 0-based indices and labels.
 
     Supports:
-      - chanlocs as a list-like of dicts, or a dict with key "chanlocs".
-      - chanstr as an iterable of strings/integers or a space-separated string.
+      - chanlocs as a list-like of dicts, a struct array, or a dict with key "chanlocs".
+      - chanstr as an iterable of strings/integers, a MATLAB cell, or a space-separated string.
       - Matching on the specified field (e.g., "labels" or "type").
       - Numeric 0-based indices as input (returned directly after validation).
       - Empty chanlocs with purely numeric input (indices passthrough).
@@ -37,6 +42,8 @@ def eeg_decodechan(
     """
     if isinstance(chanlocs, dict) and "chanlocs" in chanlocs:
         chanlocs = chanlocs["chanlocs"]
+    if isinstance(chanlocs, np.ndarray):
+        chanlocs = chanlocs_as_list(chanlocs)
 
     # Basic indexability check
     if not hasattr(chanlocs, "__len__") or not hasattr(chanlocs, "__getitem__"):
@@ -46,6 +53,8 @@ def eeg_decodechan(
 
     if isinstance(chanstr, str):
         seq = chanstr.split()
+    elif is_cell(chanstr) or isinstance(chanstr, np.ndarray):
+        seq = _channel_names(chanstr)
     else:
         try:
             seq = list(chanstr)
@@ -114,3 +123,13 @@ def eeg_decodechan(
     chaninds = sorted(chaninds)
     chanlist_out = [str(chanlocs[i][field]) for i in chaninds]
     return chaninds, chanlist_out
+
+
+def _channel_names(chanstr):
+    if is_cell(chanstr):
+        items = cell_items(chanstr)
+    else:
+        items = list(np.asarray(chanstr).reshape(-1))
+    if len(items) == 1 and isinstance(items[0], (list, tuple, np.ndarray)) and not isinstance(items[0], str):
+        return _channel_names(items[0])
+    return items

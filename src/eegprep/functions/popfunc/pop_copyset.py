@@ -7,6 +7,7 @@ from typing import Any
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, scalar_index
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 
@@ -20,12 +21,20 @@ def pop_copyset(
     renderer: Any | None = None,
     return_com: bool = False,
 ):
-    """Copy dataset ``set_in`` to ``set_out`` using EEGLAB-facing indices."""
-    if not ALLEEG:
+    """Copy dataset ``set_in`` to ``set_out`` using EEGLAB-facing indices.
+
+    ``ALLEEG`` may be a Python list or a MATLAB struct array of datasets.
+    ``set_in`` and ``set_out`` may be whole-number floats.
+    """
+    datasets = as_dataset_list(ALLEEG)
+    if not datasets:
         raise ValueError("Pop_copyset error: cannot copy single dataset mode")
-    if int(set_in) == 0:
+    source_index = scalar_index(set_in)
+    if source_index is None:
+        source_index = int(set_in)
+    if source_index == 0:
         raise ValueError("Pop_copyset error: cannot copy dataset")
-    source = eeg_retrieve(ALLEEG, int(set_in))[0]
+    source = eeg_retrieve(datasets, source_index)[0]
     if not isinstance(source, dict):
         raise ValueError("Pop_copyset error: cannot copy multiple datasets")
     if source.get("data") is None:
@@ -38,17 +47,18 @@ def pop_copyset(
             return (ALLEEG, {}, 0, "") if return_com else (ALLEEG, {}, 0)
         set_out = result
     if set_out is None:
-        set_out = int(set_in) + 1
-    set_out = int(set_out)
+        set_out = source_index + 1
+    destination = scalar_index(set_out)
+    set_out = destination if destination is not None else int(set_out)
     if set_out < 1:
         raise ValueError("Output dataset index must be 1-based")
     copied = eeg_checkset(deepcopy(source))
     copied["saved"] = "no"
-    output = list(ALLEEG)
+    output = list(datasets)
     while len(output) < set_out:
         output.append({})
     output[set_out - 1] = copied
-    command = f"[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, {int(set_in)}, {set_out});"
+    command = f"[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, {source_index}, {set_out});"
     return (output, deepcopy(copied), set_out, command) if return_com else (output, deepcopy(copied), set_out)
 
 

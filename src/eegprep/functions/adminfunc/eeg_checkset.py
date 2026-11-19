@@ -11,6 +11,7 @@ import os
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
 from eegprep.functions.miscfunc.linspace import linspace
+from eegprep.functions.miscfunc.matlab_inputs import struct_records
 from eegprep.functions.miscfunc.misc import matlab_mtimes, round_mat
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,13 @@ def _eventconsistency(EEG):
         return EEG
 
     if isinstance(events, np.ndarray):
-        events = list(events)
+        records = struct_records(events)
+        if records is not None:
+            events = [dict(event) for event in records]
+        elif events.dtype == object:
+            events = list(events.ravel(order="F"))
+        else:
+            events = list(events)
 
     _stringify_mixed_event_types(events, limit=None)
 
@@ -184,6 +191,9 @@ def _stringify_mixed_event_types(events, *, limit: int | None):
 def _event_dict_rows(events):
     if events is None:
         return []
+    records = struct_records(events)
+    if records is not None:
+        return records
     if isinstance(events, np.ndarray):
         events = list(events.ravel())
     elif not isinstance(events, list):

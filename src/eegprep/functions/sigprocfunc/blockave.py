@@ -6,14 +6,17 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import scalar_index
 
-def blockave(data: Any, frames: int, epochs: Any = None, weights: Any = None) -> np.ndarray:
+
+def blockave(data: Any, frames: Any, epochs: Any = None, weights: Any = None) -> np.ndarray:
     """Return an epoch average from channel-major concatenated data.
 
     Args:
         data: Array shaped ``(channels, frames * epochs)``. A one-dimensional
             input is treated as one channel.
-        frames: Number of samples in each epoch.
+        frames: Number of samples in each epoch. A whole-number float is
+            accepted because MATLAB passes this count as a double.
         epochs: Optional EEGLAB-facing 1-based epoch indices. Empty or zero
             selects every epoch.
         weights: Optional weight for every epoch. The selected weights are
@@ -27,9 +30,10 @@ def blockave(data: Any, frames: int, epochs: Any = None, weights: Any = None) ->
         array = array.reshape(1, -1)
     if array.ndim != 2:
         raise ValueError("data must have shape (channels, frames * epochs)")
-    if not isinstance(frames, (int, np.integer)) or int(frames) <= 0:
+    count = scalar_index(frames)
+    if count is None or count <= 0:
         raise ValueError("frames must be a positive integer")
-    frames = int(frames)
+    frames = count
     if array.shape[1] % frames:
         raise ValueError("frames must divide the data length")
 
