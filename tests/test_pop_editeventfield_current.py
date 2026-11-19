@@ -201,7 +201,9 @@ def test_reference_rename_field(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
     output, _ = _matlab_edit(eeglab_backend, eeg, "rename", "position->place", nargout=2)
     assert "position" not in output["event"].dtype.names
-    assert_matlab_equal(_reference_values(output["event"], "place"), _reference_values(_matlab_loaded(eeg)["event"], "position"))
+    assert_matlab_equal(
+        _reference_values(output["event"], "place"), _reference_values(_matlab_loaded(eeg)["event"], "position")
+    )
 
 
 @eeglab_test(UPSTREAM, "test_pass_rename_field_invalid_format")
