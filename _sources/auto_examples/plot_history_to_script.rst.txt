@@ -129,7 +129,7 @@ Every step returns ``(EEG, com)``. ``session.add_history`` appends to
  .. code-block:: none
 
     epoched: nbchan=32 pnts=384 trials=80
-    LASTCOM: EEG = pop_rmbase( EEG, [-1000 0], []);
+    LASTCOM: EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 
 
 
@@ -161,7 +161,7 @@ EEGLAB, load/save commands are not part of it.
  .. code-block:: none
 
     --- eegh() session history ---
-    1. EEG = pop_rmbase( EEG, [-1000 0], []);
+    1. EEG = pop_rmbase( EEG, [-1000 0] ,[]);
     2. EEG = pop_epoch( EEG, { 'square' }, [-1 2]);
     3. EEG = pop_reref( EEG, []);
     4. EEG = pop_eegfiltnew(EEG, 'locutoff', 1, 'hicutoff', 40);
@@ -170,7 +170,7 @@ EEGLAB, load/save commands are not part of it.
     EEG = pop_eegfiltnew(EEG, 'locutoff', 1, 'hicutoff', 40);
     EEG = pop_reref( EEG, []);
     EEG = pop_epoch( EEG, { 'square' }, [-1 2]);
-    EEG = pop_rmbase( EEG, [-1000 0], []);
+    EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 
 
 
@@ -209,7 +209,7 @@ treat this file as an audit trail rather than something EEGPrep can re-run.
     EEG = pop_eegfiltnew(EEG, 'locutoff', 1, 'hicutoff', 40);
     EEG = pop_reref( EEG, []);
     EEG = pop_epoch( EEG, { 'square' }, [-1 2]);
-    EEG = pop_rmbase( EEG, [-1000 0], []);
+    EEG = pop_rmbase( EEG, [-1000 0] ,[]);
     eegprep.eeglab();
 
 
@@ -290,7 +290,7 @@ back into the shared session.
       EEG = pop_eegfiltnew(EEG, 'locutoff', 1, 'hicutoff', 40);
       EEG = pop_reref( EEG, []);
       EEG = pop_epoch( EEG, { 'square' }, [-1 2]);
-      EEG = pop_rmbase( EEG, [-1000 0], []);
+      EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 
 
 
@@ -298,7 +298,7 @@ back into the shared session.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.239 seconds)
+   **Total running time of the script:** (0 minutes 0.230 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_history_to_script.py:

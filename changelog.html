@@ -491,6 +491,29 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_matchchans</span></code> keeps the matched channel index on every match.
+<code class="docutils literal notranslate"><span class="pre">eeg_matchchans.m</span></code> clears that index on each pass, so only the last
+match keeps <code class="docutils literal notranslate"><span class="pre">bigchan</span></code>. <code class="docutils literal notranslate"><span class="pre">hungarian</span></code> returns one minimum-cost assignment;
+when several assignments share that cost it can differ from the
+Carpaneto-Toth order in <code class="docutils literal notranslate"><span class="pre">hungarian.m</span></code>. <code class="docutils literal notranslate"><span class="pre">rmart</span></code> validates <code class="docutils literal notranslate"><span class="pre">eogchan</span></code>
+before it reads the file. <code class="docutils literal notranslate"><span class="pre">rmart.m</span></code> returns early whenever the sample
+count divides evenly by the channel count, so that check never runs.
+<code class="docutils literal notranslate"><span class="pre">pop_chanedit</span></code>, <code class="docutils literal notranslate"><span class="pre">eegh</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_readoptions</span></code>, <code class="docutils literal notranslate"><span class="pre">gethelpvar</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pop_reref</span></code>, <code class="docutils literal notranslate"><span class="pre">reref</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_resample</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_mergeset</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pop_newset</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_clust</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_adjustevents</span></code>, <code class="docutils literal notranslate"><span class="pre">std_makedesign</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">std_selectdesign</span></code> read MATLAB struct arrays and cell arguments.
+<code class="docutils literal notranslate"><span class="pre">runica(...,</span> <span class="pre">return_activations=True)</span></code> returns the component activations
+as a seventh output. (#430)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code> history uses the same <code class="docutils literal notranslate"><span class="pre">vararg2str</span></code> text as <code class="docutils literal notranslate"><span class="pre">pop_rmbase.m</span></code>:
+empty ranges are <code class="docutils literal notranslate"><span class="pre">[]</span></code>, a consecutive point range is <code class="docutils literal notranslate"><span class="pre">1:50</span></code>, and arguments
+are joined with a comma and no space. <code class="docutils literal notranslate"><span class="pre">reref</span></code> appends <code class="docutils literal notranslate"><span class="pre">refloc</span></code> location
+records, including a structured channel, and returns the flattened
+channels-by-frames array. <code class="docutils literal notranslate"><span class="pre">reref.m</span></code> rereads <code class="docutils literal notranslate"><span class="pre">size</span></code> after that append.
+<code class="docutils literal notranslate"><span class="pre">rejtrend</span></code> leaves every trial unmarked when the window is longer than the
+epoch. <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> reads a nested size-1 character cell as a string, so a
+type such as <code class="docutils literal notranslate"><span class="pre">{'integer','string'}</span></code> and a size-1 <code class="docutils literal notranslate"><span class="pre">mode</span></code> name validate.
+<code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> reads structured <code class="docutils literal notranslate"><span class="pre">chanlocs</span></code> and <code class="docutils literal notranslate"><span class="pre">epoch</span></code> fields by name.
+<code class="docutils literal notranslate"><span class="pre">pop_select</span></code> keeps the dataset when every channel is removed. (#430)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">epoch</span></code> now extracts epochs from a data matrix, as <code class="docutils literal notranslate"><span class="pre">epoch.m</span></code> does.
 Use <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> to epoch a dataset. It accepts positional name/value
 pairs and returns 1-based column indices, a <code class="docutils literal notranslate"><span class="pre">newtime</span></code> row, and event
@@ -500,9 +523,10 @@ cells. <code class="docutils literal notranslate"><span class="pre">gauss</span>
 <code class="docutils literal notranslate"><span class="pre">pop_expica(EEG,</span> <span class="pre">whichica,</span> <span class="pre">filename)</span></code> follows that argument order.
 <code class="docutils literal notranslate"><span class="pre">pop_copyset</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_delset</span></code> keep a structure-array dataset list and
 accept whole-number indices. <code class="docutils literal notranslate"><span class="pre">pop_editeventfield</span></code> indices past the
-current event count append events. <code class="docutils literal notranslate"><span class="pre">near.m</span></code> still reports two empty
-structs as different, so the original <code class="docutils literal notranslate"><span class="pre">pop_copyset</span></code> comparison stays
-expected-fail while <code class="docutils literal notranslate"><span class="pre">EEG.etc</span></code> and <code class="docutils literal notranslate"><span class="pre">EEG.roi</span></code> are empty dicts (#430).</p></li>
+current event count append events. Two empty dicts compare equal.
+<code class="docutils literal notranslate"><span class="pre">near.m</span></code> leaves its result false when a struct has no fields.
+EEGPrep treats those empty <code class="docutils literal notranslate"><span class="pre">EEG.etc</span></code> and <code class="docutils literal notranslate"><span class="pre">EEG.roi</span></code> dicts as the
+same structure (#430).</p></li>
 <li><p>Functions that receive EEGLAB recordings accept MATLAB struct arrays, cell
 arrays, empty arrays used where MATLAB tests <code class="docutils literal notranslate"><span class="pre">isempty</span></code>, and whole-number
 doubles used as counts or 1-based indices. <code class="docutils literal notranslate"><span class="pre">getkeyval</span></code>, <code class="docutils literal notranslate"><span class="pre">blockave</span></code>,

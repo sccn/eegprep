@@ -591,7 +591,7 @@ replayable artifact is a Python script you keep alongside them.</p>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>epoched: nbchan=32 pnts=384 trials=80
-LASTCOM: EEG = pop_rmbase( EEG, [-1000 0], []);
+LASTCOM: EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 </pre></div>
 </div>
 </section>
@@ -607,7 +607,7 @@ EEGLAB, load/save commands are not part of it.</p>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>--- eegh() session history ---
-1. EEG = pop_rmbase( EEG, [-1000 0], []);
+1. EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 2. EEG = pop_epoch( EEG, { &#39;square&#39; }, [-1 2]);
 3. EEG = pop_reref( EEG, []);
 4. EEG = pop_eegfiltnew(EEG, &#39;locutoff&#39;, 1, &#39;hicutoff&#39;, 40);
@@ -616,7 +616,7 @@ EEGLAB, load/save commands are not part of it.</p>
 EEG = pop_eegfiltnew(EEG, &#39;locutoff&#39;, 1, &#39;hicutoff&#39;, 40);
 EEG = pop_reref( EEG, []);
 EEG = pop_epoch( EEG, { &#39;square&#39; }, [-1 2]);
-EEG = pop_rmbase( EEG, [-1000 0], []);
+EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 </pre></div>
 </div>
 </section>
@@ -639,7 +639,7 @@ EEG = pop_loadset(&#39;&lt;repo&gt;/sample_data/eeglab_data.set&#39;);
 EEG = pop_eegfiltnew(EEG, &#39;locutoff&#39;, 1, &#39;hicutoff&#39;, 40);
 EEG = pop_reref( EEG, []);
 EEG = pop_epoch( EEG, { &#39;square&#39; }, [-1 2]);
-EEG = pop_rmbase( EEG, [-1000 0], []);
+EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 eegprep.eeglab();
 </pre></div>
 </div>
@@ -689,10 +689,10 @@ replayed ALLCOM:
   EEG = pop_eegfiltnew(EEG, &#39;locutoff&#39;, 1, &#39;hicutoff&#39;, 40);
   EEG = pop_reref( EEG, []);
   EEG = pop_epoch( EEG, { &#39;square&#39; }, [-1 2]);
-  EEG = pop_rmbase( EEG, [-1000 0], []);
+  EEG = pop_rmbase( EEG, [-1000 0] ,[]);
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.239 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.230 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-history-to-script-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/b68736f121870bde4b4c8d3178b07413/plot_history_to_script.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_history_to_script.ipynb</span></code></a></p>
