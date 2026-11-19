@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
+
 from ._validation import real_array
 
 
@@ -14,7 +16,7 @@ def datlim(data: Any) -> np.ndarray:
     values = real_array(data, "data")
     if values.size == 0:
         raise ValueError("data must not be empty")
-    return np.asarray([np.min(values), np.max(values)])
+    return as_row([np.min(values), np.max(values)])
 
 
 __all__ = ["datlim"]

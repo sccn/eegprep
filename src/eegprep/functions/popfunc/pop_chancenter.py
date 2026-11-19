@@ -31,26 +31,37 @@ def pop_chancenter(
     output = deepcopy(chans)
     locs = chanlocs_as_list(output.get("chanlocs") if is_eeg else output)
     selected = _selected_indices(locs, omitchans)
-    omitted = {index: deepcopy(loc) for index, loc in enumerate(locs) if index not in selected}
     if selected:
         x = [locs[index]["X"] for index in selected]
         y = [locs[index]["Y"] for index in selected]
         z = [locs[index]["Z"] for index in selected]
-        new_x, new_y, new_z, _newcenter, _optim = chancenter(x, y, z, center)
+        new_x, new_y, new_z, newcenter, _optim = chancenter(x, y, z, center)
         for offset, index in enumerate(selected):
-            locs[index]["X"] = float(new_x[offset])
-            locs[index]["Y"] = float(new_y[offset])
-            locs[index]["Z"] = float(new_z[offset])
+            locs[index]["X"] = float(np.asarray(new_x).ravel()[offset])
+            locs[index]["Y"] = float(np.asarray(new_y).ravel()[offset])
+            locs[index]["Z"] = float(np.asarray(new_z).ravel()[offset])
         locs = convertlocs(locs, "cart2all")
-        for index, loc in omitted.items():
-            locs[index] = loc
     command = _history_command(center, omitchans)
+    fitted = newcenter if selected else np.empty((0, 0))
     if is_eeg:
         output["chanlocs"] = locs
         output["saved"] = "no"
         output = eeg_checkset(output)
         return (output, command) if return_com else output
-    return (locs, command) if return_com else locs
+    return (locs, command) if return_com else _ChanCenterResult(locs, fitted, command)
+
+
+class _ChanCenterResult(list):
+    """Channel locations that also expose MATLAB's center and command outputs."""
+
+    matlab_outputs = ("chans", "center", "command")
+
+    def __init__(self, chans: Any, center: Any, command: str):
+        locations = list(chans) if not isinstance(chans, dict) else []
+        super().__init__(locations)
+        self.chans = chans
+        self.center = np.asarray(center)
+        self.command = command
 
 
 def _selected_indices(locs: list[dict[str, Any]], omitchans: Any) -> list[int]:

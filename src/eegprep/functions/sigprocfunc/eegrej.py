@@ -3,6 +3,7 @@
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
+from eegprep.functions.miscfunc.matlab_outputs import as_column, as_row
 from ..miscfunc.misc import round_mat
 
 
@@ -46,7 +47,7 @@ def eegrej(
         if events_out and all("latency" in ev for ev in events_out):
             events_out.sort(key=lambda ev: ev.get("latency", float("inf")))
         boundevents = np.array([], dtype=float)
-        return x, float(timelength), events_out, boundevents
+        return x, as_row(timelength), events_out, as_column(boundevents)
 
     if r.ndim != 2 or r.shape[1] != 2:
         raise ValueError("regions must be of shape (n_regions, 2)")
@@ -68,7 +69,7 @@ def eegrej(
         if events_out and all("latency" in ev for ev in events_out):
             events_out.sort(key=lambda ev: ev.get("latency", float("inf")))
         boundevents = np.array([], dtype=float)
-        return x, float(timelength), events_out, boundevents
+        return x, as_row(timelength), events_out, as_column(boundevents)
 
     # Build reject mask (convert 1-based to 0-based slices)
     # MATLAB: reject(beg:end) = 1  (includes both beg and end, 1-based)
@@ -201,4 +202,4 @@ def eegrej(
                 merged_events.append(ev)
         events_out = merged_events
 
-    return newx, newt, events_out, boundevents
+    return newx, as_row(newt), events_out, as_column(boundevents)

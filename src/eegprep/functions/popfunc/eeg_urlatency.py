@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.popfunc._event_utils import events_as_list, is_boundary_event
 
 
@@ -27,7 +28,7 @@ def eeg_urlatency(events: Any, latencies: Any) -> float | np.ndarray:
                 output[...] = np.nan
                 break
             output = np.where(float(event["latency"]) < input_array, output + float(duration), output)
-    return float(output) if output.ndim == 0 else output
+    return as_row(output) if output.ndim < 2 else output
 
 
 __all__ = ["eeg_urlatency"]

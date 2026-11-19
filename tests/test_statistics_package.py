@@ -129,7 +129,7 @@ def test_corrcoef_and_concatdata_contracts():
     concatenated = concatdata([first, second[:, :2]])
 
     assert concatenated.data.shape == (2, 6)
-    npt.assert_array_equal(concatenated.lengths, [0, 4, 6])
+    npt.assert_array_equal(concatenated.lengths, [[0, 4, 6]])
     assert concatenated.grid_shape == (1, 2)
 
 

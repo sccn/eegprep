@@ -29,8 +29,8 @@ def test_getkeyval_returns_the_default_for_empty_or_missing_values():
 
 
 def test_getkeyval_reports_whether_a_named_key_is_present():
-    assert getkeyval(COMMAND, "eeglab", "present") == 1
-    assert getkeyval(COMMAND, "DOES_NOT_EXIST", "present") == 0
+    np.testing.assert_array_equal(getkeyval(COMMAND, "eeglab", "present"), [[1.0]])
+    np.testing.assert_array_equal(getkeyval(COMMAND, "DOES_NOT_EXIST", "present"), [[0.0]])
 
 
 def test_getkeyval_can_return_the_full_key_value_fragment():

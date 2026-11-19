@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.statistics._shared import condition_grid, flatten_grid
 
 
@@ -47,7 +48,7 @@ def concatdata(data: Any, *, axis: int = -1) -> ConcatenatedData:
     lengths = np.zeros(len(arrays) + 1, dtype=int)
     lengths[1:] = np.cumsum([array.shape[-1] for array in arrays])
     concatenated = np.concatenate(arrays, axis=-1)
-    return ConcatenatedData(concatenated, lengths, (len(grid), len(grid[0])))
+    return ConcatenatedData(concatenated, as_row(lengths), (len(grid), len(grid[0])))
 
 
 __all__ = ["ConcatenatedData", "concatdata"]

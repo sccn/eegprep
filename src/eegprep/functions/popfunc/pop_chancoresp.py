@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
+from eegprep.functions.miscfunc.matlab_outputs import as_row, empty_matrix
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 
@@ -35,7 +36,8 @@ def pop_chancoresp(chans1: Any, chans2: Any, *args: Any, return_com: bool = Fals
         elif autoselect != "none":
             raise ValueError(f"Unsupported pop_chancoresp autoselect mode: {autoselect}")
     command = _history_command(options)
-    return (chanlist1, chanlist2, command) if return_com else (chanlist1, chanlist2)
+    left, right = _index_row(chanlist1), _index_row(chanlist2)
+    return (left, right, command) if return_com else (left, right)
 
 
 def _subcommand(command: str, *args: Any) -> tuple[Any, ...]:
@@ -43,12 +45,14 @@ def _subcommand(command: str, *args: Any) -> tuple[Any, ...]:
     if name == "clear":
         labels1 = _labels(args[0])
         labels2 = _labels(args[1])
-        return _list_text(labels1, labels2, [], [])
+        left, right = _list_text(labels1, labels2, [], [])
+        return _cell_row(left), _cell_row(right), empty_matrix(), empty_matrix()
     if name == "auto":
         labels1 = _labels(args[0])
         labels2 = _labels(args[1])
         chanlist1, chanlist2 = _auto_all(labels1, labels2)
-        return (*_list_text(labels1, labels2, chanlist1, chanlist2), chanlist1, chanlist2)
+        left, right = _list_text(labels1, labels2, chanlist1, chanlist2)
+        return _cell_row(left), _cell_row(right), _index_row(chanlist1), _index_row(chanlist2)
     if name in {"pair", "unpair"}:
         ind1 = int(args[0])
         ind2 = int(args[1])
@@ -60,21 +64,21 @@ def _subcommand(command: str, *args: Any) -> tuple[Any, ...]:
         str2 = str(args[7]) if len(args) > 7 else ""
         if name == "pair":
             if ind1 in chanlist1 or ind2 in chanlist2:
-                return str1, str2, chanlist1, chanlist2
+                return str1, str2, _index_row(chanlist1), _index_row(chanlist2)
             chanlist1.append(ind1)
             chanlist2.append(ind2)
             return (
                 _pair_text(ind1, ind2, labels1, labels2),
                 _pair_text(ind2, ind1, labels2, labels1),
-                chanlist1,
-                chanlist2,
+                _index_row(chanlist1),
+                _index_row(chanlist2),
             )
         if ind1 not in chanlist1 or ind2 not in chanlist2:
-            return str1, str2, chanlist1, chanlist2
+            return str1, str2, _index_row(chanlist1), _index_row(chanlist2)
         position = chanlist1.index(ind1)
         chanlist1.pop(position)
         chanlist2.pop(position)
-        return _channel_text(ind1, labels1), _channel_text(ind2, labels2), chanlist1, chanlist2
+        return _channel_text(ind1, labels1), _channel_text(ind2, labels2), _index_row(chanlist1), _index_row(chanlist2)
     raise ValueError(f"Unsupported pop_chancoresp subcommand: {command}")
 
 
@@ -137,6 +141,16 @@ def _indices_option(value: Any) -> list[int]:
     elif value in ("", []):
         return []
     return [int(item) for item in parse_numeric_sequence(value, dtype=int)]
+
+
+def _index_row(indices: list[int]) -> np.ndarray:
+    return as_row(np.asarray(indices, dtype=float)) if indices else empty_matrix()
+
+
+def _cell_row(items: list[str]) -> np.ndarray:
+    row = np.empty((1, len(items)), dtype=object)
+    row[0, :] = items
+    return row
 
 
 def _index_list(value: Any) -> list[int]:

@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_activations
@@ -487,7 +488,7 @@ def eegplot2trial(
     nbchan = max(0, rows.shape[1] - 5) if rows.ndim == 2 else 0
     elecrej = np.zeros((nbchan, int(sweeps)), dtype=bool)
     if rows.size == 0:
-        return trialrej, elecrej
+        return as_row(trialrej), elecrej
     rows = rows[np.argsort(rows[:, 0])]
     rows[rows[:, 0] == 1, 0] = 0
     starts = rows[:, 0] / float(pnts) + 1.0
@@ -498,7 +499,7 @@ def eegplot2trial(
             trialrej[trial_index] = True
             if nbchan:
                 elecrej[:, trial_index] |= np.asarray(row[5 : 5 + nbchan], dtype=bool)
-    return trialrej, elecrej
+    return as_row(trialrej), elecrej
 
 
 def toggle_winrej_at_sample(

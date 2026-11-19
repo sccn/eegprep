@@ -87,7 +87,6 @@ def pop_clust(
     else:
         if algorithm == "kmeanscluster":
             labels, _centers, _previous, _matrix = kmeanscluster(data, clus_num)
-            labels = labels + 1
         else:
             labels, _centers = kmeans_labels(data, clus_num, random_state)
     study = std_createclust(

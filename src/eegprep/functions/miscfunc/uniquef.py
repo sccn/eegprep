@@ -6,11 +6,12 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_column
 from ._validation import real_array
 
 
 def uniquef(groups: Any, sort: bool = False) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return finite unique values, counts, and zero-based first indices."""
+    """Return finite unique values, counts, and 1-based first indices."""
     values = real_array(groups, "groups").reshape(-1)
     tolerance = np.finfo(float).eps * 10**4
     unique_values: list[float] = []
@@ -26,13 +27,13 @@ def uniquef(groups: Any, sort: bool = False) -> tuple[np.ndarray, np.ndarray, np
             unique_values.append(float(value))
             counts.append(1)
             first_indices.append(index)
-    result_values = np.asarray(unique_values)
-    result_counts = np.asarray(counts, dtype=int)
-    result_indices = np.asarray(first_indices, dtype=int)
+    result_values = np.asarray(unique_values, dtype=float)
+    result_counts = np.asarray(counts, dtype=float)
+    result_indices = np.asarray(first_indices, dtype=float) + 1
     if sort:
         order = np.argsort(result_values, kind="stable")
-        return result_values[order], result_counts[order], result_indices[order]
-    return result_values, result_counts, result_indices
+        result_values, result_counts, result_indices = result_values[order], result_counts[order], result_indices[order]
+    return as_column(result_values), as_column(result_counts), as_column(result_indices)
 
 
 __all__ = ["uniquef"]

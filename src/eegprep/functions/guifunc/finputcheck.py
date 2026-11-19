@@ -32,8 +32,8 @@ def finputcheck(
     ``float``, ``string``, ``cell``, ``struct``, and ``function_handle``.
     Arguments may be a mapping, a flat sequence, or a MATLAB cell. Cell values
     may be object arrays, and structure values may be structured arrays.
-    Numeric results stay Python scalars. Validation failures are returned as
-    strings, as in EEGLAB.
+    Numeric scalars are returned as 1-by-1 arrays. Validation failures are
+    returned as strings, as in EEGLAB.
 
     Args:
         arguments: Mapping or flat key/value sequence to validate.
@@ -74,8 +74,33 @@ def finputcheck(
         if mode.lower() != "ignore":
             error = f"{prefix}error: undefined argument '{name}'"
             return _with_residual(error, [], return_unrecognized)
-        residual.extend((name, value))
-    return _with_residual(values, residual, return_unrecognized)
+        residual.extend((name, _matlab_number(value)))
+    values = {name: _matlab_number(value) for name, value in values.items()}
+    checked = _CheckedArguments(values, residual)
+    return _with_residual(checked, residual, return_unrecognized)
+
+
+class _CheckedArguments(dict):
+    """Validated arguments that also expose MATLAB's unrecognized-argument output."""
+
+    matlab_outputs = ("values", "unrecognized")
+
+    def __init__(self, values: dict[str, Any], unrecognized: list[Any]):
+        super().__init__(values)
+        self.values = self
+        row = np.empty((1, len(unrecognized)), dtype=object)
+        row[0, :] = unrecognized
+        self.unrecognized = row
+
+
+def _matlab_number(value: Any) -> Any:
+    if isinstance(value, bool) or isinstance(value, str):
+        return value
+    if isinstance(value, Real):
+        return np.array([[float(value)]])
+    if isinstance(value, np.ndarray) and np.issubdtype(value.dtype, np.number) and value.ndim < 2 and value.size <= 1:
+        return np.asarray(value, dtype=float).reshape(1, 1) if value.size else value.reshape(1, 0)
+    return value
 
 
 def _argument_dict(arguments: Mapping[str, Any] | Sequence[Any], verbose: str) -> dict[str, Any] | str:

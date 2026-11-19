@@ -62,7 +62,7 @@ def test_full_rank_matches_matlab():
         ]
     )
     v = numdim(a)
-    assert np.isreal(v)
+    assert np.isreal(v).all()
     np.testing.assert_allclose(v, 2.147746217856, rtol=1e-6)
 
 
@@ -74,7 +74,7 @@ def test_python_regression_matches_closed_form_entropy():
 
 
 def test_python_regression_row_vector_is_one_dimensional():
-    assert numdim(np.array([[1.0, 2.0, 0.0, -6.0]])) == pytest.approx(1.0)
+    assert numdim(np.array([[1.0, 2.0, 0.0, -6.0]])).item() == pytest.approx(1.0)
 
 
 def test_python_regression_preserves_column_vector_degeneracy():
@@ -82,11 +82,11 @@ def test_python_regression_preserves_column_vector_degeneracy():
     # literally. The analytic entropy limit is one effective source.
     result = numdim(np.array([[1.0], [2.0], [0.0], [-6.0]]))
 
-    assert result == pytest.approx(1.0)
+    assert result.item() == pytest.approx(1.0)
 
 
 def test_python_regression_singular_matrix_scenario_is_executable():
     # The analytic entropy of a rank-one matrix is one.
     result = numdim(np.array([[2.0, 2.0], [-1.0, -1.0]]))
 
-    assert result == pytest.approx(1.0)
+    assert np.asarray(result).item() == pytest.approx(1.0)

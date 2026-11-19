@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.miscfunc.matlab_inputs import is_cell
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
 
@@ -24,8 +25,8 @@ def pop_comments(
 ) -> Any:
     """Edit or assign dataset comments.
 
-    Passing an EEG dictionary updates ``EEG["comments"]`` and returns a copied
-    EEG dictionary. Passing a string/list returns the edited comment text.
+    Returns the edited EEG dictionary or comment text, and the history command.
+    The command is empty unless ``return_com`` is true.
     """
     is_eeg = isinstance(EEG, dict)
     original = copy.copy(EEG) if is_eeg else EEG
@@ -36,7 +37,7 @@ def pop_comments(
     if gui:
         result = inputgui(pop_comments_dialog_spec(plottitle, old_text), renderer=renderer)
         if result is None:
-            return (original, "") if return_com else original
+            return original, ""
         new_text = _comments_to_text(result.get("comments", ""))
     else:
         if newcomments is None:
@@ -53,9 +54,27 @@ def pop_comments(
     if is_eeg:
         output = copy.deepcopy(EEG)
         output["comments"] = new_text
+    elif is_cell(EEG) or is_cell(newcomments):
+        source = newcomments if newcomments is not None else EEG
+        lines = _cell_lines(EEG) + _cell_lines(source) if concat_enabled else _cell_lines(source)
+        output = _character_matrix(lines)
     else:
         output = new_text
-    return (output, command) if return_com else output
+    return output, command
+
+
+def _cell_lines(value: Any) -> list[str]:
+    if is_cell(value):
+        return ["" if item is None else str(item) for item in np.asarray(value).reshape(-1)]
+    text = _comments_to_text(value)
+    return text.split("\n") if text else []
+
+
+def _character_matrix(lines: list[str]) -> np.ndarray:
+    if not lines:
+        return np.empty((0, 0), dtype="U1")
+    width = max(len(line) for line in lines)
+    return np.array([line.ljust(width) for line in lines])
 
 
 def pop_comments_dialog_spec(title: str = "", comments: str = "") -> DialogSpec:

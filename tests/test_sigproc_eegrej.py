@@ -105,7 +105,7 @@ class TestSigprocEegrej(unittest.TestCase):
         # Region1 boundary at start-1 = 4 -> 4.5.
         # Region2 boundary at start-1 = 19, shifted by region1 base span (6) -> 13 -> 13.5.
         # The augmented duration (106) must not be used for the shift.
-        np.testing.assert_array_equal(boundevents, [4.5, 13.5])
+        np.testing.assert_array_equal(boundevents, [[4.5], [13.5]])
 
         bnd = {ev["latency"]: ev["duration"] for ev in newevents if ev.get("type") == "boundary"}
         # The first boundary's .duration carries the nested duration (base 6 + 100).
@@ -121,7 +121,7 @@ class TestSigprocEegrej(unittest.TestCase):
         # Adjacent regions excise a contiguous block; the two boundaries collapse
         # to one latency after the base-span shift.
         _, _, _, boundevents = eegrej(self.data, [[5, 8], [9, 12]], self.timelength)
-        np.testing.assert_array_equal(boundevents, [4.5])
+        np.testing.assert_array_equal(boundevents, [[4.5]])
 
 
 if __name__ == "__main__":

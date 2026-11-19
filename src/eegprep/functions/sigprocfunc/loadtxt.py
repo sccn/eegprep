@@ -181,7 +181,8 @@ def _as_array(rows: list[list[Any]], convert: str) -> np.ndarray:
     fill = np.nan if convert.lower() == "force" else ""
     padded = [row + [fill] * (width - len(row)) for row in rows]
     if convert.lower() == "force":
-        return np.asarray(padded, dtype=float).reshape(-1, order="F")
+        values = np.asarray(padded, dtype=float)
+        return values.reshape(1, -1, order="F") if values.size else values.reshape(0, 0)
     return np.asarray(padded, dtype=object)
 
 

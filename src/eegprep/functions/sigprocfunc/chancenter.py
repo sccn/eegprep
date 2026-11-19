@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from scipy.optimize import minimize
 
 
@@ -20,7 +22,13 @@ def chancenter(
     optimize = _is_auto_center(center)
     initial = np.zeros(3, dtype=float) if optimize else np.asarray(center, dtype=float).reshape(3)
     newcenter = _fit_center(x_arr, y_arr, z_arr, initial) if optimize and x_arr.size >= 4 else initial
-    return x_arr - newcenter[0], y_arr - newcenter[1], z_arr - newcenter[2], newcenter, optimize
+    return (
+        as_row(x_arr - newcenter[0]),
+        as_row(y_arr - newcenter[1]),
+        as_row(z_arr - newcenter[2]),
+        as_row(newcenter),
+        optimize,
+    )
 
 
 def _fit_center(x: np.ndarray, y: np.ndarray, z: np.ndarray, initial: np.ndarray) -> np.ndarray:

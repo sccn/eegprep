@@ -13,11 +13,13 @@ from eegprep.functions.miscfunc.nan_std import _first_nonsingleton_axis
 def quantile(data: Any, probabilities: Any, axis: int | None = None) -> np.ndarray:
     """Return quantiles using MATLAB's midpoint empirical-probability rule."""
     values = real_array(data, "data")
-    requested = real_array(probabilities, "probabilities").reshape(-1)
+    requested_array = real_array(probabilities, "probabilities")
+    requested = requested_array.reshape(-1)
     if np.any((requested < 0) | (requested > 1)):
         raise ValueError("probabilities must lie between zero and one")
     if values.ndim == 0:
-        return np.full(requested.shape, float(values))
+        shape = (1, 1) if requested_array.ndim == 0 else requested_array.shape
+        return np.full(shape, float(values))
     selected_axis = _first_nonsingleton_axis(values) if axis is None else integer_scalar(axis, "axis")
     moved = np.moveaxis(values, selected_axis, 0)
     if moved.shape[0] == 0:

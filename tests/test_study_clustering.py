@@ -368,7 +368,7 @@ def test_pop_clust_kmeanscluster_uses_first_rows_as_centroids():
     expected = std_createclust(
         study,
         alleeg,
-        clusterind=labels + 1,
+        clusterind=labels,
         algorithm=["Kmeans", 4],
         name="Cls",
     )

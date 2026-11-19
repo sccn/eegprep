@@ -5,8 +5,12 @@ from __future__ import annotations
 import math
 from typing import Any
 
+import numpy as np
 
-def eeg_ms2f(EEG: dict[str, Any], ms: float) -> int:
+from eegprep.functions.miscfunc.matlab_outputs import as_row
+
+
+def eeg_ms2f(EEG: dict[str, Any], ms: float) -> np.ndarray:
     """Convert an epoch latency in milliseconds to the nearest epoch frame.
 
     Ports EEGLAB's eeg_ms2f.m. The returned frame number is **1-based** to match
@@ -18,7 +22,7 @@ def eeg_ms2f(EEG: dict[str, Any], ms: float) -> int:
         ms: Epoch latency in milliseconds.
 
     Returns:
-        The nearest 1-based epoch frame number.
+        The nearest 1-based epoch frame number, as a 1-by-1 array.
 
     Raises:
         ValueError: If the latency falls outside ``[xmin, xmax]``.
@@ -29,7 +33,7 @@ def eeg_ms2f(EEG: dict[str, Any], ms: float) -> int:
     if seconds < xmin or seconds > xmax:
         raise ValueError("time out of range")
     frac = (EEG["pnts"] - 1) * (seconds - xmin) / (xmax - xmin)
-    return 1 + _round_half_away_from_zero(frac)
+    return as_row(1 + _round_half_away_from_zero(frac))
 
 
 def _round_half_away_from_zero(value: float) -> int:

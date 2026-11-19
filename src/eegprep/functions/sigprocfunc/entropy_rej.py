@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.popfunc._rejection import parse_numeric_sequence
 from eegprep.functions.sigprocfunc.realproba import realproba
 
@@ -33,7 +34,7 @@ def entropy_rej(
                 )
         if int(normalize):
             entropy = _normalize(entropy, signal_ndim=np.asarray(signal).ndim)
-    return entropy, _threshold(entropy, threshold)
+    return as_row(entropy), as_row(_threshold(entropy, threshold))
 
 
 def _as_rows_points_trials(signal: Any) -> np.ndarray:

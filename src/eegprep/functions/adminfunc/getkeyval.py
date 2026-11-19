@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.miscfunc.matlab_inputs import matlab_ints, scalar_index
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 
 
 def getkeyval(command: str, variable: Any, mode: Any = "", default: Any = "") -> Any:
@@ -30,7 +31,7 @@ def getkeyval(command: str, variable: Any, mode: Any = "", default: Any = "") ->
 
     key_index = _find_key(arguments, str(variable))
     if isinstance(mode, str) and mode.lower() == "present":
-        return int(key_index is not None)
+        return as_row(float(key_index is not None))
     if key_index is None:
         if isinstance(mode, str) and mode.lower() == "full":
             parent_index = next((index for index, argument in enumerate(arguments) if variable in argument), None)

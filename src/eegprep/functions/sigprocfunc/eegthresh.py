@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.popfunc._rejection import eegthresh_marks, expand_values, parse_numeric_sequence
 
 
@@ -37,15 +38,22 @@ def eegthresh(
     starts = expand_values(starttime, len(elecs), time_values[0])
     ends = expand_values(endtime, len(elecs), time_values[1])
     marks, row_marks = eegthresh_marks(data, elecs, negthresh, posthresh, tuple(time_values), starts, ends)
-    rejected = np.flatnonzero(marks) + 1
-    accepted = np.flatnonzero(~marks) + 1
-    newsignal = data[:, :, accepted - 1]
-    if np.asarray(signal).ndim == 2:
-        newsignal = newsignal.reshape(data.shape[0], -1, order="F")
+    rejected_index = np.flatnonzero(marks)
+    accepted_index = np.flatnonzero(~marks)
+    rejected = as_row(rejected_index + 1)
+    accepted = as_row(accepted_index + 1)
     selected_rows = np.asarray([index - 1 for index in elecs], dtype=int)
+    if accepted_index.size == 0:
+        newsignal = np.empty((0, 0))
+    else:
+        newsignal = data[np.ix_(selected_rows, np.arange(data.shape[1]), accepted_index)]
+        if np.asarray(signal).ndim == 2:
+            newsignal = newsignal.reshape(len(selected_rows), -1, order="F")
+        elif accepted_index.size == 1:
+            newsignal = newsignal[:, :, 0]
     elec = (
-        row_marks[selected_rows[:, np.newaxis], rejected[np.newaxis, :] - 1]
-        if rejected.size
+        row_marks[selected_rows[:, np.newaxis], rejected_index[np.newaxis, :]]
+        if rejected_index.size
         else np.zeros((len(elecs), 0), dtype=bool)
     )
     return accepted, rejected, newsignal, elec

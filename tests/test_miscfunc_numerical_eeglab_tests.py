@@ -466,14 +466,14 @@ def test_python_regression_covary_preserves_grand_mean_centering_and_unbiased_sc
     np.testing.assert_allclose(covary([-1, 2, 3, -4, 5]), 12.5)
     positive = np.asarray([[2, 1, 3, 5, 4], [5, 4, 3, 2, 1], [3, 3, 3, 3, 3], [1, 0, 1, 0, 1]]).T
     mixed = np.asarray([[2, -1, -4, 5, 3], [5, -4, 3, 2, -1], [-3, 3, -3, -3, 3], [1, 0, 1, 0, 1]]).T
-    np.testing.assert_allclose(covary(positive), [2.95, 2.95, 0.45, 4.35])
-    np.testing.assert_allclose(covary(mixed), [12.8125, 12.8125, 12.3125, 0.3125])
-    assert covary([1, 4, 1]) == pytest.approx(3)
+    np.testing.assert_allclose(np.ravel(covary(positive)), [2.95, 2.95, 0.45, 4.35])
+    np.testing.assert_allclose(np.ravel(covary(mixed)), [12.8125, 12.8125, 12.3125, 0.3125])
+    assert np.asarray(covary([1, 4, 1])).item() == pytest.approx(3)
 
 
 def test_python_regression_datlim_flattens_all_dimensions_and_retains_infinities():
-    np.testing.assert_array_equal(datlim([[2, 1, 3], [8, np.inf, 0]]), [0, np.inf])
-    np.testing.assert_array_equal(datlim([[-1e100, -np.inf, 12], [23, -100, 90]]), [-np.inf, 90])
+    np.testing.assert_array_equal(datlim([[2, 1, 3], [8, np.inf, 0]]), [[0, np.inf]])
+    np.testing.assert_array_equal(datlim([[-1e100, -np.inf, 12], [23, -100, 90]]), [[-np.inf, 90]])
 
 
 def test_python_regression_eucl_supports_within_between_and_reference_distances():
@@ -522,20 +522,20 @@ def test_python_regression_hungarian_finds_known_global_minima_with_unique_assig
     for matrix, expected_cost in cases:
         costs = np.asarray(matrix)
         assignment, total = hungarian(costs)
-        np.testing.assert_array_equal(np.sort(assignment), np.arange(1, 5))
+        np.testing.assert_array_equal(np.sort(assignment.ravel()), np.arange(1, 5))
         assert assignment.min() == 1
         assert assignment.max() == 4
-        assert total == pytest.approx(expected_cost)
+        assert float(np.asarray(total).reshape(-1)[0]) == pytest.approx(expected_cost)
         brute_force = min(
             sum(costs[row, column] for column, row in enumerate(order)) for order in itertools.permutations(range(4))
         )
         assert total == pytest.approx(brute_force)
     assignment, total = hungarian([[1, np.inf], [np.inf, 2]])
-    np.testing.assert_array_equal(assignment, [1, 2])
-    assert total == 3
+    np.testing.assert_array_equal(assignment.ravel(), [1, 2])
+    assert float(np.asarray(total).reshape(-1)[0]) == 3
     swapped, swapped_cost = hungarian([[5, 0], [0, 5]])
-    np.testing.assert_array_equal(swapped, [2, 1])
-    assert swapped_cost == 0
+    np.testing.assert_array_equal(swapped.ravel(), [2, 1])
+    assert float(np.asarray(swapped_cost).reshape(-1)[0]) == 0
     with pytest.raises(ValueError, match="no finite complete assignment"):
         hungarian([[1, np.inf], [2, np.inf]])
 
@@ -634,7 +634,7 @@ def test_python_regression_matperm_reorders_rows_and_corrects_component_polarity
 def test_python_regression_means_computes_groupwise_statistics_along_observations():
     values = np.asarray([[1, 2], [3, np.nan], [5, 6], [7, 10]], dtype=float)
     group_means, standard_errors, variances, group_ids = means(values, [2, 1, 2, 1])
-    np.testing.assert_array_equal(group_ids, [1, 2])
+    np.testing.assert_array_equal(np.ravel(group_ids), [1, 2])
     np.testing.assert_allclose(group_means, [[5, 10], [3, 4]])
     np.testing.assert_allclose(variances, [[8, np.nan], [8, 8]], equal_nan=True)
     np.testing.assert_allclose(standard_errors, [[2, np.nan], [2, 2]], equal_nan=True)
@@ -649,15 +649,15 @@ def test_python_regression_means_computes_groupwise_statistics_along_observation
 
 
 def test_python_regression_nan_std_uses_sample_scaling_and_first_nonsingleton_axis():
-    np.testing.assert_allclose(nan_std([[1, -5], [2, 0], [4, 6]]), [np.sqrt(7 / 3), np.sqrt(91 / 3)])
+    np.testing.assert_allclose(np.ravel(nan_std([[1, -5], [2, 0], [4, 6]])), [np.sqrt(7 / 3), np.sqrt(91 / 3)])
     values = [[np.nan, np.nan, 3, 0, -4], [np.nan, 1, 3, 4, 4], [np.nan, 11, 0, -7, np.nan]]
     np.testing.assert_allclose(
-        nan_std(values), [np.nan, np.sqrt(50), np.sqrt(3), np.sqrt(31), np.sqrt(32)], equal_nan=True
+        np.ravel(nan_std(values)), [np.nan, np.sqrt(50), np.sqrt(3), np.sqrt(31), np.sqrt(32)], equal_nan=True
     )
     offset = 1e10
     np.testing.assert_allclose(nan_std(offset + np.arange(4)), np.sqrt(5 / 3))
-    assert np.isnan(nan_std(1))
-    assert nan_std([1, 2]) == pytest.approx(np.sqrt(0.5))
+    assert np.isnan(nan_std(1)).item()
+    assert np.asarray(nan_std([1, 2])).item() == pytest.approx(np.sqrt(0.5))
 
 
 def test_python_regression_pcsquash_orders_components_and_roundtrips_through_pcexpand():
@@ -673,11 +673,11 @@ def test_python_regression_pcsquash_orders_components_and_roundtrips_through_pce
     vectors, eigenvalues, compressed, data_mean = pcsquash(general)
     v1 = 0.5 * np.sqrt(2 - np.sqrt(2))
     v2 = 0.5 * np.sqrt(2 + np.sqrt(2))
-    np.testing.assert_allclose(eigenvalues, [5 + 3 * np.sqrt(2), 5 - 3 * np.sqrt(2)])
+    np.testing.assert_allclose(np.ravel(eigenvalues), [5 + 3 * np.sqrt(2), 5 - 3 * np.sqrt(2)])
     np.testing.assert_allclose(np.abs(vectors), np.abs([[v1, -v2], [v2, v1]]))
-    np.testing.assert_allclose(data_mean, [3, 1])
-    np.testing.assert_allclose(vectors @ compressed + data_mean[:, None], general)
-    np.testing.assert_allclose(pcsquash([1, 2, 3])[1], [2 / 3])
+    np.testing.assert_allclose(np.ravel(data_mean), [3, 1])
+    np.testing.assert_allclose(vectors @ compressed + data_mean.reshape(-1, 1), general)
+    np.testing.assert_allclose(np.ravel(pcsquash([1, 2, 3])[1]), [2 / 3])
     complex_data = np.asarray([[1 + 2j, 3 + 1j, 2 - 1j], [2 - 1j, 0 + 2j, 4 + 3j]])
     vectors, _, compressed, data_mean = pcsquash(complex_data)
     np.testing.assert_allclose(pcexpand(compressed, vectors, data_mean), complex_data, atol=1e-12)
@@ -685,11 +685,11 @@ def test_python_regression_pcsquash_orders_components_and_roundtrips_through_pce
         pcsquash([[1, 2, 3], [3, 2, 1]], 1.9)
 
 
-def test_python_regression_perminv_returns_zero_based_inverse_permutation():
-    permutation = np.asarray([1, 3, 0, 4, 2])
+def test_python_regression_perminv_returns_one_based_inverse_permutation():
+    permutation = np.asarray([2, 4, 1, 5, 3])
     inverse = perminv(permutation)
-    np.testing.assert_array_equal(inverse, [2, 0, 4, 1, 3])
-    np.testing.assert_array_equal(permutation[inverse], np.arange(permutation.size))
+    np.testing.assert_array_equal(inverse.ravel(), [3, 1, 5, 2, 4])
+    np.testing.assert_array_equal(permutation[inverse.ravel() - 1], np.arange(1, permutation.size + 1))
     with pytest.raises(ValueError, match="integers"):
         perminv([0.9, 1.1])
 
@@ -714,16 +714,16 @@ def test_python_regression_scanfold_respects_ignored_directories_and_depth(tmp_p
         scanfold(tmp_path, max_depth=1.5)
 
 
-def test_python_regression_uniquef_returns_stable_counts_and_zero_based_first_indices():
+def test_python_regression_uniquef_returns_stable_counts_and_one_based_first_indices():
     groups = [3, 2, 1, 2, 1, 2, 2, 2, 1, np.nan, np.inf]
     values, counts, indices = uniquef(groups)
-    np.testing.assert_array_equal(values, [3, 2, 1])
-    np.testing.assert_array_equal(counts, [1, 5, 3])
-    np.testing.assert_array_equal(indices, [0, 1, 2])
+    np.testing.assert_array_equal(values.ravel(), [3, 2, 1])
+    np.testing.assert_array_equal(counts.ravel(), [1, 5, 3])
+    np.testing.assert_array_equal(indices.ravel(), [1, 2, 3])
     values, counts, indices = uniquef(groups, sort=True)
-    np.testing.assert_array_equal(values, [1, 2, 3])
-    np.testing.assert_array_equal(counts, [3, 5, 1])
-    np.testing.assert_array_equal(indices, [2, 1, 0])
+    np.testing.assert_array_equal(values.ravel(), [1, 2, 3])
+    np.testing.assert_array_equal(counts.ravel(), [3, 5, 1])
+    np.testing.assert_array_equal(indices.ravel(), [3, 2, 1])
 
 
 @eeglab_test(_source("vectdata"), "test_test_vectdata")

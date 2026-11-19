@@ -372,6 +372,16 @@ def test_upstream_chanevent_original_recording_and_33_calls(eeglab_backend, eegl
     eeglab_backend("pop_chanevent", eeg, event_channel)
 
 
+def _assert_index_pairs(actual, expected) -> None:
+    assert len(actual) == len(expected)
+    for got, want in zip(actual, expected, strict=True):
+        wanted = np.asarray(want, dtype=float)
+        if wanted.size == 0:
+            assert np.asarray(got).size == 0
+        else:
+            np.testing.assert_array_equal(got, wanted.reshape(1, -1))
+
+
 def test_pop_chancoresp_covers_the_upstream_option_matrix() -> None:
     first = ["Nz", "LPA", "RPA", *[f"E{index}" for index in range(4, 33)]]
     same = list(first)
@@ -388,12 +398,12 @@ def test_pop_chancoresp_covers_the_upstream_option_matrix() -> None:
         (different, ([1, 2, 3], [1, 2, 3])),
         (longer, (list(range(1, 33)), list(range(1, 33)))),
     ]:
-        assert pop_chancoresp(first, second, "gui", "off") == all_pairs
-        assert pop_chancoresp(first, second, "gui", "off", "autoselect", "none") == ([], [])
-        assert pop_chancoresp(first, second, "gui", "off", "autoselect", "all") == all_pairs
-        assert pop_chancoresp(first, second, "gui", "off", "autoselect", "fiducials") == (
-            [1, 2, 3],
-            [1, 2, 3],
+        _assert_index_pairs(pop_chancoresp(first, second, "gui", "off"), all_pairs)
+        _assert_index_pairs(pop_chancoresp(first, second, "gui", "off", "autoselect", "none"), ([], []))
+        _assert_index_pairs(pop_chancoresp(first, second, "gui", "off", "autoselect", "all"), all_pairs)
+        _assert_index_pairs(
+            pop_chancoresp(first, second, "gui", "off", "autoselect", "fiducials"),
+            ([1, 2, 3], [1, 2, 3]),
         )
         for mode in ["none", "all", "fiducials"]:
             for left, right in explicit_pairs:
@@ -409,7 +419,7 @@ def test_pop_chancoresp_covers_the_upstream_option_matrix() -> None:
                     "chanlist2",
                     right,
                 )
-                assert result == (left, right)
+                _assert_index_pairs(result, (left, right))
 
 
 def test_pop_chanevent_covers_the_upstream_33_case_option_matrix() -> None:

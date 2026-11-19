@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
+
 
 def realproba(data: Any, bins: int | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Compute per-sample empirical probabilities and the distribution.
@@ -18,7 +20,7 @@ def realproba(data: Any, bins: int | None = None) -> tuple[np.ndarray, np.ndarra
     if bins is None:
         bins = int(np.floor(flat.size / 5 + 0.5))
     if flat.size == 0:
-        return np.asarray(values, dtype=float), np.asarray([], dtype=float)
+        return np.asarray(values, dtype=float), as_row(np.asarray([], dtype=float))
     if int(bins) <= 0:
         centered = flat - np.mean(flat)
         std = float(np.std(centered))
@@ -28,7 +30,7 @@ def realproba(data: Any, bins: int | None = None) -> tuple[np.ndarray, np.ndarra
             z = centered / std
             probabilities = np.exp(-0.5 * z * z) / (2 * np.pi)
             probabilities = probabilities / np.sum(probabilities)
-        return probabilities.reshape(values.shape), probabilities
+        return probabilities.reshape(values.shape), as_row(probabilities)
     count = int(bins)
     minimum = float(np.nanmin(flat))
     maximum = float(np.nanmax(flat))
@@ -36,13 +38,13 @@ def realproba(data: Any, bins: int | None = None) -> tuple[np.ndarray, np.ndarra
         probabilities = np.ones(flat.shape, dtype=float)
         distribution = np.ones(count, dtype=float)
         distribution = distribution / distribution.sum()
-        return probabilities.reshape(values.shape), distribution
+        return probabilities.reshape(values.shape), as_row(distribution)
     indices = np.floor((flat - minimum) / (maximum - minimum) * (count - 1)).astype(int)
     indices = np.clip(indices, 0, count - 1)
     distribution = np.bincount(indices, minlength=count).astype(float)
     probabilities = distribution[indices] / flat.size
     distribution = distribution / flat.size
-    return probabilities.reshape(values.shape), distribution
+    return probabilities.reshape(values.shape), as_row(distribution)
 
 
 __all__ = ["realproba"]

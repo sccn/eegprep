@@ -22,8 +22,8 @@ class TestCart2Topo(unittest.TestCase):
     def test_vertex_and_lower_plane_radius(self):
         theta, radius, *_ = cart2topo([0.0, 0.0], [0.0, 0.0], [1.0, -1.0])
 
-        np.testing.assert_allclose(theta, [0.0, 0.0])
-        np.testing.assert_allclose(radius, [0.0, 1.0])
+        np.testing.assert_allclose(np.ravel(theta), [0.0, 0.0])
+        np.testing.assert_allclose(np.ravel(radius), [0.0, 1.0])
 
 
 if __name__ == "__main__":

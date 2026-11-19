@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
+
 
 def numdim(data: Any) -> float:
     """Estimate a lower bound on the number of discrete sources in the data.
@@ -30,7 +32,7 @@ def numdim(data: Any) -> float:
     # zero weights have the entropy limit 0*log(0) == 0.
     nonzero_weights = weights != 0
     lambda_ = np.exp(-np.sum(weights[nonzero_weights] * np.log(weights[nonzero_weights])))
-    return float(np.real(lambda_))
+    return as_row(float(np.real(lambda_)))
 
 
 __all__ = ["numdim"]

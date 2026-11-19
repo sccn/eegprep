@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
+
 from eegprep.functions.miscfunc._validation import integer_scalar
 from eegprep.functions.miscfunc.nan_std import _first_nonsingleton_axis
 
@@ -16,13 +18,13 @@ def nan_mean(data: Any, axis: int | None = None) -> Any:
     if not np.issubdtype(values.dtype, np.number):
         raise TypeError("data must be numeric")
     if values.ndim == 0:
-        return values[()]
+        return as_row(values)
     selected_axis = _first_nonsingleton_axis(values) if axis is None else integer_scalar(axis, "axis")
     count = np.sum(~np.isnan(values), axis=selected_axis)
     total = np.nansum(values, axis=selected_axis)
     with np.errstate(divide="ignore", invalid="ignore"):
         result = total / count
-    return np.where(count > 0, result, np.nan)
+    return as_row(np.where(count > 0, result, np.nan))
 
 
 __all__ = ["nan_mean"]

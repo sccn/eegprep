@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.popfunc._rejection import copy_eeg
 
 
@@ -66,7 +67,7 @@ def eeg_rejsuperpose(
             freq=Rfreq,
         )
 
-    reject["rejglobal"] = rejglobal
+    reject["rejglobal"] = as_row(rejglobal)
     reject["rejglobalE"] = rejglobal_e
     command = (
         "EEG = eeg_rejsuperpose(EEG, "

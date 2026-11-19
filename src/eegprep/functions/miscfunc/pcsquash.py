@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from ._validation import integer_scalar
-from .misc import canonicalize_signs
 
 
 def pcsquash(data: Any, components: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -30,9 +30,9 @@ def pcsquash(data: Any, components: int | None = None) -> tuple[np.ndarray, np.n
     eigenvalues, eigenvectors = np.linalg.eigh(covariance)
     order = np.argsort(eigenvalues)[::-1]
     eigenvalues = eigenvalues[order]
-    eigenvectors = canonicalize_signs(eigenvectors[:, order])
+    eigenvectors = eigenvectors[:, order]
     compressed = eigenvectors[:, :count].conj().T @ centered
-    return eigenvectors, eigenvalues, compressed, data_mean
+    return eigenvectors, as_row(eigenvalues), compressed, as_row(data_mean)
 
 
 __all__ = ["pcsquash"]

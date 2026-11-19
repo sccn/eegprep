@@ -17,17 +17,30 @@ RULES = (
 FINPUTCHECK_WRAPPER = "unittesting_guifunc/finputcheck/guifunc_finputcheck_wrapperTest.m"
 
 
+def _assert_checked(result, expected):
+    assert set(result) == set(expected)
+    for name, value in expected.items():
+        actual = result[name]
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            np.testing.assert_array_equal(np.asarray(actual, dtype=float), [[float(value)]])
+        else:
+            assert actual == value
+
+
 def test_finputcheck_uses_defaults_for_an_empty_argument_list():
     rules = (*RULES[:3], ("forth", "cell", [], ["test", 4]))
 
     result = finputcheck([], rules)
 
-    assert result == {
-        "the2test": "bar",
-        "key1": 2,
-        "p3rcent": 1 / math.sqrt(2),
-        "forth": ["test", 4],
-    }
+    _assert_checked(
+        result,
+        {
+            "the2test": "bar",
+            "key1": 2,
+            "p3rcent": 1 / math.sqrt(2),
+            "forth": ["test", 4],
+        },
+    )
 
 
 def test_finputcheck_validates_all_supported_rule_values():
@@ -35,7 +48,7 @@ def test_finputcheck_validates_all_supported_rule_values():
 
     result = finputcheck(arguments, RULES)
 
-    assert result == {"key1": 3, "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]}
+    _assert_checked(result, {"key1": 3, "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]})
 
 
 def test_finputcheck_accepts_a_value_matching_any_declared_type():
@@ -48,7 +61,7 @@ def test_finputcheck_accepts_a_value_matching_any_declared_type():
 
     result = finputcheck(arguments, rules)
 
-    assert result == {"key1": "test", "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]}
+    _assert_checked(result, {"key1": "test", "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]})
 
 
 def test_finputcheck_fills_only_omitted_values_from_defaults():
@@ -56,12 +69,15 @@ def test_finputcheck_fills_only_omitted_values_from_defaults():
 
     result = finputcheck(["key1", 3, "the2test", "foo"], rules)
 
-    assert result == {
-        "key1": 3,
-        "the2test": "foo",
-        "p3rcent": 1 / math.sqrt(2),
-        "forth": ["w", 8, "y", 2],
-    }
+    _assert_checked(
+        result,
+        {
+            "key1": 3,
+            "the2test": "foo",
+            "p3rcent": 1 / math.sqrt(2),
+            "forth": ["w", 8, "y", 2],
+        },
+    )
 
 
 def test_finputcheck_accepts_declared_string_choices_case_insensitively():
@@ -70,7 +86,7 @@ def test_finputcheck_accepts_declared_string_choices_case_insensitively():
 
     result = finputcheck(arguments, rules)
 
-    assert result == {"key1": 3, "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]}
+    _assert_checked(result, {"key1": 3, "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]})
 
 
 def test_finputcheck_can_return_unrecognized_arguments_in_ignore_mode():
@@ -95,13 +111,16 @@ def test_finputcheck_can_return_unrecognized_arguments_in_ignore_mode():
         return_unrecognized=True,
     )
 
-    assert result == {
-        "key1": 3,
-        "the2test": "foo",
-        "p3rcent": 0.4937,
-        "forth": ["a", 2, "11b", "D"],
-        "invisible": "true",
-    }
+    _assert_checked(
+        result,
+        {
+            "key1": 3,
+            "the2test": "foo",
+            "p3rcent": 0.4937,
+            "forth": ["a", 2, "11b", "D"],
+            "invisible": "true",
+        },
+    )
     assert residual == ["invisible", "true"]
 
 

@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from eegprep.functions.miscfunc.matlab_outputs import as_row
 from ._validation import real_array
 
 
@@ -26,7 +27,7 @@ def hungarian(cost_matrix: Any) -> tuple[np.ndarray, float]:
         raise ValueError("cost matrix has no finite complete assignment") from error
     assignment = np.empty(costs.shape[1], dtype=int)
     assignment[columns] = rows + 1
-    return assignment, float(costs[rows, columns].sum())
+    return as_row(assignment), as_row(costs[rows, columns].sum())
 
 
 __all__ = ["hungarian"]
