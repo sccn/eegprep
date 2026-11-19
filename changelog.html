@@ -491,6 +491,12 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_store</span></code> fills a slot whose <code class="docutils literal notranslate"><span class="pre">data</span></code> is empty, including a struct
+element created by assigning nonconsecutive indices. <code class="docutils literal notranslate"><span class="pre">gethelpvar</span></code> still
+returns an empty Python string for an unknown name; the MATLAB comparison
+presents that string as <code class="docutils literal notranslate"><span class="pre">''</span></code>. <code class="docutils literal notranslate"><span class="pre">importevent</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_importdata</span></code> do
+not resolve a variable name in the caller workspace. <code class="docutils literal notranslate"><span class="pre">pop_editeventfield</span></code>
+leaves <code class="docutils literal notranslate"><span class="pre">eventdescription</span></code> unchanged when the named field is absent. (#430)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_matchchans</span></code> keeps the matched channel index on every match.
 <code class="docutils literal notranslate"><span class="pre">eeg_matchchans.m</span></code> clears that index on each pass, so only the last
 match keeps <code class="docutils literal notranslate"><span class="pre">bigchan</span></code>. <code class="docutils literal notranslate"><span class="pre">hungarian</span></code> returns one minimum-cost assignment;

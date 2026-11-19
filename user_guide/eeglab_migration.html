@@ -1155,7 +1155,17 @@ Two identical source channels raise. EEGLAB
 come back as a channel deletion or an interpolation that does not
 reflect the recording.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Empty <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> locations</p></td>
+<tr class="row-odd"><td><p>Named workspace variables</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">importevent</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_importdata</span></code> take the event array or data
+array directly. <code class="docutils literal notranslate"><span class="pre">importevent.m</span></code> lines 199 and 228 call
+<code class="docutils literal notranslate"><span class="pre">evalin('caller',</span> <span class="pre">event)</span></code> when the event argument is a character
+name and no file of that name exists. <code class="docutils literal notranslate"><span class="pre">pop_importdata.m</span></code> documents
+<code class="docutils literal notranslate"><span class="pre">'data'</span></code> as a variable name in the base workspace and
+<code class="docutils literal notranslate"><span class="pre">pop_editset</span></code> evaluates it. EEGPrep has no caller workspace.
+<code class="docutils literal notranslate"><span class="pre">test_reference_importevent_original_named_workspace_variables</span></code>
+passes the same arrays and checks the latencies <code class="docutils literal notranslate"><span class="pre">1</span></code> and <code class="docutils literal notranslate"><span class="pre">50</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Empty <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> locations</p></td>
 <td><p>An interpolated <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when channel
 locations are <code class="docutils literal notranslate"><span class="pre">None</span></code> or empty. The message names <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> and
 says to load locations with <code class="docutils literal notranslate"><span class="pre">pop_chanedit</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_readlocs</span></code>.
