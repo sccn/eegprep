@@ -16,6 +16,18 @@ from eegprep.functions.miscfunc.matlab_inputs import is_cell, struct_records
 from eegprep.functions.miscfunc.matlab_outputs import as_column, as_row, empty_matrix
 
 
+def present_compared_output(name: str, result: Any) -> Any:
+    """MATLAB-shape one value a test is about to compare.
+
+    ``call_python`` does not do this for datasets, headers, or location lists.
+    Those values stay as Python objects when a later call reads them.
+    """
+    adapter = _COMPARED_OUTPUTS.get(name)
+    if adapter is not None:
+        return adapter(result)
+    return adapt_matlab_output(name, result)
+
+
 def adapt_matlab_output(
     name: str,
     result: Any,
@@ -215,6 +227,9 @@ def _adapt_pop_chancenter(result: Any) -> Any:
     center = getattr(result, "center", None)
     if center is not None:
         result.center = as_row(center)
+    chans = getattr(result, "chans", None)
+    if isinstance(chans, list):
+        result.chans = _adapt_records(chans)
     return result
 
 
@@ -531,6 +546,19 @@ def _expand_readelp(result: Any) -> Any:
     return struct, names, coordinate("X"), coordinate("Y"), coordinate("Z")
 
 
+_COMPARED_OUTPUTS = {
+    "eeg_interp": _adapt_loaded_eeg,
+    "openbdf": _adapt_openbdf,
+    "pop_adjustevents": _adapt_loaded_eeg,
+    "pop_editeventfield": _adapt_loaded_eeg,
+    "pop_loadset": _adapt_loaded_eeg,
+    "pop_readlocs": _adapt_records,
+    "pop_select": _adapt_loaded_eeg,
+    "readegilocs": _adapt_loaded_eeg,
+    "std_checkset": _adapt_study,
+}
+
+
 _ADAPTERS = {
     "angtimewarp": _rows,
     "biosig2eeglabevent": _adapt_records,
@@ -570,25 +598,16 @@ _ADAPTERS = {
     "numdim": _row_if_vector,
     "parsetxt": _adapt_parsetxt,
     "pcsquash": _adapt_pcsquash,
-    "pop_adjustevents": _adapt_loaded_eeg,
     "pop_chancenter": _adapt_pop_chancenter,
     "pop_chancoresp": _adapt_chancoresp,
     "pop_copyset": _adapt_scalar_eeg,
-    "pop_editeventfield": _adapt_loaded_eeg,
-    "eeg_interp": _adapt_loaded_eeg,
-    "pop_loadset": _adapt_loaded_eeg,
-    "pop_select": _adapt_loaded_eeg,
     "pop_newset": _adapt_scalar_eeg,
-    "pop_readlocs": _adapt_records,
     "pop_selectevent": _adapt_scalar_eeg,
     "quantile": _adapt_quantile,
     "readbdf": _adapt_readbdf,
     "readeetraklocs": _adapt_records,
-    "readegilocs": _adapt_loaded_eeg,
-    "openbdf": _adapt_openbdf,
     "readneurodat": _adapt_readneurodat,
     "realproba": _adapt_realproba,
-    "std_checkset": _adapt_study,
     "std_makedesign": _adapt_study,
     "std_selectdesign": _adapt_study,
     "uniquef": _adapt_uniquef,

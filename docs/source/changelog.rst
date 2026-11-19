@@ -23,6 +23,16 @@ Unreleased
   and ``std_selectdesign`` read MATLAB struct arrays and cell arguments.
   ``runica(..., return_activations=True)`` returns the component activations
   as a seventh output. (#430)
+- ``pop_rmbase`` history uses the same ``vararg2str`` text as ``pop_rmbase.m``:
+  empty ranges are ``[]``, a consecutive point range is ``1:50``, and arguments
+  are joined with a comma and no space. ``reref`` appends ``refloc`` location
+  records, including a structured channel, and returns the flattened
+  channels-by-frames array. ``reref.m`` rereads ``size`` after that append.
+  ``rejtrend`` leaves every trial unmarked when the window is longer than the
+  epoch. ``finputcheck`` reads a nested size-1 character cell as a string, so a
+  type such as ``{'integer','string'}`` and a size-1 ``mode`` name validate.
+  ``pop_saveset`` reads structured ``chanlocs`` and ``epoch`` fields by name.
+  ``pop_select`` keeps the dataset when every channel is removed. (#430)
 - ``epoch`` now extracts epochs from a data matrix, as ``epoch.m`` does.
   Use ``pop_epoch`` to epoch a dataset. It accepts positional name/value
   pairs and returns 1-based column indices, a ``newtime`` row, and event

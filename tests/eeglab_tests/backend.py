@@ -145,9 +145,14 @@ def call_python(name, *args, nargout=1, **kwargs):
     if flag is not None and nargout >= flag[1] and flag[0] not in kwargs:
         kwargs[flag[0]] = True
     if name == "pop_rejchan" and nargout >= 4 and "return_com" not in kwargs:
-        dataset, indices, measure = function(*args, **kwargs)
-        _dataset, command = function(*args, return_com=True, **kwargs)
-        result = adapt_matlab_output(name, (dataset, indices, measure, command), args, kwargs, nargout)
+        rejected = function(*args, return_com=True, **kwargs)
+        result = adapt_matlab_output(
+            name,
+            (rejected[0], rejected.indices, rejected.measure, rejected[1]),
+            args,
+            kwargs,
+            nargout,
+        )
         return _python_outputs(name, result, nargout)
     result = adapt_matlab_output(name, function(*args, **kwargs), args, kwargs, nargout)
     return _python_outputs(name, result, nargout)

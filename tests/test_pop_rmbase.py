@@ -289,9 +289,9 @@ def test_pop_rmbase_return_com_is_replayable_python_console_input():
 
     _out, command = pop_rmbase(eeg, pointrange=range(1, 6), chanlist=[1, 2], return_com=True)
 
-    assert command == "EEG = pop_rmbase( EEG, [], [1 2 3 4 5], [1 2]);"
+    assert command == "EEG = pop_rmbase( EEG, [],[1:5] ,[1 2] );"
     converted = _console_python_command(command)
-    assert converted == "EEG = pop_rmbase(EEG, timerange=[], pointrange=[1, 2, 3, 4, 5], chanlist=[1, 2])"
+    assert converted == "EEG = pop_rmbase(EEG, timerange=[], pointrange=list(range(1, 6, 1)), chanlist=[1, 2])"
 
 
 def test_pop_rmbase_dialog_accepts_numpy_chanlocs():
@@ -364,9 +364,9 @@ def test_pop_rmbase_current_suite_time_point_and_whole_epoch_baselines():
     np.testing.assert_array_equal(by_point["data"][0, :, 1], expected_point)
     np.testing.assert_array_equal(whole_epoch["data"][0, :, 1], expected_whole)
     np.testing.assert_array_equal(time_wins["data"], by_time["data"])
-    assert "[-1000 0]" in time_command
-    assert "[1 2 3" in point_command
-    assert "[], []" in whole_command
+    assert time_command == "EEG = pop_rmbase( EEG, [-1000 0] ,[]);"
+    assert point_command == "EEG = pop_rmbase( EEG, [],[1:50] );"
+    assert whole_command == "EEG = pop_rmbase( EEG, [],[]);"
 
 
 @unittest.skipIf(os.getenv("EEGPREP_SKIP_MATLAB") == "1", "MATLAB not available")

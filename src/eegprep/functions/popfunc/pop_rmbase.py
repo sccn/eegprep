@@ -10,11 +10,12 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.storage import mapped_output_like
+from eegprep.functions.adminfunc.vararg2str import matlab_array2str
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_text_tokens
+from eegprep.functions.popfunc._pop_utils import parse_text_tokens
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from eegprep.functions.sigprocfunc.rmbase import rmbase
 
@@ -418,14 +419,13 @@ def _parse_range_token(token: str) -> list[float]:
 
 
 def _history_command(timerange: Any, pointrange: Any, chanlist: Any, nbchan: int | None) -> str:
-    timerange_text = format_history_value(_history_sequence(timerange), cell_for_sequence=None)
-    pointrange_text = format_history_value(_history_sequence(pointrange), cell_for_sequence=None)
-    parts = [timerange_text, pointrange_text]
+    # pop_rmbase.m clears the unused range, then formats both with vararg2str.
+    parts = [matlab_array2str(_history_sequence(timerange)), matlab_array2str(_history_sequence(pointrange))]
     if _has_values(chanlist):
         chan_values = _history_sequence(chanlist)
         if nbchan is None or chan_values != list(range(1, nbchan + 1)):
-            parts.append(format_history_value(chan_values, cell_for_sequence=None))
-    return f"EEG = pop_rmbase( EEG, {', '.join(parts)});"
+            parts.append(matlab_array2str(chan_values))
+    return f"EEG = pop_rmbase( EEG, {','.join(parts)});"
 
 
 def _history_sequence(value: Any) -> list[Any]:

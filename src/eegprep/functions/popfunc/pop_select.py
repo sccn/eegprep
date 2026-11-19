@@ -258,8 +258,6 @@ def _pop_select_apply(EEG, **kwargs):
             chan_selected_flag[np.array(inds, dtype=int)] = False
 
     g['channel'] = np.where(chan_selected_flag)[0].tolist()
-    if len(g['channel']) == 0:
-        raise ValueError('Empty channel selection')
 
     def _normalize_range_matrix(x):
         x = np.asarray(x) if isinstance(x, (list, tuple, np.ndarray)) else np.array([])

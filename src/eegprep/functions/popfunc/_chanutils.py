@@ -37,8 +37,6 @@ def normalise_reflocs(refloc: Any) -> list[dict[str, Any]]:
     """Normalise old-reference channel locations to dictionaries."""
     if isinstance(refloc, dict):
         return [copy.deepcopy(refloc)]
-    if isinstance(refloc, np.ndarray):
-        refloc = refloc.tolist()
     if (
         isinstance(refloc, (list, tuple))
         and len(refloc) == 3
@@ -47,13 +45,10 @@ def normalise_reflocs(refloc: Any) -> list[dict[str, Any]]:
         and is_number_like(refloc[2])
     ):
         return [{"labels": refloc[0], "theta": refloc[1], "radius": refloc[2]}]
-
-    locs = []
-    for loc in list(refloc):
-        if not isinstance(loc, dict):
-            raise TypeError("refloc entries must be dictionaries or [label, theta, radius]")
-        locs.append(copy.deepcopy(loc))
-    return locs
+    records = chanlocs_as_list(refloc)
+    if records and all(isinstance(record, dict) for record in records):
+        return [copy.deepcopy(record) for record in records]
+    raise TypeError("refloc entries must be dictionaries or [label, theta, radius]")
 
 
 def channel_has_coordinates(loc: Any) -> bool:

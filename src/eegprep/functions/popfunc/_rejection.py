@@ -204,14 +204,17 @@ def trend_marks(
     """Return linear-trend rejection marks."""
     selected = [item - 1 for item in elecrange]
     winsize = int(winsize)
-    if winsize < 2 or winsize > data.shape[1]:
-        raise ValueError("winsize must be between 2 and EEG.pnts")
+    if winsize < 2:
+        raise ValueError("winsize must be at least 2")
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
+    # rejtrend.m leaves every trial unmarked when the window is longer than the epoch.
+    starts = range(0, data.shape[1] - winsize + 1, winsize)
+    if not starts:
+        return row_marks.any(axis=0), row_marks
     x = linspace(1 / winsize, 1, winsize)
     x_centered = x - np.mean(x)
     x_denom = float(np.sum(x_centered**2))
     tolerance = 1000 * winsize * 1.1921e-7
-    starts = range(0, data.shape[1] - winsize + 1, winsize)
     for row_index in selected:
         windows = np.stack([data[row_index, start : start + winsize, :].T for start in starts], axis=1)
         means = np.mean(windows, axis=2, keepdims=True)

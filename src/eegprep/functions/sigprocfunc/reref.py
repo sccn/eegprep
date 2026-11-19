@@ -98,7 +98,10 @@ def reref(
         keep_mask[ref_indices] = False
         work = work[keep_mask, :]
 
-    out = work.reshape((work.shape[0], *original_tail_shape))
+    # reref.m rereads size() after appending refloc channels to the flattened
+    # matrix, so that result stays two-dimensional.
+    tail = (work.shape[1],) if not is_matlab_empty(refloc) else original_tail_shape
+    out = work.reshape((work.shape[0], *tail))
     if np.issubdtype(original_dtype, np.floating):
         out = out.astype(original_dtype, copy=False)
     return out, locs, removed, mean_data

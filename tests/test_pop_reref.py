@@ -119,6 +119,13 @@ def test_pop_reref_keeps_a_nan_on_its_channel():
 
 
 @eeglab_test("unittesting_sigprocfunc/reref/sigprocfunc_reref_wrapperTest.m", "test_test_reref")
+def _one_location(locations, index):
+    """Return one channel location, whether it is a struct row or a record list."""
+    if isinstance(locations, np.ndarray) and locations.dtype.names:
+        return locations[:, index : index + 1]
+    return np.asarray(locations, dtype=object).reshape(-1)[index : index + 1]
+
+
 def test_reference_reref(eeglab_backend, eeglab_suite_root):
     references = np.array([[2, 5, 26]], dtype=float)
     excluded = np.array([[1, 32]], dtype=float)
@@ -150,7 +157,7 @@ def test_reference_reref(eeglab_backend, eeglab_suite_root):
         "elocs",
         eeg["chanlocs"],
         "refloc",
-        eeg["chanlocs"][:, 1:2],
+        _one_location(eeg["chanlocs"], 1),
     )
     assert_matlab_near([output.shape], [[30, data.shape[1] * data.shape[2]]])
 
@@ -301,7 +308,8 @@ def test_python_regression_low_level_reref_continuous_and_epoched_contracts():
         elocs=locs,
         refloc={"labels": "old-reference"},
     )
-    assert restored.shape == (30, *data.shape[1:])
+    # reref.m rereads size after appending refloc to the flattened matrix.
+    assert restored.shape == (30, int(np.prod(data.shape[1:])))
     assert len(restored_locs) == 30
 
 

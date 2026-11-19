@@ -22,6 +22,7 @@ from eegprep import (
 )
 from eegprep.functions.sigprocfunc.readlocs import readeetraklocs
 from tests.eeglab_tests import assert_matlab_equal, assert_matlab_near, eeglab_test
+from tests.eeglab_tests.matlab_output_transport import present_compared_output
 from tests.eeglab_tests.assertions import assert_matlab_struct_near, matlab_field_concat
 
 
@@ -327,7 +328,8 @@ def test_reference_readegilocs_all_original_channel_counts(eeglab_backend):
     for count in (32, 33, 64, 65, 128, 129, 256, 257):
         eeg["nbchan"] = float(count)
         eeg = eeglab_backend("readegilocs", eeg)
-        assert_matlab_near(np.array([[count]], dtype=float), np.array([[max(eeg["chanlocs"].shape)]], dtype=float))
+        compared = present_compared_output("readegilocs", eeg)
+        assert_matlab_near(np.array([[count]], dtype=float), np.array([[max(compared["chanlocs"].shape)]], dtype=float))
 
 
 def _reference_center_locs(xyz):
