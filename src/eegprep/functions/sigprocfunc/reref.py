@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import matlab_ints, struct_records
 from eegprep.functions.popfunc._chanutils import normalise_reflocs as _normalise_reflocs
 
 
@@ -63,7 +64,7 @@ def reref(
     if ref_indices and set(ref_indices).intersection(exclude_indices):
         raise ValueError("Reference channels cannot also be excluded")
 
-    if refloc not in (None, [], ()):
+    if _present(refloc):
         new_locs = _normalise_reflocs(refloc)
         work = np.vstack([work, np.zeros((len(new_locs), work.shape[1]), dtype=work.dtype)])
         if locs is not None:
@@ -103,20 +104,36 @@ def reref(
     return out, locs, removed, mean_data
 
 
+def _present(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, np.ndarray):
+        return value.size > 0
+    if isinstance(value, (list, tuple, str)):
+        return len(value) > 0
+    return True
+
+
 def _copy_locs(elocs: Any) -> list[dict[str, Any]] | None:
     if elocs is None:
         return None
-    if isinstance(elocs, np.ndarray):
+    records = struct_records(elocs)
+    if records is None and isinstance(elocs, np.ndarray):
         elocs = elocs.tolist()
-    copied = [copy.deepcopy(dict(loc)) for loc in list(elocs)]
-    return copied or None
+        records = struct_records(elocs)
+    if records is None:
+        return None
+    return [copy.deepcopy(dict(loc)) for loc in records] or None
 
 
 def _normalise_indices(values: Any, nchan: int, name: str) -> list[int]:
     if values is None:
         return []
-    if isinstance(values, np.ndarray):
-        values = values.tolist()
+    ints = matlab_ints(values)
+    if ints is not None:
+        values = ints
+    elif isinstance(values, np.ndarray):
+        values = values.reshape(-1).tolist()
     if isinstance(values, (int, np.integer)):
         values = [int(values)]
     elif isinstance(values, float) and values.is_integer():

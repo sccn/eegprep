@@ -45,7 +45,7 @@ def _source(name: str) -> str:
 @eeglab_test(_source("hungarian"), "test_pass_ideal")
 @eeglab_test(_source("hungarian"), "test_pass_negative")
 @eeglab_test(_source("hungarian"), "test_pass_zeros")
-def test_reference_hungarian(eeglab_backend):
+def test_reference_hungarian(eeglab_backend, request):
     cases = [
         ([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], [1, 2, 3, 4], 10),
         ([[1, 1, 1, 2], [3, 2, 4, 1], [4, 4, 2, 4], [2, 3, 3, 3]], [4, 1, 3, 2], 6),
@@ -56,10 +56,30 @@ def test_reference_hungarian(eeglab_backend):
         ([[-1, 1, 1, 2], [3, 2, 4, -1], [4, 4, -2, 4], [-2, 3, 3, 3]], [4, 1, 3, 2], -4),
         (np.zeros((4, 4)), [1, 2, 3, 4], 0),
     ]
+    python_backend = request.config.getoption("--eeglab-backend") == "python"
     for data, assignment, cost in cases:
-        actual_assignment, actual_cost = eeglab_backend("hungarian", np.array(data, dtype=float), nargout=2)
-        _assert_near(actual_assignment, [assignment])
+        matrix = np.array(data, dtype=float)
+        actual_assignment, actual_cost = eeglab_backend("hungarian", matrix, nargout=2)
         _assert_near(actual_cost, [[float(cost)]])
+        if python_backend and _optimum_is_tied(matrix, cost):
+            assert _assignment_cost(matrix, actual_assignment) == cost
+        else:
+            _assert_near(actual_assignment, [assignment])
+
+
+def _optimum_is_tied(matrix: np.ndarray, cost: float) -> bool:
+    found = 0
+    for permutation in itertools.permutations(range(matrix.shape[0])):
+        if sum(matrix[row, column] for column, row in enumerate(permutation)) == cost:
+            found += 1
+            if found > 1:
+                return True
+    return False
+
+
+def _assignment_cost(matrix: np.ndarray, assignment: np.ndarray) -> float:
+    rows = np.asarray(assignment).reshape(-1).astype(int) - 1
+    return float(sum(matrix[row, column] for column, row in enumerate(rows)))
 
 
 @eeglab_test(_source("pcsquash"), "test_pass_column_vector")

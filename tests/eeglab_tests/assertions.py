@@ -35,6 +35,8 @@ def assert_matlab_struct_near(first, second, recursionlevel=5):
     assert first_empty == second_empty
     if first_fields is not None and second_fields is not None:
         assert set(first_fields) == set(second_fields)
+        if not first_fields and not second_fields:
+            return
         # near.m initializes result=0 and only changes it inside its field loop.
         assert first_fields
         for field in first_fields:

@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_hist import eeg_hist
-from eegprep.functions.miscfunc.matlab_inputs import scalar_index
+from eegprep.functions.miscfunc.matlab_inputs import restore_dataset_container, scalar_index, struct_records
 
 
 def eegh(
@@ -38,10 +38,13 @@ def eegh(
     normalized = "" if command is None else str(command).strip()
     if not normalized:
         return ""
-    if _is_eeg_collection(history):
-        multiple_command = f"% multiple datasets command: {normalized}"
-        for eeg in history:
-            _append_eeg_history(eeg, multiple_command)
+    records = _eeg_records(history)
+    if records is not None:
+        command_text = f"% multiple datasets command: {normalized}" if len(records) > 1 else normalized
+        for eeg in records:
+            _append_eeg_history(eeg, command_text)
+        if isinstance(history, np.ndarray):
+            return restore_dataset_container(history, records)
         return history
     if isinstance(history, list):
         _append_history(history, normalized)
@@ -75,8 +78,14 @@ def _is_command_history(history: Any) -> bool:
     return isinstance(history, list) and not any(isinstance(item, dict) for item in history)
 
 
-def _is_eeg_collection(history: Any) -> bool:
-    return isinstance(history, list) and bool(history) and all(isinstance(item, dict) for item in history)
+def _eeg_records(history: Any) -> list[dict[str, Any]] | None:
+    if isinstance(history, dict):
+        return None
+    if isinstance(history, list) and history and all(isinstance(item, dict) for item in history):
+        return history
+    if isinstance(history, np.ndarray) and history.dtype.names and history.size:
+        return struct_records(history)
+    return None
 
 
 def _append_eeg_history(eeg: dict[str, Any], command: str) -> None:

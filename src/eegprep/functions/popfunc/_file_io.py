@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.miscfunc.linspace import linspace
+from eegprep.functions.miscfunc.matlab_inputs import struct_records
 from eegprep.functions.popfunc._matlab_fields import matlab_index
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
@@ -247,8 +248,11 @@ def events_to_records(events: Any) -> list[dict[str, Any]]:
     """Normalize EEG event containers to a list of dictionaries."""
     if events is None:
         return []
+    records = struct_records(events)
+    if records is not None:
+        return [dict(record) for record in records]
     if isinstance(events, np.ndarray):
-        events = events.tolist()
+        events = list(events.ravel(order="F"))
     if isinstance(events, dict):
         return [dict(events)]
     return [dict(event) for event in events]

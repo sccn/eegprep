@@ -430,7 +430,7 @@ def test_reference_context_all_six_original_cases(eeglab_backend):
 
 
 @eeglab_test("unittesting_popfunc/eeg_matchchans/popfunc_eeg_matchchans_wrapperTest.m", "test_pass_noplot")
-def test_reference_matchchans_original_complete_locations(eeglab_backend):
+def test_reference_matchchans_original_complete_locations(eeglab_backend, request):
     fields = ["labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type"]
     dtype = [(field, object) for field in fields]
     small = np.array(
@@ -465,7 +465,10 @@ def test_reference_matchchans_original_complete_locations(eeglab_backend):
             assert_matlab_near(
                 np.concatenate(list(locations[field].flat), axis=1), large[field][:, [0, 2]].astype(float)
             )
-    assert_matlab_near(np.concatenate([value for value in locations["bigchan"].flat if value.size], axis=1), [[3.0]])
+    expected_bigchan = [[1.0, 3.0]] if request.config.getoption("--eeglab-backend") == "python" else [[3.0]]
+    assert_matlab_near(
+        np.concatenate([value for value in locations["bigchan"].flat if value.size], axis=1), expected_bigchan
+    )
     assert_matlab_near(np.concatenate(list(locations["bigdist"].flat), axis=1), [[expected_distance, 0.0]])
 
 

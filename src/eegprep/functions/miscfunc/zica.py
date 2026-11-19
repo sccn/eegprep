@@ -58,8 +58,8 @@ def _baseline_indices(value: Any, frames: int) -> np.ndarray:
     if value is None or (np.isscalar(value) and value == 0):
         indices = np.arange(frames)
     else:
-        raw = np.asarray(value)
-        if raw.ndim != 1 or raw.size < 3 or not np.issubdtype(raw.dtype, np.number):
+        raw = np.asarray(value).reshape(-1)
+        if raw.size < 3 or not np.issubdtype(raw.dtype, np.number):
             raise ValueError("baseline_frames must contain at least three zero-based indices")
         numeric = raw.astype(float)
         if not np.all(np.isfinite(numeric)) or not np.all(numeric == np.floor(numeric)):

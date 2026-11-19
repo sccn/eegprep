@@ -11,7 +11,7 @@ import os
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
 from eegprep.functions.miscfunc.linspace import linspace
-from eegprep.functions.miscfunc.matlab_inputs import struct_records
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, restore_dataset_container, struct_records
 from eegprep.functions.miscfunc.misc import matlab_mtimes, round_mat
 
 logger = logging.getLogger(__name__)
@@ -401,6 +401,11 @@ def eeg_checkset(EEG, *checks, load_data=True):
     # In non-strict mode (False), we catch Exception and handle gracefully
     exception_type = DummyException if _strict_mode_var.get() else Exception
 
+    if isinstance(EEG, np.ndarray) and getattr(EEG.dtype, "names", None):
+        records = as_dataset_list(EEG)
+        checked = [eeg_checkset(record, *checks, load_data=load_data) for record in records]
+        return restore_dataset_container(EEG, checked)
+
     if 'nbchan' in EEG:
         EEG['nbchan'] = int(EEG['nbchan'])
     else:
@@ -502,6 +507,12 @@ def eeg_checkset(EEG, *checks, load_data=True):
 
     _stringify_mixed_event_types(EEG.get('event'), limit=100)
 
+    event = EEG.get('event')
+    if isinstance(event, np.ndarray):
+        records = struct_records(event)
+        if records is not None:
+            EEG['event'] = np.asarray([dict(item) for item in records], dtype=object)
+
     # Build epoch structure from events (for epoched data)
     # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
     try:
@@ -577,9 +588,17 @@ def eeg_checkset(EEG, *checks, load_data=True):
 
     # Single-trial data carries no epoch structure and no event.epoch field
     # (eeg_checkset.m, "check if only one epoch").
-    if int(EEG.get('trials', 1) or 1) == 1:
+    if int(EEG.get('trials', 1) or 1) == 1 and EEG.get('event') is not None:
+        records = struct_records(EEG['event'])
+        if records is not None:
+            EEG['event'] = [dict(event) for event in records]
+        elif isinstance(EEG['event'], np.ndarray) and EEG['event'].dtype == object:
+            EEG['event'] = list(EEG['event'].ravel(order='F'))
         for ev in EEG['event']:
-            ev.pop('epoch', None)
+            if isinstance(ev, dict):
+                ev.pop('epoch', None)
+        if isinstance(EEG['event'], list):
+            EEG['event'] = np.asarray(EEG['event'], dtype=object)
         EEG['epoch'] = np.array([], dtype=object)
 
     # check if EEG['data'] is 3D

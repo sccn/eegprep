@@ -12,15 +12,21 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_inputs import is_cell
+from eegprep.functions.miscfunc.matlab_inputs import is_cell, struct_records
 from eegprep.functions.miscfunc.matlab_outputs import as_column, as_row, empty_matrix
 
 
 def adapt_matlab_output(
-    name: str, result: Any, args: tuple[Any, ...] = (), kwargs: dict[str, Any] | None = None
+    name: str,
+    result: Any,
+    args: tuple[Any, ...] = (),
+    kwargs: dict[str, Any] | None = None,
+    nargout: int = 1,
 ) -> Any:
     if name == "pop_comments":
         return _adapt_pop_comments(result, args, kwargs or {})
+    if name == "readelp" and nargout >= 5:
+        return _expand_readelp(result)
     adapter = _ADAPTERS.get(name)
     if adapter is None:
         return result
@@ -291,26 +297,269 @@ def _adapt_getchanlist(result: Any) -> Any:
     return result
 
 
+_RECORD_FIELDS = ("event", "urevent", "chanlocs", "urchanlocs", "epoch")
+_SCALAR_FIELDS = ("nbchan", "trials", "pnts", "srate", "xmin", "xmax")
+
+
+def _present_records(value: Any) -> Any:
+    records = _record_list(value)
+    if records is None:
+        return None
+    if not records:
+        return np.empty((0, 0)) if isinstance(value, np.ndarray) else value
+    if len(records) == 1:
+        return {key: _matlab_field(item) for key, item in records[0].items()}
+    return _struct_row(records)
+
+
+def _record_list(value: Any) -> list[dict[str, Any]] | None:
+    if isinstance(value, dict):
+        return None
+    if isinstance(value, list):
+        if not value or all(isinstance(item, dict) for item in value):
+            return value
+        return None
+    records = struct_records(value)
+    if records is None or isinstance(value, dict):
+        return None
+    return records
+
+
+def _struct_row(records: list[dict[str, Any]]) -> np.ndarray:
+    names: list[str] = []
+    for record in records:
+        for name in record:
+            if name not in names:
+                names.append(name)
+    if not names:
+        return np.empty((1, len(records)), dtype=object)
+    row = np.empty((1, len(records)), dtype=[(name, object) for name in names])
+    for column, record in enumerate(records):
+        row[0, column] = tuple(_matlab_field(record.get(name)) for name in names)
+    return row
+
+
+def _matlab_field(value: Any) -> Any:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, np.ndarray):
+        if value.dtype == object or value.dtype.names:
+            nested = _present_records(value)
+            if nested is not None:
+                return nested
+        if value.ndim < 2 and np.issubdtype(value.dtype, np.number) and value.size:
+            return as_row(value)
+        return value
+    if isinstance(value, (bool, np.bool_)):
+        return value
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return np.array([[float(value)]])
+    if isinstance(value, list):
+        nested = _present_records(value)
+        if nested is not None:
+            return nested
+        if value and all(isinstance(item, str) for item in value):
+            return _description_column(value)
+    if value is None or value == []:
+        return np.empty((0, 0))
+    return value
+
+
+def _description_column(lines: list[str]) -> np.ndarray:
+    column = np.empty((len(lines), 1), dtype=object)
+    column[:, 0] = lines
+    return column
+
+
+def _present_descriptions(value: Any) -> Any:
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return _description_column(value)
+    return value
+
+
+def _present_eeg(eeg: dict[str, Any], *, scalars: bool) -> dict[str, Any]:
+    output = dict(eeg)
+    for field in _RECORD_FIELDS:
+        if field not in output:
+            continue
+        presented = _present_records(output[field])
+        if presented is not None:
+            output[field] = presented
+    if "eventdescription" in output:
+        output["eventdescription"] = _present_descriptions(output["eventdescription"])
+    if scalars and _has_samples(output):
+        for field in _SCALAR_FIELDS:
+            if field in output:
+                output[field] = _numeric_scalar(output[field])
+    return output
+
+
+def _has_samples(eeg: dict[str, Any]) -> bool:
+    data = eeg.get("data")
+    if isinstance(data, np.ndarray):
+        return data.size > 0
+    return data not in (None, [])
+
+
+def _present_datasets(datasets: list[Any]) -> np.ndarray:
+    return _struct_row(
+        [_present_eeg(dataset, scalars=True) if isinstance(dataset, dict) else {} for dataset in datasets]
+    )
+
+
+def _present_eeg_value(value: Any, *, scalars: bool) -> Any:
+    if isinstance(value, list) and (not value or all(isinstance(item, dict) for item in value)):
+        if value and any(key in value[0] for key in ("data", "nbchan", "setname", "trials")):
+            return _present_datasets(value)
+        presented = _present_records(value)
+        return value if presented is None else presented
+    if isinstance(value, dict):
+        return _present_eeg(value, scalars=scalars)
+    return value
+
+
+def _adapt_eeg_value(result: Any, *, scalars: bool) -> Any:
+    if isinstance(result, tuple):
+        return (_present_eeg_value(result[0], scalars=scalars), *result[1:])
+    return _present_eeg_value(result, scalars=scalars)
+
+
+def _adapt_loaded_eeg(result: Any) -> Any:
+    return _adapt_eeg_value(result, scalars=False)
+
+
+def _adapt_scalar_eeg(result: Any) -> Any:
+    return _adapt_eeg_value(result, scalars=True)
+
+
+def _adapt_eeg_store(result: Any) -> Any:
+    alleeg, eeg, index = result
+    return _present_eeg_value(alleeg, scalars=True), _present_eeg_value(eeg, scalars=True), index
+
+
+def _adapt_eeg_retrieve(result: Any) -> Any:
+    eeg, alleeg, index = result
+    return (
+        _present_eeg_value(eeg, scalars=True),
+        _present_eeg_value(alleeg, scalars=True),
+        index,
+    )
+
+
+def _adapt_study(result: Any) -> Any:
+    if isinstance(result, tuple):
+        return (_present_study(result[0]), *result[1:])
+    return _present_study(result)
+
+
+def _present_study(study: Any) -> Any:
+    if not isinstance(study, dict) or "design" not in study:
+        return study
+    output = dict(study)
+    presented = _present_records(study["design"])
+    if presented is not None:
+        output["design"] = _nest_design(presented)
+    cluster = _present_records(study.get("cluster"))
+    if cluster is not None:
+        output["cluster"] = cluster
+    return output
+
+
+def _nest_design(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _nest_design_field(key, item) for key, item in value.items()}
+    if isinstance(value, np.ndarray) and value.dtype.names:
+        nested = np.empty(value.shape, dtype=value.dtype)
+        for index in np.ndindex(value.shape):
+            nested[index] = tuple(_nest_design_field(name, value[name][index]) for name in value.dtype.names)
+        return nested
+    return value
+
+
+def _nest_design_field(name: str, value: Any) -> Any:
+    if name in {"variable", "cell", "dataset", "value", "trials"}:
+        presented = _present_records(value)
+        if presented is not None:
+            return _nest_design(presented)
+    return value
+
+
+def _adapt_openbdf(result: Any) -> Any:
+    if isinstance(result, tuple):
+        return (_column_vectors(result[0]), *result[1:])
+    return _column_vectors(result)
+
+
+def _column_vectors(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _column_vectors(item) for key, item in value.items()}
+    if isinstance(value, np.ndarray) and value.ndim == 1 and value.size and np.issubdtype(value.dtype, np.number):
+        return value.reshape(-1, 1)
+    return value
+
+
+def _adapt_readneurodat(result: Any) -> Any:
+    if not isinstance(result, tuple):
+        return _adapt_records(result)
+    struct = _adapt_records(result[0])
+    outputs = [struct]
+    for item in result[1:]:
+        array = np.asarray(item)
+        if array.ndim == 1 and array.size:
+            outputs.append(array.reshape(1, -1))
+        else:
+            outputs.append(item)
+    return tuple(outputs)
+
+
+def _adapt_records(result: Any) -> Any:
+    if isinstance(result, tuple):
+        presented = _present_records(result[0])
+        return (result[0] if presented is None else presented, *result[1:])
+    presented = _present_records(result)
+    return result if presented is None else presented
+
+
+def _expand_readelp(result: Any) -> Any:
+    records = _record_list(result) or []
+    struct = _struct_row(records) if records else np.empty((0, 0))
+    names = _cell_row([str(record.get("labels", "")) for record in records])
+
+    def coordinate(field: str) -> np.ndarray:
+        return as_row(np.array([float(record.get(field, np.nan)) for record in records], dtype=float))
+
+    return struct, names, coordinate("X"), coordinate("Y"), coordinate("Z")
+
+
 _ADAPTERS = {
     "angtimewarp": _rows,
+    "biosig2eeglabevent": _adapt_records,
     "cart2topo": _rows,
     "chancenter": _adapt_chancenter,
     "concatdata": _adapt_concatdata,
+    "convertlocs": _adapt_records,
     "covary": _rows,
     "datlim": _rows,
+    "eeg_emptyset": _adapt_scalar_eeg,
+    "eeg_mergechan": _adapt_records,
+    "eeg_mergelocs": _adapt_records,
     "eeg_getepochevent": _adapt_getepochevent,
     "eeg_matchchans": _adapt_matchchans,
     "eeg_ms2f": _row_if_vector,
     "eeg_rejsuperpose": _adapt_rejsuperpose,
+    "eeg_retrieve": _adapt_eeg_retrieve,
+    "eeg_store": _adapt_eeg_store,
     "eeg_urlatency": _row_if_vector,
     "eegplot2trial": _adapt_eegplot2trial,
     "eegrej": _adapt_eegrej,
     "eegthresh": _adapt_eegthresh,
     "entropy_rej": _rows,
     "finputcheck": _adapt_finputcheck,
+    "forcelocs": _adapt_records,
     "getchanlist": _adapt_getchanlist,
     "getkeyval": _row_if_vector,
     "hungarian": _rows,
+    "importevent": _adapt_records,
     "kmeanscluster": _adapt_kmeans,
     "kurt": _rows,
     "loadtxt": _adapt_loadtxt,
@@ -321,10 +570,26 @@ _ADAPTERS = {
     "numdim": _row_if_vector,
     "parsetxt": _adapt_parsetxt,
     "pcsquash": _adapt_pcsquash,
+    "pop_adjustevents": _adapt_loaded_eeg,
     "pop_chancenter": _adapt_pop_chancenter,
     "pop_chancoresp": _adapt_chancoresp,
+    "pop_copyset": _adapt_scalar_eeg,
+    "pop_editeventfield": _adapt_loaded_eeg,
+    "eeg_interp": _adapt_loaded_eeg,
+    "pop_loadset": _adapt_loaded_eeg,
+    "pop_select": _adapt_loaded_eeg,
+    "pop_newset": _adapt_scalar_eeg,
+    "pop_readlocs": _adapt_records,
+    "pop_selectevent": _adapt_scalar_eeg,
     "quantile": _adapt_quantile,
     "readbdf": _adapt_readbdf,
+    "readeetraklocs": _adapt_records,
+    "readegilocs": _adapt_loaded_eeg,
+    "openbdf": _adapt_openbdf,
+    "readneurodat": _adapt_readneurodat,
     "realproba": _adapt_realproba,
+    "std_checkset": _adapt_study,
+    "std_makedesign": _adapt_study,
+    "std_selectdesign": _adapt_study,
     "uniquef": _adapt_uniquef,
 }

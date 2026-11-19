@@ -10,6 +10,19 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_matchchans`` keeps the matched channel index on every match.
+  ``eeg_matchchans.m`` clears that index on each pass, so only the last
+  match keeps ``bigchan``. ``hungarian`` returns one minimum-cost assignment;
+  when several assignments share that cost it can differ from the
+  Carpaneto-Toth order in ``hungarian.m``. ``rmart`` validates ``eogchan``
+  before it reads the file. ``rmart.m`` returns early whenever the sample
+  count divides evenly by the channel count, so that check never runs.
+  ``pop_chanedit``, ``eegh``, ``eeg_readoptions``, ``gethelpvar``,
+  ``pop_reref``, ``reref``, ``pop_resample``, ``pop_mergeset``,
+  ``pop_newset``, ``pop_clust``, ``pop_adjustevents``, ``std_makedesign``,
+  and ``std_selectdesign`` read MATLAB struct arrays and cell arguments.
+  ``runica(..., return_activations=True)`` returns the component activations
+  as a seventh output. (#430)
 - ``epoch`` now extracts epochs from a data matrix, as ``epoch.m`` does.
   Use ``pop_epoch`` to epoch a dataset. It accepts positional name/value
   pairs and returns 1-based column indices, a ``newtime`` row, and event
@@ -19,9 +32,10 @@ Unreleased
   ``pop_expica(EEG, whichica, filename)`` follows that argument order.
   ``pop_copyset`` and ``pop_delset`` keep a structure-array dataset list and
   accept whole-number indices. ``pop_editeventfield`` indices past the
-  current event count append events. ``near.m`` still reports two empty
-  structs as different, so the original ``pop_copyset`` comparison stays
-  expected-fail while ``EEG.etc`` and ``EEG.roi`` are empty dicts (#430).
+  current event count append events. Two empty dicts compare equal.
+  ``near.m`` leaves its result false when a struct has no fields.
+  EEGPrep treats those empty ``EEG.etc`` and ``EEG.roi`` dicts as the
+  same structure (#430).
 - Functions that receive EEGLAB recordings accept MATLAB struct arrays, cell
   arrays, empty arrays used where MATLAB tests ``isempty``, and whole-number
   doubles used as counts or 1-based indices. ``getkeyval``, ``blockave``,

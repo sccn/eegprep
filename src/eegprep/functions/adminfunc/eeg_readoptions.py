@@ -9,6 +9,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import struct_records
+
 
 _OPTION_LINE = re.compile(r"^\s*(option_[A-Za-z0-9_]+)\s*=\s*(.*?)\s*;\s*(?:%\s*(.*))?$")
 
@@ -46,7 +48,8 @@ def eeg_readoptions(
 
     if option_backup is not None:
         values = {option["varname"]: option["value"] for option in options}
-        backed_up = [dict(option) for option in option_backup]
+        records = struct_records(option_backup)
+        backed_up = [dict(option) for option in (records if records is not None else option_backup)]
         for option in backed_up:
             name = str(option.get("varname", ""))
             if name in values:
