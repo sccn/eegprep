@@ -649,17 +649,18 @@
 <h1>pop_expica<a class="headerlink" href="#pop-expica" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_expica">
-<span class="sig-name descname"><span class="pre">pop_expica</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matrix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'weights'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_expica" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">pop_expica</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">whichica</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'weights'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_expica" title="Link to this definition">#</a></dt>
 <dd><p>Export the ICA weight matrix or inverse weight matrix.</p>
-<p><code class="docutils literal notranslate"><span class="pre">pop_expica.m</span></code> line 79 writes the matrix with <code class="docutils literal notranslate"><span class="pre">save</span> <span class="pre">-ascii</span></code>. Each
-value is <code class="docutils literal notranslate"><span class="pre">%16.7e</span></code> and values in a row are concatenated, which is the
-width MATLAB uses for that save flag.</p>
+<p>Argument order matches <code class="docutils literal notranslate"><span class="pre">pop_expica.m</span></code>: <code class="docutils literal notranslate"><span class="pre">whichica</span></code> is <code class="docutils literal notranslate"><span class="pre">'weights'</span></code> or
+<code class="docutils literal notranslate"><span class="pre">'inv'</span></code>, then the output path. <code class="docutils literal notranslate"><span class="pre">pop_expica.m</span></code> line 79 writes the matrix
+with <code class="docutils literal notranslate"><span class="pre">save</span> <span class="pre">-ascii</span></code>. Each value is <code class="docutils literal notranslate"><span class="pre">%16.7e</span></code> and values in a row are
+concatenated, which is the width MATLAB uses for that save flag.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a><em>]</em>)</p></li>
-<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a>)</p></li>
-<li><p><strong>matrix</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
+<li><p><strong>whichica</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
+<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

@@ -491,6 +491,18 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">epoch</span></code> now extracts epochs from a data matrix, as <code class="docutils literal notranslate"><span class="pre">epoch.m</span></code> does.
+Use <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> to epoch a dataset. It accepts positional name/value
+pairs and returns 1-based column indices, a <code class="docutils literal notranslate"><span class="pre">newtime</span></code> row, and event
+cells. <code class="docutils literal notranslate"><span class="pre">gauss</span></code> returns a row.
+<code class="docutils literal notranslate"><span class="pre">eeg_lat2point</span></code> reads a <code class="docutils literal notranslate"><span class="pre">timewin</span></code> row with linear indexing.
+<code class="docutils literal notranslate"><span class="pre">pop_loadset(filename,</span> <span class="pre">filepath)</span></code> is the older two-argument form.
+<code class="docutils literal notranslate"><span class="pre">pop_expica(EEG,</span> <span class="pre">whichica,</span> <span class="pre">filename)</span></code> follows that argument order.
+<code class="docutils literal notranslate"><span class="pre">pop_copyset</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_delset</span></code> keep a structure-array dataset list and
+accept whole-number indices. <code class="docutils literal notranslate"><span class="pre">pop_editeventfield</span></code> indices past the
+current event count append events. <code class="docutils literal notranslate"><span class="pre">near.m</span></code> still reports two empty
+structs as different, so the original <code class="docutils literal notranslate"><span class="pre">pop_copyset</span></code> comparison stays
+expected-fail while <code class="docutils literal notranslate"><span class="pre">EEG.etc</span></code> and <code class="docutils literal notranslate"><span class="pre">EEG.roi</span></code> are empty dicts (#430).</p></li>
 <li><p>Functions that receive EEGLAB recordings accept MATLAB struct arrays, cell
 arrays, empty arrays used where MATLAB tests <code class="docutils literal notranslate"><span class="pre">isempty</span></code>, and whole-number
 doubles used as counts or 1-based indices. <code class="docutils literal notranslate"><span class="pre">getkeyval</span></code>, <code class="docutils literal notranslate"><span class="pre">blockave</span></code>,
