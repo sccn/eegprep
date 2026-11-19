@@ -569,8 +569,8 @@
 <dd><p>Resolve channel identifiers to 0-based indices and labels.</p>
 <dl class="simple">
 <dt>Supports:</dt><dd><ul class="simple">
-<li><p>chanlocs as a list-like of dicts, or a dict with key “chanlocs”.</p></li>
-<li><p>chanstr as an iterable of strings/integers or a space-separated string.</p></li>
+<li><p>chanlocs as a list-like of dicts, a struct array, or a dict with key “chanlocs”.</p></li>
+<li><p>chanstr as an iterable of strings/integers, a MATLAB cell, or a space-separated string.</p></li>
 <li><p>Matching on the specified field (e.g., “labels” or “type”).</p></li>
 <li><p>Numeric 0-based indices as input (returned directly after validation).</p></li>
 <li><p>Empty chanlocs with purely numeric input (indices passthrough).</p></li>

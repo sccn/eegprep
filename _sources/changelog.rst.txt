@@ -10,6 +10,19 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Functions that receive EEGLAB recordings accept MATLAB struct arrays, cell
+  arrays, empty arrays used where MATLAB tests ``isempty``, and whole-number
+  doubles used as counts or 1-based indices. ``getkeyval``, ``blockave``,
+  ``shortread``, ``floatread``, ``vararg2str``, ``readlocs``, ``runica``
+  ``pca``, ``epoch``, ``pop_epoch``, ``pop_select``, ``pop_copyset``,
+  ``pop_saveh``, ``pop_chancoresp``, ``pop_editeventvals``, ``pop_selectevent``,
+  ``eeg_store``, ``eeg_retrieve``, ``eeg_decodechan``, ``eeg_getepochevent``,
+  ``eegh``, ``finputcheck``, ``forcelocs``, ``clean_artifacts``, and
+  ``unique_cell_string`` are included. Results stay Python scalars, lists, and
+  dicts: a MATLAB 1-by-1 numeric or a struct-array result is not reproduced.
+  ``pop_select`` channel indices stay 0-based. ``finputcheck`` still returns
+  Python numbers rather than 1-by-1 arrays (#430).
+
 - ``asr_calibrate`` raises ``ASRCalibrationError`` when an RMS fit width
   rounds to zero, which happens for two or three 0.5 s windows at the default
   quantiles. ``clean_artifacts`` and ``pop_clean_rawdata`` skip burst repair,

@@ -491,6 +491,18 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Functions that receive EEGLAB recordings accept MATLAB struct arrays, cell
+arrays, empty arrays used where MATLAB tests <code class="docutils literal notranslate"><span class="pre">isempty</span></code>, and whole-number
+doubles used as counts or 1-based indices. <code class="docutils literal notranslate"><span class="pre">getkeyval</span></code>, <code class="docutils literal notranslate"><span class="pre">blockave</span></code>,
+<code class="docutils literal notranslate"><span class="pre">shortread</span></code>, <code class="docutils literal notranslate"><span class="pre">floatread</span></code>, <code class="docutils literal notranslate"><span class="pre">vararg2str</span></code>, <code class="docutils literal notranslate"><span class="pre">readlocs</span></code>, <code class="docutils literal notranslate"><span class="pre">runica</span></code>
+<code class="docutils literal notranslate"><span class="pre">pca</span></code>, <code class="docutils literal notranslate"><span class="pre">epoch</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_select</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_copyset</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pop_saveh</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_chancoresp</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_editeventvals</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_selectevent</span></code>,
+<code class="docutils literal notranslate"><span class="pre">eeg_store</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_retrieve</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_decodechan</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_getepochevent</span></code>,
+<code class="docutils literal notranslate"><span class="pre">eegh</span></code>, <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code>, <code class="docutils literal notranslate"><span class="pre">forcelocs</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">unique_cell_string</span></code> are included. Results stay Python scalars, lists, and
+dicts: a MATLAB 1-by-1 numeric or a struct-array result is not reproduced.
+<code class="docutils literal notranslate"><span class="pre">pop_select</span></code> channel indices stay 0-based. <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> still returns
+Python numbers rather than 1-by-1 arrays (#430).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when an RMS fit width
 rounds to zero, which happens for two or three 0.5 s windows at the default
 quantiles. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> skip burst repair,

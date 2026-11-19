@@ -558,17 +558,19 @@
 <dt class="sig sig-object py" id="eegprep.getkeyval">
 <span class="sig-name descname"><span class="pre">getkeyval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">command</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.getkeyval" title="Link to this definition">#</a></dt>
 <dd><p>Return an argument from an EEGLAB command-history expression.</p>
-<p>String <code class="docutils literal notranslate"><span class="pre">variable</span></code> values address key/value arguments. Integer values use
-EEGLAB-facing 1-based argument positions. <code class="docutils literal notranslate"><span class="pre">mode=&quot;present&quot;</span></code> returns a
-boolean-like integer, <code class="docutils literal notranslate"><span class="pre">mode=&quot;full&quot;</span></code> includes the key in the returned
-command fragment, and integer modes select 1-based elements from a numeric
-vector value.</p>
+<p>String <code class="docutils literal notranslate"><span class="pre">variable</span></code> values address key/value arguments. Integers,
+whole-number floats, and 1-by-1 numeric arrays use EEGLAB-facing 1-based
+argument positions, because MATLAB passes those positions as doubles.
+<code class="docutils literal notranslate"><span class="pre">mode=&quot;present&quot;</span></code> returns a boolean-like integer, <code class="docutils literal notranslate"><span class="pre">mode=&quot;full&quot;</span></code> includes
+the key in the returned command fragment, and integer modes select 1-based
+elements from a numeric vector value. A whole-number vector is the same
+kind of mode.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>command</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
-<li><p><strong>variable</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
-<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence" title="(in Python v3.15)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>]</em>)</p></li>
+<li><p><strong>variable</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 <li><p><strong>default</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 </ul>
 </dd>

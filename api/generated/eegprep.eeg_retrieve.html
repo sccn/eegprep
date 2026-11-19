@@ -559,7 +559,8 @@
 <span class="sig-name descname"><span class="pre">eeg_retrieve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ALLEEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_retrieve" title="Link to this definition">#</a></dt>
 <dd><p>Return dataset(s) from <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> using EEGLAB-facing 1-based indices.</p>
 <p>Scalar index <code class="docutils literal notranslate"><span class="pre">0</span></code> returns an empty EEG dataset and leaves <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>
-unchanged, matching EEGLAB’s no-current-dataset state.</p>
+unchanged, matching EEGLAB’s no-current-dataset state. <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> may be a
+struct array. A numeric array of indices selects several datasets.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
