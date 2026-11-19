@@ -16,7 +16,7 @@ def nan_mean(data: Any, axis: int | None = None) -> Any:
     if not np.issubdtype(values.dtype, np.number):
         raise TypeError("data must be numeric")
     if values.ndim == 0:
-        return values
+        return values[()]
     selected_axis = _first_nonsingleton_axis(values) if axis is None else integer_scalar(axis, "axis")
     count = np.sum(~np.isnan(values), axis=selected_axis)
     total = np.nansum(values, axis=selected_axis)

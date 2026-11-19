@@ -8,7 +8,6 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.miscfunc.matlab_inputs import is_cell
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
 
@@ -54,27 +53,9 @@ def pop_comments(
     if is_eeg:
         output = copy.deepcopy(EEG)
         output["comments"] = new_text
-    elif is_cell(EEG) or is_cell(newcomments):
-        source = newcomments if newcomments is not None else EEG
-        lines = _cell_lines(EEG) + _cell_lines(source) if concat_enabled else _cell_lines(source)
-        output = _character_matrix(lines)
     else:
         output = new_text
     return (output, command) if return_com else output
-
-
-def _cell_lines(value: Any) -> list[str]:
-    if is_cell(value):
-        return ["" if item is None else str(item) for item in np.asarray(value).reshape(-1)]
-    text = _comments_to_text(value)
-    return text.split("\n") if text else []
-
-
-def _character_matrix(lines: list[str]) -> np.ndarray:
-    if not lines:
-        return np.empty((0, 0), dtype="U1")
-    width = max(len(line) for line in lines)
-    return np.array([line.ljust(width) for line in lines])
 
 
 def pop_comments_dialog_spec(title: str = "", comments: str = "") -> DialogSpec:

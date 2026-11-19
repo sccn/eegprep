@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+
 def kurt(data: Any) -> np.ndarray:
     """Return column-wise excess kurtosis using EEGLAB's legacy formula."""
     values = np.asarray(data, dtype=float)

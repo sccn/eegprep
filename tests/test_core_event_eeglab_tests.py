@@ -883,8 +883,8 @@ def test_eeg_matchchans_keeps_the_source_index_of_every_match():
         {"labels": "c", "X": 0.0, "Y": -1.0, "Z": 0.0, "sph_radius": 1.0},
     ]
     selected, _distances, locations = eeg_matchchans(big, [big[0], big[2]], "noplot")
-    recorded = [float(np.asarray(value).ravel()[0]) for value in locations["bigchan"].flat]
-    np.testing.assert_array_equal(recorded, selected.ravel())
+    recorded = [location["bigchan"] for location in locations]
+    np.testing.assert_array_equal(recorded, selected)
 
 
 def test_getchanlist_returns_one_based_first_and_last_channels():

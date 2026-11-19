@@ -55,8 +55,8 @@ def test_python_regression_nan_mean_uses_first_nonsingleton_axis_and_preserves_a
     values[0, 1] = np.nan
     values[2, 4] = np.nan
     np.testing.assert_allclose(nan_mean(values), [np.nan, 9.5, 2, -2 / 3, 0], equal_nan=True)
-    assert np.asarray(nan_mean(1)).item() == 1
-    assert np.asarray(nan_mean([1, 2, 3, 0, -5])).item() == pytest.approx(0.2)
+    assert nan_mean(1) == 1
+    assert nan_mean([1, 2, 3, 0, -5]) == pytest.approx(0.2)
     np.testing.assert_allclose(nan_mean([1 + 2j, 3 + 4j]), 2 + 3j)
 
 

@@ -10,6 +10,8 @@ from eegprep.functions.miscfunc.kmeans_st import (
     _kmeans_labels,
     _validated_observations,
 )
+
+
 def kmeanscluster(
     data: Any,
     clusters: int = 1,

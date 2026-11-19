@@ -133,7 +133,7 @@ def call_python(name, *args, nargout=1, **kwargs):
     function = getattr(importlib.import_module("eegprep"), name)
     if nargout > 1 and name in _NARGOUT_COMMAND and "return_com" not in kwargs and _accepts_return_com(function):
         kwargs["return_com"] = True
-    result = adapt_matlab_output(name, function(*args, **kwargs))
+    result = adapt_matlab_output(name, function(*args, **kwargs), args, kwargs)
     return _python_outputs(name, result, nargout)
 
 

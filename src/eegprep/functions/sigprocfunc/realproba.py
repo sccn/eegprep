@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+
 def realproba(data: Any, bins: int | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Compute per-sample empirical probabilities and the distribution.
 

@@ -33,11 +33,15 @@ Unreleased
   ``unique_cell_string`` are included. ``pop_select`` channel indices stay
   0-based (#430).
 
-- MATLAB row, column, and 1-by-1 shapes are applied when results leave
-  through the output transport. Python callers still receive 1-D vectors.
-  ``eeg_matchchans`` records the source index on every matched channel.
-  EEGLAB's ``eeg_matchchans.m`` assigns ``bglocs(1).bigchan = []`` inside the
-  matching loop, so a match to the first large channel loses its index (#430).
+- MATLAB row, column, 1-by-1, and character-matrix shapes are applied when
+  results leave through the output transport. Python callers still receive
+  1-D vectors, scalar indices, and comment strings. ``eeg_matchchans`` records
+  the source index on every matched channel. EEGLAB's ``eeg_matchchans.m``
+  assigns ``bglocs(1).bigchan = []`` inside the matching loop, so a match to
+  the first large channel loses its index. ``pcsquash`` returns the
+  eigenvectors of the symmetric decomposition sorted by descending eigenvalue.
+  EEGLAB's ``pcsquash.m`` uses ``eig`` and does not flip signs, so EEGPrep does
+  not force each eigenvector's largest-magnitude entry to be positive (#430).
 
 - ``asr_calibrate`` raises ``ASRCalibrationError`` when an RMS fit width
   rounds to zero, which happens for two or three 0.5 s windows at the default

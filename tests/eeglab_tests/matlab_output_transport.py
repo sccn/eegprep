@@ -12,10 +12,15 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import is_cell
 from eegprep.functions.miscfunc.matlab_outputs import as_column, as_row, empty_matrix
 
 
-def adapt_matlab_output(name: str, result: Any) -> Any:
+def adapt_matlab_output(
+    name: str, result: Any, args: tuple[Any, ...] = (), kwargs: dict[str, Any] | None = None
+) -> Any:
+    if name == "pop_comments":
+        return _adapt_pop_comments(result, args, kwargs or {})
     adapter = _ADAPTERS.get(name)
     if adapter is None:
         return result
@@ -209,7 +214,70 @@ def _adapt_pop_chancenter(result: Any) -> Any:
 
 def _adapt_matchchans(result: Any) -> Any:
     selected, distances, locations = result
-    return as_column(selected), as_column(distances), locations
+    return as_column(selected), as_column(distances), _location_struct(locations)
+
+
+def _location_struct(records: list[dict[str, Any]]) -> np.ndarray:
+    names = list(records[0])
+    row = np.empty((1, len(records)), dtype=[(name, object) for name in names])
+    for column, record in enumerate(records):
+        row[0, column] = tuple(_location_field(record.get(name)) for name in names)
+    return row
+
+
+def _location_field(value: Any) -> Any:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, np.ndarray):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return np.array([[float(value)]])
+    if value is None or value == []:
+        return np.empty((0, 0))
+    return value
+
+
+def _adapt_pop_comments(result: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    paired = isinstance(result, tuple)
+    output = result[0] if paired else result
+    if not isinstance(output, str):
+        return result
+    comments = kwargs.get("EEG", args[0] if args else None)
+    newcomments = kwargs.get("newcomments", args[2] if len(args) > 2 else None)
+    concat = kwargs.get("concat", args[3] if len(args) > 3 else False)
+    if not (is_cell(comments) or is_cell(newcomments)):
+        return result
+    source = newcomments if newcomments is not None else comments
+    lines = _comment_lines(comments) + _comment_lines(source) if _truthy_concat(concat) else _comment_lines(source)
+    matrix = _character_matrix(lines)
+    if paired:
+        return (matrix, *result[1:])
+    return matrix
+
+
+def _truthy_concat(value: Any) -> bool:
+    if isinstance(value, str):
+        return False
+    return bool(value)
+
+
+def _comment_lines(value: Any) -> list[str]:
+    if is_cell(value):
+        return ["" if item is None else str(item) for item in np.asarray(value).reshape(-1)]
+    if isinstance(value, str):
+        text = value.rstrip(" \t")
+    elif value is None:
+        text = ""
+    else:
+        text = str(value).rstrip()
+    return text.split("\n") if text else []
+
+
+def _character_matrix(lines: list[str]) -> np.ndarray:
+    if not lines:
+        return np.empty((0, 0), dtype="U1")
+    width = max(len(line) for line in lines)
+    return np.array([line.ljust(width) for line in lines])
 
 
 def _adapt_eegplot2trial(result: Any) -> Any:

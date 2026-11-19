@@ -14,10 +14,11 @@ def eeg_matchchans(
     big_locations: Any,
     small_locations: Any,
     noplot: str | None = None,
-) -> tuple[list[int], np.ndarray, list[dict[str, Any]]]:
+) -> tuple[np.ndarray, np.ndarray, list[dict[str, Any]]]:
     """Return a unique nearest large-montage channel for each small channel.
 
-    Returned channel indices are 1-based. The legacy plotting switch is
+    Returned channel indices are 1-based scalars. Each matched location is a
+    dictionary with ``bigchan`` and ``bigdist``. The legacy plotting switch is
     accepted but matching itself is noninteractive.
     """
     if noplot is not None and str(noplot).lower() != "noplot":
@@ -43,33 +44,13 @@ def eeg_matchchans(
         used.add(index)
         selected.append(index)
         distances.append(distance)
-        big[index]["bigchan"] = np.array([[float(index + 1)]])
-        big[index]["bigdist"] = np.array([[distance]])
+        big[index]["bigchan"] = index + 1
+        big[index]["bigdist"] = distance
     return (
         np.asarray(selected, dtype=float) + 1,
         np.asarray(distances, dtype=float),
-        _location_struct([big[index] for index in selected]),
+        [big[index] for index in selected],
     )
-
-
-def _location_struct(records: list[dict[str, Any]]) -> np.ndarray:
-    names = list(records[0])
-    row = np.empty((1, len(records)), dtype=[(name, object) for name in names])
-    for column, record in enumerate(records):
-        row[0, column] = tuple(_location_field(record.get(name)) for name in names)
-    return row
-
-
-def _location_field(value: Any) -> Any:
-    if isinstance(value, str):
-        return value
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return np.array([[float(value)]])
-    if isinstance(value, np.ndarray):
-        return value
-    if value is None:
-        return np.empty((0, 0))
-    return value
 
 
 def _unit_xyz(location: dict[str, Any]) -> np.ndarray:
