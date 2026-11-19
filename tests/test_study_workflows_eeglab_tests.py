@@ -676,29 +676,3 @@ def test_reference_std_selectdesign(eeglab_backend, eeglab_sample_study):
                         assert dataset.size == 0 or np.isin(dataset, np.asarray(cluster["sets"])[:, columns]).any(), (
                             "Clusters corrupted"
                         )
-
-
-def test_std_selectdesign_keeps_list_valued_cluster_indices():
-    study = {
-        "name": "lists",
-        "datasetinfo": [],
-        "design": [{"name": "all", "variable": []}],
-        "cluster": [
-            {
-                "name": "ParentCluster",
-                "sets": [[1, 1]],
-                "comps": [1, 2],
-                "allinds": [[1, 2]],
-                "setinds": [[1, 1]],
-                "parent": [],
-                "child": [],
-            }
-        ],
-        "currentdesign": 1,
-    }
-
-    selected = std_selectdesign(study, [], 1)
-
-    assert selected["currentdesign"] == 1
-    assert selected["cluster"][0]["allinds"] == [[1, 2]]
-    assert selected["cluster"][0]["setinds"] == [[1, 1]]

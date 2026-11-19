@@ -247,6 +247,7 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
         for event_index, item in zip(indices, values):
             events[event_index][key_text] = _field_value(key_text, item, srate=srate, timeunit=timeunit)
             _update_matching_urevent(output, events[event_index], key_text)
+        if indices:
             _ensure_description_slot(eventdescription, event_field_names(events, include_urevent=True), key_text)
             description_edited = True
 

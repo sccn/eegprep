@@ -15,8 +15,7 @@ Unreleased
   returns an empty Python string for an unknown name; the MATLAB comparison
   presents that string as ``''``. ``importevent`` and ``pop_importdata`` do
   not resolve a variable name in the caller workspace. ``pop_editeventfield``
-  leaves ``eventdescription`` unchanged when the named field is absent.
-  ``std_selectdesign`` keeps list-valued cluster index fields. (#430)
+  leaves ``eventdescription`` unchanged when the named field is absent. (#430)
 - ``eeg_matchchans`` keeps the matched channel index on every match.
   ``eeg_matchchans.m`` clears that index on each pass, so only the last
   match keeps ``bigchan``. ``hungarian`` returns one minimum-cost assignment;
