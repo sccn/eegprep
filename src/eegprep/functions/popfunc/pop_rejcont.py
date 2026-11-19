@@ -304,8 +304,8 @@ def _selected_regions(
         return np.empty((0, 2), dtype=int)
     selected_rows = [index - 1 for index in elecrange]
     averaged = np.asarray(nan_mean(spectra[selected_rows], axis=0), dtype=float)
-    if averaged.ndim == 2 and averaged.shape[0] == 1:
-        averaged = averaged[0]
+    if averaged.ndim == 1:
+        averaged = averaged[:, np.newaxis]
     rejected = np.array([], dtype=int)
     for low, high, freqlimit in bands:
         rejected = np.union1d(

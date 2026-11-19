@@ -6,15 +6,14 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_column, as_row
 from ._validation import integer_array
 
 
 def perminv(permutation: Any) -> np.ndarray:
     """Return the inverse of a 1-based permutation vector.
 
-    A row stays a row. A column, or a one-dimensional vector, comes back as a
-    column.
+    A one-dimensional vector stays one-dimensional. A row stays a row and a
+    column stays a column.
     """
     values = integer_array(permutation, "permutation")
     if values.ndim > 2 or (values.ndim == 2 and values.shape[0] > 1 and values.shape[1] > 1):
@@ -26,7 +25,11 @@ def perminv(permutation: Any) -> np.ndarray:
         raise ValueError("input must contain each integer from 1 to n exactly once")
     inverse = np.empty(order.size, dtype=int)
     inverse[order - 1] = expected
-    return as_row(inverse) if row else as_column(inverse)
+    if values.ndim == 1:
+        return inverse
+    if row:
+        return inverse.reshape(1, -1)
+    return inverse.reshape(-1, 1)
 
 
 __all__ = ["perminv"]

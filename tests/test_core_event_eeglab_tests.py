@@ -893,11 +893,11 @@ def test_getchanlist_returns_one_based_first_and_last_channels():
         {"labels": "EOG", "type": "EOG"},
         {"labels": "Cz", "type": "eeg"},
     ]
-    np.testing.assert_array_equal(getchanlist(locations), [[1, 2, 3]])
-    np.testing.assert_array_equal(getchanlist(locations, "eog"), [[2]])
-    np.testing.assert_array_equal(getchanlist(locations, ["EEG"]), [[1, 3]])
-    assert getchanlist(locations, "missing").size == 0
-    assert getchanlist([]).size == 0
+    assert getchanlist(locations) == [1, 2, 3]
+    assert getchanlist(locations, "eog") == [2]
+    assert getchanlist(locations, ["EEG"]) == [1, 3]
+    assert getchanlist(locations, "missing") == []
+    assert getchanlist([]) == []
 
 
 @eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_cell")

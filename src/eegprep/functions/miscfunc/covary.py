@@ -6,8 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_row
-
 from ._validation import real_array
 
 
@@ -20,17 +18,17 @@ def covary(data: Any) -> np.ndarray | np.floating[Any]:
     """
     values = real_array(data, "data")
     if values.ndim == 0:
-        return as_row(np.nan)
+        return np.nan
     if values.ndim == 1 or (values.ndim == 2 and values.shape[0] == 1):
         vector = values.reshape(-1)
         if vector.size < 2:
-            return as_row(np.nan)
+            return np.nan
         centered = vector - np.mean(vector)
-        return as_row(np.sum(centered * centered) / (vector.size - 1))
+        return np.sum(centered * centered) / (vector.size - 1)
     if values.ndim != 2 or values.shape[0] < 2:
         raise ValueError("data must be a vector or 2-D matrix with at least two rows")
     centered = values - np.mean(values)
-    return as_row(np.sum(centered * centered, axis=0) / (values.shape[0] - 1))
+    return np.sum(centered * centered, axis=0) / (values.shape[0] - 1)
 
 
 __all__ = ["covary"]

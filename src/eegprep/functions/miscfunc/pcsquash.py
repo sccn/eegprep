@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_row
 from ._validation import integer_scalar
 
 
@@ -32,7 +31,7 @@ def pcsquash(data: Any, components: int | None = None) -> tuple[np.ndarray, np.n
     eigenvalues = eigenvalues[order]
     eigenvectors = eigenvectors[:, order]
     compressed = eigenvectors[:, :count].conj().T @ centered
-    return eigenvectors, as_row(eigenvalues), compressed, as_row(data_mean)
+    return eigenvectors, eigenvalues, compressed, data_mean
 
 
 __all__ = ["pcsquash"]

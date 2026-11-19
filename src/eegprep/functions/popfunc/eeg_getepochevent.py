@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.popfunc._event_utils import events_as_list
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 
@@ -72,7 +71,11 @@ def eeg_getepochevent(
             raise ValueError("trials must be 1-based and within EEG.trials")
         epoch_values = [epoch_values[index] for index in indices]
         all_epoch_values = [all_epoch_values[index] for index in indices]
-    return _epoch_outputs(epoch_values, all_epoch_values)
+    try:
+        output_values: Any = np.asarray(epoch_values, dtype=float)
+    except (TypeError, ValueError):
+        output_values = epoch_values
+    return output_values, all_epoch_values
 
 
 def _multiple_datasets(datasets: list[dict[str, Any]], options: dict[str, Any]) -> tuple[Any, list[list[Any]]]:
@@ -83,20 +86,12 @@ def _multiple_datasets(datasets: list[dict[str, Any]], options: dict[str, Any]) 
         dataset_options = {**options, "trials": trials}
         values, all_values = eeg_getepochevent(dataset, **dataset_options)
         combined_values.extend(np.asarray(values).ravel().tolist())
-        combined_all_values.extend(list(np.asarray(all_values, dtype=object).flat))
-    return _epoch_outputs(combined_values, combined_all_values)
-
-
-def _epoch_outputs(epoch_values: list[Any], all_epoch_values: list[Any]) -> tuple[Any, np.ndarray]:
+        combined_all_values.extend(all_values)
     try:
-        output_values: Any = as_row(np.asarray(epoch_values, dtype=float))
+        output_values: Any = np.asarray(combined_values, dtype=float)
     except (TypeError, ValueError):
-        output_values = epoch_values
-    cells = np.empty((1, len(all_epoch_values)), dtype=object)
-    for index, item in enumerate(all_epoch_values):
-        array = np.asarray(item)
-        cells[0, index] = array.reshape(1, -1) if array.ndim < 2 else array
-    return output_values, cells
+        output_values = combined_values
+    return output_values, combined_all_values
 
 
 def _dataset_trial_groups(trials: Any, dataset_count: int) -> list[Any]:

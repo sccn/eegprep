@@ -7,7 +7,6 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
-from eegprep.functions.miscfunc.matlab_outputs import as_row, empty_matrix
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 
@@ -46,7 +45,7 @@ def _subcommand(command: str, *args: Any) -> tuple[Any, ...]:
         labels1 = _labels(args[0])
         labels2 = _labels(args[1])
         left, right = _list_text(labels1, labels2, [], [])
-        return _cell_row(left), _cell_row(right), empty_matrix(), empty_matrix()
+        return _cell_row(left), _cell_row(right), [], []
     if name == "auto":
         labels1 = _labels(args[0])
         labels2 = _labels(args[1])
@@ -143,14 +142,12 @@ def _indices_option(value: Any) -> list[int]:
     return [int(item) for item in parse_numeric_sequence(value, dtype=int)]
 
 
-def _index_row(indices: list[int]) -> np.ndarray:
-    return as_row(np.asarray(indices, dtype=float)) if indices else empty_matrix()
+def _index_row(indices: list[int]) -> list[int]:
+    return list(indices)
 
 
-def _cell_row(items: list[str]) -> np.ndarray:
-    row = np.empty((1, len(items)), dtype=object)
-    row[0, :] = items
-    return row
+def _cell_row(items: list[str]) -> list[str]:
+    return list(items)
 
 
 def _index_list(value: Any) -> list[int]:

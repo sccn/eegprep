@@ -136,7 +136,7 @@ def test_pop_comments_gui_uses_renderer_text_and_cancel_returns_original():
     assert out["comments"] == "from gui"
     assert com == "EEG = pop_comments(EEG, '', 'from gui');"
 
-    cancelled, _command = pop_comments(eeg, gui=True, renderer=Renderer(None))
+    cancelled = pop_comments(eeg, gui=True, renderer=Renderer(None))
     assert cancelled is not eeg
     npt.assert_array_equal(cancelled["data"], eeg["data"])
     assert cancelled["comments"] == eeg["comments"]
@@ -146,7 +146,7 @@ def test_pop_comments_gui_uses_renderer_text_and_cancel_returns_original():
 def test_pop_comments_current_suite_replaces_cell_comments():
     old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
 
-    result, _command = pop_comments(old_comments, "", ["New line 1", "And this one is also new"])
+    result = pop_comments(old_comments, "", ["New line 1", "And this one is also new"])
 
     assert result == "New line 1\nAnd this one is also new"
 
@@ -154,7 +154,7 @@ def test_pop_comments_current_suite_replaces_cell_comments():
 def test_pop_comments_current_suite_concatenates_cell_comments():
     old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
 
-    result, _command = pop_comments(old_comments, "", ["New line 1", "And this one is also new"], 1)
+    result = pop_comments(old_comments, "", ["New line 1", "And this one is also new"], 1)
 
     assert result == (
         "Line nr. 1\nThis is line nr.2\n\nAnd this is the final line\nNew line 1\nAnd this one is also new"
@@ -162,17 +162,17 @@ def test_pop_comments_current_suite_concatenates_cell_comments():
 
 
 def test_pop_comments_current_suite_string_cell_and_dataset_workflow():
-    assert pop_comments("", "Testing!", "test pass!", 0)[0] == "test pass!"
-    assert pop_comments("", "Testing!", "test pass!", 1)[0] == "test pass!"
-    assert pop_comments("another ", "Testing!", "test pass!", 0)[0] == "test pass!"
-    assert pop_comments("another ", "Testing!", "test pass!", 1)[0] == "another\ntest pass!"
-    assert pop_comments("another ", "Testing!", ["test pass!", "pass again!"], 0)[0] == "test pass!\npass again!"
-    assert pop_comments("another ", "Testing!", ["test pass!", "pass again!"], 1)[0] == (
+    assert pop_comments("", "Testing!", "test pass!", 0) == "test pass!"
+    assert pop_comments("", "Testing!", "test pass!", 1) == "test pass!"
+    assert pop_comments("another ", "Testing!", "test pass!", 0) == "test pass!"
+    assert pop_comments("another ", "Testing!", "test pass!", 1) == "another\ntest pass!"
+    assert pop_comments("another ", "Testing!", ["test pass!", "pass again!"], 0) == "test pass!\npass again!"
+    assert pop_comments("another ", "Testing!", ["test pass!", "pass again!"], 1) == (
         "another\ntest pass!\npass again!"
     )
 
     eeg = _eeg()
-    eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 1)[0]
+    eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 1)
     assert eeg["comments"].endswith("un exemple\n\nde nouveau dataset")
-    eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 0)[0]
+    eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 0)
     assert eeg["comments"] == "un exemple\n\nde nouveau dataset"

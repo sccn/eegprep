@@ -21,13 +21,11 @@ Unreleased
   ``unique_cell_string`` are included. ``pop_select`` channel indices stay
   0-based (#430).
 
-- Numeric results that MATLAB returns as a row, a column, or a 1-by-1 array
-  now use those shapes, including ``finputcheck`` numeric fields. Cell and
-  character results such as ``parsetxt``, ``mattocell``, and cell
-  ``pop_comments`` use the same containers. ``eeg_matchchans`` records the
-  source index on every matched channel. EEGLAB's ``eeg_matchchans.m`` assigns
-  ``bglocs(1).bigchan = []`` inside the matching loop, so a match to the first
-  large channel loses its index (#430).
+- MATLAB row, column, and 1-by-1 shapes are applied when results leave
+  through the output transport. Python callers still receive 1-D vectors.
+  ``eeg_matchchans`` records the source index on every matched channel.
+  EEGLAB's ``eeg_matchchans.m`` assigns ``bglocs(1).bigchan = []`` inside the
+  matching loop, so a match to the first large channel loses its index (#430).
 
 - ``asr_calibrate`` raises ``ASRCalibrationError`` when an RMS fit width
   rounds to zero, which happens for two or three 0.5 s windows at the default

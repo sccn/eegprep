@@ -22,7 +22,7 @@ def _eeg(xmin, xmax, pnts):
 
 def test_epoch_center_negative_xmin():
     # Epoched data xmin<0: ms=0 -> centre frame.
-    assert eeg_ms2f(_eeg(-1, 1, 2001), 0).item() == 1001
+    assert eeg_ms2f(_eeg(-1, 1, 2001), 0) == 1001
 
 
 def test_above_range_raises():

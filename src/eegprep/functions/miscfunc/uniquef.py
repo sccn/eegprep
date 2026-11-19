@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_column
 from ._validation import real_array
 
 
@@ -33,7 +32,7 @@ def uniquef(groups: Any, sort: bool = False) -> tuple[np.ndarray, np.ndarray, np
     if sort:
         order = np.argsort(result_values, kind="stable")
         result_values, result_counts, result_indices = result_values[order], result_counts[order], result_indices[order]
-    return as_column(result_values), as_column(result_counts), as_column(result_indices)
+    return result_values, result_counts, result_indices
 
 
 __all__ = ["uniquef"]

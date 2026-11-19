@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_row
 from eegprep.functions.popfunc._rejection import eegthresh_marks, expand_values, parse_numeric_sequence
 
 
@@ -40,8 +39,8 @@ def eegthresh(
     marks, row_marks = eegthresh_marks(data, elecs, negthresh, posthresh, tuple(time_values), starts, ends)
     rejected_index = np.flatnonzero(marks)
     accepted_index = np.flatnonzero(~marks)
-    rejected = as_row(rejected_index + 1)
-    accepted = as_row(accepted_index + 1)
+    rejected = rejected_index + 1
+    accepted = accepted_index + 1
     selected_rows = np.asarray([index - 1 for index in elecs], dtype=int)
     if accepted_index.size == 0:
         newsignal = np.empty((0, 0))

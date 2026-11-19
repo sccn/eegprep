@@ -683,8 +683,8 @@ def test_export_marks_copies_rejglobal_onto_the_manual_field():
     MenuActionDispatcher(session).dispatch("eeg_rejsuperpose:data_to_ica")
 
     reject = session.EEG["reject"]
-    assert np.ravel(reject["icarejmanual"]).tolist() == [True, False, True]
-    assert np.ravel(reject["rejglobal"]).tolist() == [True, False, True]
+    assert reject["icarejmanual"].tolist() == [True, False, True]
+    assert reject["rejglobal"].tolist() == [True, False, True]
     assert session.ALLCOM[-1] == "EEG.reject.icarejmanual = EEG.reject.rejglobal;"
     assert "eeg_rejsuperpose(EEG, 1, 1, 1, 1, 1, 1, 1, 1)" in session.ALLCOM[-2]
 
@@ -830,7 +830,7 @@ def test_eeg_rejsuperpose_public_typerej_still_means_data():
     out, command = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 0, 0, return_com=True)
 
     assert command.startswith("EEG = eeg_rejsuperpose(EEG, 1,")
-    assert np.ravel(out["reject"]["rejglobal"]).tolist() == [True, False]
+    assert out["reject"]["rejglobal"].tolist() == [True, False]
 
 
 @eeglab_test("functions/popfunc/pop_rejcont.m", "test_reference_pop_rejcont_sample_regions")

@@ -503,12 +503,12 @@ def test_kurt_uses_eeglab_sample_standard_deviation_formula():
     centered = values - values.mean(axis=0, keepdims=True)
     expected = np.sum(centered**4, axis=0) / np.std(values, axis=0, ddof=1) ** 4 / values.shape[0] - 3.0
 
-    np.testing.assert_allclose(np.ravel(kurt(values)), expected)
+    np.testing.assert_allclose(kurt(values), expected)
     np.testing.assert_allclose(expected, [-7 / 3, -7 / 3])
 
 
 def test_python_regression_realproba_equal_values_have_well_defined_probabilities():
     probabilities, distribution = realproba(np.ones(3), 3)
 
-    np.testing.assert_allclose(np.ravel(probabilities), np.ones(3))
-    np.testing.assert_allclose(np.ravel(distribution), np.full(3, 1 / 3))
+    np.testing.assert_allclose(probabilities, np.ones(3))
+    np.testing.assert_allclose(distribution, np.full(3, 1 / 3))

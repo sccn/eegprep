@@ -6,8 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_row
-
 from eegprep.functions.timefreqfunc.timewarp import _frame_vector, _mapped_positions
 
 
@@ -49,7 +47,7 @@ def angtimewarp(ev_latency: Any, new_latency: Any, angdata: Any) -> np.ndarray:
         warped[new_position - 1] = angles[old_index - 1] * (
             1.0 - (new_position - shifted_positions[old_index - 1]) / distance
         ) + angles[old_index] * (1.0 - (shifted_positions[old_index] - new_position) / distance)
-    return as_row(_wrap_to_pi(warped))
+    return _wrap_to_pi(warped)
 
 
 def _wrap_to_pi(angles: np.ndarray) -> np.ndarray:

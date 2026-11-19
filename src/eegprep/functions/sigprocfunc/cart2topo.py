@@ -6,8 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_row
-
 
 def cart2topo(x: Any, *args: Any):
     """Convert XYZ Cartesian coordinates to polar ``topoplot`` coordinates.
@@ -33,7 +31,7 @@ def cart2topo(x: Any, *args: Any):
     theta = -sph_theta
     radius = 0.5 - sph_phi / 180.0
     theta = _wrap_degrees(theta)
-    return as_row(theta), as_row(radius), as_row(x_arr), as_row(y_arr), as_row(z_arr)
+    return theta, radius, x_arr, y_arr, z_arr
 
 
 def _split_xyz(x: Any, args: tuple[Any, ...]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

@@ -6,9 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_row
-
-
 def kurt(data: Any) -> np.ndarray:
     """Return column-wise excess kurtosis using EEGLAB's legacy formula."""
     values = np.asarray(data, dtype=float)
@@ -21,7 +18,7 @@ def kurt(data: Any) -> np.ndarray:
     centered = values - np.mean(values, axis=0, keepdims=True)
     sample_std = np.std(values, axis=0, ddof=1)
     sample_std[sample_std == 0] = np.inf
-    return as_row(np.sum(centered**4, axis=0) / sample_std**4 / values.shape[0] - 3.0)
+    return np.sum(centered**4, axis=0) / sample_std**4 / values.shape[0] - 3.0
 
 
 __all__ = ["kurt"]

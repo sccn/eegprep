@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_outputs import as_column
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 
 
@@ -47,8 +46,8 @@ def eeg_matchchans(
         big[index]["bigchan"] = np.array([[float(index + 1)]])
         big[index]["bigdist"] = np.array([[distance]])
     return (
-        as_column(np.asarray(selected, dtype=float) + 1),
-        as_column(np.asarray(distances, dtype=float)),
+        np.asarray(selected, dtype=float) + 1,
+        np.asarray(distances, dtype=float),
         _location_struct([big[index] for index in selected]),
     )
 

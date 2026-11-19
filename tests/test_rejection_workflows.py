@@ -678,7 +678,7 @@ def test_eeg_rejsuperpose_and_pop_rejepoch_remove_marked_epochs():
 
     marked, com = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 0, 0, return_com=True)
 
-    assert np.ravel(marked["reject"]["rejglobal"]).tolist() == [False, True, False, False, True]
+    assert marked["reject"]["rejglobal"].tolist() == [False, True, False, False, True]
     assert marked["reject"]["rejglobalE"].shape == (4, 5)
     removed, reject_com = pop_rejepoch(copy.deepcopy(marked), marked["reject"]["rejglobal"], 0, return_com=True)
     assert removed["trials"] == 3
@@ -699,7 +699,7 @@ def test_eeg_rejsuperpose_only_crosses_trial_marks_between_data_and_ica_families
 
     marked = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 0, 1)
 
-    assert np.ravel(marked["reject"]["rejglobal"]).tolist() == [False, True, True, False, False]
+    assert marked["reject"]["rejglobal"].tolist() == [False, True, True, False, False]
     assert marked["reject"]["rejglobalE"].shape == (4, 5)
     assert not marked["reject"]["rejglobalE"].any()
 
@@ -711,7 +711,7 @@ def test_pop_rejmenu_can_combine_marks_without_browser():
 
     out, com = pop_rejmenu(eeg, 1, gui=False, return_com=True)
 
-    assert np.ravel(out["reject"]["rejglobal"]).tolist() == [False, True, False, False, False]
+    assert out["reject"]["rejglobal"].tolist() == [False, True, False, False, False]
     assert _console_python_command(com) == "EEG = eeg_rejsuperpose(EEG, 1, 1, 1, 1, 1, 1, 1, 1)"
 
 

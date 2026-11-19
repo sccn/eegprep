@@ -607,12 +607,12 @@ def test_pop_chancoresp_autoselects_all_channels_and_fiducials() -> None:
     fid_left, fid_right = pop_chancoresp(left, right, "autoselect", "fiducials")
     template_left, template_right = pop_chancoresp(left, template, "autoselect", "fiducials")
 
-    np.testing.assert_array_equal(all_left, [[2, 3, 4]])
-    np.testing.assert_array_equal(all_right, [[1, 3, 2]])
-    np.testing.assert_array_equal(fid_left, [[1, 3, 4]])
-    np.testing.assert_array_equal(fid_right, [[4, 3, 2]])
-    np.testing.assert_array_equal(template_left, [[1, 3, 4]])
-    np.testing.assert_array_equal(template_right, [[3, 1, 2]])
+    assert all_left == [2, 3, 4]
+    assert all_right == [1, 3, 2]
+    assert fid_left == [1, 3, 4]
+    assert fid_right == [4, 3, 2]
+    assert template_left == [1, 3, 4]
+    assert template_right == [3, 1, 2]
     _assert_parseable(command)
 
 

@@ -25,8 +25,8 @@ def pop_comments(
 ) -> Any:
     """Edit or assign dataset comments.
 
-    Returns the edited EEG dictionary or comment text, and the history command.
-    The command is empty unless ``return_com`` is true.
+    Returns the edited EEG dictionary or comment text. With ``return_com``,
+    also returns the history command.
     """
     is_eeg = isinstance(EEG, dict)
     original = copy.copy(EEG) if is_eeg else EEG
@@ -37,7 +37,7 @@ def pop_comments(
     if gui:
         result = inputgui(pop_comments_dialog_spec(plottitle, old_text), renderer=renderer)
         if result is None:
-            return original, ""
+            return (original, "") if return_com else original
         new_text = _comments_to_text(result.get("comments", ""))
     else:
         if newcomments is None:
@@ -60,7 +60,7 @@ def pop_comments(
         output = _character_matrix(lines)
     else:
         output = new_text
-    return output, command
+    return (output, command) if return_com else output
 
 
 def _cell_lines(value: Any) -> list[str]:

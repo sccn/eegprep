@@ -50,11 +50,11 @@ def test_python_regression_matsel_selects_one_based_frames_from_each_flattened_e
 
 def test_python_regression_nan_mean_uses_first_nonsingleton_axis_and_preserves_all_nan_columns():
     values = np.asarray([[1, 2, 3, 0, -5], [1, 7, 3, 4, 5], [-2, 12, 0, -6, 3]], dtype=float)
-    np.testing.assert_allclose(np.ravel(nan_mean(values)), [0, 7, 2, -2 / 3, 1])
+    np.testing.assert_allclose(nan_mean(values), [0, 7, 2, -2 / 3, 1])
     values[[0, 1, 2], 0] = np.nan
     values[0, 1] = np.nan
     values[2, 4] = np.nan
-    np.testing.assert_allclose(np.ravel(nan_mean(values)), [np.nan, 9.5, 2, -2 / 3, 0], equal_nan=True)
+    np.testing.assert_allclose(nan_mean(values), [np.nan, 9.5, 2, -2 / 3, 0], equal_nan=True)
     assert np.asarray(nan_mean(1)).item() == 1
     assert np.asarray(nan_mean([1, 2, 3, 0, -5])).item() == pytest.approx(0.2)
     np.testing.assert_allclose(nan_mean([1 + 2j, 3 + 4j]), 2 + 3j)

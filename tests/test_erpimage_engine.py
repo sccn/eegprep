@@ -1095,9 +1095,7 @@ def test_private_helpers_match_the_package_versions() -> None:
     values = rng.normal(size=(30, 7))
     values[rng.random(values.shape) < 0.2] = np.nan
     for axis in (0, 1):
-        np.testing.assert_allclose(
-            engine._nan_mean(values, axis), np.squeeze(nan_mean(values, axis)), rtol=1e-13, equal_nan=True
-        )
+        np.testing.assert_allclose(engine._nan_mean(values, axis), nan_mean(values, axis), rtol=1e-13, equal_nan=True)
     for length, sds in ((7, 2.0), (40, 2.0), (64, 1.5)):
         np.testing.assert_allclose(engine._gauss(length, sds), gauss(length, sds), rtol=1e-13)
     data, times = _noise()

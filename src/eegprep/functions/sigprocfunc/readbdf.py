@@ -9,7 +9,6 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.miscfunc._validation import integer_array, integer_scalar
-from eegprep.functions.miscfunc.matlab_outputs import as_row
 
 
 _BDF_BYTES_PER_SAMPLE = 3
@@ -91,7 +90,7 @@ def readbdf(
     result = deepcopy(dataset)
     result["Record"] = output.T
     result["Valid"] = valid[None, :]
-    result["Idx"] = as_row(indices)
+    result["Idx"] = indices.copy()
     result["Head"].setdefault("ERROR", {})["DigMinMax_Warning"] = warnings
     return result, last_raw
 

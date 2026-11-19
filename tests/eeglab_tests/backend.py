@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 from pathlib import Path
 import tempfile
 import warnings
@@ -12,6 +13,8 @@ from numpy.exceptions import ComplexWarning
 import pytest
 from scipy.io import loadmat, savemat
 from scipy.sparse import issparse
+
+from tests.eeglab_tests.matlab_output_transport import adapt_matlab_output
 
 _MAT_INLINE_LIMIT = 2**30
 _MAT_PART_LIMIT = 2**28
@@ -119,10 +122,26 @@ def _python_outputs(name, result, nargout):
     return result
 
 
+# These functions return the history command only when asked. MATLAB nargout
+# greater than one is that request.
+_NARGOUT_COMMAND = frozenset({"pop_comments"})
+
+
 def call_python(name, *args, nargout=1, **kwargs):
     """Resolve lazily, treating tuples and declared result objects as multiple outputs."""
     function = getattr(importlib.import_module("eegprep"), name)
-    return _python_outputs(name, function(*args, **kwargs), nargout)
+    if nargout > 1 and name in _NARGOUT_COMMAND and "return_com" not in kwargs and _accepts_return_com(function):
+        kwargs["return_com"] = True
+    result = adapt_matlab_output(name, function(*args, **kwargs))
+    return _python_outputs(name, result, nargout)
+
+
+def _accepts_return_com(function) -> bool:
+    try:
+        parameters = inspect.signature(function).parameters
+    except (TypeError, ValueError):
+        return False
+    return "return_com" in parameters
 
 
 def _decode(value, typed, directory=None):
