@@ -5,9 +5,11 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
+
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
-from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, scalar_index
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, restore_dataset_container, scalar_index
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 
@@ -58,8 +60,15 @@ def pop_copyset(
     while len(output) < set_out:
         output.append({})
     output[set_out - 1] = copied
+    stored = restore_dataset_container(ALLEEG, output)
+    if isinstance(stored, np.ndarray) and stored.dtype.names:
+        position = np.unravel_index(set_out - 1, stored.shape, order="F")
+        eeg_out = {field: deepcopy(stored[field][position]) for field in stored.dtype.names}
+    else:
+        eeg_out = deepcopy(copied)
+    current = np.float64(set_out) if isinstance(stored, np.ndarray) else set_out
     command = f"[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, {source_index}, {set_out});"
-    return (output, deepcopy(copied), set_out, command) if return_com else (output, deepcopy(copied), set_out)
+    return (stored, eeg_out, current, command) if return_com else (stored, eeg_out, current)
 
 
 def pop_copyset_dialog_spec(set_in: int) -> DialogSpec:

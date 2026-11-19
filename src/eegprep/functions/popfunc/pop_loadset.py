@@ -35,7 +35,9 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     Parameters
     ----------
     file_path : str
-        Path to the EEGLAB .set file.
+        Path to the EEGLAB .set file. ``pop_loadset(filename, filepath)`` is
+        the older two-argument form; ``filepath`` is ignored when ``filename``
+        is already absolute.
     loadmode : {"all", "info"} or int or sequence of int, optional
         Load all data, metadata without sample data, or selected channels.
         Channel numbers are 1-based, as in EEGLAB.
@@ -134,8 +136,14 @@ def _load_options(file_path, args, kwargs, loadmode, memmap):
         options = parse_key_value_args((file_path, *args), kwargs, lowercase_keys=True, lowercase_kwargs=True)
         filename = options.pop("filename", None)
     else:
-        options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+        # pop_loadset.m old calling format: pop_loadset(filename, filepath).
+        # An even tail is name/value pairs after the filename.
         filename = file_path
+        positional = list(args)
+        legacy_filepath = positional.pop(0) if len(positional) % 2 == 1 else None
+        options = parse_key_value_args(tuple(positional), kwargs, lowercase_keys=True, lowercase_kwargs=True)
+        if legacy_filepath is not None:
+            options.setdefault("filepath", legacy_filepath)
     filepath = options.pop("filepath", None)
     loadmode = options.pop("loadmode", loadmode)
     if loadmode is None or (isinstance(loadmode, str) and loadmode == ""):

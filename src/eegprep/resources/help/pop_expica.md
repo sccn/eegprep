@@ -5,8 +5,8 @@
 Usage:
 
 ```python
-com = pop_expica(EEG, "ica_weights.txt", "weights")
-com = pop_expica(EEG, "ica_inverse.txt", "inv")
+com = pop_expica(EEG, "weights", "ica_weights.txt")
+com = pop_expica(EEG, "inv", "ica_inverse.txt")
 ```
 
 The file is ASCII text. Each number is written with the `save -ascii` width,

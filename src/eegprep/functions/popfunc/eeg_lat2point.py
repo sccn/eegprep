@@ -51,7 +51,7 @@ def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs
             else:
                 raise ValueError("eeg_lat2point: latency and epochs must have the same length")
 
-    timewin = np.atleast_1d(np.array(timewin, dtype=float))
+    timewin = np.asarray(timewin, dtype=float).reshape(-1)
     if timewin.size != 2:
         raise ValueError("eeg_lat2point: timelimits must have length 2")
 

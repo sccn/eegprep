@@ -735,11 +735,32 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
 
     assert len(alleeg) == 3
     assert current_set == 3
+    assert alleeg[current_set - 1]["setname"] == "first"
     assert eeg["setname"] == "first"
     assert alleeg[0]["setname"] == "first"
     assert alleeg[2]["setname"] == "first"
     assert command == "[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, 1, 3);"
     _assert_python_echo_is_parseable(command)
+
+
+def test_pop_copyset_keeps_a_struct_array_and_copies_the_selected_dataset():
+    first, second = _eeg("first"), _eeg("second")
+    first["etc"] = second["etc"] = {}
+    first["roi"] = second["roi"] = {}
+    fields = tuple(first)
+    alleeg = np.array(
+        [[tuple(first[field] for field in fields), tuple(second[field] for field in fields)]],
+        dtype=[(field, object) for field in fields],
+    )
+
+    stored, copied, current, _command = pop_copyset(alleeg, 2.0, 1.0, return_com=True)
+
+    assert stored.shape == (1, 2)
+    assert current.item() == 1
+    assert stored["setname"][0, 0] == stored["setname"][0, 1] == "second"
+    np.testing.assert_array_equal(stored["data"][0, 0], second["data"])
+    assert copied["setname"] == "second"
+    assert stored["etc"][0, 0] == stored["roi"][0, 0] == {}
 
 
 def test_pop_mergeset_continuous_offsets_events_and_inserts_boundary():

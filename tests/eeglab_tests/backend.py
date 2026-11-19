@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 from pathlib import Path
 import tempfile
 import warnings
@@ -119,10 +120,26 @@ def _python_outputs(name, result, nargout):
     return result
 
 
+# These functions return the history command only when asked. MATLAB nargout
+# greater than one is that request. Other pop_* functions are left alone: their
+# extra outputs are data, not the command string.
+_NARGOUT_COMMAND = frozenset({"pop_copyset", "pop_editeventfield"})
+
+
 def call_python(name, *args, nargout=1, **kwargs):
     """Resolve lazily, treating tuples and declared result objects as multiple outputs."""
     function = getattr(importlib.import_module("eegprep"), name)
+    if nargout > 1 and name in _NARGOUT_COMMAND and "return_com" not in kwargs and _accepts_return_com(function):
+        kwargs["return_com"] = True
     return _python_outputs(name, function(*args, **kwargs), nargout)
+
+
+def _accepts_return_com(function) -> bool:
+    try:
+        parameters = inspect.signature(function).parameters
+    except (TypeError, ValueError):
+        return False
+    return "return_com" in parameters
 
 
 def _decode(value, typed, directory=None):

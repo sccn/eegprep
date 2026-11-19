@@ -488,12 +488,12 @@ def test_python_regression_eucl_supports_within_between_and_reference_distances(
 
 
 def test_python_regression_gauss_is_symmetric_positive_and_unit_peaked():
-    window = gauss(5, 1)
+    window = gauss(5, 1).reshape(-1)
     np.testing.assert_allclose(window, window[::-1])
     assert window[2] == pytest.approx(1)
     assert np.all((window > 0) & (window <= 1))
-    np.testing.assert_allclose(gauss(1, 2), [np.exp(-4.0)])
-    np.testing.assert_allclose(gauss(1, 3), [np.exp(-9.0)])
+    np.testing.assert_allclose(gauss(1, 2), [[np.exp(-4.0)]])
+    np.testing.assert_allclose(gauss(1, 3), [[np.exp(-9.0)]])
     with pytest.raises(ValueError, match="integer"):
         gauss(5.5, 1)
 

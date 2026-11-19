@@ -166,6 +166,34 @@ def as_dataset_list(value: Any) -> list[Any]:
     return list(value)
 
 
+def restore_dataset_container(original: Any, datasets: list[Any]) -> Any:
+    """Return ``datasets`` in the container ``original`` used.
+
+    A list stays a list. A structure array keeps its field names and, when the
+    dataset count is unchanged, its shape. Added datasets extend a row.
+    """
+    if not isinstance(original, np.ndarray) or not original.dtype.names:
+        return datasets
+    fields = original.dtype.names
+    records = [_dataset_record(dataset, fields) for dataset in datasets]
+    if len(records) == original.size:
+        shape = original.shape
+    elif original.ndim == 2 and original.shape[0] == 1:
+        shape = (1, len(records))
+    else:
+        shape = (len(records),)
+    result = np.empty(shape, dtype=original.dtype)
+    for index, record in enumerate(records):
+        result[np.unravel_index(index, shape, order="F")] = record
+    return result
+
+
+def _dataset_record(dataset: Any, fields: tuple[str, ...]) -> tuple[Any, ...]:
+    if isinstance(dataset, dict) and dataset:
+        return tuple(dataset.get(field, np.array([])) for field in fields)
+    return tuple(np.array([]) for _field in fields)
+
+
 def _unwrap_cell_item(item: Any) -> Any:
     if isinstance(item, np.ndarray) and item.dtype == object and item.size == 1:
         return _unwrap_cell_item(item.reshape(-1)[0])

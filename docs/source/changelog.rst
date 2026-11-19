@@ -10,6 +10,18 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``epoch`` now extracts epochs from a data matrix, as ``epoch.m`` does.
+  Use ``pop_epoch`` to epoch a dataset. It accepts positional name/value
+  pairs and returns 1-based column indices, a ``newtime`` row, and event
+  cells. ``gauss`` returns a row.
+  ``eeg_lat2point`` reads a ``timewin`` row with linear indexing.
+  ``pop_loadset(filename, filepath)`` is the older two-argument form.
+  ``pop_expica(EEG, whichica, filename)`` follows that argument order.
+  ``pop_copyset`` and ``pop_delset`` keep a structure-array dataset list and
+  accept whole-number indices. ``pop_editeventfield`` indices past the
+  current event count append events. ``near.m`` still reports two empty
+  structs as different, so the original ``pop_copyset`` comparison stays
+  expected-fail while ``EEG.etc`` and ``EEG.roi`` are empty dicts (#430).
 - Functions that receive EEGLAB recordings accept MATLAB struct arrays, cell
   arrays, empty arrays used where MATLAB tests ``isempty``, and whole-number
   doubles used as counts or 1-based indices. ``getkeyval``, ``blockave``,
