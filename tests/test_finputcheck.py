@@ -6,6 +6,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.finputcheck import finputcheck
 from tests.eeglab_tests import MATLAB_TEST_EPSILON, eeglab_test, load_matlab_test_fixture
+from tests.eeglab_tests.backend import _python_outputs
 
 
 RULES = (
@@ -41,6 +42,15 @@ def test_finputcheck_uses_defaults_for_an_empty_argument_list():
             "forth": ["test", 4],
         },
     )
+
+
+def test_finputcheck_keeps_dict_values_and_the_second_matlab_output():
+    result = finputcheck(["key1", 3], RULES)
+
+    assert list(result.values())
+    checked, unrecognized = _python_outputs("finputcheck", result, 2)
+    assert checked is result
+    assert unrecognized.shape == (1, 0)
 
 
 def test_finputcheck_validates_all_supported_rule_values():

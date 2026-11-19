@@ -83,11 +83,11 @@ def finputcheck(
 class _CheckedArguments(dict):
     """Validated arguments that also expose MATLAB's unrecognized-argument output."""
 
-    matlab_outputs = ("values", "unrecognized")
+    matlab_outputs = ("g", "unrecognized")
 
     def __init__(self, values: dict[str, Any], unrecognized: list[Any]):
         super().__init__(values)
-        self.values = self
+        self.g = self
         row = np.empty((1, len(unrecognized)), dtype=object)
         row[0, :] = unrecognized
         self.unrecognized = row
