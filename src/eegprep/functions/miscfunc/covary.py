@@ -18,11 +18,11 @@ def covary(data: Any) -> np.ndarray | np.floating[Any]:
     """
     values = real_array(data, "data")
     if values.ndim == 0:
-        return np.float64(np.nan)
+        return np.nan
     if values.ndim == 1 or (values.ndim == 2 and values.shape[0] == 1):
         vector = values.reshape(-1)
         if vector.size < 2:
-            return np.float64(np.nan)
+            return np.nan
         centered = vector - np.mean(vector)
         return np.sum(centered * centered) / (vector.size - 1)
     if values.ndim != 2 or values.shape[0] < 2:

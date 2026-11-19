@@ -17,7 +17,7 @@ def nan_std(data: Any, axis: int | None = None) -> np.ndarray | np.floating[Any]
     """
     values = real_array(data, "data")
     if values.ndim == 0:
-        return np.float64(np.nan)
+        return np.nan
     selected_axis = _first_nonsingleton_axis(values) if axis is None else integer_scalar(axis, "axis")
     count = np.sum(~np.isnan(values), axis=selected_axis)
     with np.errstate(divide="ignore", invalid="ignore"):

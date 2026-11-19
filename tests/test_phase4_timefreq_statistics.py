@@ -1035,6 +1035,28 @@ def test_pop_signalstat_sample_and_component_paths(sample_eeg, ica_epoch):
     plt.close(component_result.figure)
 
 
+def test_pop_eventstat_counts_every_matching_continuous_event():
+    eeg = {
+        "data": np.zeros((1, 1000)),
+        "nbchan": 1,
+        "pnts": 1000,
+        "trials": 1,
+        "srate": 100.0,
+        "xmin": 0.0,
+        "xmax": 9.99,
+        "event": [
+            {"type": "target", "latency": 100.0},
+            {"type": "other", "latency": 200.0},
+            {"type": "target", "latency": 300.0},
+            {"type": "target", "latency": 400.0},
+        ],
+    }
+
+    values = event_values(eeg, "latency", type=["target"])
+
+    assert values.size == 3
+
+
 def test_pop_eventstat_extracts_sample_event_latencies(sample_eeg):
     values = event_values(sample_eeg, "latency", type=["square"])
     result, command = pop_eventstat(sample_eeg, "latency", ["square"], [], 5, return_com=True)

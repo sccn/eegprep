@@ -685,11 +685,11 @@ def test_python_regression_pcsquash_orders_components_and_roundtrips_through_pce
         pcsquash([[1, 2, 3], [3, 2, 1]], 1.9)
 
 
-def test_python_regression_perminv_returns_zero_based_inverse_permutation():
-    permutation = np.asarray([1, 3, 0, 4, 2])
+def test_python_regression_perminv_returns_one_based_inverse_permutation():
+    permutation = np.asarray([2, 4, 1, 5, 3])
     inverse = perminv(permutation)
-    np.testing.assert_array_equal(inverse, [2, 0, 4, 1, 3])
-    np.testing.assert_array_equal(permutation[inverse], np.arange(permutation.size))
+    np.testing.assert_array_equal(inverse, [3, 1, 5, 2, 4])
+    np.testing.assert_array_equal(permutation[inverse - 1], np.arange(1, permutation.size + 1))
     with pytest.raises(ValueError, match="integers"):
         perminv([0.9, 1.1])
 
@@ -714,16 +714,16 @@ def test_python_regression_scanfold_respects_ignored_directories_and_depth(tmp_p
         scanfold(tmp_path, max_depth=1.5)
 
 
-def test_python_regression_uniquef_returns_stable_counts_and_zero_based_first_indices():
+def test_python_regression_uniquef_returns_stable_counts_and_one_based_first_indices():
     groups = [3, 2, 1, 2, 1, 2, 2, 2, 1, np.nan, np.inf]
     values, counts, indices = uniquef(groups)
     np.testing.assert_array_equal(values, [3, 2, 1])
     np.testing.assert_array_equal(counts, [1, 5, 3])
-    np.testing.assert_array_equal(indices, [0, 1, 2])
+    np.testing.assert_array_equal(indices, [1, 2, 3])
     values, counts, indices = uniquef(groups, sort=True)
     np.testing.assert_array_equal(values, [1, 2, 3])
     np.testing.assert_array_equal(counts, [3, 5, 1])
-    np.testing.assert_array_equal(indices, [2, 1, 0])
+    np.testing.assert_array_equal(indices, [3, 2, 1])
 
 
 @eeglab_test(_source("vectdata"), "test_test_vectdata")

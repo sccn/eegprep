@@ -19,6 +19,7 @@ from eegprep import (
     eeg_eventtypes,
     eeg_getepochevent,
     eeg_insertbound,
+    eeg_matchchans,
     eeg_mergechan,
     eeg_mergelocs,
     eeg_timeinterp,
@@ -873,6 +874,17 @@ def test_reference_urlatency_missing_duration(eeglab_backend):
         [[("boundary", 1.5), ("boundary", 5.5), ("boundary", 9.5)]], dtype=[("type", object), ("latency", object)]
     )
     assert_matlab_near(eeglab_backend("eeg_urlatency", events, 9.0), [[np.nan]])
+
+
+def test_eeg_matchchans_keeps_the_source_index_of_every_match():
+    big = [
+        {"labels": "a", "X": 1.0, "Y": 0.0, "Z": 0.0, "sph_radius": 1.0},
+        {"labels": "b", "X": 0.0, "Y": 1.0, "Z": 0.0, "sph_radius": 1.0},
+        {"labels": "c", "X": 0.0, "Y": -1.0, "Z": 0.0, "sph_radius": 1.0},
+    ]
+    selected, _distances, locations = eeg_matchchans(big, [big[0], big[2]], "noplot")
+    recorded = [location["bigchan"] for location in locations]
+    np.testing.assert_array_equal(recorded, selected)
 
 
 def test_getchanlist_returns_one_based_first_and_last_channels():

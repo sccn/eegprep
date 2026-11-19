@@ -46,7 +46,7 @@ def eegrej(
         if events_out and all("latency" in ev for ev in events_out):
             events_out.sort(key=lambda ev: ev.get("latency", float("inf")))
         boundevents = np.array([], dtype=float)
-        return x, float(timelength), events_out, boundevents
+        return x, timelength, events_out, boundevents
 
     if r.ndim != 2 or r.shape[1] != 2:
         raise ValueError("regions must be of shape (n_regions, 2)")
@@ -68,7 +68,7 @@ def eegrej(
         if events_out and all("latency" in ev for ev in events_out):
             events_out.sort(key=lambda ev: ev.get("latency", float("inf")))
         boundevents = np.array([], dtype=float)
-        return x, float(timelength), events_out, boundevents
+        return x, timelength, events_out, boundevents
 
     # Build reject mask (convert 1-based to 0-based slices)
     # MATLAB: reject(beg:end) = 1  (includes both beg and end, 1-based)

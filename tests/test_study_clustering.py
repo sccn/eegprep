@@ -368,7 +368,7 @@ def test_pop_clust_kmeanscluster_uses_first_rows_as_centroids():
     expected = std_createclust(
         study,
         alleeg,
-        clusterind=labels + 1,
+        clusterind=labels,
         algorithm=["Kmeans", 4],
         name="Cls",
     )
@@ -383,6 +383,15 @@ def test_pop_clust_kmeanscluster_uses_first_rows_as_centroids():
     assert _cls_comps(repeated) == _cls_comps(expected)
     assert _cls_comps(seeded) == _cls_comps(seeded_again)
     assert _cls_comps(seeded) != _cls_comps(clustered)
+
+
+def test_pop_clust_kmeanscluster_outliers_keep_one_dimensional_labels():
+    study, alleeg, _data = _sample_preclust_matrix(3)
+
+    clustered = pop_clust(study, alleeg, algorithm="kmeanscluster", clus_num=4, outliers=3)
+
+    assert clustered["cluster"]
+    assert _cls_comps(clustered)
 
 
 def test_kmeans_st_restarts_are_seeded_and_the_first_pass_is_not():

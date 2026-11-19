@@ -66,7 +66,7 @@ def eeg_rejsuperpose(
             freq=Rfreq,
         )
 
-    reject["rejglobal"] = rejglobal
+    reject["rejglobal"] = np.asarray(rejglobal)
     reject["rejglobalE"] = rejglobal_e
     command = (
         "EEG = eeg_rejsuperpose(EEG, "

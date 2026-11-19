@@ -14,12 +14,12 @@ def eeg_matchchans(
     big_locations: Any,
     small_locations: Any,
     noplot: str | None = None,
-) -> tuple[list[int], np.ndarray, list[dict[str, Any]]]:
+) -> tuple[np.ndarray, np.ndarray, list[dict[str, Any]]]:
     """Return a unique nearest large-montage channel for each small channel.
 
-    Returned channel indices are 0-based for direct use with Python channel
-    arrays. The legacy plotting switch is accepted but matching itself is
-    noninteractive.
+    Returned channel indices are 1-based scalars. Each matched location is a
+    dictionary with ``bigchan`` and ``bigdist``. The legacy plotting switch is
+    accepted but matching itself is noninteractive.
     """
     if noplot is not None and str(noplot).lower() != "noplot":
         raise ValueError("the third argument must be 'noplot' when provided")
@@ -44,9 +44,13 @@ def eeg_matchchans(
         used.add(index)
         selected.append(index)
         distances.append(distance)
-        big[index]["bigchan"] = index
+        big[index]["bigchan"] = index + 1
         big[index]["bigdist"] = distance
-    return selected, np.asarray(distances, dtype=float), [big[index] for index in selected]
+    return (
+        np.asarray(selected, dtype=float) + 1,
+        np.asarray(distances, dtype=float),
+        [big[index] for index in selected],
+    )
 
 
 def _unit_xyz(location: dict[str, Any]) -> np.ndarray:

@@ -31,7 +31,7 @@ def cart2topo(x: Any, *args: Any):
     theta = -sph_theta
     radius = 0.5 - sph_phi / 180.0
     theta = _wrap_degrees(theta)
-    return theta, radius, x_arr.copy(), y_arr.copy(), z_arr.copy()
+    return theta, radius, x_arr, y_arr, z_arr
 
 
 def _split_xyz(x: Any, args: tuple[Any, ...]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

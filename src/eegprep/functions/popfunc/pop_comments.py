@@ -24,8 +24,8 @@ def pop_comments(
 ) -> Any:
     """Edit or assign dataset comments.
 
-    Passing an EEG dictionary updates ``EEG["comments"]`` and returns a copied
-    EEG dictionary. Passing a string/list returns the edited comment text.
+    Returns the edited EEG dictionary or comment text. With ``return_com``,
+    also returns the history command.
     """
     is_eeg = isinstance(EEG, dict)
     original = copy.copy(EEG) if is_eeg else EEG

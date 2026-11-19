@@ -32,8 +32,7 @@ def finputcheck(
     ``float``, ``string``, ``cell``, ``struct``, and ``function_handle``.
     Arguments may be a mapping, a flat sequence, or a MATLAB cell. Cell values
     may be object arrays, and structure values may be structured arrays.
-    Numeric results stay Python scalars. Validation failures are returned as
-    strings, as in EEGLAB.
+    Validation failures are returned as strings, as in EEGLAB.
 
     Args:
         arguments: Mapping or flat key/value sequence to validate.
@@ -75,7 +74,21 @@ def finputcheck(
             error = f"{prefix}error: undefined argument '{name}'"
             return _with_residual(error, [], return_unrecognized)
         residual.extend((name, value))
-    return _with_residual(values, residual, return_unrecognized)
+    checked = _CheckedArguments(values, residual)
+    return _with_residual(checked, residual, return_unrecognized)
+
+
+class _CheckedArguments(dict):
+    """Validated arguments that also expose MATLAB's unrecognized-argument output."""
+
+    matlab_outputs = ("g", "unrecognized")
+
+    def __init__(self, values: dict[str, Any], unrecognized: list[Any]):
+        super().__init__(values)
+        self.g = self
+        row = np.empty((1, len(unrecognized)), dtype=object)
+        row[0, :] = unrecognized
+        self.unrecognized = row
 
 
 def _argument_dict(arguments: Mapping[str, Any] | Sequence[Any], verbose: str) -> dict[str, Any] | str:

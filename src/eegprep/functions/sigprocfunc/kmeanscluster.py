@@ -21,7 +21,7 @@ def kmeanscluster(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Cluster row-wise observations using EEGLAB's simple k-means contract.
 
-    Returns zero-based labels, centroids, the converged previous-label vector,
+    Returns 1-based labels as a one-dimensional vector, centroids, the previous-label vector,
     and an unchanged copy of the input observations. Deterministic mode
     initializes from the first ``clusters`` rows, as EEGLAB does, and keeps
     that centroid-row numbering.
@@ -35,6 +35,7 @@ def kmeanscluster(
         n_init=1,
         initial_centers=initial,
     )
+    labels = labels + 1
     return labels, centers, labels.copy(), matrix.copy()
 
 

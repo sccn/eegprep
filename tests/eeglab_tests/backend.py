@@ -14,6 +14,8 @@ import pytest
 from scipy.io import loadmat, savemat
 from scipy.sparse import issparse
 
+from tests.eeglab_tests.matlab_output_transport import adapt_matlab_output
+
 _MAT_INLINE_LIMIT = 2**30
 _MAT_PART_LIMIT = 2**28
 
@@ -123,7 +125,7 @@ def _python_outputs(name, result, nargout):
 # These functions return the history command only when asked. MATLAB nargout
 # greater than one is that request. Other pop_* functions are left alone: their
 # extra outputs are data, not the command string.
-_NARGOUT_COMMAND = frozenset({"pop_copyset", "pop_editeventfield"})
+_NARGOUT_COMMAND = frozenset({"pop_comments", "pop_copyset", "pop_editeventfield"})
 
 
 def call_python(name, *args, nargout=1, **kwargs):
@@ -131,7 +133,8 @@ def call_python(name, *args, nargout=1, **kwargs):
     function = getattr(importlib.import_module("eegprep"), name)
     if nargout > 1 and name in _NARGOUT_COMMAND and "return_com" not in kwargs and _accepts_return_com(function):
         kwargs["return_com"] = True
-    return _python_outputs(name, function(*args, **kwargs), nargout)
+    result = adapt_matlab_output(name, function(*args, **kwargs), args, kwargs)
+    return _python_outputs(name, result, nargout)
 
 
 def _accepts_return_com(function) -> bool:

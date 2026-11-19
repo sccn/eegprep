@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 
-
 NEAR_ZERO = 1e-22
 
 
@@ -39,10 +38,10 @@ def movav(
         raise ValueError("data are too short")
 
     coordinates = _coordinates(xvals, frames)
-    first = float(np.min(coordinates) if firstx is None else firstx)
-    last = float(np.max(coordinates) if lastx is None else lastx)
-    advance = 1.0 if xadv is None or float(xadv) == 0 else float(xadv)
-    width = (last - first) / 4.0 if xwidth is None or float(xwidth) == 0 else float(xwidth)
+    first = _optional_float(firstx, float(np.min(coordinates)))
+    last = _optional_float(lastx, float(np.max(coordinates)))
+    advance = _optional_float(xadv, 1.0) or 1.0
+    width = _optional_float(xwidth, 0.0) or (last - first) / 4.0
     if advance <= 0 or width < 0 or last < first:
         raise ValueError("xwidth, xadv, firstx, and lastx do not define increasing windows")
     window = _window(xwin)
@@ -75,6 +74,15 @@ def movav(
             output[:, frame] = weighted / weight_sum if abs(weight_sum) > NEAR_ZERO and not nonorm else weighted
         low += advance
     return output, output_x
+
+
+def _optional_float(value: Any, default: float) -> float:
+    if value is None:
+        return default
+    array = np.asarray(value, dtype=float).reshape(-1)
+    if array.size == 0:
+        return default
+    return float(array[0])
 
 
 def _coordinates(xvals: Any, frames: int) -> np.ndarray:

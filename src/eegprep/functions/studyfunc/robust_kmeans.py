@@ -41,7 +41,6 @@ def robust_kmeans(
             )
         elif method.lower() == "kmeanscluster":
             active_labels, centers, _previous, _matrix = kmeanscluster(values[active], cluster_count)
-            active_labels = active_labels + 1
         else:
             active_labels, centers = kmeans_labels(values[active], cluster_count, random_state)
         distances = np.sqrt(squared_distances(values, centers))

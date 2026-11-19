@@ -32,17 +32,18 @@ def test_python_regression_celltomat_converts_rectangular_numeric_cells_and_empt
         celltomat(invalid_cells)
 
 
-def test_python_regression_matsel_selects_zero_based_frames_from_each_flattened_epoch():
+def test_python_regression_matsel_selects_one_based_frames_from_each_flattened_epoch():
     data = np.asarray([[1, 2, 3], [4, 5, 6]])
     np.testing.assert_array_equal(matsel(data, None, None), data)
     epoched = np.asarray([[1, 2, 3, 4], [5, 6, 7, 8]])
-    np.testing.assert_array_equal(matsel(epoched, 2, [0]), [[1, 3], [5, 7]])
-    np.testing.assert_array_equal(matsel(epoched, 2, [1], [1], [1, 0]), [[8, 6]])
-    assert matsel(epoched, 2, [], [0], [0]).shape == (1, 0)
+    np.testing.assert_array_equal(matsel(epoched, 2, [1]), [[1, 3], [5, 7]])
+    np.testing.assert_array_equal(matsel(epoched, 2, [2], [2], [2, 1]), [[8, 6]])
+    assert matsel(epoched, 2, [], [1], [1]).shape == (1, 0)
+    np.testing.assert_array_equal(matsel(epoched, 0, 0), epoched)
     with pytest.raises(IndexError):
-        matsel(epoched, 2, [2])
+        matsel(epoched, 2, [3])
     with pytest.raises(ValueError, match="integer"):
-        matsel(epoched, 2.9, [0])
+        matsel(epoched, 2.9, [1])
     with pytest.raises(ValueError, match="integers"):
         matsel(epoched, 2, [0.9])
 
