@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.miscfunc.matlab_inputs import matlab_ints, struct_records
+from eegprep.functions.miscfunc.matlab_inputs import is_matlab_empty, matlab_ints, struct_records
 from eegprep.functions.popfunc._chanutils import normalise_reflocs as _normalise_reflocs
 
 
@@ -64,7 +64,7 @@ def reref(
     if ref_indices and set(ref_indices).intersection(exclude_indices):
         raise ValueError("Reference channels cannot also be excluded")
 
-    if _present(refloc):
+    if not is_matlab_empty(refloc):
         new_locs = _normalise_reflocs(refloc)
         work = np.vstack([work, np.zeros((len(new_locs), work.shape[1]), dtype=work.dtype)])
         if locs is not None:
@@ -102,16 +102,6 @@ def reref(
     if np.issubdtype(original_dtype, np.floating):
         out = out.astype(original_dtype, copy=False)
     return out, locs, removed, mean_data
-
-
-def _present(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, np.ndarray):
-        return value.size > 0
-    if isinstance(value, (list, tuple, str)):
-        return len(value) > 0
-    return True
 
 
 def _copy_locs(elocs: Any) -> list[dict[str, Any]] | None:

@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import is_matlab_empty
 from eegprep.functions.popfunc.plot_utils import component_maps, python_literal
 from eegprep.functions.studyfunc._study_utils import (
     sync_study_datasets,
@@ -40,14 +41,9 @@ def ensure_parent_cluster(study: dict[str, Any], datasets: list[dict[str, Any]])
     for study_set, info in enumerate(study.get("datasetinfo") or [], start=1):
         eeg = dataset_for_study_set(study, datasets, study_set)
         recorded = info.get("comps")
-        if (
-            recorded is None
-            or (isinstance(recorded, np.ndarray) and recorded.size == 0)
-            or (isinstance(recorded, (list, tuple)) and not recorded)
-        ):
-            selected = []
-        else:
-            selected = list(recorded)
+        selected = (
+            [] if is_matlab_empty(recorded) else np.asarray(recorded, dtype=float).reshape(-1).astype(int).tolist()
+        )
         if not selected:
             weights = np.asarray(eeg.get("icaweights", []), dtype=float)
             if weights.size:
