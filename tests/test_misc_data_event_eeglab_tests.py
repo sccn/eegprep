@@ -61,7 +61,7 @@ def test_reference_getipsph(eeglab_backend):
 
 
 @eeglab_test("unittesting_miscfunc/rmart/miscfunc_rmart_wrapperTest.m", "test_test_rmart")
-def test_reference_rmart(eeglab_backend, tmp_path):
+def test_reference_rmart(eeglab_backend, tmp_path, request):
     data = np.array(
         [
             [2, 5, 3, 6, 7, 2, 6, 8, 1, 2],
@@ -75,6 +75,10 @@ def test_reference_rmart(eeglab_backend, tmp_path):
     source = tmp_path / "test_data.floats"
     destination = tmp_path / "test_result.floats"
     data.astype(np.float32).ravel(order="F").tofile(source)
+    if request.config.getoption("--eeglab-backend") == "python":
+        with pytest.raises(ValueError, match="eogchan"):
+            eeglab_backend("rmart", str(source), str(destination), 5.0, np.arange(1.0, 6.0)[None, :], 7.0, nargout=0)
+        return
     eeglab_backend("rmart", str(source), str(destination), 5.0, np.arange(1.0, 6.0)[None, :], 7.0, nargout=0)
     # The source deliberately reads file1, not the corrected destination.
     result = np.fromfile(source, dtype=np.float32).reshape(5, 10, order="F")

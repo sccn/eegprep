@@ -10,6 +10,7 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_select import pop_select
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.matlab_output_transport import present_compared_output
 
 # Test Case	(Python vs. MATLAB)         Max Absolute	Max Relative	Scenario
 # test_parity_multiple_trials	        5.11e-04	1.99e-02 (1.99%)	3 trials, 3 channels, 1 trial
@@ -102,6 +103,8 @@ def test_reference_interp_original_methods_and_shuffled_montage(eeglab_backend, 
 
 
 def _reference_checkinterp(first, second):
+    first = present_compared_output("eeg_interp", first)
+    second = present_compared_output("eeg_interp", second)
     first_labels = first["chanlocs"]["labels"].ravel(order="F").tolist()
     second_labels = second["chanlocs"]["labels"].ravel(order="F").tolist()
     if len(first_labels) > len(second_labels):

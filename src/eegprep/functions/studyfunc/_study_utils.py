@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._file_io import channel_labels, json_safe
 from eegprep.functions.popfunc.plot_utils import python_literal
@@ -349,6 +350,8 @@ def parse_design_values(value: Any) -> list[Any]:
     """Parse user-entered STUDY design values."""
     if value is None:
         return []
+    if is_cell(value):
+        return [item for item in cell_items(value) if not _empty_value(item)]
     if isinstance(value, np.ndarray):
         value = value.tolist()
     if isinstance(value, (list, tuple)):

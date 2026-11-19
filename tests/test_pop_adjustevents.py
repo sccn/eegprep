@@ -93,17 +93,39 @@ def test_reference_adjustevents_continuous(eeglab_backend, eeglab_suite_root, su
     _reference_adjustevents(eeglab_backend, eeg, subtests)
 
 
+def _event_records(events):
+    if isinstance(events, list):
+        return events
+    if isinstance(events, np.ndarray) and events.dtype == object:
+        return [event for event in events.reshape(-1)]
+    return None
+
+
+def _event_types(events):
+    records = _event_records(events)
+    if records is not None:
+        return ["" if event.get("type") is None else str(event["type"]) for event in records]
+    return events["type"][0].tolist()
+
+
+def _event_latencies(events):
+    records = _event_records(events)
+    if records is not None:
+        return np.array([[float(np.asarray(event["latency"]).reshape(-1)[0]) for event in records]])
+    return np.concatenate(events["latency"][0].tolist(), axis=1)
+
+
 def _reference_adjustevents(eeglab_backend, eeg, subtests):
-    event_types = eeg["event"]["type"][0].tolist()
+    event_types = _event_types(eeg["event"])
     rt_indices = [index for index, kind in enumerate(event_types) if "rt" in kind]
-    latencies = np.concatenate(eeg["event"]["latency"][0].tolist(), axis=1)
+    latencies = _event_latencies(eeg["event"])
     for parameter, amount in (("addms", 20.0), ("addsamples", 30.0)):
         for selected in (False, True):
             # The source catches each case's failure and reports after all four.
             with subtests.test(parameter=parameter, selected=selected):
                 options = ("eventtypes", np.array([["rt"]], dtype=object)) if selected else ()
                 result, _ = eeglab_backend("pop_adjustevents", eeg, parameter, amount, *options, nargout=2)
-                actual = np.concatenate(result["event"]["latency"][0].tolist(), axis=1)
+                actual = _event_latencies(result["event"])
                 expected = latencies
                 if selected:
                     actual, expected = actual[:, rt_indices], expected[:, rt_indices]

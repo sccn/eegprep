@@ -12,6 +12,7 @@ from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.session import normalize_dataset_indices
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list
 from eegprep.functions.popfunc._event_utils import events_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value as _is_empty
 
@@ -31,6 +32,8 @@ def pop_mergeset(
     EEGLAB-facing 1-based dataset indices. ``keepall`` preserves ICA weights
     from the first dataset when possible, matching EEGLAB's option.
     """
+    if isinstance(INEEG1, np.ndarray):
+        INEEG1 = as_dataset_list(INEEG1)
     if gui is None:
         gui = INEEG2 is None and isinstance(INEEG1, list)
     indices: list[int] | None = None

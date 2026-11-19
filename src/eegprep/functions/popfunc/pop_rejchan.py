@@ -34,7 +34,19 @@ def pop_rejchan(
             return (EEG, "") if return_com else (EEG, [], [])
         options.update(gui_options)
     out, indices, measure, command = _apply_one(EEG, options)
-    return (out, command) if return_com else (out, indices, measure)
+    if return_com:
+        return _RejchanCommand(out, command, indices, measure)
+    return out, indices, measure
+
+
+class _RejchanCommand(tuple):
+    """``(EEG, command)`` with the indices and measure from that same call."""
+
+    def __new__(cls, dataset: Any, command: str, indices: list[int], measure: np.ndarray):
+        value = tuple.__new__(cls, (dataset, command))
+        value.indices = indices
+        value.measure = measure
+        return value
 
 
 def pop_rejchan_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:

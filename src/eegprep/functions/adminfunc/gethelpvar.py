@@ -9,6 +9,8 @@ from pathlib import Path
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
+
 
 logger = logging.getLogger(__name__)
 _TITLE = re.compile(
@@ -37,7 +39,7 @@ def gethelpvar(filename: str | Path, variables: str | Sequence[str] | None = Non
     names, descriptions = _parse_variables(help_lines)
     if variables is None:
         return _cell_row(descriptions), _cell_row(names)
-    requested = [variables] if isinstance(variables, str) else list(variables)
+    requested = _requested_names(variables)
     by_name = dict(zip(names, descriptions))
     selected: list[str] = []
     for name in requested:
@@ -45,6 +47,16 @@ def gethelpvar(filename: str | Path, variables: str | Sequence[str] | None = Non
             logger.warning("Variable '%s' not found in %s", name, filename)
         selected.append(by_name.get(name, ""))
     return _cell_row(selected), _cell_row(names)
+
+
+def _requested_names(variables: str | Sequence[str] | np.ndarray) -> list[str]:
+    if isinstance(variables, str):
+        return [variables]
+    if is_cell(variables):
+        return ["" if item is None else str(item) for item in cell_items(variables)]
+    if isinstance(variables, np.ndarray):
+        return [str(item) for item in variables.ravel(order="F")]
+    return [str(item) for item in variables]
 
 
 def _cell_row(values: list[str]) -> np.ndarray:

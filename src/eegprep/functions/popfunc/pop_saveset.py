@@ -140,6 +140,20 @@ def _matlab_double(value):
     return value
 
 
+def _epoch_has(epoch_record, key: str) -> bool:
+    names = getattr(getattr(epoch_record, "dtype", None), "names", None)
+    if names is not None:
+        return key in names
+    return isinstance(epoch_record, dict) and key in epoch_record
+
+
+def _epoch_items(epoch_record):
+    names = getattr(getattr(epoch_record, "dtype", None), "names", None)
+    if names is not None:
+        return ((name, epoch_record[name]) for name in names)
+    return epoch_record.items()
+
+
 def _epoch_fields_to_matlab(epoch):
     """Type ``epoch`` fields in place the way ``eeg_checkset.m`` builds them.
 
@@ -147,9 +161,10 @@ def _epoch_fields_to_matlab(epoch):
     unless no epoch holds more than one event, in which case it is the bare
     value ([] for an epoch without events).
     """
-    maxlen = max((np.size(ep['event']) for ep in epoch if 'event' in ep), default=0)
-    for ep in epoch:
-        for key, value in ep.items():
+    records = epoch.ravel() if isinstance(epoch, np.ndarray) and epoch.dtype.names else epoch
+    maxlen = max((np.size(record["event"]) for record in records if _epoch_has(record, "event")), default=0)
+    for ep in records:
+        for key, value in list(_epoch_items(ep)):
             if not key.startswith('event'):
                 continue
             values = list(value) if isinstance(value, (list, np.ndarray)) else [value]
@@ -468,10 +483,16 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     if 'icachansind' in eeglab_dict and eeglab_dict['icachansind'].size > 0:
         eeglab_dict['icachansind'] = eeglab_dict['icachansind'] + 1
 
-    # check if EEG['urchan'] is 0-based
-    if len(eeglab_dict['chanlocs']) > 0 and 'urchan' in eeglab_dict['chanlocs'][0]:
-        for i in range(len(eeglab_dict['chanlocs'])):
-            eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1
+    # urchan is 0-based in memory. A structured chanlocs record compares
+    # ``'urchan' in record`` against field values, which raises when a field is itself a struct.
+    chanlocs = eeglab_dict['chanlocs']
+    if isinstance(chanlocs, np.ndarray) and chanlocs.dtype.names:
+        if chanlocs.size and 'urchan' in chanlocs.dtype.names:
+            for record in chanlocs.ravel():
+                record['urchan'] = record['urchan'] + 1
+    elif len(chanlocs) > 0 and isinstance(chanlocs[0], dict) and 'urchan' in chanlocs[0]:
+        for record in chanlocs:
+            record['urchan'] = record['urchan'] + 1
 
     # urevent is 0-based in memory. MATLAB event structs share one field set
     # (eeg_checkset.m assigns event(index).urevent). A Python event list does
@@ -489,11 +510,19 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
             if isinstance(event, dict) and 'urevent' in event:
                 event['urevent'] = _urevent_for_disk(event['urevent'])
 
-    # epoch.event / epoch.eventurevent index EEG.event / EEG.urevent: 0-based in memory
-    for ep in eeglab_dict['epoch']:
+    # epoch.event / epoch.eventurevent index EEG.event / EEG.urevent: 0-based in memory.
+    # Structured epoch records name their fields on the dtype, not with ``in``.
+    epochs = eeglab_dict['epoch']
+    if isinstance(epochs, np.ndarray) and epochs.dtype.names:
         for key in ('event', 'eventurevent'):
-            if key in ep:
-                ep[key] = _one_based(ep[key])
+            if epochs.size and key in epochs.dtype.names:
+                for record in epochs.ravel():
+                    record[key] = _one_based(record[key])
+    else:
+        for ep in epochs:
+            for key in ('event', 'eventurevent'):
+                if isinstance(ep, dict) and key in ep:
+                    ep[key] = _one_based(ep[key])
     _epoch_fields_to_matlab(eeglab_dict['epoch'])
 
     # Serialize chanlocs through the single canonical chanloc converter so the

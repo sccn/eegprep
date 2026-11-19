@@ -125,7 +125,15 @@ def _python_outputs(name, result, nargout):
 # These functions return the history command only when asked. MATLAB nargout
 # greater than one is that request. Other pop_* functions are left alone: their
 # extra outputs are data, not the command string.
-_NARGOUT_COMMAND = frozenset({"pop_comments", "pop_copyset", "pop_editeventfield"})
+_NARGOUT_COMMAND = frozenset(
+    {"pop_adjustevents", "pop_comments", "pop_copyset", "pop_editeventfield", "pop_rejtrend", "pop_rmbase"}
+)
+# Optional Python flags that correspond to a MATLAB output count.
+_NARGOUT_FLAGS = {
+    "openbdf": ("return_header", 2),
+    "rmbase": ("return_mean", 2),
+    "runica": ("return_activations", 7),
+}
 
 
 def call_python(name, *args, nargout=1, **kwargs):
@@ -133,7 +141,20 @@ def call_python(name, *args, nargout=1, **kwargs):
     function = getattr(importlib.import_module("eegprep"), name)
     if nargout > 1 and name in _NARGOUT_COMMAND and "return_com" not in kwargs and _accepts_return_com(function):
         kwargs["return_com"] = True
-    result = adapt_matlab_output(name, function(*args, **kwargs), args, kwargs)
+    flag = _NARGOUT_FLAGS.get(name)
+    if flag is not None and nargout >= flag[1] and flag[0] not in kwargs:
+        kwargs[flag[0]] = True
+    if name == "pop_rejchan" and nargout >= 4 and "return_com" not in kwargs:
+        rejected = function(*args, return_com=True, **kwargs)
+        result = adapt_matlab_output(
+            name,
+            (rejected[0], rejected.indices, rejected.measure, rejected[1]),
+            args,
+            kwargs,
+            nargout,
+        )
+        return _python_outputs(name, result, nargout)
+    result = adapt_matlab_output(name, function(*args, **kwargs), args, kwargs, nargout)
     return _python_outputs(name, result, nargout)
 
 

@@ -48,6 +48,9 @@ def finputcheck(
         A validated dictionary or an error string. When
         ``return_unrecognized`` is true, also returns residual key/value pairs.
     """
+    callingfunc = _matlab_text(callingfunc)
+    mode = _matlab_text(mode)
+    verbose = _matlab_text(verbose)
     values_or_error = _argument_dict(arguments, verbose)
     if isinstance(values_or_error, str):
         return _with_residual(values_or_error, [], return_unrecognized)
@@ -137,6 +140,8 @@ def _validate_field(
 def _allowed_by_type(allowed: Any, count: int) -> list[Any]:
     if count == 1:
         return [allowed]
+    if is_cell(allowed) and int(np.asarray(allowed).size) == count:
+        return cell_items(allowed)
     if isinstance(allowed, (list, tuple)) and len(allowed) == count:
         return list(allowed)
     return [allowed] * count
@@ -165,7 +170,7 @@ def _validate_one_type(name: str, value: Any, expected_type: str, allowed: Any, 
         if not isinstance(value, str) and not _is_empty(value):
             return f"{prefix}error: argument '{name}' must be a string"
         if not _is_empty(allowed):
-            choices = [str(item).lower() for item in np.asarray(allowed, dtype=object).reshape(-1)]
+            choices = [_choice_text(item) for item in _choice_items(allowed)]
             if str(value).lower() not in choices:
                 return f"{prefix}error: wrong value for argument '{name}'"
         return ""
@@ -184,9 +189,31 @@ def _validate_one_type(name: str, value: Any, expected_type: str, allowed: Any, 
     raise ValueError(f"finputcheck error: unrecognized type '{expected_type}'")
 
 
+def _matlab_text(value: Any) -> str:
+    """Return a size-1 MATLAB character array as a Python string."""
+    if isinstance(value, str):
+        return value
+    if is_cell(value) and int(np.asarray(value).size) == 1:
+        item = cell_items(value)[0]
+        return item if isinstance(item, str) else str(item)
+    if isinstance(value, np.ndarray) and value.dtype.kind in "SU" and value.size == 1:
+        return str(value.reshape(-1)[0])
+    return "" if value is None else str(value)
+
+
+def _choice_items(allowed: Any) -> list[Any]:
+    if is_cell(allowed):
+        return cell_items(allowed)
+    return list(np.asarray(allowed, dtype=object).reshape(-1))
+
+
+def _choice_text(item: Any) -> str:
+    return item.lower() if isinstance(item, str) else str(item).lower()
+
+
 def _rule_fields(rule: Any) -> tuple[Any, Any, Any, Any]:
     if is_cell(rule) or (isinstance(rule, np.ndarray) and rule.dtype == object):
-        fields = list(np.asarray(rule, dtype=object).reshape(-1))
+        fields = cell_items(np.asarray(rule, dtype=object).reshape(-1))
     else:
         fields = list(rule)
     if len(fields) != 4:
@@ -197,9 +224,13 @@ def _rule_fields(rule: Any) -> tuple[Any, Any, Any, Any]:
 def _type_names(expected_types: Any) -> list[str]:
     if isinstance(expected_types, str):
         return [expected_types]
-    if isinstance(expected_types, np.ndarray):
-        return [str(item) for item in expected_types.reshape(-1)]
-    return [item if isinstance(item, str) else str(item) for item in expected_types]
+    if is_cell(expected_types):
+        items = cell_items(expected_types)
+    elif isinstance(expected_types, np.ndarray):
+        items = list(expected_types.reshape(-1))
+    else:
+        items = list(expected_types)
+    return [item if isinstance(item, str) else str(item) for item in items]
 
 
 def _is_numeric(value: Any) -> bool:

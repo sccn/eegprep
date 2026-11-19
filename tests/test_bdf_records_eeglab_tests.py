@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from eegprep import openbdf, readbdf
+from tests.eeglab_tests.matlab_output_transport import present_compared_output
 from eegprep.functions.popfunc.pop_biosig import pop_biosig
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from tests.eeglab_tests import eeglab_test
@@ -426,8 +427,9 @@ def test_upstream_openbdf_original_reversed_digital_limits(eeglab_backend, reque
     _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_dig_min_larger_max.bdf"
     data, _ = eeglab_backend("openbdf", str(path), nargout=2)
-    np.testing.assert_array_equal(data["Head"]["Cal"][:2], np.ones((2, 1)))
-    np.testing.assert_array_equal(data["Head"]["Off"][:2], np.zeros((2, 1)))
+    compared = present_compared_output("openbdf", data)
+    np.testing.assert_array_equal(compared["Head"]["Cal"][:2], np.ones((2, 1)))
+    np.testing.assert_array_equal(compared["Head"]["Off"][:2], np.zeros((2, 1)))
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_invalid_dig_min_max")
@@ -435,8 +437,9 @@ def test_upstream_openbdf_original_invalid_digital_limits(eeglab_backend, reques
     _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_invalid_dig_min_max.bdf"
     data, _ = eeglab_backend("openbdf", str(path), nargout=2)
-    np.testing.assert_array_equal(data["Head"]["DigMin"], np.full((7, 1), -32768.0))
-    np.testing.assert_array_equal(data["Head"]["DigMax"], np.full((7, 1), 32767.0))
+    compared = present_compared_output("openbdf", data)
+    np.testing.assert_array_equal(compared["Head"]["DigMin"], np.full((7, 1), -32768.0))
+    np.testing.assert_array_equal(compared["Head"]["DigMax"], np.full((7, 1), 32767.0))
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_invalid_phys_min_max")

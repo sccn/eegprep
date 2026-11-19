@@ -378,14 +378,14 @@ class ConsoleEegh:
         session = self.bridge.session
         normalized = str(command).strip()
         target = args[0] if args else None
-        if isinstance(target, dict) and normalized and session.ALLCOM and session.ALLCOM[-1] == normalized:
+        if _is_eeg_target(target) and normalized and session.ALLCOM and session.ALLCOM[-1] == normalized:
             self.bridge.pull_from_session()
             return target
         if normalized:
             session.add_history(command)
         else:
             session.clear_last_command()
-        if isinstance(target, dict):
+        if _is_eeg_target(target):
             updated = eegh(normalized, target)
             self.bridge.pull_from_session()
             return updated
@@ -399,6 +399,12 @@ class ConsoleEegh:
 
     def __repr__(self) -> str:
         return "<EEGPrep console eegh>"
+
+
+def _is_eeg_target(target: Any) -> bool:
+    if isinstance(target, dict):
+        return True
+    return isinstance(target, np.ndarray) and bool(target.dtype.names) and target.size > 0
 
 
 class EEGPrepConsoleWorkspace:

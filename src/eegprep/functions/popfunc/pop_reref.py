@@ -385,7 +385,11 @@ def _channel_index(value: Any, length: int) -> int:
 
 def _normalise_channel_values(channels: Any) -> list[Any]:
     if isinstance(channels, np.ndarray):
-        channels = channels.tolist()
+        channels = (
+            channels.reshape(-1).tolist()
+            if np.issubdtype(channels.dtype, np.number)
+            else channels.ravel(order="F").tolist()
+        )
     if isinstance(channels, (int, np.integer)):
         return [int(channels)]
     if isinstance(channels, (float, np.floating)):

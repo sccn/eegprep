@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.matlab_inputs import is_matlab_empty
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 from eegprep.functions.sigprocfunc.chancenter import chancenter
@@ -66,9 +67,9 @@ class _ChanCenterResult(list):
 
 def _selected_indices(locs: list[dict[str, Any]], omitchans: Any) -> list[int]:
     omitted = (
-        {int(index) - 1 for index in parse_numeric_sequence(omitchans, dtype=int)}
-        if omitchans not in (None, "", [])
-        else set()
+        set()
+        if is_matlab_empty(omitchans)
+        else {int(index) - 1 for index in parse_numeric_sequence(omitchans, dtype=int)}
     )
     selected = []
     for index, loc in enumerate(locs):

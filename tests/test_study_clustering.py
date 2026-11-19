@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.miscfunc.kmeans_st import kmeans_st
 from eegprep.functions.sigprocfunc.kmeanscluster import kmeanscluster
+from eegprep.functions.studyfunc._cluster_utils import ensure_parent_cluster
 from eegprep.functions.studyfunc.pop_clust import pop_clust
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust
@@ -90,6 +91,18 @@ def _preclustered_study() -> tuple[dict, list[dict]]:
         alleeg,
         preproc=[{"measure": "scalp", "npca": 2, "norm": 1, "weight": 1}],
     )
+
+
+def test_ensure_parent_cluster_flattens_a_matlab_component_row():
+    dataset = _ica_eeg("s1")
+    study = {"datasetinfo": [{"index": 1, "comps": np.array([[1.0, 3.0]])}], "cluster": []}
+    parent = ensure_parent_cluster(study, [dataset])["cluster"][0]
+    assert parent["comps"] == [1, 3]
+    assert parent["sets"] == [[1, 1]]
+
+    empty = {"datasetinfo": [{"index": 1, "comps": np.empty((1, 0))}], "cluster": []}
+    rebuilt = ensure_parent_cluster(empty, [dataset])["cluster"][0]
+    assert rebuilt["comps"] == [1, 2, 3]
 
 
 def test_deterministic_clustering_helpers_return_stable_shapes():

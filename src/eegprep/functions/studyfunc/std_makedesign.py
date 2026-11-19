@@ -5,6 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from eegprep.functions.miscfunc.matlab_inputs import struct_records
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import (
     _empty_value,
@@ -99,7 +100,8 @@ def std_makedesign(
         "cases": {"label": "subject", "value": _subject_values(study, subjselect)},
         "include": [] if datselect is None else datselect,
     }
-    designs = list(study.get("design") or [])
+    records = struct_records(study.get("design"))
+    designs = list(records) if records is not None else []
     while len(designs) < design_index:
         designs.append(_empty_design(len(designs) + 1))
     designs[design_index - 1] = design

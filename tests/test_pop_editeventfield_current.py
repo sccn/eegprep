@@ -8,10 +8,21 @@ import pytest
 from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield, pop_editeventfield_dialog_spec
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import assert_matlab_equal, eeglab_test
+from tests.eeglab_tests.matlab_output_transport import present_compared_output
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 UPSTREAM = "unittesting_popfunc/pop_editeventfield/popfunc_pop_editeventfield_wrapperTest.m"
+
+
+def _matlab_edit(eeglab_backend, *args, **kwargs):
+    kwargs.pop("nargout", None)
+    output, command = eeglab_backend("pop_editeventfield", *args, nargout=2, **kwargs)
+    return present_compared_output("pop_editeventfield", output), command
+
+
+def _matlab_loaded(eeg):
+    return present_compared_output("pop_loadset", eeg)
 
 
 @pytest.mark.gui
@@ -80,21 +91,20 @@ def _reference_values(events, field):
 @eeglab_test(UPSTREAM, "test_pass_add_field_file")
 def test_reference_add_field_file(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "test", "addfieldindices.txt", nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "test", "addfieldindices.txt", nargout=2)
     assert_matlab_equal(_reference_values(output["event"], "test"), np.array([[0.0, -5.33, 14.7, 10.0]]))
 
 
 @eeglab_test(UPSTREAM, "test_pass_add_field_file_indices")
 def test_reference_add_field_file_indices(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
-    output, _ = eeglab_backend(
-        "pop_editeventfield",
+    output, _ = _matlab_edit(
+        eeglab_backend,
         eeg,
         "test",
         "addfieldindices.txt",
         "indices",
         np.array([[2.0, 3.0, 6.0, 10.0]]),
-        nargout=2,
     )
     for index, value in zip((1, 2, 5, 9), (0.0, -5.33, 14.7, 10.0), strict=True):
         assert_matlab_equal(output["event"]["test"][0, index], np.array([[value]]))
@@ -104,28 +114,28 @@ def test_reference_add_field_file_indices(eeglab_backend, reference_eventfield_f
 def test_reference_add_field_vector(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
     values = np.array([[-7.0, 2.0, 19.5]])
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "test", values, nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "test", values, nargout=2)
     assert_matlab_equal(_reference_values(output["event"], "test"), values)
 
 
 @eeglab_test(UPSTREAM, "test_pass_delim")
 def test_reference_delimiters(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "test", "delim.txt", "delim", "\t ,", nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "test", "delim.txt", "delim", "\t ,", nargout=2)
     assert_matlab_equal(_reference_values(output["event"], "test"), np.array([[0.0, -5.33, 14.7, 10.0]]))
 
 
 @eeglab_test(UPSTREAM, "test_pass_delold_invalid")
 def test_reference_delold_invalid(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "delold", "abcd", "test", 54321.0, nargout=2)
-    assert_matlab_equal(output["event"], eeg["event"])
+    output, _ = _matlab_edit(eeglab_backend, eeg, "delold", "abcd", "test", 54321.0, nargout=2)
+    assert_matlab_equal(output["event"], _matlab_loaded(eeg)["event"])
 
 
 @eeglab_test(UPSTREAM, "test_pass_delold_yes")
 def test_reference_delold_yes(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "delold", "yes", "test", 54321.0, nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "delold", "yes", "test", 54321.0, nargout=2)
     assert {"test", "urevent"} <= output["event"].keys()
     assert_matlab_equal(output["event"]["test"], np.array([[54321.0]]))
 
@@ -133,23 +143,23 @@ def test_reference_delold_yes(eeglab_backend, reference_eventfield_files):
 @eeglab_test(UPSTREAM, "test_pass_info")
 def test_reference_field_description(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "typeinfo", "new comment", nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "typeinfo", "new comment", nargout=2)
     assert_matlab_equal(output["eventdescription"][:, :1], np.array([["new comment"]], dtype=object))
 
 
 @eeglab_test(UPSTREAM, "test_pass_info_field_not_exist")
 def test_reference_description_missing_field(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "abcdinfo", "new comment", nargout=2)
-    assert_matlab_equal(output["eventdescription"], eeg["eventdescription"])
+    output, _ = _matlab_edit(eeglab_backend, eeg, "abcdinfo", "new comment", nargout=2)
+    assert_matlab_equal(output["eventdescription"], _matlab_loaded(eeg)["eventdescription"])
 
 
 @eeglab_test(UPSTREAM, "test_pass_latency_timeunit")
 def test_reference_latency_timeunit(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
     values = np.array([[54.0, 321.0, 123.0, 45.0]])
-    output, _ = eeglab_backend(
-        "pop_editeventfield",
+    output, _ = _matlab_edit(
+        eeglab_backend,
         eeg,
         "type",
         np.ones((1, 4)),
@@ -159,7 +169,6 @@ def test_reference_latency_timeunit(eeglab_backend, reference_eventfield_files):
         1e-3,
         "test",
         values,
-        nargout=2,
     )
     assert {"test", "latency"} <= set(output["event"].dtype.names)
     # The source checks the permutation of the new values, not numeric latencies.
@@ -169,53 +178,55 @@ def test_reference_latency_timeunit(eeglab_backend, reference_eventfield_files):
 @eeglab_test(UPSTREAM, "test_pass_modify_field")
 def test_reference_modify_field(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "type", 54321.0, nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "type", 54321.0, nargout=2)
     assert_matlab_equal(output["event"]["type"], np.array([[54321.0]]))
 
 
 @eeglab_test(UPSTREAM, "test_pass_modify_field_indices")
 def test_reference_modify_field_indices(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "type", 54321.0, "indices", 2.0, nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "type", 54321.0, "indices", 2.0, nargout=2)
     assert_matlab_equal(output["event"]["type"][0, 1], np.array([[54321.0]]))
 
 
 @eeglab_test(UPSTREAM, "test_pass_remove_field_not_exist")
 def test_reference_remove_missing_field(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "test", np.empty((0, 0)), nargout=2)
-    assert_matlab_equal(output["event"], eeg["event"])
+    output, _ = _matlab_edit(eeglab_backend, eeg, "test", np.empty((0, 0)), nargout=2)
+    assert_matlab_equal(output["event"], _matlab_loaded(eeg)["event"])
 
 
 @eeglab_test(UPSTREAM, "test_pass_rename_field")
 def test_reference_rename_field(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "rename", "position->place", nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "rename", "position->place", nargout=2)
     assert "position" not in output["event"].dtype.names
-    assert_matlab_equal(_reference_values(output["event"], "place"), _reference_values(eeg["event"], "position"))
+    assert_matlab_equal(
+        _reference_values(output["event"], "place"), _reference_values(_matlab_loaded(eeg)["event"], "position")
+    )
 
 
 @eeglab_test(UPSTREAM, "test_pass_rename_field_invalid_format")
 def test_reference_invalid_rename(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "rename", "position=>place", nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "rename", "position=>place", nargout=2)
     assert "position" in output["event"].dtype.names
     assert "place" not in output["event"].dtype.names
-    assert_matlab_equal(output["event"], eeg["event"])
+    assert_matlab_equal(output["event"], _matlab_loaded(eeg)["event"])
 
 
 @eeglab_test(UPSTREAM, "test_pass_rename_field_not_exist")
 def test_reference_rename_missing_field(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "rename", "abcd->place", nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "rename", "abcd->place", nargout=2)
     assert "place" not in output["event"].dtype.names
-    assert_matlab_equal(output["event"], eeg["event"])
+    assert_matlab_equal(output["event"], _matlab_loaded(eeg)["event"])
 
 
 @eeglab_test(UPSTREAM, "test_pass_skipline")
 def test_reference_skip_lines(eeglab_backend, reference_eventfield_files):
     eeg = eeglab_backend("pop_loadset", "test_no_events.set", "")
-    output, _ = eeglab_backend("pop_editeventfield", eeg, "test", "skipline.txt", "skipline", 3.0, nargout=2)
+    output, _ = _matlab_edit(eeglab_backend, eeg, "test", "skipline.txt", "skipline", 3.0, nargout=2)
     assert_matlab_equal(_reference_values(output["event"], "test"), np.array([[0.0, -5.33, 14.7, 10.0]]))
 
 
@@ -223,7 +234,7 @@ def test_reference_skip_lines(eeglab_backend, reference_eventfield_files):
 def test_reference_sample_descriptions(eeglab_backend, eeglab_suite_root):
     eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
     descriptions = np.array([" Position of the target", "Can be 1 or 2          "])
-    eeglab_backend("pop_editeventfield", eeg, "indices", "1:154", "positioninfo", descriptions)
+    _matlab_edit(eeglab_backend, eeg, "indices", "1:154", "positioninfo", descriptions)
 
 
 def _eeg(event_count: int = 10) -> dict:

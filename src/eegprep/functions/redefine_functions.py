@@ -32,7 +32,9 @@ from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.epoch import epoch as epoch_data
+from eegprep.functions.miscfunc.matlab_inputs import matlab_ints
 from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.functions.sigprocfunc.reref import reref as sigproc_reref
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
@@ -147,8 +149,34 @@ def loadset(*args, **kwargs):
 
 
 def reref(*args, **kwargs):
-    """Wrap pop_reref."""
+    """Re-reference a data matrix, or an EEG dataset through ``pop_reref``.
+
+    A numeric array follows ``reref.m``: channel indices are 1-based and
+    trailing arguments are name/value pairs. An EEG dictionary follows
+    ``pop_reref``.
+    """
+    if args and isinstance(args[0], np.ndarray) and not getattr(args[0].dtype, "names", None):
+        data = args[0]
+        ref = args[1] if len(args) > 1 else None
+        options = parse_key_value_args(args[2:], kwargs, lowercase_keys=True, lowercase_kwargs=True)
+        huber = options.get("huber")
+        return sigproc_reref(
+            data,
+            _zero_based_channels(ref),
+            exclude=_zero_based_channels(options.get("exclude")),
+            keepref=str(options.get("keepref", "off")),
+            elocs=options.get("elocs"),
+            refloc=options.get("refloc"),
+            huber=None if huber is None else float(np.asarray(huber).reshape(-1)[0]),
+        )
     return pop_reref(*args, **kwargs)
+
+
+def _zero_based_channels(value):
+    indices = matlab_ints(value)
+    if indices is None:
+        return value
+    return [index - 1 for index in indices]
 
 
 def resample(*args, **kwargs):

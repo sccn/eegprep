@@ -59,9 +59,10 @@ def pop_clust(
         outliers = _optional_float(result.get("outliers"), 3.0) if bool(result.get("outliers_on")) else float("inf")
 
     preclust = study.get("etc", {}).get("preclust")
-    if not isinstance(preclust, dict) or not preclust.get("preclustdata"):
+    preclustdata = preclust.get("preclustdata") if isinstance(preclust, dict) else None
+    if not isinstance(preclust, dict) or preclustdata is None or np.size(preclustdata) == 0:
         raise ValueError("No pre-clustering information, pre-cluster first")
-    data = np.asarray(preclust["preclustdata"], dtype=float)
+    data = np.asarray(preclustdata, dtype=float)
     if data.ndim != 2 or data.shape[0] < 2:
         raise ValueError("Preclustering data must contain at least two components")
     if algorithm not in ALGORITHMS:

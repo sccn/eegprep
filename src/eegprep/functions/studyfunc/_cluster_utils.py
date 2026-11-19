@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.matlab_inputs import is_matlab_empty
 from eegprep.functions.popfunc.plot_utils import component_maps, python_literal
 from eegprep.functions.studyfunc._study_utils import (
     sync_study_datasets,
@@ -39,7 +40,10 @@ def ensure_parent_cluster(study: dict[str, Any], datasets: list[dict[str, Any]])
     comps: list[int] = []
     for study_set, info in enumerate(study.get("datasetinfo") or [], start=1):
         eeg = dataset_for_study_set(study, datasets, study_set)
-        selected = list(info.get("comps") or [])
+        recorded = info.get("comps")
+        selected = (
+            [] if is_matlab_empty(recorded) else np.asarray(recorded, dtype=float).reshape(-1).astype(int).tolist()
+        )
         if not selected:
             weights = np.asarray(eeg.get("icaweights", []), dtype=float)
             if weights.size:
@@ -118,7 +122,12 @@ def normalize_cluster(cluster: dict[str, Any]) -> dict[str, Any]:
     output.setdefault("parent", [])
     output.setdefault("child", [])
     output["sets"] = sets_array(output.get("sets")).astype(int).tolist()
-    output["comps"] = [int(item) for item in np.asarray(output.get("comps") or [], dtype=int).ravel().tolist()]
+    comps = output.get("comps")
+    if isinstance(comps, np.ndarray):
+        comps = [] if comps.size == 0 else comps
+    elif not comps:
+        comps = []
+    output["comps"] = [int(item) for item in np.asarray(comps, dtype=int).ravel().tolist()]
     output["parent"] = _string_list(output.get("parent"))
     output["child"] = _string_list(output.get("child"))
     output.setdefault("preclust", {"preclustparams": [], "preclustdata": []})
@@ -243,7 +252,7 @@ def cluster_summary(study: dict[str, Any]) -> list[str]:
 
 
 def _string_list(value: Any) -> list[str]:
-    if value is None or value == "":
+    if value is None or (isinstance(value, str) and value == "") or (isinstance(value, np.ndarray) and value.size == 0):
         return []
     if isinstance(value, str):
         return [value]

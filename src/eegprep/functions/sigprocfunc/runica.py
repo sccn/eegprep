@@ -188,7 +188,8 @@ def runica(data, *args, **kwargs):
         Vector of learning rates used at each training step.
 
     activations : ndarray, shape (ncomps, frames), optional
-        Activation time courses of the output components.
+        Activation time courses of the output components. Returned when
+        ``return_activations`` is true.
 
     Notes
     -----
@@ -278,6 +279,7 @@ def runica(data, *args, **kwargs):
         raise ValueError(f'runica(): data size ({chans},{frames}) too small.')
 
     kwargs_lower = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    return_activations = bool(kwargs_lower.pop("return_activations", False))
 
     pcaflag = DEFAULT_PCAFLAG
     sphering = DEFAULT_SPHEREFLAG
@@ -1358,4 +1360,9 @@ def runica(data, *args, **kwargs):
     signs_out = signs_vec
     lrates_out = lrates
 
+    if return_activations:
+        activations_out = activations_unsorted[windex].copy()
+        if posactflag == "on" and np.any(flip):
+            activations_out[flip[windex]] *= -1
+        return weights, sphere, meanvar, bias_out, signs_out, lrates_out, activations_out
     return weights, sphere, meanvar, bias_out, signs_out, lrates_out

@@ -12,6 +12,8 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.event_utils import is_boundary_event
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
+from eegprep.functions.popfunc._event_utils import events_as_list
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
     parse_key_value_args,
@@ -79,7 +81,7 @@ def pop_adjustevents(
     )
 
     EEG_out = copy.deepcopy(EEG)
-    events = _events_as_list(EEG_out.get("event", []))
+    events = events_as_list(EEG_out.get("event", []))
     if not events:
         raise ValueError("Unable to proceed. Event type(s) requested not found")
 
@@ -160,21 +162,21 @@ def _normalize_eventtypes(eventtypes: Any) -> list[Any]:
         if text.startswith("{") and text.endswith("}"):
             text = text[1:-1]
         return parse_text_tokens(text)
+    if is_cell(eventtypes):
+        return [_event_type_token(item) for item in cell_items(eventtypes)]
     if isinstance(eventtypes, np.ndarray):
-        return _normalize_eventtypes(eventtypes.tolist())
+        return _normalize_eventtypes(eventtypes.reshape(-1).tolist())
     if isinstance(eventtypes, Iterable) and not isinstance(eventtypes, (bytes, bytearray)):
         return list(eventtypes)
     return [eventtypes]
 
 
-def _events_as_list(events: Any) -> list[dict[str, Any]]:
-    if events is None:
-        return []
-    if isinstance(events, dict):
-        return [events]
-    if isinstance(events, np.ndarray):
-        events = events.tolist()
-    return list(events)
+def _event_type_token(value: Any) -> Any:
+    if isinstance(value, np.ndarray) and value.dtype.kind in "SU" and value.size == 1:
+        return str(value.reshape(-1)[0])
+    if isinstance(value, np.ndarray) and value.size == 1:
+        return value.reshape(-1)[0]
+    return value
 
 
 def _restore_event_container(original_events: Any, events: list[dict[str, Any]]) -> Any:
@@ -301,7 +303,7 @@ def pop_adjustevents_dialog_spec(srate: float, event_types: Iterable[object] = (
 def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
     from eegprep.functions.guifunc.inputgui import inputgui
 
-    events = _events_as_list(EEG.get("event", []))
+    events = events_as_list(EEG.get("event", []))
     spec = pop_adjustevents_dialog_spec(float(EEG.get("srate", 1.0)), _unique_event_types(events))
     result = inputgui(spec, renderer=renderer)
     if result is None:

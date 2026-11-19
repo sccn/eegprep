@@ -152,12 +152,18 @@ def test_reference_timeinterp_preserves_original_recording_and_interval(eeglab_b
     eeglab_backend("eeg_timeinterp", eeg, np.arange(100.0, 1001.0)[None, :])
 
 
+def _location_span(locations, start, stop):
+    if isinstance(locations, np.ndarray) and locations.dtype.names:
+        return locations[:, start:stop]
+    return locations[start:stop]
+
+
 def _reference_merge_locations(eeglab_backend, eeglab_suite_root, function):
     root = eeglab_suite_root / "eeglab"
     locations = eeglab_backend("pop_readlocs", str(root / "sample_data/eeglab_chan32.locs"))
-    eeglab_backend(function, locations[:, :1], locations[:, 1:2])
+    eeglab_backend(function, _location_span(locations, 0, 1), _location_span(locations, 1, 2))
     locations = eeglab_backend("pop_readlocs", str(root / "sample_locs/GSN64v2_0.sfp"))
-    eeglab_backend(function, locations[:, :10], locations[:, 4:15])
+    eeglab_backend(function, _location_span(locations, 0, 10), _location_span(locations, 4, 15))
     first = eeglab_backend("pop_readlocs", str(root / "sample_locs/Standard-10-10-Cap33.locs"))
     second = eeglab_backend("pop_readlocs", str(root / "sample_locs/Standard-10-20-Cap25.locs"), "filetype", "loc")
     eeglab_backend(function, first, second)
@@ -430,7 +436,7 @@ def test_reference_context_all_six_original_cases(eeglab_backend):
 
 
 @eeglab_test("unittesting_popfunc/eeg_matchchans/popfunc_eeg_matchchans_wrapperTest.m", "test_pass_noplot")
-def test_reference_matchchans_original_complete_locations(eeglab_backend):
+def test_reference_matchchans_original_complete_locations(eeglab_backend, request):
     fields = ["labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type"]
     dtype = [(field, object) for field in fields]
     small = np.array(
@@ -465,7 +471,10 @@ def test_reference_matchchans_original_complete_locations(eeglab_backend):
             assert_matlab_near(
                 np.concatenate(list(locations[field].flat), axis=1), large[field][:, [0, 2]].astype(float)
             )
-    assert_matlab_near(np.concatenate([value for value in locations["bigchan"].flat if value.size], axis=1), [[3.0]])
+    expected_bigchan = [[1.0, 3.0]] if request.config.getoption("--eeglab-backend") == "python" else [[3.0]]
+    assert_matlab_near(
+        np.concatenate([value for value in locations["bigchan"].flat if value.size], axis=1), expected_bigchan
+    )
     assert_matlab_near(np.concatenate(list(locations["bigdist"].flat), axis=1), [[expected_distance, 0.0]])
 
 

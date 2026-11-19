@@ -11,6 +11,7 @@ from eegprep.functions.miscfunc.misc import finite_pinv
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._event_utils import events_as_list
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
     parse_key_value_args,
@@ -23,6 +24,13 @@ from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 
 
 logger = logging.getLogger(__name__)
+
+
+def _epoch_item(value: Any) -> Any:
+    names = getattr(getattr(value, "dtype", None), "names", None)
+    if names:
+        return {name: value[name] for name in names}
+    return value
 
 
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
@@ -250,8 +258,6 @@ def _pop_select_apply(EEG, **kwargs):
             chan_selected_flag[np.array(inds, dtype=int)] = False
 
     g['channel'] = np.where(chan_selected_flag)[0].tolist()
-    if len(g['channel']) == 0:
-        raise ValueError('Empty channel selection')
 
     def _normalize_range_matrix(x):
         x = np.asarray(x) if isinstance(x, (list, tuple, np.ndarray)) else np.array([])
@@ -338,6 +344,7 @@ def _pop_select_apply(EEG, **kwargs):
         logger.info("Removing %s channel(s)...", nbchan - len(g['channel']))
 
     if len(g['trial']) != trials and (EEG.get('event') is not None and len(EEG.get('event', [])) > 0):
+        EEG['event'] = events_as_list(EEG.get('event'))
         if not any('epoch' in ev for ev in EEG['event']):
             logger.warning("Bad event format with epoch dataset, removing events")
             EEG['event'] = []
@@ -486,8 +493,8 @@ def _pop_select_apply(EEG, **kwargs):
             EEG['icaact'] = ia[:, :, trial_idx_0]
 
     # chanlocs bookkeeping
-    chanlocs = EEG.get('chanlocs')
-    if _has_content(chanlocs):
+    chanlocs = chanlocs_as_list(EEG.get('chanlocs'))
+    if chanlocs:
         chaninfo = EEG.get("chaninfo")
         if not isinstance(chaninfo, dict):
             chaninfo = {}
@@ -512,8 +519,12 @@ def _pop_select_apply(EEG, **kwargs):
     EEG['nbchan'] = len(chan_idx)
 
     # epoch metadata
-    if _has_content(EEG.get('epoch')):
-        EEG['epoch'] = [EEG['epoch'][i] for i in trial_idx_0.tolist()]
+    epoch = EEG.get('epoch')
+    if isinstance(epoch, np.ndarray) and epoch.ndim >= 2 and epoch.shape[0] == 1:
+        flat = epoch.ravel(order="F")
+        EEG['epoch'] = [_epoch_item(flat[int(i)]) for i in np.asarray(trial_idx_0).reshape(-1)]
+    elif _has_content(epoch):
+        EEG['epoch'] = [epoch[i] for i in trial_idx_0.tolist()]
 
     # ICA channel bookkeeping
     icachansind = EEG.get('icachansind')

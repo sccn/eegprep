@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
@@ -39,7 +40,7 @@ def pop_newset(
     if unknown:
         raise ValueError(f"Unsupported pop_newset option(s): {', '.join(unknown)}")
 
-    alleeg = [] if ALLEEG is None else list(ALLEEG)
+    alleeg = as_dataset_list(ALLEEG)
     retrieve = options.get("retrieve")
     if retrieve is not None and retrieve != []:
         current, alleeg, current_set = eeg_retrieve(alleeg, retrieve)

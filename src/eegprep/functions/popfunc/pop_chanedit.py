@@ -26,6 +26,7 @@ from eegprep.functions.popfunc.plot_utils import show_figures
 from eegprep.functions.sigprocfunc.forcelocs import forcelocs
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
+from eegprep.functions.miscfunc.matlab_inputs import cell_items, is_cell
 from eegprep.functions.sigprocfunc.readlocs import readlocs
 from eegprep.functions.sigprocfunc.writelocs import writelocs
 
@@ -747,10 +748,16 @@ def _cart_to_all(chan: dict[str, Any]) -> None:
 
 
 def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
+    if is_cell(value):
+        value = cell_items(value)
+    if isinstance(value, np.ndarray) and value.dtype.kind in "SU" and value.size == 1:
+        value = str(value.reshape(-1)[0])
     if isinstance(value, (list, tuple)):
-        path = Path(value[0])
-        return readlocs(path, *value[1:])
-    return readlocs(Path(value))
+        path = value[0]
+        if isinstance(path, np.ndarray) and path.dtype.kind in "SU" and path.size == 1:
+            path = str(path.reshape(-1)[0])
+        return readlocs(Path(str(path)), *value[1:])
+    return readlocs(Path(str(value)))
 
 
 def _lookup_chanlocs(chanlocs: list[dict[str, Any]], value: Any) -> list[dict[str, Any]]:
