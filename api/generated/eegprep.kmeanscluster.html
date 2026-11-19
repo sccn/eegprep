@@ -540,7 +540,7 @@
 <dt class="sig sig-object py" id="eegprep.kmeanscluster">
 <span class="sig-name descname"><span class="pre">kmeanscluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clusters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">randomized</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.kmeanscluster" title="Link to this definition">#</a></dt>
 <dd><p>Cluster row-wise observations using EEGLAB’s simple k-means contract.</p>
-<p>Returns zero-based labels, centroids, the converged previous-label vector,
+<p>Returns 1-based labels as a one-dimensional vector, centroids, the previous-label vector,
 and an unchanged copy of the input observations. Deterministic mode
 initializes from the first <code class="docutils literal notranslate"><span class="pre">clusters</span></code> rows, as EEGLAB does, and keeps
 that centroid-row numbering.</p>

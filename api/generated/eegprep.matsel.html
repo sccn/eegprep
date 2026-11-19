@@ -551,9 +551,10 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.matsel">
 <span class="sig-name descname"><span class="pre">matsel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frames_per_epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.matsel" title="Link to this definition">#</a></dt>
-<dd><p>Select zero-based channels, within-epoch frames, and epochs.</p>
-<p>Input data remain two-dimensional with epochs concatenated along columns;
-output epochs are concatenated in the requested order.</p>
+<dd><p>Select 1-based channels, within-epoch frames, and epochs.</p>
+<p>A scalar <code class="docutils literal notranslate"><span class="pre">0</span></code> selects every index of that argument. An empty frame list
+selects no frames; an empty channel or epoch list selects every one.
+Input data remain two-dimensional with epochs concatenated along columns.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

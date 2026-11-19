@@ -511,10 +511,17 @@ doubles used as counts or 1-based indices. <code class="docutils literal notrans
 <code class="docutils literal notranslate"><span class="pre">pop_saveh</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_chancoresp</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_editeventvals</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_selectevent</span></code>,
 <code class="docutils literal notranslate"><span class="pre">eeg_store</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_retrieve</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_decodechan</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_getepochevent</span></code>,
 <code class="docutils literal notranslate"><span class="pre">eegh</span></code>, <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code>, <code class="docutils literal notranslate"><span class="pre">forcelocs</span></code>, <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">unique_cell_string</span></code> are included. Results stay Python scalars, lists, and
-dicts: a MATLAB 1-by-1 numeric or a struct-array result is not reproduced.
-<code class="docutils literal notranslate"><span class="pre">pop_select</span></code> channel indices stay 0-based. <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> still returns
-Python numbers rather than 1-by-1 arrays (#430).</p></li>
+<code class="docutils literal notranslate"><span class="pre">unique_cell_string</span></code> are included. <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> channel indices stay
+0-based (#430).</p></li>
+<li><p>MATLAB row, column, 1-by-1, and character-matrix shapes are applied when
+results leave through the output transport. Python callers still receive
+1-D vectors, scalar indices, and comment strings. <code class="docutils literal notranslate"><span class="pre">eeg_matchchans</span></code> records
+the source index on every matched channel. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">eeg_matchchans.m</span></code>
+assigns <code class="docutils literal notranslate"><span class="pre">bglocs(1).bigchan</span> <span class="pre">=</span> <span class="pre">[]</span></code> inside the matching loop, so a match to
+the first large channel loses its index. <code class="docutils literal notranslate"><span class="pre">pcsquash</span></code> returns the
+eigenvectors of the symmetric decomposition sorted by descending eigenvalue.
+EEGLAB’s <code class="docutils literal notranslate"><span class="pre">pcsquash.m</span></code> uses <code class="docutils literal notranslate"><span class="pre">eig</span></code> and does not flip signs, so EEGPrep does
+not force each eigenvector’s largest-magnitude entry to be positive (#430).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when an RMS fit width
 rounds to zero, which happens for two or three 0.5 s windows at the default
 quantiles. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> skip burst repair,
