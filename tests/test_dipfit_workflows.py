@@ -18,10 +18,14 @@ from eegprep.plugins.dipfit._coordinates import (
     traditionaldipfit,
     warp_apply,
 )
-from eegprep.plugins.dipfit._fitting import prepare_forward_data
+from eegprep.plugins.dipfit.eeglab2fieldtrip import eeglab2fieldtrip
+from eegprep.plugins.dipfit.dipfit_gridsearch import fitting_config
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError, normalize_model_list
-from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
-from eegprep.plugins.dipfit.forward.standard_besa import standard_besa_headmodel
+from eegprep.plugins.dipfit.ft_dipolefitting import (
+    compute_dipole_leadfield as ft_compute_leadfield,
+    standard_besa_headmodel,
+    prepare_headmodel_sens,
+)
 from eegprep.plugins.dipfit.load_afni_atlas import load_afni_atlas
 from eegprep.plugins.dipfit.dipfit_reject import dipfit_reject
 from eegprep.plugins.dipfit.pop_dipfit_batch import pop_dipfit_batch
@@ -102,16 +106,16 @@ def test_pop_dipfit_settings_stores_standard_model_and_python_history():
 def test_packaged_standard_mri_volume_supports_dipfit_viewprops_slices():
     volume = load_standard_mri_volume()
 
-    assert volume.anatomy.shape == (181, 217, 181)
-    assert volume.anatomy.dtype.name == "uint8"
-    assert volume.transform.shape == (4, 4)
+    assert volume["anatomy"].shape == (181, 217, 181)
+    assert volume["anatomy"].dtype.name == "uint8"
+    assert volume["transform"].shape == (4, 4)
     assert dipfit_mri_slice_indices(volume, [[0, -20, 40]]) == (87, 108, 109)
     slices = dipfit_mri_slices(volume, [[0, -20, 40]])
     assert len(slices) == 3
-    assert slices[0].image.shape == (181, 217)
-    assert slices[1].image.shape == (181, 181)
-    assert slices[2].image.shape == (217, 181)
-    assert slices[0].extent == (-125.0, 91.0, -72.0, 108.0)
+    assert slices[0]["image"].shape == (181, 217)
+    assert slices[1]["image"].shape == (181, 181)
+    assert slices[2]["image"].shape == (217, 181)
+    assert slices[0]["extent"] == (-125.0, 91.0, -72.0, 108.0)
 
 
 def test_pop_dipfit_settings_gui_uses_first_dataset_and_applies_to_all():
@@ -194,8 +198,9 @@ def test_mni_nonlinear_fit_uses_the_packaged_bem():
 
     position = np.asarray(refined["dipfit"]["model"][0]["posxyz"], dtype=float)[0]
     assert np.all(np.isfinite(position))
-    forward = prepare_forward_data(refined, [1])
-    assert str(forward.headmodel["type"]).lower() == "dipoli"
+    comp = eeglab2fieldtrip(refined)
+    vol, _sens = prepare_headmodel_sens(fitting_config(refined), comp["elec"], refined["chanlocs"])
+    assert str(vol["type"]).lower() == "dipoli"
 
 
 def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset():
@@ -210,11 +215,13 @@ def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset(
     eeg["nbchan"] = len(eeg["chanlocs"])
     eeg["dipfit"]["chansel"] = list(range(1, eeg["nbchan"] + 1))
 
-    forward = prepare_forward_data(eeg, [1])
-
-    assert forward.maps.shape == (18, 1)
-    assert forward.positions.shape == (18, 3)
-    assert forward.chansel == list(range(1, 19))
+    comp = eeglab2fieldtrip(eeg)
+    cfg = fitting_config(eeg, [1])
+    cfg["channel"] = [label for label in cfg["channel"] if label in comp["topolabel"]]
+    _vol, sens = prepare_headmodel_sens(cfg, comp["elec"], eeg["chanlocs"])
+    assert comp["topo"].shape == (18, 1)
+    assert sens["elecpos"].shape == (18, 3)
+    assert sens["label"] == [f"E{index}" for index in range(1, 19)]
 
     coarse, _com = pop_dipfit_gridsearch(
         eeg,
@@ -249,9 +256,8 @@ def test_pop_multifit_batch_manual_and_leadfield_use_native_backend():
     assert manual["dipfit"]["model"][0]["rv"] < 0.02
     assert "pop_dipfit_nonlinear" in manual_com
 
-    leadfield, leadfield_com = pop_leadfield(eeg, sourcemodel={"pos": [[0, 0, 30], [10, -20, 40]]}, return_com=True)
-    assert np.asarray(leadfield["dipfit"]["sourcemodel"]["leadfield"][0]).shape == (18, 3)
-    assert "pop_leadfield" in leadfield_com
+    with pytest.raises(DIPFITUnavailableError, match="pop_leadfield"):
+        pop_leadfield(eeg, sourcemodel={"pos": [[0, 0, 30], [10, -20, 40]]}, return_com=True)
 
 
 def test_dipfit_reject_matches_eeglab_empty_model_contract():
@@ -401,18 +407,12 @@ def test_besa_coarse_fit_and_autofit_keep_linspace_history():
     assert "pop_multifit" in _console_python_command(autofit_command)
 
 
-def test_loreta_key_leadfield_and_missing_source_analysis():
+def test_distributed_source_analysis_stubs_do_not_change_the_dataset():
     eeg = pop_dipfit_settings(create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBEM")
-    with pytest.raises(ValueError, match="pop_leadfield"):
-        pop_dipfit_loreta(eeg, [1])
-
-    leadfield, command = pop_leadfield(eeg, sourcemodel="loreta-key", return_com=True)
-    points = np.asarray(leadfield["dipfit"]["sourcemodel"]["pos"], dtype=float)
-    assert points.ndim == 2 and points.shape[1] == 3 and points.shape[0] > 0
-    assert np.all(np.linalg.norm(points, axis=1) <= 75.0)
-    assert "sourcemodel='loreta-key'" in _console_python_command(command)
-    with pytest.raises(DIPFITUnavailableError, match="pop_dipfit_loreta"):
-        pop_dipfit_loreta(leadfield, [1])
+    for function in (pop_dipfit_loreta, pop_leadfield):
+        with pytest.raises(DIPFITUnavailableError, match=function.__name__):
+            function(eeg, gui=False)
+    assert "sourcemodel" not in eeg["dipfit"]
 
 
 def test_gui_leadfield_loreta_key_choice_fills_the_source_field(qapp):
@@ -432,7 +432,7 @@ def test_gui_leadfield_loreta_key_choice_fills_the_source_field(qapp):
         assert widgets["source_browse"].isEnabled()
         widgets["source_choice"].setCurrentIndex(0)
         QApplication.processEvents()
-        with pytest.raises(ValueError, match="pop_leadfield"):
+        with pytest.raises(DIPFITUnavailableError, match="pop_leadfield"):
             pop_leadfield(
                 create_test_eeg_with_ica(n_channels=2, n_samples=16, n_components=1),
                 gui=True,

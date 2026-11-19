@@ -19,7 +19,7 @@ from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.tf_cycle_calc import _width_vector, tf_cycle_calc
 from eegprep.functions.timefreqfunc.timefreq import timefreq
-from eegprep.plugins.dipfit._fitting import parse_grid_values
+from eegprep.plugins.dipfit.dipfit_gridsearch import parse_grid_values
 from eegprep.plugins.firfilt.plotfresp import plotfresp
 
 

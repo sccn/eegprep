@@ -1,5 +1,5 @@
 # pop_dipfit_loreta
 
-Localize ICA components using an eLORETA-style distributed source model.
+eLORETA distributed source analysis is not implemented. This entry point raises `NotImplementedError` and does not change the dataset.
 
-This EEGLAB workflow requires a previously computed leadfield matrix and FieldTrip source-analysis/source-plotting functions. EEGPrep validates those prerequisites and then raises an explicit missing-backend message until this source-analysis path is ported.
+Use `pop_multifit` to localize ICA components with one equivalent dipole or a symmetric pair. The packaged MNI BEM and four-shell BESA models are supported without MATLAB.

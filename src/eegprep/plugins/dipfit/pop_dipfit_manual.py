@@ -1,8 +1,8 @@
-"""Deprecated EEGLAB-style DIPFIT manual nonlinear fitting entry point."""
+"""EEGLAB's deprecated pop_dipfit_manual entry point."""
 
-from __future__ import annotations
-
-from eegprep.plugins.dipfit._fieldtrip_workflows import pop_dipfit_manual
+from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
 
 
-__all__ = ["pop_dipfit_manual"]
+def pop_dipfit_manual(*args, **kwargs):
+    """Call :func:`pop_dipfit_nonlinear` with the same GUI and history behavior."""
+    return pop_dipfit_nonlinear(*args, **kwargs)

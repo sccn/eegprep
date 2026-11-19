@@ -1,8 +1,8 @@
-"""Deprecated EEGLAB-style DIPFIT batch grid-search entry point."""
+"""EEGLAB's deprecated pop_dipfit_batch entry point."""
 
-from __future__ import annotations
-
-from eegprep.plugins.dipfit._fieldtrip_workflows import pop_dipfit_batch
+from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
 
 
-__all__ = ["pop_dipfit_batch"]
+def pop_dipfit_batch(*args, **kwargs):
+    """Call :func:`pop_dipfit_gridsearch` with the same GUI and history behavior."""
+    return pop_dipfit_gridsearch(*args, **kwargs)

@@ -102,14 +102,13 @@ the limits. Cancelling the menu discards its changes.
      - The default head model is the packaged dipoli boundary-element volume
        from DIPFIT ``standard_vol.mat``. Grid search uses EEGLAB's
        ``linspace(-85,85,24)`` and ``linspace(0,85,12)`` points that fall
-       inside the brain mesh, then refines each dipole with SciPy BFGS.
-       That BFGS refinement has no inside-brain constraint, so a fit can
-       land outside the brain mesh with a lower residual than EEGLAB's.
-       Sample component 3 does this. The optimizer is the analogue of
-       ``fminunc`` and is not bit-identical to MATLAB. Components 1 and 2
-       of the sample dataset land within 1 mm of EEGLAB. On that sample,
-       component 3's lower residual than EEGLAB is an observation, not a
-       general rule. EEGLAB's settings
+       inside the brain mesh. Nonlinear refinement follows FieldTrip's
+       ``fminunc`` settings: 10 mm typical coordinates, finite differences,
+       a scaled BFGS inverse Hessian, a safeguarded cubic Wolfe line search,
+       and FieldTrip's stopping tolerances. All 32 components of the sample
+       ICA dataset match MATLAB R2025b within 0.05 mm for both head models.
+       Component 3 of the MNI fit remains inside the brain mesh. Nonlinear
+       positions are unconstrained by default, as in FieldTrip. EEGLAB's settings
        dialog switches a channel file whose name contains
        ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
        model and applies that file's cap385-to-MNI coregistration. A channel
@@ -477,13 +476,11 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        channel properties and View extended component properties on the Plot
        menu.
    * - LORETA-KEY leadfield
-     - The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius. The
-       leadfield uses the selected head model. FieldTrip's LORETA-KEY atlas and eLORETA source
-       analysis are not bundled. ``pop_dipfit_loreta`` asks for
-       ``pop_leadfield`` when ``EEG.dipfit.sourcemodel`` is missing, then
-       reports the missing FieldTrip backend.
+     - Distributed source leadfields and eLORETA are unsupported.
+       ``pop_leadfield`` and ``pop_dipfit_loreta`` raise
+       ``NotImplementedError``. Their dialog layouts remain available.
    * - DIPFIT history
-     - Settings, fitting, leadfield, and dipole-plot commands are stored as
+     - Settings, fitting, and dipole-plot commands are stored as
        Python keywords so ``eegprep-console`` can replay them. EEGLAB stores
        the same calls as ``'key', value`` pairs. A ``linspace`` string entered
        for the coarse-fit grid is kept as that string.

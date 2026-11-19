@@ -335,7 +335,8 @@ Review components visually with ``pop_viewprops`` before removing them.
 DIPFIT
 ======
 
-DIPFIT helpers fit ``standardBESA`` with the four-shell BESA leadfield. They store
+DIPFIT fits ICA topographies using the four-shell ``standardBESA`` model or the
+packaged MNI ``standardBEM`` dipoli model. It stores
 model fields under ``EEG["dipfit"]["model"]`` and keep command strings replayable:
 
 .. code-block:: python
@@ -343,8 +344,19 @@ model fields under ``EEG["dipfit"]["model"]`` and keep command strings replayabl
    EEG, com = pop_dipfit_settings(EEG, model="standardBESA", return_com=True)
    EEG, com = pop_multifit(EEG, [1, 2, 3], threshold=40, return_com=True)
 
-Unavailable MRI/BEM, AFNI, LORETA, and STUDY-level source-statistics workflows
-raise explicit errors.
+The solver uses plain dictionaries and works without MATLAB or an EEGLAB
+checkout. ``dipfit_gridsearch`` and ``dipfit_nonlinear`` both call the single
+``plugins/dipfit/ft_dipolefitting.py`` module. Its ``prepare_headmodel_sens``,
+``inside_brain_grid``, and ``compute_dipole_leadfield`` functions expose sensor
+projection, brain masks, and average-referenced leadfields in millimeters.
+Symmetric pairs mirror the y coordinate for BESA or x coordinate for MNI.
+``threshold`` is an RV percentage. ``rmout="on"`` removes positions beyond
+85 mm for spherical models, matching DIPFIT's behavior.
+
+MRI headmodel construction, distributed source leadfields, eLORETA, and
+STUDY-level source statistics raise explicit errors. ``pop_leadfield``,
+``pop_dipfit_loreta``, and ``pop_dipfit_headmodel`` retain their dialog layouts
+and report unsupported features without modifying the dataset.
 
 EEG-BIDS
 ========

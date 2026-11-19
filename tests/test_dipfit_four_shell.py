@@ -8,12 +8,14 @@ import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.dipfit.forward.eeg_leadfield1 import eeg_leadfield1
-from eegprep.plugins.dipfit.forward.eeg_leadfield4 import eeg_leadfield4
-from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
-from eegprep.plugins.dipfit.forward.ft_inside_headmodel import ft_inside_headmodel
-from eegprep.plugins.dipfit.forward.ft_prepare_vol_sens import ft_prepare_vol_sens
-from eegprep.plugins.dipfit.forward.standard_besa import standard_besa_headmodel
+from eegprep.plugins.dipfit.ft_dipolefitting import (
+    eeg_leadfield1,
+    eeg_leadfield4,
+    standard_besa_headmodel,
+    prepare_headmodel_sens,
+    compute_dipole_leadfield as ft_compute_leadfield,
+    inside_headmodel as ft_inside_headmodel,
+)
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
 from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 from tests.eeglab_tests.backend import call_matlab, skip_without_matlab_plugin
@@ -110,7 +112,7 @@ def test_dipole_between_the_brain_and_scalp_still_has_a_finite_leadfield():
 def test_electrodes_project_onto_the_outer_sphere_and_the_brain_shell_is_strict():
     headmodel = standard_besa_headmodel()
     raw = np.array([[100.0, 0.0, 0.0], [0.0, 40.0, 30.0]])
-    _model, sensors = ft_prepare_vol_sens(headmodel, {"elecpos": raw})
+    _model, sensors = prepare_headmodel_sens({"vol": headmodel}, {"elecpos": raw}, [])
     projected = np.asarray(sensors["elecpos"])
     np.testing.assert_allclose(np.linalg.norm(projected, axis=1), 85.0)
     np.testing.assert_allclose(projected[0], [85.0, 0.0, 0.0])
@@ -164,7 +166,7 @@ def test_fieldtrip_leadfields_and_pop_multifit_positions_match_eeglab(eeglab_mat
     dipoles = np.asarray(reference["dippos"], dtype=float)
     matlab_leadfield = np.asarray(reference["leadfield"], dtype=float)
     matlab_positions = np.asarray(reference["fitpos"], dtype=float)
-    _model, sensors = ft_prepare_vol_sens(standard_besa_headmodel(), {"elecpos": raw})
+    _model, sensors = prepare_headmodel_sens({"vol": standard_besa_headmodel()}, {"elecpos": raw}, [])
     np.testing.assert_allclose(np.asarray(sensors["elecpos"]), projected, atol=1e-6)
     python_leadfield = ft_compute_leadfield(dipoles, {"elecpos": raw}, standard_besa_headmodel())
     assert _relative_error(python_leadfield, matlab_leadfield) < 1e-5

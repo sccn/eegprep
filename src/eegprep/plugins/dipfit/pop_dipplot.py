@@ -277,10 +277,10 @@ def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, 
         ("Sagittal", "Coronal", "Axial"),
         strict=True,
     ):
-        axis.imshow(mri_slice.image, cmap="gray", origin="lower", extent=mri_slice.extent)
+        axis.imshow(mri_slice["image"], cmap="gray", origin="lower", extent=mri_slice["extent"])
         axis.scatter(
-            positions[:, mri_slice.x_axis],
-            positions[:, mri_slice.y_axis],
+            positions[:, mri_slice["x_axis"]],
+            positions[:, mri_slice["y_axis"]],
             s=35,
             c="tab:red",
             edgecolors="white",
@@ -288,15 +288,15 @@ def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, 
         )
         if _option_on(options.get("projlines")):
             for row in positions:
-                axis.axvline(row[mri_slice.x_axis], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
-                axis.axhline(row[mri_slice.y_axis], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
+                axis.axvline(row[mri_slice["x_axis"]], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
+                axis.axhline(row[mri_slice["y_axis"]], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
         if _option_on(options.get("drawedges")):
             for spine in axis.spines.values():
                 spine.set_color("white")
                 spine.set_linewidth(1.2)
         axis.set_title(title)
-        axis.set_xlabel(("X", "Y", "Z")[mri_slice.x_axis])
-        axis.set_ylabel(("X", "Y", "Z")[mri_slice.y_axis])
+        axis.set_xlabel(("X", "Y", "Z")[mri_slice["x_axis"]])
+        axis.set_ylabel(("X", "Y", "Z")[mri_slice["y_axis"]])
 
 
 def _validate_mri_option(value: Any) -> None:
