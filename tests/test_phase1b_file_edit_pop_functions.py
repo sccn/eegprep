@@ -735,6 +735,7 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
 
     assert len(alleeg) == 3
     assert current_set == 3
+    assert alleeg[current_set - 1]["setname"] == "first"
     assert eeg["setname"] == "first"
     assert alleeg[0]["setname"] == "first"
     assert alleeg[2]["setname"] == "first"

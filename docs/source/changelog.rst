@@ -10,8 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``epoch`` accepts positional name/value pairs and returns 1-based column
-  indices, a ``newtime`` row, and event cells. ``gauss`` returns a row.
+- ``epoch`` now extracts epochs from a data matrix, as ``epoch.m`` does.
+  Use ``pop_epoch`` to epoch a dataset. It accepts positional name/value
+  pairs and returns 1-based column indices, a ``newtime`` row, and event
+  cells. ``gauss`` returns a row.
   ``eeg_lat2point`` reads a ``timewin`` row with linear indexing.
   ``pop_loadset(filename, filepath)`` is the older two-argument form.
   ``pop_expica(EEG, whichica, filename)`` follows that argument order.

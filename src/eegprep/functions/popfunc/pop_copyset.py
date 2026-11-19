@@ -66,7 +66,7 @@ def pop_copyset(
         eeg_out = {field: deepcopy(stored[field][position]) for field in stored.dtype.names}
     else:
         eeg_out = deepcopy(copied)
-    current = np.float64(set_out)
+    current = np.float64(set_out) if isinstance(stored, np.ndarray) else set_out
     command = f"[ALLEEG EEG CURRENTSET] = pop_copyset( ALLEEG, {source_index}, {set_out});"
     return (stored, eeg_out, current, command) if return_com else (stored, eeg_out, current)
 
