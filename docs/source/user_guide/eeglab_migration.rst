@@ -562,6 +562,15 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``eeg_interp`` do not test the layout, so a collinear montage can
        come back as a channel deletion or an interpolation that does not
        reflect the recording.
+   * - Named workspace variables
+     - ``importevent`` and ``pop_importdata`` take the event array or data
+       array directly. ``importevent.m`` lines 199 and 228 call
+       ``evalin('caller', event)`` when the event argument is a character
+       name and no file of that name exists. ``pop_importdata.m`` documents
+       ``'data'`` as a variable name in the base workspace and
+       ``pop_editset`` evaluates it. EEGPrep has no caller workspace.
+       ``test_reference_importevent_original_named_workspace_variables``
+       passes the same arrays and checks the latencies ``1`` and ``50``.
    * - Empty ``topoplot`` locations
      - An interpolated ``topoplot`` raises ``ValueError`` when channel
        locations are ``None`` or empty. The message names ``topoplot`` and

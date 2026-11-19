@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
-from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, matlab_ints, struct_records
+from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, is_matlab_empty, matlab_ints, struct_records
 
 
 def _datasets_or_one(eeg: Any) -> Any:
@@ -42,11 +42,17 @@ def _normalize_store_index(index: Any) -> int | list[int] | None:
     return ints
 
 
+def _empty_dataset_slot(dataset: Any) -> bool:
+    # eeg_store.m frees a slot when isempty(ALLEEG(i).data). A missing field throws and is free too.
+    if not isinstance(dataset, dict):
+        return not dataset
+    return is_matlab_empty(dataset.get("data"))
+
+
 def _normalize_index(index: int | None, alleeg: list[dict[str, Any]]) -> int:
     if index is None or index == 0:
-        # EEGLAB stores a new dataset in the lowest empty slot (here ``{}``) before appending.
         for position, dataset in enumerate(alleeg, start=1):
-            if not dataset:
+            if _empty_dataset_slot(dataset):
                 return position
         return len(alleeg) + 1
     if index < 1:

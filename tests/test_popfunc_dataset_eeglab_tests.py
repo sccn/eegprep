@@ -12,8 +12,6 @@ import pytest
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
-from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
-from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 from eegprep.functions.popfunc.pop_runica import pop_runica
@@ -359,35 +357,33 @@ def _epoched_eeg(name: str = "epoched") -> dict:
 
 @eeglab_test("unittesting_popfunc/importevent/popfunc_importevent_wrapperTest.m", "test_test_latency")
 def test_reference_importevent_original_named_workspace_variables(eeglab_backend, request):
-    options = (
-        "dataformat",
-        "array",
-        "nbchan",
-        0.0,
-        "data",
-        "eegdata",
-        "setname",
-        "importevent_bug",
-        "srate",
-        1.0,
-        "pnts",
-        0.0,
-        "xmin",
-        0.0,
-    )
+    # importevent.m resolves a char name with evalin('caller'). EEGPrep has no
+    # caller workspace, so this lane passes the same event array directly.
     matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    data = np.zeros((2, 50))
     if matlab:
         engine = request.getfixturevalue("eeglab_matlab_engine")
-        engine.eval("global eegdata; eegdata = rand(2,50);", nargout=0)
-        workspace = None
+        engine.eval("global eegdata; eegdata = zeros(2,50);", nargout=0)
+        data_argument = "eegdata"
     else:
-        workspace = EEGPrepConsoleWorkspace(EEGPrepSession())
-        workspace.namespace["eegdata"] = np.random.default_rng().random((2, 50))
+        data_argument = data
     try:
-        eeg = (
-            eeglab_backend("pop_importdata", *options)
-            if workspace is None
-            else workspace.namespace["pop_importdata"](*options)
+        eeg = eeglab_backend(
+            "pop_importdata",
+            "dataformat",
+            "array",
+            "nbchan",
+            0.0,
+            "data",
+            data_argument,
+            "setname",
+            "importevent_bug",
+            "srate",
+            1.0,
+            "pnts",
+            0.0,
+            "xmin",
+            0.0,
         )
         events = []
         for values, timeunit in (
@@ -403,23 +399,18 @@ def test_reference_importevent_original_named_workspace_variables(eeglab_backend
                 "timeunit",
                 timeunit,
             )
-            if workspace is None:
-                # A tiny transport helper binds the literal caller variable;
-                # passing the cell contents directly would drop that workflow.
+            if matlab:
                 result = eeglab_backend("eegprep_test_importevent_caller", values, *arguments)
             else:
-                workspace.namespace["myEventValues"] = values
-                result = workspace.namespace["importevent"]("myEventValues", *arguments)
+                result = eeglab_backend("importevent", values, *arguments)
             events.append(result)
         first, second = (matlab_field_concat(result, "latency").T for result in events)
         assert_matlab_equal(first, second)
         assert first[0, 0] == 1.0
         assert first[1, 0] == 50.0
     finally:
-        if workspace is None:
+        if matlab:
             engine.eval("clear global eegdata; clear eegdata;", nargout=0)
-        else:
-            workspace.close()
 
 
 def test_current_pop_eegfilt_default_highpass_attenuates_sub_cutoff_signal():

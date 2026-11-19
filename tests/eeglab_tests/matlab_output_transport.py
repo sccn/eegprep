@@ -306,6 +306,21 @@ def _adapt_eegplot2trial(result: Any) -> Any:
     return as_row(trialrej), elecrej
 
 
+def _adapt_gethelpvar(result: Any) -> Any:
+    descriptions, names = result
+    return _empty_description_chars(descriptions), names
+
+
+def _empty_description_chars(value: Any) -> Any:
+    if not isinstance(value, np.ndarray) or value.dtype != object:
+        return value
+    output = np.empty(value.shape, dtype=object)
+    for index in np.ndindex(value.shape):
+        item = value[index]
+        output[index] = np.empty((0,), dtype="<U1") if item == "" else item
+    return output
+
+
 def _adapt_getchanlist(result: Any) -> Any:
     if isinstance(result, list):
         return _index_row(result)
@@ -387,9 +402,21 @@ def _description_column(lines: list[str]) -> np.ndarray:
 
 
 def _present_descriptions(value: Any) -> Any:
+    # eeg_checkset.m builds eventdescription as a 1-by-N cell of char.
     if isinstance(value, list) and all(isinstance(item, str) for item in value):
-        return _description_column(value)
+        row = np.empty((1, len(value)), dtype=object)
+        for index, line in enumerate(value):
+            row[0, index] = _matlab_char(line)
+        return row
     return value
+
+
+def _matlab_char(text: str) -> Any:
+    if text == "":
+        return np.empty((0,), dtype="<U1")
+    if "\n" in text:
+        return _character_matrix(text.split("\n"))
+    return text
 
 
 def _present_eeg(eeg: dict[str, Any], *, scalars: bool) -> dict[str, Any]:
@@ -585,6 +612,7 @@ _ADAPTERS = {
     "finputcheck": _adapt_finputcheck,
     "forcelocs": _adapt_records,
     "getchanlist": _adapt_getchanlist,
+    "gethelpvar": _adapt_gethelpvar,
     "getkeyval": _row_if_vector,
     "hungarian": _rows,
     "importevent": _adapt_records,

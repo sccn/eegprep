@@ -124,6 +124,17 @@ def test_eeg_store_fills_lowest_empty_slot():
     assert [eeg["setname"] for eeg in alleeg] == ["first", "second", "third", "fourth"]
 
 
+def test_eeg_store_fills_slot_whose_fields_are_empty_arrays():
+    first = _eeg(name="first")
+    occupied = _eeg(name="third")
+    empty = {field: np.empty((0, 0)) for field in first}
+
+    alleeg, _checked, index = eeg_store([first, empty, occupied], [_eeg(name="second"), _eeg(name="fourth")])
+
+    assert index == [2, 4]
+    assert [eeg["setname"] for eeg in alleeg] == ["first", "second", "third", "fourth"]
+
+
 def test_eeg_store_preserves_justloaded_dataset_as_saved():
     alleeg, checked, index = eeg_store([], _eeg(saved="justloaded"), 0)
 
