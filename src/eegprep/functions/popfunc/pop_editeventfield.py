@@ -183,9 +183,9 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
 def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[str, Any]:
     output = deepcopy(EEG)
     events = events_as_list(output.get("event"))
-    eventdescription = _description_list(
-        output.get("eventdescription"), event_field_names(events, include_urevent=True)
-    )
+    original_description = output.get("eventdescription")
+    eventdescription = _description_list(original_description, event_field_names(events, include_urevent=True))
+    description_edited = False
     option_map = {str(key).lower(): value for key, value in options}
     indices_value = option_map.get("indices")
     delold_value = str(option_map.get("delold", "no")).lower()
@@ -205,16 +205,21 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             continue
         if lower_key == "rename":
             _rename_field(events, str(value), eventdescription)
+            description_edited = True
             urevents = events_as_list(output.get("urevent"))
             if urevents:
                 _rename_field(urevents, str(value), [])
                 output["urevent"] = urevents
             continue
         if lower_key.endswith("info") and lower_key != "info":
-            _set_description(events, eventdescription, key_text[:-4], field_text(value))
+            # pop_editeventfield.m assigns eventdescription only when the field exists.
+            if key_text[:-4] in event_field_names(events, include_urevent=True):
+                _set_description(events, eventdescription, key_text[:-4], field_text(value))
+                description_edited = True
             continue
         if _is_empty(value):
             _delete_field(events, key_text, eventdescription)
+            description_edited = True
             urevents = events_as_list(output.get("urevent"))
             if urevents:
                 _delete_field(urevents, key_text, [])
@@ -242,7 +247,8 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
         for event_index, item in zip(indices, values):
             events[event_index][key_text] = _field_value(key_text, item, srate=srate, timeunit=timeunit)
             _update_matching_urevent(output, events[event_index], key_text)
-        _ensure_description_slot(eventdescription, event_field_names(events, include_urevent=True), key_text)
+            _ensure_description_slot(eventdescription, event_field_names(events, include_urevent=True), key_text)
+            description_edited = True
 
     if replace_events:
         output["urevent"] = []
@@ -252,7 +258,8 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             output["urevent"].append(urevent)
             event["urevent"] = index
     output["event"] = sort_events(events)
-    output["eventdescription"] = eventdescription
+    if description_edited:
+        output["eventdescription"] = eventdescription
     output["saved"] = "no"
     return eeg_checkset(output, "eventconsistency")
 

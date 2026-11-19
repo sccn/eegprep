@@ -618,40 +618,87 @@ def test_std_selectdesign_scans_generated_designs_without_corrupting_component_m
         assert (selected["cluster"][0]["sets"], selected["cluster"][0]["comps"]) == original_pairs
 
 
+def _count(value):
+    if isinstance(value, (list, tuple)):
+        return len(value)
+    return int(np.asarray(value).size)
+
+
+def _flat(value):
+    if isinstance(value, dict):
+        return [value]
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return list(np.asarray(value).ravel(order="F"))
+
+
+def _legacy_membership_check(version: str) -> bool:
+    # test_std_selectdesign.m indexes cluster membership when
+    # str2num(eegvers(1:2)) <= 13. EEGLAB d0963be9 returns 'dev', so the
+    # block does not run. A leading 0 is EEGPrep's package version.
+    prefix = version[:2].rstrip(".")
+    return prefix.isdigit() and 9 <= float(prefix) <= 13
+
+
 @pytest.mark.parametrize("eeglab_sample_study", [("teststudy2", "stern2s.study")], indirect=True)
 @_reference("std_selectdesign", "test_test_std_selectdesign")
 def test_reference_std_selectdesign(eeglab_backend, eeglab_sample_study):
     study, alleeg = eeglab_sample_study
     version = eeglab_backend("eeg_getversion")
-    for design_index in range(study["design"].size):
-        design = study["design"].ravel()[design_index]
+    for design_index in range(_count(study["design"])):
+        design = _flat(study["design"])[design_index]
         skip_design = False
         if version.startswith("9"):
-            for variable in design["variable"].ravel():
-                values = variable["value"]
-                if any(np.asarray(value).dtype == object for value in values.ravel()):
+            for variable in _flat(design["variable"]):
+                values = _flat(variable["value"])
+                if any(np.asarray(value).dtype == object for value in values):
                     skip_design = True
                 if (
-                    values.size
-                    and np.asarray(values.flat[0]).dtype.kind in "biufc"
-                    and any(np.asarray(value).size > 1 for value in values.ravel())
+                    values
+                    and np.asarray(values[0]).dtype.kind in "biufc"
+                    and any(np.asarray(value).size > 1 for value in values)
                 ):
                     skip_design = True
-            if any(cell["trials"].flat[0].size == 0 for cell in design["cell"].ravel()):
+            if any(np.asarray(_flat(cell["trials"])[0]).size == 0 for cell in _flat(design["cell"])):
                 skip_design = True
         if skip_design:
             continue
         study = eeglab_backend("std_selectdesign", study, alleeg, float(design_index + 1))
-        # The original asserts membership only for EEGLAB <=13; current
-        # reference versions exercise every design as a workflow smoke test.
-        prefix = version[:2]
-        if prefix.rstrip(".").isdigit() and float(prefix) <= 13:
-            for cluster in study["cluster"].ravel():
-                for indices, sets in zip(cluster["allinds"].ravel(), cluster["setinds"].ravel(), strict=True):
-                    for component, dataset_index in zip(indices.ravel(), sets.ravel(), strict=True):
-                        selected_set = study["design"]["cell"].ravel()[design_index].ravel()[int(dataset_index) - 1]
-                        columns = np.flatnonzero(cluster["comps"].ravel() == component)
-                        dataset = selected_set["dataset"]
-                        assert dataset.size == 0 or np.isin(dataset, cluster["sets"][:, columns]).any(), (
+        if _legacy_membership_check(version):
+            for cluster in _flat(study["cluster"]):
+                for indices, sets in zip(_flat(cluster["allinds"]), _flat(cluster["setinds"]), strict=True):
+                    for component, dataset_index in zip(
+                        np.asarray(indices).ravel(), np.asarray(sets).ravel(), strict=True
+                    ):
+                        selected_set = _flat(_flat(study["design"])[design_index]["cell"])[int(dataset_index) - 1]
+                        columns = np.flatnonzero(np.asarray(cluster["comps"]).ravel() == component)
+                        dataset = np.asarray(selected_set["dataset"])
+                        assert dataset.size == 0 or np.isin(dataset, np.asarray(cluster["sets"])[:, columns]).any(), (
                             "Clusters corrupted"
                         )
+
+
+def test_std_selectdesign_keeps_list_valued_cluster_indices():
+    study = {
+        "name": "lists",
+        "datasetinfo": [],
+        "design": [{"name": "all", "variable": []}],
+        "cluster": [
+            {
+                "name": "ParentCluster",
+                "sets": [[1, 1]],
+                "comps": [1, 2],
+                "allinds": [[1, 2]],
+                "setinds": [[1, 1]],
+                "parent": [],
+                "child": [],
+            }
+        ],
+        "currentdesign": 1,
+    }
+
+    selected = std_selectdesign(study, [], 1)
+
+    assert selected["currentdesign"] == 1
+    assert selected["cluster"][0]["allinds"] == [[1, 2]]
+    assert selected["cluster"][0]["setinds"] == [[1, 1]]
