@@ -20,10 +20,11 @@ def gauss(frames: int, standard_deviations: float) -> np.ndarray:
         raise ValueError("frames and standard_deviations must be positive")
     if frame_count == 1:
         # gauss.m: incr is Inf, and -sds:Inf:sds is the single sample -sds.
-        return np.reshape(exp(-(np.float64(standard_deviations) ** 2)), 1)
+        return np.reshape(exp(-(np.float64(standard_deviations) ** 2)), (1, 1))
     step = 2.0 * standard_deviations / (frame_count - 1)
     locations = matlab_colon(-standard_deviations, step, standard_deviations)
-    return exp(-(locations * locations))
+    # gauss.m: (-sds:incr:sds) is a row.
+    return np.reshape(exp(-(locations * locations)), (1, -1))
 
 
 __all__ = ["gauss"]

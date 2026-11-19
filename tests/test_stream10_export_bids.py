@@ -222,14 +222,14 @@ def test_pop_expica_writes_save_ascii_width(tmp_path):
     eeg["icawinv"] = np.array([[3.0], [4.0]])
     weights = tmp_path / "weights.txt"
     inverse = tmp_path / "inverse.txt"
-    pop_expica(eeg, weights)
-    pop_expica(eeg, inverse, "inv")
+    pop_expica(eeg, "weights", weights)
+    pop_expica(eeg, "inv", inverse)
     text = weights.read_text(encoding="utf-8")
     assert "\t" not in text
     assert text.splitlines()[0] == f"{1.0:16.7e}{-0.5:16.7e}"
     assert inverse.read_text(encoding="utf-8").splitlines() == [f"{3.0:16.7e}", f"{4.0:16.7e}"]
     with pytest.raises(ValueError, match="pop_expica: matrix must be"):
-        pop_expica(eeg, weights, "nope")
+        pop_expica(eeg, "nope", weights)
 
 
 def test_pop_expevents_matches_eeg_eventtable_columns(tmp_path):
@@ -975,7 +975,7 @@ def test_reference_pop_export_decimal_places(eeglab_backend, eeglab_working_dire
 def test_reference_pop_expica_save_ascii(eeglab_backend, eeglab_working_directory):
     eeg = {"icaweights": np.array([[1.0, -0.5], [0.25, 2.0]]), "icasphere": np.eye(2)}
     python_path = eeglab_working_directory / "python_ica.txt"
-    pop_expica(eeg, python_path)
+    pop_expica(eeg, "weights", python_path)
     matlab_path = eeglab_working_directory / "matlab_ica.txt"
     eeglab_backend("pop_expica", eeg, "weights", str(matlab_path))
     assert python_path.read_text(encoding="utf-8") == matlab_path.read_text(encoding="utf-8")

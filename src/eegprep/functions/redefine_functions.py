@@ -2,16 +2,19 @@
 
 eeg_ or pop_ implementations.
 
-Each wrapper has the same signature and simply forwards all arguments to the original
-function.
+Each wrapper forwards its arguments to the original function. ``epoch`` also
+accepts MATLAB positional name/value pairs and returns MATLAB-shaped outputs.
 
-For example, checkset(x) calls eeg_checkset(x) and epoch(ev) calls pop_epoch(ev).
+For example, checkset(x) calls eeg_checkset(x). ``epoch`` is the data-matrix
+epoch function; dataset epoching is ``pop_epoch``.
 
 Wrappers let you use names without the eeg_ or pop_ prefix while returning the same
 results as the originals. Available wrappers: checkset, compare, decodechan, eeg2mne,
 eegrej, findboundaries, interp, lat2point, mne2eeg, mne2eeg_epochs, options, picard,
 point2lat, epoch, loadset, reref, resample, rmbase, saveset, select.
 """
+
+import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
@@ -26,8 +29,9 @@ from eegprep.functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
-from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.sigprocfunc.epoch import epoch as epoch_data
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
@@ -104,8 +108,37 @@ def point2lat(*args, **kwargs):
 
 
 def epoch(*args, **kwargs):
-    """Wrap pop_epoch."""
-    return pop_epoch(*args, **kwargs)
+    """Extract epochs from a data matrix, matching ``epoch.m``.
+
+    Positional name/value pairs follow the data, event latencies, and time
+    limits. Returned event indices are 1-based. ``newtime`` is a row.
+    ``alleventout`` and ``alllatencyout`` are a 1-by-N cell of rows, or a
+    0-by-0 cell when no event list was given. Dataset epoching is ``pop_epoch``.
+    """
+    if len(args) < 3:
+        raise ValueError("epoch: data, events, and time limits are required")
+    options = parse_key_value_args(args[3:], kwargs)
+    epochdat, newtime, indexes, alleventout, alllatencyout, reallim = epoch_data(*args[:3], **options)
+    return (
+        epochdat,
+        np.asarray(newtime, dtype=float).reshape(1, -1),
+        np.asarray(indexes, dtype=float).reshape(-1, 1) + 1.0,
+        _epoch_cells(alleventout, one_based=True),
+        _epoch_cells(alllatencyout, one_based=False),
+        reallim,
+    )
+
+
+def _epoch_cells(values, *, one_based: bool) -> np.ndarray:
+    if not values:
+        return np.empty((0, 0), dtype=object)
+    cells = np.empty((1, len(values)), dtype=object)
+    for index, value in enumerate(values):
+        array = np.asarray(value, dtype=float).reshape(-1)
+        if one_based and array.size:
+            array = array + 1.0
+        cells[0, index] = array.reshape(1, -1)
+    return cells
 
 
 def loadset(*args, **kwargs):

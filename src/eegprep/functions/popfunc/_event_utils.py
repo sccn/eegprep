@@ -41,8 +41,18 @@ def event_field_names(events: Any, *, include_urevent: bool = False) -> list[str
     return fields
 
 
-def normalize_event_indices(indices: Any, length: int, *, allow_empty: bool = False) -> list[int]:
-    """Normalize EEGLAB-facing 1-based event indices to Python indices."""
+def normalize_event_indices(
+    indices: Any,
+    length: int,
+    *,
+    allow_empty: bool = False,
+    allow_extend: bool = False,
+) -> list[int]:
+    """Normalize EEGLAB-facing 1-based event indices to Python indices.
+
+    ``allow_extend`` keeps indices past ``length``. ``pop_editeventfield`` uses
+    that to append events, which is what ``setfield`` does for a short struct.
+    """
     if indices is None or _is_empty(indices):
         if allow_empty:
             return []
@@ -51,7 +61,7 @@ def normalize_event_indices(indices: Any, length: int, *, allow_empty: bool = Fa
     normalized: list[int] = []
     for value in values:
         index = int(value)
-        if index < 1 or index > length:
+        if index < 1 or (index > length and not allow_extend):
             raise ValueError("event indices must be 1-based and within EEG.event")
         normalized.append(index - 1)
     return normalized

@@ -485,8 +485,8 @@ def test_pop_expica_exports_sample_ica_matrices(sample_eeg_with_ica, tmp_path):
 
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)
-        weights_command = pop_expica(sample_eeg_with_ica, weights_file)
-        inverse_command = pop_expica(sample_eeg_with_ica, inverse_file, "inv")
+        weights_command = pop_expica(sample_eeg_with_ica, "weights", weights_file)
+        inverse_command = pop_expica(sample_eeg_with_ica, "inv", inverse_file)
 
     exported_weights = np.loadtxt(weights_file)
     exported_inverse = np.loadtxt(inverse_file)

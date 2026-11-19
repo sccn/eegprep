@@ -230,7 +230,7 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             eventdescription = [""]
             delold = False
         else:
-            indices = normalize_event_indices(indices_value, len(events), allow_empty=True)
+            indices = normalize_event_indices(indices_value, len(events), allow_empty=True, allow_extend=True)
             if not indices:
                 indices = list(range(len(events))) if events else []
             values = _coerce_field_values(value, skipline=skipline, delim=delim)

@@ -834,7 +834,7 @@ class MenuActionDispatcher:
             if action == "pop_expica":
                 from eegprep.functions.popfunc.pop_expica import pop_expica
 
-                command = pop_expica(selection, filename, variant or "weights")
+                command = pop_expica(selection, variant or "weights", filename)
             else:
                 from eegprep.functions.popfunc.pop_expevents import pop_expevents
 
