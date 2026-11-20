@@ -897,9 +897,9 @@ other sanity cases. If that check fails, the job fails and does not open an
 issue. A MATLAB exception, and a cleaning wrapper that returns its input
 unchanged, are oracle failures. The known EEGLAB ASR defects (a zero
 fit width on the reference that was actually selected, and ``sort(wz)``
-across time on one channel) are not filed. An all-zero channel that stays
-exactly zero is not filed when the residue is inside the recording-scale
-tolerance below. Other mismatches are shrunk on
+across time on one channel) are not filed. Samples below the oracle RMS,
+including an all-zero channel, are not filed when the difference stays
+inside the tolerance below. Other mismatches are shrunk on
 the failure mechanism, saved under the ``fuzz-repros`` artifact with the
 oracle identifier and stack, and filed (at most three new issues a night)
 with the labels ``fuzz`` and ``fuzz-unconfirmed``. Repeated findings group
@@ -977,12 +977,20 @@ Per-function absolute and relative tolerances live in
 requests. A finite sample matches when
 ``abs(python - oracle) <= abs + rel * max(abs(oracle), scale)``.
 ``scale`` is the RMS of the finite oracle array being compared, and ``rel``
-stays the configured value. A sample at least as large as that RMS is still
-limited by ``rel * abs(oracle)``. Near-zero samples, including a flat channel
-left at roundoff, are limited by ``rel * scale``. An all-zero oracle has
-scale 0 and is gated by ``abs`` alone. The reported maximum relative error
-uses the same denominator. ``tests/eeglab_tests``, ``eeg_compare``, and the
-parity harness do not call this comparison. Sections for the event-aware
+stays the configured value. Samples with ``abs(oracle)`` below that RMS are
+judged against ``rel * scale`` instead of ``rel * abs(oracle)``. Float64
+roundoff in channel-mixing operations scales with the recording, not with
+the individual sample, and a per-sample relative error is undefined near
+zero crossings and on flat channels. With ``rel`` of 1e-6 the allowance is
+still about 1e-6 of the signal scale, far below any real processing
+divergence. Whole-array RMS is used because a flat channel's own RMS is
+near zero and would reproduce
+`#652 <https://github.com/sccn/eegprep/issues/652>`_.
+Samples at or above the RMS stay limited by ``rel * abs(oracle)``. An
+all-zero oracle has scale 0 and is gated by ``abs`` alone. The reported
+maximum relative error uses the same denominator. ``tests/eeglab_tests``,
+``eeg_compare``, and the parity harness do not call this comparison.
+Sections for the event-aware
 targets are proposals until that review. CI stays on MATLAB R2024b. Replay
 against a MATLAB session that is
 already serving ``tests/matlab/eegprep_batch_engine_serve.m``:
