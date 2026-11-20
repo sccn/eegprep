@@ -1,9 +1,21 @@
 # Tolerances are changed only by reviewed human pull requests.
 # Agents must not loosen these values to hide mismatches.
 #
-# EEGLAB output is the oracle. A sample matches when
-# abs(python - oracle) <= abs + rel * abs(oracle), the same rule as
-# numpy.allclose. pop_clean_rawdata ASR-only cases use [clean_asr].
+# EEGLAB output is the oracle. A finite sample matches when
+# abs(python - oracle) <= abs + rel * max(abs(oracle), scale).
+# scale is the RMS of every finite oracle sample in the compared array.
+# Samples with abs(oracle) below that RMS are judged against rel * scale
+# instead of rel * abs(oracle). Float64 roundoff from channel mixing scales
+# with the recording, not with one sample, and a per-sample relative error
+# is undefined near zero crossings and on flat channels. With rel = 1e-6
+# the allowance is about 1e-6 of the signal scale, far below a real
+# processing divergence. Whole-array RMS is used because a flat channel's
+# own RMS is near zero and would reproduce #652. Samples at or above scale
+# stay limited by rel * abs(oracle). scale 0 uses abs(oracle), so an
+# all-zero oracle is gated by abs alone. Reported max rel is
+# diff / max(abs(oracle), scale), with a 1e-300 floor when that
+# denominator is 0.
+# pop_clean_rawdata ASR-only cases use [clean_asr].
 
 [pop_eegfiltnew]
 abs = 1.0e-7

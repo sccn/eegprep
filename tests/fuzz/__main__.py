@@ -1,11 +1,14 @@
 """Command line for nightly differential fuzzing.
 
 ``run`` compares EEGPrep with an oracle. ``reproduce`` replays one saved case.
+A saved repro keeps the input crop and, when the run compared arrays, the
+Python and oracle outputs named in the JSON.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 from pathlib import Path
 
@@ -67,6 +70,11 @@ def _run(args, python, oracle) -> int:
             f"abs={outcome.max_abs} rel={outcome.max_rel}"
         )
         print(outcome.detail)
+        saved = json.loads(Path(args.path).read_text())
+        for label in ("python_output", "oracle_output"):
+            name = saved.get(label) or ""
+            if name:
+                print(f"{label} {Path(args.path).with_name(name)}")
         if outcome.diverged or "oracle-infrastructure" in outcome.error_class:
             return 1
         return 0
