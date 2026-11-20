@@ -222,6 +222,81 @@ def test_compare_respects_tolerance_shape_and_nan_mask():
     assert index_error.diverged is True
 
 
+def test_compare_data_scales_relative_error_by_the_oracle_rms():
+    """A flat-channel residue is not a relative error of 1 against a normal recording."""
+    level = 30.0 * np.sqrt(4.0 / 3.0)
+    oracle = np.vstack([np.geomspace(1e-17, 1e-13, 256), np.full((3, 256), level)])
+    rms = float(np.sqrt(np.mean(np.square(oracle))))
+    assert rms == pytest.approx(30.0)
+    python = np.array(oracle, copy=True)
+    python[0] = 0.0
+    tolerance = Tolerance(0.0, 1e-6)
+    diverged, error_class, max_abs, max_rel, _detail = compare_data(python, oracle, 128.0, 128.0, tolerance)
+    assert diverged is False
+    assert error_class == "match"
+    assert max_abs == pytest.approx(1e-13, rel=1e-9, abs=0.0)
+    assert max_rel == pytest.approx(max_abs / rms, rel=1e-9, abs=0.0)
+    assert max_rel < 1e-6
+
+    signal = np.full((2, 64), 30.0)
+    shifted = np.array(signal, copy=True)
+    shifted[1, 3] *= 1.0 + 1e-5
+    diverged, error_class, max_abs, max_rel, _detail = compare_data(shifted, signal, 128.0, 128.0, tolerance)
+    assert diverged is True
+    assert error_class == "numeric"
+    assert max_abs == pytest.approx(30.0 * 1e-5)
+    assert max_rel == pytest.approx(1e-5)
+
+    beside_inf = np.array([[30.0, np.inf]])
+    moved = np.array([[30.0 * (1.0 + 1e-5), np.inf]])
+    diverged, error_class, *_rest = compare_data(moved, beside_inf, 128.0, 128.0, tolerance)
+    assert diverged is True
+    assert error_class == "numeric"
+
+    zeros = np.zeros((2, 4))
+    diverged, error_class, max_abs, max_rel, _detail = compare_data(zeros, zeros, 1.0, 1.0, tolerance)
+    assert diverged is False
+    assert error_class == "match"
+    assert max_abs == 0.0
+    assert max_rel == 0.0
+    bumped = np.array(zeros, copy=True)
+    bumped[0, 1] = 1e-9
+    diverged, error_class, max_abs, max_rel, _detail = compare_data(bumped, zeros, 1.0, 1.0, tolerance)
+    assert diverged is True
+    assert error_class == "numeric"
+    assert max_abs == pytest.approx(1e-9)
+    assert max_rel == pytest.approx(max_abs / 1e-300)
+    within = compare_data(bumped, zeros, 1.0, 1.0, Tolerance(1e-6, 1e-6))
+    assert within[0] is False
+    assert within[1] == "match"
+
+
+def test_numeric_repro_saves_compared_outputs(tmp_path):
+    case = _reref_case(2)
+    eeg = _ones(case)
+
+    def plus(_case, dataset):
+        return np.asarray(dataset["data"]) + 1.0
+
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        _Backend(_identity),
+        _Backend(plus),
+        load_tolerances(),
+    )
+    assert outcome.diverged is True
+    path = write_repro(tmp_path, outcome, 1, eeg)
+    payload = json.loads(path.read_text())
+    python_out = np.load(tmp_path / payload["python_output"])
+    oracle_out = np.load(tmp_path / payload["oracle_output"])
+    np.testing.assert_array_equal(np.load(path.with_suffix(".npy")), eeg["data"])
+    np.testing.assert_array_equal(python_out, eeg["data"])
+    np.testing.assert_array_equal(oracle_out, np.asarray(eeg["data"]) + 1.0)
+    assert payload["python_output"] == f"{path.stem}.python.npy"
+    assert payload["oracle_output"] == f"{path.stem}.oracle.npy"
+
+
 def _matrix_reref(data: np.ndarray, ref: int) -> np.ndarray:
     """EEGLAB reref.m's ``refmatrix * data``, which spreads NaNs through explicit zeros."""
     refmatrix = np.eye(data.shape[0])
@@ -2218,7 +2293,7 @@ def test_flat_channel_roundoff_is_not_a_divergence():
 
     accepted = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(oracle), load_tolerances())
     assert accepted.diverged is False
-    assert "#643" in accepted.detail
+    assert accepted.error_class == "match"
     assert "#642" not in accepted.detail
 
     def also_real(_case, _dataset):
@@ -2241,7 +2316,7 @@ def test_flat_channel_roundoff_is_not_a_divergence():
     tolerance = Tolerance(0.0, 1e-6)
     zero = SideResult(True, produced, 128.0, None, None)
     noisy = SideResult(True, residual, 128.0, None, None)
-    assert _flat_nullspace_roundoff_is_known(case, eeg, zero, noisy, tolerance)
+    assert not _flat_nullspace_roundoff_is_known(case, eeg, zero, noisy, tolerance)
     assert not _flat_nullspace_roundoff_is_known(case, eeg, noisy, zero, tolerance)
     bumped = residual.copy()
     bumped[0, 0] += 1.0

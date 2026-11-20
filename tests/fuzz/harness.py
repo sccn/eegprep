@@ -1,7 +1,8 @@
 """Generate EEG cases, run them through EEGPrep and an oracle, and compare.
 
 EEGLAB output is the oracle. Absolute and relative tolerances are loaded from
-``tolerances.toml`` and are not adjusted here when a case misses.
+``tolerances.toml`` and are not adjusted here when a case misses. The data
+comparison applies ``rel`` to the RMS of the finite oracle array.
 """
 
 from __future__ import annotations
@@ -162,6 +163,8 @@ class Outcome:
     reference_samples: int | None = None
     reference_tolerances: str = ""
     oracle_returned_input: bool = False
+    python_output: np.ndarray | None = None
+    oracle_output: np.ndarray | None = None
 
     @property
     def report(self) -> str:
@@ -530,7 +533,11 @@ def compare_data(
     oracle_srate: float,
     tolerance: Tolerance,
 ) -> tuple[bool, str, float, float, str]:
-    """Compare one pair of outputs. The oracle array is the reference for ``rel``."""
+    """Compare outputs. ``rel`` is applied to ``max(abs(oracle), scale)``.
+
+    ``scale`` is the RMS of the finite oracle array. Scale 0 keeps the absolute
+    term and reports ``max_rel`` with the ``1e-300`` floor.
+    """
     python = np.asarray(python_data, dtype=np.float64)
     oracle = np.asarray(oracle_data, dtype=np.float64)
     if python.shape != oracle.shape:
@@ -546,11 +553,18 @@ def compare_data(
     finite = np.isfinite(oracle)
     if not np.any(finite):
         return _srate_or_match(python_srate, oracle_srate, 0.0, 0.0)
-    diff = np.abs(python[finite] - oracle[finite])
-    scale = np.abs(oracle[finite])
-    limit = tolerance.abs + tolerance.rel * scale
+    finite_oracle = oracle[finite]
+    diff = np.abs(python[finite] - finite_oracle)
+    magnitude = np.abs(finite_oracle)
+    scale = float(np.sqrt(np.mean(np.square(finite_oracle))))
+    if scale == 0.0:
+        denom = np.maximum(magnitude, 1e-300)
+        limit = tolerance.abs + tolerance.rel * magnitude
+    else:
+        denom = np.maximum(magnitude, scale)
+        limit = tolerance.abs + tolerance.rel * denom
     max_abs = float(np.max(diff))
-    max_rel = float(np.max(diff / np.maximum(scale, 1e-300)))
+    max_rel = float(np.max(diff / denom))
     if np.any(diff > limit):
         flat = int(np.argmax(diff))
         return True, "numeric", max_abs, max_rel, f"max abs {max_abs:.3g} at finite index {flat}"
@@ -677,6 +691,14 @@ def _compare_success(
     max_rel = 0.0
     known_rmbase_roundoff = False
     selected = set(comparators)
+
+    def finish(diverged: bool, error_class: str, abs_error: float, rel_error: float, text: str) -> Outcome:
+        return _attach_outputs(
+            _outcome(case, diverged, True, error_class, abs_error, rel_error, text, digest),
+            python,
+            oracle,
+        )
+
     if "data" in selected:
         diverged, error_class, max_abs, max_rel, detail = compare_data(
             python.data, oracle.data, float(python.srate), float(oracle.srate), tolerance
@@ -687,25 +709,25 @@ def _compare_success(
                 float(python.srate), float(oracle.srate), max_abs, max_rel
             )
         if diverged:
-            return _outcome(case, True, True, error_class, max_abs, max_rel, detail, digest)
+            return finish(True, error_class, max_abs, max_rel, detail)
     if "events" in selected:
         diverged, error_class, detail = _compare_events(python, oracle, tolerance)
         if diverged:
-            return _outcome(case, True, True, error_class, 0.0, 0.0, detail, digest)
+            return finish(True, error_class, 0.0, 0.0, detail)
     if "mask" in selected:
         diverged, error_class, detail = _compare_masks(python, oracle)
         if diverged:
-            return _outcome(case, True, True, error_class, 0.0, 0.0, detail, digest)
+            return finish(True, error_class, 0.0, 0.0, detail)
     if "meta" in selected:
         diverged, error_class, detail = _compare_meta(python, oracle, tolerance)
         if diverged:
-            return _outcome(case, True, True, error_class, 0.0, 0.0, detail, digest)
+            return finish(True, error_class, 0.0, 0.0, detail)
     if "extra" in selected:
         diverged, error_class, detail = _compare_extra(python, oracle)
         if diverged:
-            return _outcome(case, True, True, error_class, 0.0, 0.0, detail, digest)
+            return finish(True, error_class, 0.0, 0.0, detail)
     detail = _RMBASE_ROUNDOFF_DETAIL if known_rmbase_roundoff else "match"
-    return _outcome(case, False, True, "match", max_abs, max_rel, detail, digest)
+    return finish(False, "match", max_abs, max_rel, detail)
 
 
 def _judge_pipeline(
@@ -741,15 +763,18 @@ def _judge_pipeline(
         if outcome.error_class == "oracle-infrastructure":
             return _outcome(case, False, False, f"{name}:oracle-infrastructure", 0.0, 0.0, outcome.detail, digest)
         if outcome.diverged or outcome.error_class != "match":
-            return _outcome(
-                case,
-                outcome.diverged,
-                outcome.both_ok,
-                f"{name}:{outcome.error_class}",
-                outcome.max_abs,
-                outcome.max_rel,
-                outcome.detail,
-                digest,
+            return _carry_outputs(
+                _outcome(
+                    case,
+                    outcome.diverged,
+                    outcome.both_ok,
+                    f"{name}:{outcome.error_class}",
+                    outcome.max_abs,
+                    outcome.max_rel,
+                    outcome.detail,
+                    digest,
+                ),
+                outcome,
             )
         last_abs = outcome.max_abs
         last_rel = outcome.max_rel
@@ -1283,6 +1308,12 @@ def write_repro(directory: Path, outcome: Outcome, seed_value: int, eeg: dict) -
     }
     if outcome.case.pipeline:
         payload["pipeline"] = [[name, thaw_params(params)] for name, params in outcome.case.pipeline]
+    python_name = _save_compared_output(directory, stem, "python", outcome.python_output)
+    oracle_name = _save_compared_output(directory, stem, "oracle", outcome.oracle_output)
+    if python_name:
+        payload["python_output"] = python_name
+    if oracle_name:
+        payload["oracle_output"] = oracle_name
     json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     np.save(directory / f"{stem}.npy", np.asarray(eeg["data"]))
     return json_path
@@ -2102,15 +2133,19 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         return outcome
     if _wrapper_returned_unchanged(case, eeg, python, oracle):
         return _remember_oracle(
-            _outcome(
-                case,
-                True,
-                True,
-                "oracle-unchanged",
-                0.0,
-                0.0,
-                "oracle returned the input unchanged after cleaning",
-                digest,
+            _attach_outputs(
+                _outcome(
+                    case,
+                    True,
+                    True,
+                    "oracle-unchanged",
+                    0.0,
+                    0.0,
+                    "oracle returned the input unchanged after cleaning",
+                    digest,
+                ),
+                python,
+                oracle,
             ),
             oracle,
         )
@@ -2302,7 +2337,7 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             )
             returned.oracle_identifier = outcome.oracle_identifier
             returned.oracle_stack = outcome.oracle_stack
-            return _remember_oracle(returned, oracle_side)
+            return _remember_oracle(_carry_outputs(returned, outcome), oracle_side)
         # Continue from the Python EEG when MATLAB's output is the known
         # defect: a NaN spread by the reference matrix, events dropped
         # because trials was still 0, a one-element valuelim that rejected
@@ -2777,6 +2812,28 @@ def _missing(value) -> bool:
 
 def _outcome(case, diverged, both_ok, error_class, max_abs, max_rel, detail, digest) -> Outcome:
     return Outcome(case, diverged, both_ok, error_class, max_abs, max_rel, detail, digest)
+
+
+def _attach_outputs(outcome: Outcome, python: SideResult, oracle: SideResult) -> Outcome:
+    if python.data is not None:
+        outcome.python_output = np.array(python.data, dtype=np.float64, copy=True)
+    if oracle.data is not None:
+        outcome.oracle_output = np.array(oracle.data, dtype=np.float64, copy=True)
+    return outcome
+
+
+def _carry_outputs(outcome: Outcome, source: Outcome) -> Outcome:
+    outcome.python_output = source.python_output
+    outcome.oracle_output = source.oracle_output
+    return outcome
+
+
+def _save_compared_output(directory: Path, stem: str, role: str, values: np.ndarray | None) -> str:
+    if values is None:
+        return ""
+    name = f"{stem}.{role}.npy"
+    np.save(directory / name, np.asarray(values))
+    return name
 
 
 def _srate_or_match(python_srate: float, oracle_srate: float, max_abs: float, max_rel: float):
