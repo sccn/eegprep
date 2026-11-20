@@ -1294,10 +1294,9 @@ other sanity cases. If that check fails, the job fails and does not open an
 issue. A MATLAB exception, and a cleaning wrapper that returns its input
 unchanged, are oracle failures. The known EEGLAB ASR defects (a zero
 fit width on the reference that was actually selected, and <code class="docutils literal notranslate"><span class="pre">sort(wz)</span></code>
-across time on one channel) are not filed. An all-zero channel that stays
-exactly zero is not filed when every other channel still passes the approved
-<code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> tolerance and the dead channel stays within 1e-9 of the
-live-channel scale. Other mismatches are shrunk on
+across time on one channel) are not filed. Samples below the oracle RMS,
+including an all-zero channel, are not filed when the difference stays
+inside the tolerance below. Other mismatches are shrunk on
 the failure mechanism, saved under the <code class="docutils literal notranslate"><span class="pre">fuzz-repros</span></code> artifact with the
 oracle identifier and stack, and filed (at most three new issues a night)
 with the labels <code class="docutils literal notranslate"><span class="pre">fuzz</span></code> and <code class="docutils literal notranslate"><span class="pre">fuzz-unconfirmed</span></code>. Repeated findings group
@@ -1368,8 +1367,25 @@ their channel-index range errors by semantic markers while preserving
 EEGPrep’s corrective error message.</p>
 <p>Per-function absolute and relative tolerances live in
 <code class="docutils literal notranslate"><span class="pre">tests/fuzz/tolerances.toml</span></code>. They are changed only by reviewed human pull
-requests. Sections for the event-aware targets are proposals until that
-review. CI stays on MATLAB R2024b. Replay against a MATLAB session that is
+requests. A finite sample matches when
+<code class="docutils literal notranslate"><span class="pre">abs(python</span> <span class="pre">-</span> <span class="pre">oracle)</span> <span class="pre">&lt;=</span> <span class="pre">abs</span> <span class="pre">+</span> <span class="pre">rel</span> <span class="pre">*</span> <span class="pre">max(abs(oracle),</span> <span class="pre">scale)</span></code>.
+<code class="docutils literal notranslate"><span class="pre">scale</span></code> is the RMS of the finite oracle array being compared, and <code class="docutils literal notranslate"><span class="pre">rel</span></code>
+stays the configured value. Samples with <code class="docutils literal notranslate"><span class="pre">abs(oracle)</span></code> below that RMS are
+judged against <code class="docutils literal notranslate"><span class="pre">rel</span> <span class="pre">*</span> <span class="pre">scale</span></code> instead of <code class="docutils literal notranslate"><span class="pre">rel</span> <span class="pre">*</span> <span class="pre">abs(oracle)</span></code>. Float64
+roundoff in channel-mixing operations scales with the recording, not with
+the individual sample, and a per-sample relative error is undefined near
+zero crossings and on flat channels. With <code class="docutils literal notranslate"><span class="pre">rel</span></code> of 1e-6 the allowance is
+still about 1e-6 of the signal scale, far below any real processing
+divergence. Whole-array RMS is used because a flat channel’s own RMS is
+near zero and would reproduce
+<a class="reference external" href="https://github.com/sccn/eegprep/issues/652">#652</a>.
+Samples at or above the RMS stay limited by <code class="docutils literal notranslate"><span class="pre">rel</span> <span class="pre">*</span> <span class="pre">abs(oracle)</span></code>. An
+all-zero oracle has scale 0 and is gated by <code class="docutils literal notranslate"><span class="pre">abs</span></code> alone. The reported
+maximum relative error uses the same denominator. <code class="docutils literal notranslate"><span class="pre">tests/eeglab_tests</span></code>,
+<code class="docutils literal notranslate"><span class="pre">eeg_compare</span></code>, and the parity harness do not call this comparison.
+Sections for the event-aware
+targets are proposals until that review. CI stays on MATLAB R2024b. Replay
+against a MATLAB session that is
 already serving <code class="docutils literal notranslate"><span class="pre">tests/matlab/eegprep_batch_engine_serve.m</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">EEGPREP_MATLAB_BATCH_DIR</span><span class="o">=</span>/tmp/eegprep-matlab-batch
 <span class="nb">export</span><span class="w"> </span><span class="nv">EEGPREP_EEGLAB_ROOT</span><span class="o">=</span>src/eegprep/eeglab
@@ -1385,7 +1401,12 @@ uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </sp
 </pre></div>
 </div>
 <p>The JSON records the seed, the parameters, and a hash of the input crop from
-<code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data.set</span></code>. To turn that file into a regression test,
+<code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data.set</span></code>. The same directory stores that crop as
+<code class="docutils literal notranslate"><span class="pre">&lt;stem&gt;.npy</span></code>. When both sides returned arrays, it also stores the compared
+outputs as <code class="docutils literal notranslate"><span class="pre">&lt;stem&gt;.python.npy</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;stem&gt;.oracle.npy</span></code>, and the JSON
+names those files. Replay reruns both sides from the spec. The saved arrays
+are the outputs from the run that wrote the repro, so a numeric gap can be
+inspected without another MATLAB session. To turn that file into a regression test,
 copy it into the tree and assert the two sides agree. Skip the test when
 MATLAB is not configured:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
