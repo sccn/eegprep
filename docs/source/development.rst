@@ -899,9 +899,7 @@ unchanged, are oracle failures. The known EEGLAB ASR defects (a zero
 fit width on the reference that was actually selected, and ``sort(wz)``
 across time on one channel) are not filed. An all-zero channel that stays
 exactly zero is not filed when the residue is inside the recording-scale
-tolerance below. A larger residue on that channel is still not filed when
-every other channel passes the approved ``clean_asr`` tolerance and the dead
-channel stays within 1e-9 of the live-channel scale. Other mismatches are shrunk on
+tolerance below. Other mismatches are shrunk on
 the failure mechanism, saved under the ``fuzz-repros`` artifact with the
 oracle identifier and stack, and filed (at most three new issues a night)
 with the labels ``fuzz`` and ``fuzz-unconfirmed``. Repeated findings group

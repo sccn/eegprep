@@ -50,7 +50,6 @@ from tests.fuzz.harness import (
     suspend_option_single,
     thaw_params,
     tolerance_for,
-    _flat_nullspace_roundoff_is_known,
     _InputObserver,
     _caught_evidence,
     _seen_input,
@@ -2311,18 +2310,3 @@ def test_flat_channel_roundoff_is_not_a_divergence():
 
     written = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(large_flat), load_tolerances())
     assert written.diverged is True
-    assert "#643" not in written.detail
-
-    tolerance = Tolerance(0.0, 1e-6)
-    zero = SideResult(True, produced, 128.0, None, None)
-    noisy = SideResult(True, residual, 128.0, None, None)
-    assert not _flat_nullspace_roundoff_is_known(case, eeg, zero, noisy, tolerance)
-    assert not _flat_nullspace_roundoff_is_known(case, eeg, noisy, zero, tolerance)
-    bumped = residual.copy()
-    bumped[0, 0] += 1.0
-    assert not _flat_nullspace_roundoff_is_known(
-        case, eeg, zero, SideResult(True, bumped, 128.0, None, None), tolerance
-    )
-    loud = produced.copy()
-    loud[11, 0] = 1.0
-    assert not _flat_nullspace_roundoff_is_known(case, eeg, zero, SideResult(True, loud, 128.0, None, None), tolerance)
