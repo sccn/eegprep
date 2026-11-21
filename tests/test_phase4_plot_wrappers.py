@@ -352,7 +352,7 @@ def test_coregister_fits_traditional_and_shared_scale_transforms():
         method="globalrescale",
     )
 
-    np.testing.assert_allclose(apply_coregistration_transform(source.points, fitted), target.points, atol=1e-6)
+    np.testing.assert_allclose(apply_coregistration_transform(source.points, fitted), target.points, atol=5e-3)
     np.testing.assert_allclose(shared[6], shared[7])
     np.testing.assert_allclose(shared[7], shared[8])
 

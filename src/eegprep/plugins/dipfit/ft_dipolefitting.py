@@ -18,7 +18,6 @@ from scipy.special import lpmv
 
 _EPS = np.finfo(float).eps
 _SOLID_ANGLE_TOLERANCE = 1000 * _EPS
-_TYPICAL_X_MM = 10.0
 _FUNCTION_TOLERANCE = 1e-9
 _STEP_TOLERANCE = 1e-6
 _ARMIJO = 0.01
@@ -533,7 +532,7 @@ def _line_search(fun, grad, x, p, g, f, first_step=1.0):
         new = np.clip(new, b + (b - a), b + 9 * (b - a)) if new > b else b + 9 * (b - a)
         a, fa, ga = b, fb, gb
         b = new
-    for i in range(_LINE_SEARCH_ITERATIONS):
+    for _ in range(_LINE_SEARCH_ITERATIONS):
         c = _cubic(a, fa, ga, b, fb, gb)
         low, high = sorted((a, b))
         c = np.clip(c, low + 0.1 * (high - low), high - 0.1 * (high - low))
@@ -553,41 +552,79 @@ def _line_search(fun, grad, x, p, g, f, first_step=1.0):
     return None, f, g
 
 
-def _fminunc(fun, start, maxiter=1000):
-    """FieldTrip fminunc: TypicalX=10 mm, scaled BFGS, Wolfe search and tolerances."""
+class _EvaluationLimit(Exception):
+    pass
 
-    def grad(x):
-        f = fun(x)
-        h = np.sqrt(_EPS) * np.where(x < 0, -1.0, 1.0) * np.maximum(np.abs(x), _TYPICAL_X_MM)
-        return np.array([(fun(x + np.eye(len(x))[i] * h[i]) - f) / h[i] for i in range(len(x))])
 
-    x = np.array(start, dtype=float).ravel()
-    f = fun(x)
-    g = grad(x)
-    g0 = np.linalg.norm(g, np.inf)
-    inverse = np.eye(len(x))
-    for iteration in range(maxiter):
-        if np.linalg.norm(g, np.inf) < _FUNCTION_TOLERANCE * (1 + g0):
-            break
-        direction = -inverse @ g
-        first_step = min(1 / g0, 1.0) if iteration == 0 else 1.0
-        alpha, nf, ng = _line_search(fun, grad, x, direction, g, f, first_step)
-        if alpha is None or nf >= f:
-            break
-        dx = alpha * direction
-        x = x + dx
-        dg = ng - g
-        f, g = nf, ng
-        if np.linalg.norm(dx / (1 + np.abs(x)), np.inf) < _STEP_TOLERANCE:
-            break
-        curvature = dx @ dg
-        if curvature >= np.sqrt(_EPS) * max(_EPS, np.linalg.norm(dx) * np.linalg.norm(dg)):
-            if iteration == 0:
-                inverse = curvature / (dg @ dg) * np.eye(len(x))
-            v = inverse @ dg
-            inverse += (1 + dg @ v / curvature) * np.outer(dx, dx) / curvature - (
-                np.outer(dx, v) + np.outer(v, dx)
-            ) / curvature
+def _fminunc(
+    fun,
+    start,
+    maxiter=1000,
+    tol_fun=_FUNCTION_TOLERANCE,
+    tol_x=_STEP_TOLERANCE,
+    max_fun_evals=None,
+):
+    """Quasi-Newton BFGS with MATLAB fminunc's relative stopping tests.
+
+    Forward differences use ``sqrt(eps) * sign'(x)``, with ``sign'(0) = 1``.
+    TolFun stops on the relative infinity-norm of the gradient. TolX stops on
+    the relative step. The default evaluation budget is ``100 * n``.
+    """
+    x = np.asarray(start, dtype=float).ravel().astype(float)
+    if max_fun_evals is None:
+        max_fun_evals = 100 * x.size
+    evaluations = 0
+
+    def counted(values):
+        nonlocal evaluations
+        evaluations += 1
+        if evaluations > max_fun_evals:
+            raise _EvaluationLimit
+        return float(fun(np.asarray(values, dtype=float)))
+
+    def grad(point):
+        value = counted(point)
+        step = np.sqrt(_EPS) * np.where(point < 0, -1.0, 1.0)
+        slope = np.empty(point.size)
+        for index in range(point.size):
+            trial = point.copy()
+            trial[index] += step[index]
+            slope[index] = (counted(trial) - value) / step[index]
+        return value, slope
+
+    try:
+        f, g = grad(x)
+        g0 = np.linalg.norm(g, np.inf)
+        inverse = np.eye(x.size)
+        for iteration in range(maxiter):
+            if np.linalg.norm(g, np.inf) <= tol_fun * max(1.0, g0):
+                break
+            direction = -inverse @ g
+            if g @ direction >= 0:
+                inverse = np.eye(x.size)
+                direction = -g
+            first_step = min(1.0 / g0, 1.0) if iteration == 0 and g0 > 0 else 1.0
+            alpha, nf, ng = _line_search(counted, lambda point: grad(point)[1], x, direction, g, f, first_step)
+            if alpha is None or nf >= f:
+                break
+            dx = alpha * direction
+            x = x + dx
+            dg = ng - g
+            f, g = nf, ng
+            if np.linalg.norm(dx / (1.0 + np.abs(x)), np.inf) < tol_x:
+                break
+            curvature = float(dx @ dg)
+            if curvature >= np.sqrt(_EPS) * max(_EPS, np.linalg.norm(dx) * np.linalg.norm(dg)):
+                if iteration == 0:
+                    inverse = curvature / float(dg @ dg) * np.eye(x.size)
+                vector = inverse @ dg
+                inverse = (
+                    inverse
+                    + (1.0 + float(dg @ vector) / curvature) * np.outer(dx, dx) / curvature
+                    - (np.outer(dx, vector) + np.outer(vector, dx)) / curvature
+                )
+    except _EvaluationLimit:
+        pass
     return x
 
 
@@ -641,7 +678,16 @@ def _refine_positions(initial, data, sens, vol, cfg):
         return unpack(result.x)
     if method != "fminunc":
         raise ValueError("optimfun must be 'fminunc' or 'fminsearch'")
-    return unpack(_fminunc(objective, start, maxiter))
+    return unpack(
+        _fminunc(
+            objective,
+            start,
+            maxiter=maxiter,
+            tol_fun=_FUNCTION_TOLERANCE,
+            tol_x=_STEP_TOLERANCE,
+            max_fun_evals=2 * maxiter * int(np.asarray(start).size),
+        )
+    )
 
 
 def surface_inside(dippos, pos, tri) -> np.ndarray:

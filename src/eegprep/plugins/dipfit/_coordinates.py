@@ -6,10 +6,14 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 import numpy as np
-from scipy.optimize import minimize
 
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError
+from eegprep.plugins.dipfit.ft_dipolefitting import _fminunc
 
+
+_WARP_MAX_ITERATIONS = 1500
+_WARP_FUNCTION_TOLERANCE = 1e-4
+_WARP_STEP_TOLERANCE = 1e-6
 
 _WARP_LEVELS = {
     "rigidbody": 1,
@@ -418,17 +422,21 @@ def _electrode_struct(value: Any, name: str) -> dict[str, Any]:
 
 def _optimize_warp(initial: np.ndarray, source: np.ndarray, target: np.ndarray, method: str) -> np.ndarray:
     shape = np.asarray(initial).shape
+    start = np.asarray(initial, dtype=float).ravel()
 
     def objective(flat: np.ndarray) -> float:
-        return warp_error(flat.reshape(shape), source, target, method)
+        return warp_error(np.asarray(flat, dtype=float).reshape(shape), source, target, method)
 
-    result = minimize(
+    # ft_warp_optim.m: fminunc, MaxIter 1500, TolFun 1e-4, default TolX and MaxFunEvals.
+    fitted = _fminunc(
         objective,
-        np.asarray(initial, dtype=float).ravel(),
-        method="Powell",
-        options={"maxiter": 1200, "xtol": 1e-7, "ftol": 1e-7, "disp": False},
+        start,
+        maxiter=_WARP_MAX_ITERATIONS,
+        tol_fun=_WARP_FUNCTION_TOLERANCE,
+        tol_x=_WARP_STEP_TOLERANCE,
+        max_fun_evals=100 * start.size,
     )
-    return result.x.reshape(shape)
+    return np.asarray(fitted, dtype=float).reshape(shape)
 
 
 def _apply_polynomial_warp(matrix: np.ndarray, points: np.ndarray, method: str | None) -> np.ndarray:

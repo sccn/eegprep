@@ -103,9 +103,9 @@ the limits. Cancelling the menu discards its changes.
        from DIPFIT ``standard_vol.mat``. Grid search uses EEGLAB's
        ``linspace(-85,85,24)`` and ``linspace(0,85,12)`` points that fall
        inside the brain mesh. Nonlinear refinement follows FieldTrip's
-       ``fminunc`` settings: 10 mm typical coordinates, finite differences,
-       a scaled BFGS inverse Hessian, a safeguarded cubic Wolfe line search,
-       and FieldTrip's stopping tolerances. All 32 components of the sample
+       ``fminunc`` settings: forward differences of ``sqrt(eps)``, a scaled
+       BFGS inverse Hessian, a safeguarded cubic Wolfe line search, and
+       relative TolFun ``1e-9`` and TolX ``1e-6`` stops. All 32 components of the sample
        ICA dataset match MATLAB R2025b within 0.00008 mm on four-shell BESA
        and within 0.00333 mm on the MNI BEM. Component 3 of the MNI fit
        matches EEGLAB and remains inside the brain mesh. Nonlinear
