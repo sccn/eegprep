@@ -1,9 +1,9 @@
 # pop_multifit
 
-Automatically fit DIPFIT models for multiple ICA components.
+Fit one dipole or a symmetric dipole pair for each selected ICA component.
 
-EEGPrep combines grid search, nonlinear refinement, residual-variance rejection, optional outside-head removal for spherical coordinates, and optional `pop_dipplot` plotting. The output is stored in `EEG["dipfit"]["model"]` using EEGLAB-compatible fields. `standardBEM` uses the packaged dipoli leadfield and EEGLAB's default 24 by 24 by 12 grid. Its BFGS refinement has no inside-brain constraint, so a fit can land outside the brain mesh with a lower residual than EEGLAB's. Sample component 3 does this. `standardBESA` uses the four-shell BESA leadfield.
+EEGPrep combines an inside-brain grid search, nonlinear refinement, residual variance rejection, and optional dipole plotting. Results are stored in `EEG["dipfit"]["model"]`. `standardBEM` uses the packaged MNI dipoli model. `standardBESA` uses the four-shell BESA model. Both refine positions with FieldTrip's scaled BFGS procedure and solve moments by least squares.
 
-The plot-options field accepts MATLAB pairs such as `'normlen' 'on'`. When plotting is checked, the dipole figure is shown.
+`threshold` is a percentage, so `threshold=1` means 1% residual variance. With spherical coordinates, `rmout="on"` also removes fits beyond the 85 mm head radius. MNI fits retain DIPFIT's unconstrained position behavior.
 
-Bilateral fits use the same x-axis symmetry convention for MNI coordinates and y-axis symmetry for spherical coordinates that EEGLAB uses before calling FieldTrip.
+Bilateral fits mirror the x coordinate for MNI or the y coordinate for BESA. The plot options accept MATLAB pairs such as `'normlen' 'on'`. When plotting is checked, the dipole figure is shown.

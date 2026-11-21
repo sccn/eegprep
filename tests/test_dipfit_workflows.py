@@ -18,10 +18,14 @@ from eegprep.plugins.dipfit._coordinates import (
     traditionaldipfit,
     warp_apply,
 )
-from eegprep.plugins.dipfit._fitting import prepare_forward_data
+from eegprep.plugins.dipfit.eeglab2fieldtrip import eeglab2fieldtrip
+from eegprep.plugins.dipfit.dipfit_gridsearch import fitting_config
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError, normalize_model_list
-from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
-from eegprep.plugins.dipfit.forward.standard_besa import standard_besa_headmodel
+from eegprep.plugins.dipfit.ft_dipolefitting import (
+    compute_dipole_leadfield as ft_compute_leadfield,
+    standard_besa_headmodel,
+    prepare_headmodel_sens,
+)
 from eegprep.plugins.dipfit.load_afni_atlas import load_afni_atlas
 from eegprep.plugins.dipfit.dipfit_reject import dipfit_reject
 from eegprep.plugins.dipfit.pop_dipfit_batch import pop_dipfit_batch
@@ -102,16 +106,16 @@ def test_pop_dipfit_settings_stores_standard_model_and_python_history():
 def test_packaged_standard_mri_volume_supports_dipfit_viewprops_slices():
     volume = load_standard_mri_volume()
 
-    assert volume.anatomy.shape == (181, 217, 181)
-    assert volume.anatomy.dtype.name == "uint8"
-    assert volume.transform.shape == (4, 4)
+    assert volume["anatomy"].shape == (181, 217, 181)
+    assert volume["anatomy"].dtype.name == "uint8"
+    assert volume["transform"].shape == (4, 4)
     assert dipfit_mri_slice_indices(volume, [[0, -20, 40]]) == (87, 108, 109)
     slices = dipfit_mri_slices(volume, [[0, -20, 40]])
     assert len(slices) == 3
-    assert slices[0].image.shape == (181, 217)
-    assert slices[1].image.shape == (181, 181)
-    assert slices[2].image.shape == (217, 181)
-    assert slices[0].extent == (-125.0, 91.0, -72.0, 108.0)
+    assert slices[0]["image"].shape == (181, 217)
+    assert slices[1]["image"].shape == (181, 181)
+    assert slices[2]["image"].shape == (217, 181)
+    assert slices[0]["extent"] == (-125.0, 91.0, -72.0, 108.0)
 
 
 def test_pop_dipfit_settings_gui_uses_first_dataset_and_applies_to_all():
@@ -194,8 +198,9 @@ def test_mni_nonlinear_fit_uses_the_packaged_bem():
 
     position = np.asarray(refined["dipfit"]["model"][0]["posxyz"], dtype=float)[0]
     assert np.all(np.isfinite(position))
-    forward = prepare_forward_data(refined, [1])
-    assert str(forward.headmodel["type"]).lower() == "dipoli"
+    comp = eeglab2fieldtrip(refined)
+    vol, _sens = prepare_headmodel_sens(fitting_config(refined), comp["elec"], refined["chanlocs"])
+    assert str(vol["type"]).lower() == "dipoli"
 
 
 def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset():
@@ -210,11 +215,13 @@ def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset(
     eeg["nbchan"] = len(eeg["chanlocs"])
     eeg["dipfit"]["chansel"] = list(range(1, eeg["nbchan"] + 1))
 
-    forward = prepare_forward_data(eeg, [1])
-
-    assert forward.maps.shape == (18, 1)
-    assert forward.positions.shape == (18, 3)
-    assert forward.chansel == list(range(1, 19))
+    comp = eeglab2fieldtrip(eeg)
+    cfg = fitting_config(eeg, [1])
+    cfg["channel"] = [label for label in cfg["channel"] if label in comp["topolabel"]]
+    _vol, sens = prepare_headmodel_sens(cfg, comp["elec"], eeg["chanlocs"])
+    assert comp["topo"].shape == (18, 1)
+    assert sens["elecpos"].shape == (18, 3)
+    assert sens["label"] == [f"E{index}" for index in range(1, 19)]
 
     coarse, _com = pop_dipfit_gridsearch(
         eeg,

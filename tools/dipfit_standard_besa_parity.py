@@ -13,9 +13,11 @@ import numpy as np
 from scipy.io import loadmat
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
-from eegprep.plugins.dipfit.forward.ft_prepare_vol_sens import ft_prepare_vol_sens
-from eegprep.plugins.dipfit.forward.standard_besa import standard_besa_headmodel
+from eegprep.plugins.dipfit.ft_dipolefitting import (
+    compute_dipole_leadfield,
+    prepare_headmodel_sens,
+    standard_besa_headmodel,
+)
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
 from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 
@@ -51,9 +53,9 @@ def main(mat_path: str) -> None:
     )
     positions = np.vstack([np.asarray(fitted["dipfit"]["model"][index]["posxyz"], dtype=float) for index in range(3)])
     python_rv = np.array([float(fitted["dipfit"]["model"][index]["rv"]) for index in range(3)])
-    _model, sensors = ft_prepare_vol_sens(standard_besa_headmodel(), {"elecpos": raw})
+    _model, sensors = prepare_headmodel_sens({"vol": standard_besa_headmodel()}, {"elecpos": raw}, [])
     python_projected = np.asarray(sensors["elecpos"], dtype=float)
-    python_leadfield = ft_compute_leadfield(dipoles, {"elecpos": raw}, standard_besa_headmodel())
+    python_leadfield = compute_dipole_leadfield(dipoles, {"elecpos": raw}, standard_besa_headmodel())
     leadfield_scale = float(np.max(np.abs(matlab_leadfield)))
     leadfield_error = float(np.max(np.abs(python_leadfield - matlab_leadfield)) / leadfield_scale)
     projection_error = float(np.max(np.abs(python_projected - projected)))

@@ -1,5 +1,7 @@
 # pop_dipfit_loreta
 
-Localize ICA components using an eLORETA-style distributed source model.
+Localize ICA components with eLORETA.
 
-This EEGLAB workflow requires a previously computed leadfield matrix and FieldTrip source-analysis/source-plotting functions. EEGPrep validates those prerequisites and then raises an explicit missing-backend message until this source-analysis path is ported.
+EEGPrep checks channel locations, an ICA decomposition, dipole settings, a stored leadfield, and an MNI head model. `pop_dipfit_loreta` then stops because FieldTrip source analysis and source plotting are not bundled.
+
+Run `pop_leadfield` first when `EEG.dipfit.sourcemodel` is missing. The LORETA-KEY choice stores the in-head grid for the selected head model. Use `pop_multifit` for an equivalent dipole or a symmetric pair. Select `standardBEM` in `pop_dipfit_settings` when the head model is not already MNI.

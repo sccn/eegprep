@@ -1,7 +1,9 @@
 # pop_dipfit_nonlinear
 
-Fine-fit ICA component dipoles.
+Refine the positions and moments of dipoles for one ICA component.
 
-EEGPrep refines the selected component with the head model selected in DIPFIT settings. `standardBEM` uses the packaged dipoli leadfield and SciPy BFGS. That BFGS refinement has no inside-brain constraint, so a fit can land outside the brain mesh with a lower residual than EEGLAB's. Sample component 3 does this. `standardBESA` uses the four-shell BESA leadfield and Nelder-Mead with FieldTrip `fminsearch` limits. The fit can update moments only or position plus moment, preserves the EEGLAB-style `EEG["dipfit"]["model"]` fields, and records replayable command history.
+`standardBEM` uses the packaged MNI dipoli model. `standardBESA` uses the four-shell BESA model. Both use FieldTrip's `fminunc` procedure with 10 mm typical coordinates, scaled BFGS updates, a cubic Wolfe line search, and FieldTrip stopping tolerances. Fits are unconstrained by default, as in FieldTrip.
 
-The manual dialog mirrors EEGLAB's fields; pressing OK applies the displayed positions/selections and runs the standalone fit.
+Use `nonlinear="no"` to estimate moments at fixed positions. Results are stored in `EEG["dipfit"]["model"]`, with replayable command history. All channel and component selections use the existing DIPFIT settings.
+
+The manual dialog preserves EEGLAB's fields. Pressing OK applies the displayed positions and selections, then runs the standalone fit.
