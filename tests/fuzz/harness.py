@@ -1438,7 +1438,8 @@ def _stale_zero_trials_detail(
     before lines 821-826 set ``trials`` from ``size(data,3)``. Lines 792-827
     skip that correction when ``EEG.data`` is empty, so rejecting every
     sample leaves the stored 0. EEGPrep sets ``trials`` from the data shape
-    first. A data mismatch is still filed.
+    first. A data mismatch is still filed, as is a trials gap while samples
+    remain.
     """
     if case.function != "eeg_eegrej" or not python.ok or not oracle.ok:
         return None
@@ -1457,7 +1458,7 @@ def _stale_zero_trials_detail(
         if kept == oracle.events and len(python.events) > len(oracle.events):
             return "known difference: eeg_eegrej keeps events when trials was 0"
         return None
-    if python.trials != 1 or oracle.trials != 0:
+    if python.pnts != 0 or python.trials != 1 or oracle.trials != 0:
         return None
     meta_gap, *_rest = _compare_meta(python, replace(oracle, trials=python.trials), tolerance)
     if meta_gap:

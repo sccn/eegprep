@@ -506,6 +506,15 @@ def test_zero_trials_full_rejection_is_not_filed():
     assert shifted.diverged is True
     assert shifted.error_class == "meta"
 
+    partial = FuzzCase(
+        "eeg_eegrej",
+        EEGSpec((0,), 0, 20, 1, -1, 0, 0),
+        freeze_params({"regions": [[1, 2]], "eegplot": False}),
+    )
+    kept = evaluate_case(partial, lambda _case: eeg, PythonBackend(), _StoredZero(), load_tolerances())
+    assert kept.diverged is True
+    assert kept.error_class == "meta"
+
     missing = dict(eeg)
     del missing["trials"]
     omitted = evaluate_case(case, lambda _case: missing, PythonBackend(), _StoredZero(), load_tolerances())
