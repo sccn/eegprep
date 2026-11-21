@@ -467,6 +467,51 @@ def test_zero_trials_event_drop_is_not_filed():
     assert omitted.diverged is True
 
 
+def test_zero_trials_full_rejection_is_not_filed():
+    eeg = {
+        "data": np.arange(20, dtype=float).reshape(1, 20),
+        "nbchan": 1,
+        "pnts": 20,
+        "trials": 0,
+        "srate": 100.0,
+        "xmin": 0.0,
+        "xmax": 0.19,
+        "event": [{"type": "stim", "latency": 5.0}],
+        "chanlocs": [{"labels": "Cz"}],
+    }
+    case = FuzzCase(
+        "eeg_eegrej",
+        EEGSpec((0,), 0, 20, 1, -1, 0, 0),
+        freeze_params({"regions": [[1, 20]], "eegplot": False}),
+    )
+
+    class _StoredZero:
+        def run(self, step, dataset):
+            out = dispatch_python(step, dataset)
+            out["trials"] = 0
+            return side_from_call(out)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _StoredZero(), load_tolerances())
+    assert outcome.diverged is False
+    assert "stored trials value was 0" in outcome.detail
+
+    class _ShiftedXmax(_StoredZero):
+        def run(self, step, dataset):
+            out = dispatch_python(step, dataset)
+            out["trials"] = 0
+            out["xmax"] = 0.0
+            return side_from_call(out)
+
+    shifted = evaluate_case(case, lambda _case: eeg, PythonBackend(), _ShiftedXmax(), load_tolerances())
+    assert shifted.diverged is True
+    assert shifted.error_class == "meta"
+
+    missing = dict(eeg)
+    del missing["trials"]
+    omitted = evaluate_case(case, lambda _case: missing, PythonBackend(), _StoredZero(), load_tolerances())
+    assert omitted.diverged is True
+
+
 def test_pipeline_stale_trials_continues_from_python():
     eeg = {
         "data": np.arange(20, dtype=float).reshape(1, 20),

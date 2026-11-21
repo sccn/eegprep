@@ -471,6 +471,15 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pnts*trials+1`` while ``trials`` is still that stored value.
        Lines 821-826 then set ``trials`` from ``size(data,3)``, which is 1
        for a continuous recording. EEGLAB has already dropped the events.
+       Lines 792-827 perform that correction only while ``EEG.data`` is
+       non-empty. Rejecting every sample leaves the array empty, so the
+       stored 0 remains while the xmax snap at line 849 still runs.
+       Continuous data is one trial (lines 49-50). ``eeg_eegrej`` reports
+       ``trials`` 1 and ``xmax = xmin - 1/srate``, and it keeps the boundary
+       at latency 0.5. A full rejection whose stored count is already 1
+       stays 1 in EEGLAB as well. The stored 0 is an edge value the fuzz
+       harness writes onto continuous data. A continuous recording carries
+       ``trials`` 1.
    * - Extended properties on the Plot menu
      - EEGLAB ``d0963be9`` shows extended component properties under Tools >
        Classify components using ICLabel. EEGPrep also lists View extended
