@@ -308,7 +308,6 @@ def eeg_leadfield4(
     const = (2.0 * degree + 1.0) ** 4 * eccentricity ** (degree - 1.0)
     const = const / (coefficients * 4.0 * np.pi * c4 * r4**2)
     azimuth, elevation = _cart2sph(sensors)
-    # Colatitude cosine. Clip 1 ulp past the Legendre domain after projection.
     cos_theta = np.clip(np.sin(elevation), -1.0, 1.0)
     tangential = np.zeros(sensors.shape[0], dtype=float)
     radial = np.zeros(sensors.shape[0], dtype=float)

@@ -106,8 +106,9 @@ the limits. Cancelling the menu discards its changes.
        ``fminunc`` settings: 10 mm typical coordinates, finite differences,
        a scaled BFGS inverse Hessian, a safeguarded cubic Wolfe line search,
        and FieldTrip's stopping tolerances. All 32 components of the sample
-       ICA dataset match MATLAB R2025b within 0.05 mm for both head models.
-       Component 3 of the MNI fit remains inside the brain mesh. Nonlinear
+       ICA dataset match MATLAB R2025b within 0.00008 mm on four-shell BESA
+       and within 0.00333 mm on the MNI BEM. Component 3 of the MNI fit
+       matches EEGLAB and remains inside the brain mesh. Nonlinear
        positions are unconstrained by default, as in FieldTrip. EEGLAB's settings
        dialog switches a channel file whose name contains
        ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
@@ -476,11 +477,13 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        channel properties and View extended component properties on the Plot
        menu.
    * - LORETA-KEY leadfield
-     - Distributed source leadfields and eLORETA are unsupported.
-       ``pop_leadfield`` and ``pop_dipfit_loreta`` raise
-       ``NotImplementedError``. Their dialog layouts remain available.
+     - The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius. The
+       leadfield uses the selected head model. FieldTrip's LORETA-KEY atlas and eLORETA source
+       analysis are not bundled. ``pop_dipfit_loreta`` asks for
+       ``pop_leadfield`` when ``EEG.dipfit.sourcemodel`` is missing, then
+       reports the missing FieldTrip backend.
    * - DIPFIT history
-     - Settings, fitting, and dipole-plot commands are stored as
+     - Settings, fitting, leadfield, and dipole-plot commands are stored as
        Python keywords so ``eegprep-console`` can replay them. EEGLAB stores
        the same calls as ``'key', value`` pairs. A ``linspace`` string entered
        for the coarse-fit grid is kept as that string.

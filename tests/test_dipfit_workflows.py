@@ -256,8 +256,9 @@ def test_pop_multifit_batch_manual_and_leadfield_use_native_backend():
     assert manual["dipfit"]["model"][0]["rv"] < 0.02
     assert "pop_dipfit_nonlinear" in manual_com
 
-    with pytest.raises(DIPFITUnavailableError, match="pop_leadfield"):
-        pop_leadfield(eeg, sourcemodel={"pos": [[0, 0, 30], [10, -20, 40]]}, return_com=True)
+    leadfield, leadfield_com = pop_leadfield(eeg, sourcemodel={"pos": [[0, 0, 30], [10, -20, 40]]}, return_com=True)
+    assert np.asarray(leadfield["dipfit"]["sourcemodel"]["leadfield"][0]).shape == (18, 3)
+    assert "pop_leadfield" in leadfield_com
 
 
 def test_dipfit_reject_matches_eeglab_empty_model_contract():
@@ -407,12 +408,18 @@ def test_besa_coarse_fit_and_autofit_keep_linspace_history():
     assert "pop_multifit" in _console_python_command(autofit_command)
 
 
-def test_distributed_source_analysis_stubs_do_not_change_the_dataset():
+def test_loreta_key_leadfield_and_missing_source_analysis():
     eeg = pop_dipfit_settings(create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBEM")
-    for function in (pop_dipfit_loreta, pop_leadfield):
-        with pytest.raises(DIPFITUnavailableError, match=function.__name__):
-            function(eeg, gui=False)
-    assert "sourcemodel" not in eeg["dipfit"]
+    with pytest.raises(ValueError, match="pop_leadfield"):
+        pop_dipfit_loreta(eeg, [1])
+
+    leadfield, command = pop_leadfield(eeg, sourcemodel="loreta-key", return_com=True)
+    points = np.asarray(leadfield["dipfit"]["sourcemodel"]["pos"], dtype=float)
+    assert points.ndim == 2 and points.shape[1] == 3 and points.shape[0] > 0
+    assert np.all(np.linalg.norm(points, axis=1) <= 75.0)
+    assert "sourcemodel='loreta-key'" in _console_python_command(command)
+    with pytest.raises(DIPFITUnavailableError, match="pop_dipfit_loreta"):
+        pop_dipfit_loreta(leadfield, [1])
 
 
 def test_gui_leadfield_loreta_key_choice_fills_the_source_field(qapp):
@@ -432,7 +439,7 @@ def test_gui_leadfield_loreta_key_choice_fills_the_source_field(qapp):
         assert widgets["source_browse"].isEnabled()
         widgets["source_choice"].setCurrentIndex(0)
         QApplication.processEvents()
-        with pytest.raises(DIPFITUnavailableError, match="pop_leadfield"):
+        with pytest.raises(ValueError, match="pop_leadfield"):
             pop_leadfield(
                 create_test_eeg_with_ica(n_channels=2, n_samples=16, n_components=1),
                 gui=True,

@@ -276,10 +276,13 @@ def electroderealign(cfg: dict[str, Any]) -> dict[str, Any]:
     template_value = cfg.get("template")
     if method == "interactive":
         raise DIPFITUnavailableError(
-            "electroderealign interactive GUI alignment is not available in standalone EEGPrep"
+            "electroderealign: interactive alignment has no standalone window. "
+            "Set cfg['method'] to 'traditional', 'realignfiducial', 'rigidbody', or another in-memory warp."
         )
     if template_value is None:
-        raise DIPFITUnavailableError("electroderealign currently requires an in-memory template electrode structure")
+        raise DIPFITUnavailableError(
+            "electroderealign: cfg['template'] is missing. Pass an in-memory electrode dictionary with label and pnt."
+        )
     templates = template_value if isinstance(template_value, list) else [template_value]
     template_structs = [_electrode_struct(template, "cfg['template']") for template in templates]
     if method == "realignfiducial":
@@ -401,7 +404,10 @@ def _label_key(label: str, case_sensitive: bool) -> str:
 
 def _electrode_struct(value: Any, name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
-        raise DIPFITUnavailableError(f"{name} must be an in-memory electrode structure in standalone EEGPrep")
+        raise DIPFITUnavailableError(
+            f"electroderealign: {name} is not an in-memory electrode structure. "
+            "Pass a dictionary with label and pnt or elecpos."
+        )
     points = value.get("pnt", value.get("elecpos"))
     labels = [str(label) for label in value.get("label", [])]
     coordinates, _ = _as_points(points)

@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. On
+  ``eeglab_data_epochs_ica.set``, all 32 components match MATLAB R2025b
+  within 0.00008 mm for four-shell BESA and within 0.00333 mm for the MNI
+  BEM. Component 3 of the MNI fit matches EEGLAB and stays inside the brain
+  mesh. ``pop_leadfield`` stores explicit source points and the LORETA-KEY
+  grid on that solver. ``pop_dipfit_loreta`` checks the stored leadfield and
+  then reports that eLORETA is not bundled. (#660)
 - ``eeg_store`` fills a slot whose ``data`` is empty, including a struct
   element created by assigning nonconsecutive indices. ``gethelpvar`` still
   returns an empty Python string for an unknown name; the MATLAB comparison

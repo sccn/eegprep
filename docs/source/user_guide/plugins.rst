@@ -353,10 +353,13 @@ Symmetric pairs mirror the y coordinate for BESA or x coordinate for MNI.
 ``threshold`` is an RV percentage. ``rmout="on"`` removes positions beyond
 85 mm for spherical models, matching DIPFIT's behavior.
 
-MRI headmodel construction, distributed source leadfields, eLORETA, and
-STUDY-level source statistics raise explicit errors. ``pop_leadfield``,
-``pop_dipfit_loreta``, and ``pop_dipfit_headmodel`` retain their dialog layouts
-and report unsupported features without modifying the dataset.
+``pop_leadfield`` stores a leadfield for explicit source points or the
+LORETA-KEY in-head grid, using the same BESA and MNI solvers as
+``pop_multifit``. ``pop_dipfit_loreta`` checks that leadfield and then reports
+that FieldTrip source analysis is not bundled. MRI headmodel construction and
+STUDY-level source statistics raise explicit errors. ``pop_dipfit_headmodel``
+keeps its dialog and reports that MRI head-model construction is not
+implemented.
 
 EEG-BIDS
 ========

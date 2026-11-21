@@ -26,7 +26,10 @@ def load_afni_atlas(
     spherical models unless a richer Python backend is added.
     """
     if find_spec("nibabel") is None:
-        raise DIPFITUnavailableError("load_afni_atlas requires nibabel to read AFNI or NIfTI atlas files")
+        raise DIPFITUnavailableError(
+            "load_afni_atlas: nibabel is not installed, so this AFNI or NIfTI atlas cannot be read. "
+            "Install nibabel, or pass numeric source points to pop_leadfield."
+        )
     import nibabel as nib
 
     path = Path(sourcemodel)

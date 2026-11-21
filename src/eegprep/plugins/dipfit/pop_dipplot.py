@@ -304,7 +304,8 @@ def _validate_mri_option(value: Any) -> None:
     if not text or "standard_mri" in text or "standard_BEM" in text:
         return
     raise DIPFITUnavailableError(
-        "pop_dipplot can render EEGPrep's packaged standard MNI MRI slices; custom MRI plotting assets are not bundled"
+        "pop_dipplot: custom MRI files are not plotted. "
+        "Omit mri, or pass the packaged standard MRI, so the standard_mri slices are used."
     )
 
 

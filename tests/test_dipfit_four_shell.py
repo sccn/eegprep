@@ -148,6 +148,7 @@ def test_pop_multifit_standard_besa_positions_match_the_published_eeglab_table()
     )
 
 
+@pytest.mark.matlab
 @pytest.mark.timeout(1800)
 def test_fieldtrip_leadfields_and_pop_multifit_positions_match_eeglab(eeglab_matlab_engine, request):
     eeglab_root = request.config.getoption("--eeglab-root")

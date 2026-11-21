@@ -15,13 +15,9 @@ from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_opti
 _QUOTED_PLOT_GAP = re.compile(r"""(?<=['"])\s+(?=['"])""")
 
 
-FIELDTRIP_LIMITATION = (
-    "EEGPrep supports equivalent-dipole fitting with standardBESA and the packaged MNI BEM. "
-    "MRI headmodel construction, distributed source leadfields, and eLORETA are not implemented."
-)
+class DIPFITUnavailableError(NotImplementedError):
+    """DIPFIT stopped because this EEGPrep build cannot perform the request."""
 
-
-DIPFITUnavailableError = NotImplementedError
 
 _BESA_TRANSFORMS = (
     (('standard-10-5-cap385',), ()),
@@ -249,9 +245,9 @@ def localized_components(EEG: dict[str, Any]) -> list[int]:
     return components
 
 
-def unavailable(action: str) -> None:
-    """Raise the shared explicit missing-backend error."""
-    raise DIPFITUnavailableError(f"{action}: {FIELDTRIP_LIMITATION}")
+def unavailable(function_name: str, problem: str, fix: str) -> None:
+    """Raise ``DIPFITUnavailableError`` naming the function, the problem, and the fix."""
+    raise DIPFITUnavailableError(f"{function_name}: {problem} {fix}")
 
 
 def _has_coordinates(chanloc: dict[str, Any]) -> bool:

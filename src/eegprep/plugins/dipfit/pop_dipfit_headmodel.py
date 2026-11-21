@@ -33,7 +33,11 @@ def pop_dipfit_headmodel(
         options.update(_headmodel_options_from_result(result))
     if not mriFile:
         raise ValueError("MRI file is required to create a DIPFIT head model")
-    unavailable("pop_dipfit_headmodel")
+    unavailable(
+        "pop_dipfit_headmodel",
+        "MRI segmentation into a boundary-element head model is not implemented.",
+        "Use pop_dipfit_settings with model='standardBESA' or model='standardBEM'.",
+    )
 
 
 def pop_dipfit_headmodel_dialog_spec(EEG: dict[str, Any], mri_file: str = "") -> DialogSpec:
