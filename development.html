@@ -1342,7 +1342,11 @@ Finite samples still have to match the subtraction and the matrix product.
 The next pipeline step then starts from that subtraction, so later steps
 are not compared on the NaN-filled matrix product. <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> with a
 stored <code class="docutils literal notranslate"><span class="pre">trials</span></code> of 0 is a match when the data agree and MATLAB’s events
-are exactly the Python events whose latency is at most 1. A missing
+are exactly the Python events whose latency is at most 1. It is also a
+match when the events agree and the only metadata gap is <code class="docutils literal notranslate"><span class="pre">trials</span></code> 1
+against that stored 0. Rejecting every sample leaves <code class="docutils literal notranslate"><span class="pre">EEG.data</span></code> empty,
+and <code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 792-827 skip the <code class="docutils literal notranslate"><span class="pre">size(data,3)</span></code> correction
+in that case, so the stored 0 remains. A missing
 <code class="docutils literal notranslate"><span class="pre">trials</span></code> value does not count. The next pipeline step then starts from
 the Python EEG. An edge draw sets that stored 0 on about half of the
 non-user <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> cases. <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> with <code class="docutils literal notranslate"><span class="pre">sorttrial='off'</span></code> and a repeated trial is a

@@ -947,7 +947,11 @@ Finite samples still have to match the subtraction and the matrix product.
 The next pipeline step then starts from that subtraction, so later steps
 are not compared on the NaN-filled matrix product. ``eeg_eegrej`` with a
 stored ``trials`` of 0 is a match when the data agree and MATLAB's events
-are exactly the Python events whose latency is at most 1. A missing
+are exactly the Python events whose latency is at most 1. It is also a
+match when the events agree and the only metadata gap is ``trials`` 1
+against that stored 0. Rejecting every sample leaves ``EEG.data`` empty,
+and ``eeg_checkset.m`` lines 792-827 skip the ``size(data,3)`` correction
+in that case, so the stored 0 remains. A missing
 ``trials`` value does not count. The next pipeline step then starts from
 the Python EEG. An edge draw sets that stored 0 on about half of the
 non-user ``eeg_eegrej`` cases. ``pop_select`` with ``sorttrial='off'`` and a repeated trial is a

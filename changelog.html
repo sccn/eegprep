@@ -491,6 +491,11 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>After <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> removes every sample, <code class="docutils literal notranslate"><span class="pre">trials</span></code> is 1. EEGLAB keeps a
+stored 0, because <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> skips the <code class="docutils literal notranslate"><span class="pre">size(data,3)</span></code> correction
+when <code class="docutils literal notranslate"><span class="pre">EEG.data</span></code> is empty (<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 792-827). Continuous
+data is one trial (lines 49-50). The boundary at latency 0.5 stays, and
+<code class="docutils literal notranslate"><span class="pre">xmax</span></code> is <code class="docutils literal notranslate"><span class="pre">xmin</span> <span class="pre">-</span> <span class="pre">1/srate</span></code>. (#661)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_store</span></code> fills a slot whose <code class="docutils literal notranslate"><span class="pre">data</span></code> is empty, including a struct
 element created by assigning nonconsecutive indices. <code class="docutils literal notranslate"><span class="pre">gethelpvar</span></code> still
 returns an empty Python string for an unknown name; the MATLAB comparison
