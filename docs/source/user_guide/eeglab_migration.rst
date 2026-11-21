@@ -477,9 +477,7 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        Continuous data is one trial (lines 49-50). ``eeg_eegrej`` reports
        ``trials`` 1 and ``xmax = xmin - 1/srate``, and it keeps the boundary
        at latency 0.5. A full rejection whose stored count is already 1
-       stays 1 in EEGLAB as well. The stored 0 is an edge value the fuzz
-       harness writes onto continuous data. A continuous recording carries
-       ``trials`` 1.
+       stays 1 in EEGLAB as well. A continuous recording carries ``trials`` 1.
    * - Extended properties on the Plot menu
      - EEGLAB ``d0963be9`` shows extended component properties under Tools >
        Classify components using ICLabel. EEGPrep also lists View extended
