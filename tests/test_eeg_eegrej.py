@@ -317,6 +317,27 @@ class TestEEGEegrejExtended(unittest.TestCase):
         stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
         self.assertEqual(stims, [3.0])
 
+    def test_full_rejection_with_stored_zero_trials_reports_one_trial(self):
+        """Empty data leaves a stored trials of 0 in EEGLAB.
+
+        eeg_checkset.m lines 792-827 replace trials from size(data, 3) only
+        while EEG.data is non-empty. Rejecting every sample, including a
+        span that covers the whole recording, leaves the array empty, so
+        the stored 0 remains. Continuous data is one trial (lines 49-50).
+        The boundary at latency 0.5 stays, and xmax is xmin - 1/srate.
+        """
+        EEG = self.base_eeg.copy()
+        EEG["trials"] = 0
+        regions = np.array([[3.5, 8.0], [6.0, 4.25], [1, EEG["pnts"]]], dtype=float)
+        with self.assertLogs("eegprep.functions.popfunc.eeg_eegrej", level="WARNING"):
+            result = eeg_eegrej(EEG, regions)
+        self.assertEqual(result["pnts"], 0)
+        self.assertEqual(result["trials"], 1)
+        self.assertAlmostEqual(result["xmax"], -1.0 / EEG["srate"])
+        self.assertEqual(np.asarray(result["data"]).shape, (EEG["data"].shape[0], 0))
+        boundaries = [event for event in result["event"] if event.get("type") == "boundary"]
+        self.assertEqual([(event["latency"], event["duration"]) for event in boundaries], [(0.5, 20.0)])
+
 
 if __name__ == "__main__":
     unittest.main()

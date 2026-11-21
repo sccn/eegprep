@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_eegrej`` reports ``trials`` 1 after every sample is removed, including
+  when the stored count was 0. ``eeg_checkset.m`` lines 792-827 replace
+  ``trials`` from ``size(data,3)`` only while ``EEG.data`` is non-empty, so
+  that stored 0 remains. Continuous data is one trial (lines 49-50). The
+  boundary at latency 0.5 stays, and ``xmax`` is ``xmin - 1/srate``. A
+  continuous recording carries ``trials`` 1. The stored 0 is an edge value
+  the fuzz harness writes onto that recording. (#661)
 - ``eeg_store`` fills a slot whose ``data`` is empty, including a struct
   element created by assigning nonconsecutive indices. ``gethelpvar`` still
   returns an empty Python string for an unknown name; the MATLAB comparison
