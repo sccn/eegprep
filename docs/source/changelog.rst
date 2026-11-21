@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- After ``eeg_eegrej`` removes every sample, ``trials`` is 1. EEGLAB keeps a
+  stored 0, because ``eeg_checkset`` skips the ``size(data,3)`` correction
+  when ``EEG.data`` is empty (``eeg_checkset.m`` lines 792-827). Continuous
+  data is one trial (lines 49-50). The boundary at latency 0.5 stays, and
+  ``xmax`` is ``xmin - 1/srate``. (#661)
 - ``eeg_store`` fills a slot whose ``data`` is empty, including a struct
   element created by assigning nonconsecutive indices. ``gethelpvar`` still
   returns an empty Python string for an unknown name; the MATLAB comparison
