@@ -20,7 +20,7 @@ class _EvaluationLimit(Exception):
     pass
 
 
-def fminunc(fun, start, *, maxiter, tol_fun, tol_x, typical_x, max_fun_evals):
+def fminunc(fun, start, *, maxiter, tol_fun, tol_x, typical_x, max_fun_evals, return_status=False):
     """Minimize ``fun`` with the medium-scale BFGS update FieldTrip requests.
 
     Args:
@@ -31,16 +31,20 @@ def fminunc(fun, start, *, maxiter, tol_fun, tol_x, typical_x, max_fun_evals):
         tol_x: MATLAB ``TolX``.
         typical_x: MATLAB ``TypicalX``. A scalar is applied to every parameter.
         max_fun_evals: MATLAB ``MaxFunEvals``, counting finite-difference probes.
+        return_status: Also return the stop report. ``converged`` is true when
+            the stop is the ``TolFun`` gradient test or the ``TolX`` step test.
 
     Returns:
         The last accepted parameter vector. An evaluation budget hit during a
-        trial keeps that last accepted point.
+        trial keeps that last accepted point. With ``return_status``, a
+        ``(parameters, status)`` pair.
     """
 
     def counted(values):
         nonlocal evaluations
         evaluations += 1
         if evaluations > max_fun_evals:
+            evaluations -= 1
             raise _EvaluationLimit
         return float(fun(np.asarray(values, dtype=float)))
 
@@ -52,36 +56,42 @@ def fminunc(fun, start, *, maxiter, tol_fun, tol_x, typical_x, max_fun_evals):
 
     values = np.array(start, dtype=float).ravel()
     evaluations = 0
+    reason = "maxiter"
     try:
         value = counted(values)
         gradient = grad(values, value)
         initial_gradient = np.linalg.norm(gradient, np.inf)
         inverse = np.eye(len(values))
-        for iteration in range(maxiter):
+        for _iteration in range(maxiter):
             if np.linalg.norm(gradient, np.inf) < tol_fun * (1 + initial_gradient):
+                reason = "gradient"
                 break
             direction = -inverse @ gradient
-            first_step = min(1 / initial_gradient, 1.0) if iteration == 0 and initial_gradient > 0 else 1.0
+            first_step = min(1 / initial_gradient, 1.0) if _iteration == 0 and initial_gradient > 0 else 1.0
             alpha, new_value, new_gradient = _line_search(counted, grad, values, direction, gradient, value, first_step)
             if new_value >= value:
+                reason = "no_decrease"
                 break
             delta = alpha * direction
             values = values + delta
             delta_gradient = new_gradient - gradient
             value, gradient = new_value, new_gradient
             if np.linalg.norm(delta / (1 + np.abs(values)), np.inf) < tol_x:
+                reason = "step"
                 break
             curvature = delta @ delta_gradient
             if curvature >= np.sqrt(_EPS) * max(_EPS, np.linalg.norm(delta) * np.linalg.norm(delta_gradient)):
-                if iteration == 0:
+                if _iteration == 0:
                     inverse = curvature / (delta_gradient @ delta_gradient) * np.eye(len(values))
                 projected = inverse @ delta_gradient
                 inverse += (1 + delta_gradient @ projected / curvature) * np.outer(delta, delta) / curvature - (
                     np.outer(delta, projected) + np.outer(projected, delta)
                 ) / curvature
     except _EvaluationLimit:
-        pass
-    return values
+        reason = "max_fun_evals"
+    if not return_status:
+        return values
+    return values, {"converged": reason in {"gradient", "step"}, "reason": reason, "evaluations": evaluations}
 
 
 def _cubic(a, fa, ga, b, fb, gb):

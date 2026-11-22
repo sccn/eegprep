@@ -10,6 +10,7 @@ import pytest
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.coregister import coregister, read_electrode_file
+from eegprep.plugins.dipfit._coordinates import warp_apply, warp_optim
 from tests.eeglab_tests.backend import call_matlab
 
 
@@ -24,6 +25,10 @@ _ELC = (
     / "standard_1005.elc"
 )
 _SAMPLE = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"
+# Same allowance as test_coregister_traditional_warp_matches_eeglab.
+_MATLAB_ATOL = 1e-3
+_MATLAB_RTOL = 1e-4
+
 _ELP = """%F 0 90 0
 %F -90 0 0
 %F 90 0 0
@@ -74,7 +79,38 @@ def test_coregister_traditional_warp_matches_eeglab(eeglab_matlab_engine, reques
         )
         fitted = coregister(dataset["chanlocs"], str(template), warp="auto")
         matlab = np.asarray(reference["transform"], dtype=float).reshape(-1)
-        np.testing.assert_allclose(fitted.transform, matlab, atol=1e-3, rtol=1e-4)
+        np.testing.assert_allclose(fitted.transform, matlab, atol=_MATLAB_ATOL, rtol=_MATLAB_RTOL)
+
+
+_SYNTHETIC_SOURCE = np.asarray(
+    [
+        [0.0, 1.0, 0.0],
+        [-1.0, 0.0, -0.2],
+        [1.0, 0.0, -0.2],
+        [0.0, 0.0, 1.0],
+        [0.0, -1.0, 0.0],
+    ],
+    dtype=float,
+)
+
+
+@pytest.mark.matlab
+@pytest.mark.timeout(600)
+def test_synthetic_traditional_warp_matches_fieldtrip(eeglab_matlab_engine, request):
+    eeglab_root = Path(request.config.getoption("--eeglab-root"))
+    reference = call_matlab(
+        eeglab_matlab_engine,
+        "eegprep_warp_optim_parity",
+        str(eeglab_root),
+        nargout=1,
+    )
+    degrees = np.asarray([5.0, -3.0, 2.0, *np.rad2deg([0.05, -0.04, 0.03]), 2.0, 1.5, 1.2])
+    target = warp_apply(degrees, _SYNTHETIC_SOURCE, "traditional")
+    recovered, params = warp_optim(_SYNTHETIC_SOURCE, target, "traditional")
+    matlab_params = np.asarray(reference["params"], dtype=float).reshape(-1)
+    matlab_points = np.asarray(reference["points"], dtype=float).reshape(-1, 3)
+    np.testing.assert_allclose(params, matlab_params, atol=_MATLAB_ATOL, rtol=_MATLAB_RTOL)
+    np.testing.assert_allclose(recovered, matlab_points, atol=_MATLAB_ATOL, rtol=_MATLAB_RTOL)
 
 
 @pytest.mark.matlab

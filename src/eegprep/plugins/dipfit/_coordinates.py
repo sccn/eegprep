@@ -238,8 +238,14 @@ def warp_error(params: Any, points: Any, target: Any, method: str = "traditional
     return float(np.mean(np.linalg.norm(warped - target_points, axis=1)))
 
 
-def warp_optim(points: Any, target: Any, method: str = "traditional") -> tuple[np.ndarray, np.ndarray]:
-    """Optimize a DIPFIT-style warp from ``points`` to ``target``."""
+def warp_optim(
+    points: Any, target: Any, method: str = "traditional", *, return_status: bool = False
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Optimize a DIPFIT-style warp from ``points`` to ``target``.
+
+    ``return_status`` adds the last stage's stop report. ``converged`` is true
+    when that stage stops on TolFun or TolX.
+    """
     source, _ = _as_points(points)
     target_points, _ = _as_points(target)
     if source.shape != target_points.shape:
@@ -249,22 +255,34 @@ def warp_optim(points: Any, target: Any, method: str = "traditional") -> tuple[n
         raise ValueError("method must be rigidbody, globalrescale, traditional, or nonlin1..nonlin5")
     level = _WARP_LEVELS[selected]
     params: np.ndarray | None = None
+    status: dict[str, Any] | None = None
+    stages: list[dict[str, Any]] = []
     if level >= 1:
-        params = _optimize_warp(np.zeros(6), source, target_points, "rigidbody")
-    assert params is not None
+        params, status = _optimize_warp(np.zeros(6), source, target_points, "rigidbody")
+        stages.append(status)
+    assert params is not None and status is not None
     if level >= 2:
-        params = _optimize_warp(np.concatenate([params, [1.0]]), source, target_points, "globalrescale")
+        params, status = _optimize_warp(np.concatenate([params, [1.0]]), source, target_points, "globalrescale")
+        stages.append(status)
     if level >= 3:
-        params = _optimize_warp(np.concatenate([params, [params[6], params[6]]]), source, target_points, "traditional")
+        params, status = _optimize_warp(
+            np.concatenate([params, [params[6], params[6]]]), source, target_points, "traditional"
+        )
+        stages.append(status)
     if level >= 4:
         transform = traditional(params)
         params = np.column_stack([transform[:3, 3], transform[:3, :3]]).reshape(3, 4)
-        params = _optimize_warp(params, source, target_points, "nonlin1")
+        params, status = _optimize_warp(params, source, target_points, "nonlin1")
+        stages.append(status)
     for order in range(2, max(level - 3, 1) + 1):
         needed = _polynomial_term_count(order)
         params = np.column_stack([params, np.zeros((3, needed - params.shape[1]))])
-        params = _optimize_warp(params, source, target_points, f"nonlin{order}")
-    return warp_apply(params, source, selected), np.asarray(params, dtype=float)
+        params, status = _optimize_warp(params, source, target_points, f"nonlin{order}")
+        stages.append(status)
+    fitted = warp_apply(params, source, selected), np.asarray(params, dtype=float)
+    if return_status:
+        return (*fitted, {**status, "stages": stages})
+    return fitted
 
 
 def electroderealign(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -422,7 +440,9 @@ def _electrode_struct(value: Any, name: str) -> dict[str, Any]:
     return {"label": labels, "pnt": coordinates}
 
 
-def _optimize_warp(initial: np.ndarray, source: np.ndarray, target: np.ndarray, method: str) -> np.ndarray:
+def _optimize_warp(
+    initial: np.ndarray, source: np.ndarray, target: np.ndarray, method: str
+) -> tuple[np.ndarray, dict[str, Any]]:
     shape = np.asarray(initial).shape
     start = np.asarray(initial, dtype=float).ravel()
 
@@ -431,7 +451,7 @@ def _optimize_warp(initial: np.ndarray, source: np.ndarray, target: np.ndarray, 
 
     # ft_warp_optim.m: MaxIter 1500, TolFun 1e-4, LargeScale off.
     # MaxFunEvals and TypicalX are left at the fminunc defaults.
-    fitted = fminunc(
+    fitted, status = fminunc(
         objective,
         start,
         maxiter=_WARP_MAX_ITERATIONS,
@@ -439,8 +459,9 @@ def _optimize_warp(initial: np.ndarray, source: np.ndarray, target: np.ndarray, 
         tol_x=_WARP_STEP_TOLERANCE,
         typical_x=_WARP_TYPICAL_X,
         max_fun_evals=100 * start.size,
+        return_status=True,
     )
-    return np.asarray(fitted, dtype=float).reshape(shape)
+    return np.asarray(fitted, dtype=float).reshape(shape), status
 
 
 def _apply_polynomial_warp(matrix: np.ndarray, points: np.ndarray, method: str | None) -> np.ndarray:
