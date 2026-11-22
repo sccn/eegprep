@@ -514,13 +514,29 @@ def _cubic(a, fa, ga, b, fb, gb):
     return b - (b - a) * (gb + w - z) / denominator
 
 
+def _section_trial(trial, left, left_value, right, right_value):
+    """Keep a sectioning trial 10% off the better end and 50% off the other."""
+    width = abs(right - left)
+    if width == 0.0:
+        return trial
+    if left_value <= right_value:
+        better, other = left, right
+    else:
+        better, other = right, left
+    direction = 1.0 if other > better else -1.0
+    close = better + 0.1 * width * direction
+    far = better + 0.5 * width * direction
+    low, high = (close, far) if close <= far else (far, close)
+    return float(min(max(trial, low), high))
+
+
 def _line_search(fun, grad, x, p, g, f, first_step=1.0):
     derivative = g @ p
     a, fa, ga = 0.0, f, derivative
     b = first_step
     for i in range(_LINE_SEARCH_ITERATIONS):
         fb = fun(x + b * p)
-        gbvec = grad(x + b * p)
+        gbvec = grad(x + b * p, fb)
         gb = gbvec @ p
         if fb > f + _ARMIJO * b * derivative or (i and fb >= fa):
             break
@@ -533,28 +549,28 @@ def _line_search(fun, grad, x, p, g, f, first_step=1.0):
         new = np.clip(new, b + (b - a), b + 9 * (b - a)) if new > b else b + 9 * (b - a)
         a, fa, ga = b, fb, gb
         b = new
+    last = None
     for _ in range(_LINE_SEARCH_ITERATIONS):
-        c = _cubic(a, fa, ga, b, fb, gb)
-        low, high = sorted((a, b))
-        c = np.clip(c, low + 0.1 * (high - low), high - 0.1 * (high - low))
+        # TolX stops fminunc on the accepted step. Inside the line search the bracket
+        # is an alpha interval, and the point returned is the latest trial.
+        if abs(b - a) <= _STEP_TOLERANCE:
+            break
+        c = _section_trial(_cubic(a, fa, ga, b, fb, gb), a, fa, b, fb)
         fc = fun(x + c * p)
-        gcvec = grad(x + c * p)
+        gcvec = grad(x + c * p, fc)
         gc = gcvec @ p
+        last = (c, fc, gcvec)
         if fc > f + _ARMIJO * c * derivative or fc >= fa:
             b, fb, gb = c, fc, gc
         else:
             if abs(gc) <= -_WOLFE_CURVATURE * derivative:
                 return c, fc, gcvec
-            if gc * (b - a) >= 0:
+            # A nonnegative slope makes the trial the better end and the previous step the other.
+            if gc >= 0:
                 b, fb, gb = a, fa, ga
             a, fa, ga = c, fc, gc
-        if max(abs((b - a) * p) / (1 + abs(x + c * p))) < _STEP_TOLERANCE:
-            # MATLAB replaces a worse interpolated point with the lowest bracket value.
-            if fa <= fc and fa <= fb:
-                return a, fa, grad(x + a * p)
-            if fb <= fc:
-                return b, fb, grad(x + b * p)
-            return c, fc, gcvec
+    if last is not None:
+        return last
     return None, f, g
 
 
@@ -569,14 +585,13 @@ def _fminunc(fun, start, maxiter=1000):
     ``||dx / (1 + |x|)||_inf < TolX``.
     """
 
-    def grad(x):
-        value = fun(x)
-        step = np.sqrt(_EPS) * np.where(x < 0, -1.0, 1.0) * np.maximum(np.abs(x), _TYPICAL_X_MM)
-        return np.array([(fun(x + np.eye(len(x))[i] * step[i]) - value) / step[i] for i in range(len(x))])
+    def grad(point, known):
+        step = np.sqrt(_EPS) * np.where(point < 0, -1.0, 1.0) * np.maximum(np.abs(point), _TYPICAL_X_MM)
+        return np.array([(fun(point + np.eye(len(point))[i] * step[i]) - known) / step[i] for i in range(len(point))])
 
     values = np.array(start, dtype=float).ravel()
     value = fun(values)
-    gradient = grad(values)
+    gradient = grad(values, value)
     initial_gradient = np.linalg.norm(gradient, np.inf)
     inverse = np.eye(len(values))
     for iteration in range(maxiter):
@@ -658,7 +673,7 @@ def _fminunc_coregister(
                 inverse = np.eye(x.size)
                 direction = -g
             first_step = min(1.0 / g0, 1.0) if iteration == 0 and g0 > 0 else 1.0
-            alpha, nf, ng = _line_search(counted, lambda point: grad(point)[1], x, direction, g, f, first_step)
+            alpha, nf, ng = _line_search(counted, lambda point, known: grad(point)[1], x, direction, g, f, first_step)
             if alpha is None or nf >= f:
                 break
             dx = alpha * direction

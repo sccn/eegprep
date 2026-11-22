@@ -105,10 +105,9 @@ the limits. Cancelling the menu discards its changes.
        inside the brain mesh. Nonlinear refinement follows FieldTrip's
        ``fminunc`` settings: ``TypicalX`` of 10 mm, so the forward difference
        is ``sqrt(eps)*sign'(x)*max(|x|, 10)``, a scaled BFGS inverse Hessian,
-       a safeguarded cubic Wolfe line search, and relative TolFun ``1e-9``
-       and TolX ``1e-6`` stops. All 32 components of the sample
-       ICA dataset match MATLAB R2025b within 0.00008 mm on four-shell BESA
-       and within 0.00333 mm on the MNI BEM. Component 3 of the MNI fit
+       and a cubic Wolfe line search. Sectioning keeps a trial at least 10%
+       of the bracket from the better endpoint and 50% from the other.
+       Relative TolFun is ``1e-9`` and TolX is ``1e-6``. Component 3 of the MNI fit
        matches EEGLAB and remains inside the brain mesh. Nonlinear
        positions are unconstrained by default, as in FieldTrip. EEGLAB's settings
        dialog switches a channel file whose name contains
