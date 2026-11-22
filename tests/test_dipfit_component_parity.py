@@ -23,8 +23,8 @@ _SINGLE_DIPOLE_MAX_MM = {"standardBESA": 8.0e-5, "standardBEM": 3.33e-3}
 _SYMMETRIC_DIPOLE_MAX_MM = {"standardBESA": 6.42e-3, "standardBEM": 7.52e-3}
 _ILL_CONDITIONED_BEM_COMPONENT = 21
 _ILL_CONDITIONED_BEM_SYMMETRIC_COMPONENT = 1
-_RV_ATOL = 1e-5
-_RV_RTOL = 1e-3
+_RV_ATOL = 1e-8
+_RV_RTOL = 1e-6
 
 
 def _reference(engine, request, model: str, kind: str):
