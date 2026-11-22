@@ -13,6 +13,7 @@ import numpy as np
 # Add src to path for imports
 sys.path.insert(0, 'src')
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
+from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.utils.testing import DebuggableTestCase
 
@@ -164,6 +165,25 @@ class TestEegChecksetDataSqueezing(DebuggableTestCase):
         result = eeg_checkset(eeg)
 
         self.assertEqual(result['icaact'].shape, (1, 8))
+
+    def test_empty_icawinv_is_recomputed_from_weights_and_sphere(self):
+        weights = np.array([[0.25, -0.5], [0.5, 0.25]], dtype=np.float64)
+        sphere = np.array([[0.8, 0.1], [-0.2, 1.1]], dtype=np.float64)
+        expected = pinv(weights @ sphere)
+        for icawinv in (np.array([]), None):
+            eeg = create_minimal_eeg()
+            eeg.update(
+                {
+                    'icaweights': weights,
+                    'icasphere': sphere,
+                    'icawinv': icawinv,
+                    'icachansind': np.arange(eeg['data'].shape[0]),
+                    'icaact': np.array([]),
+                }
+            )
+            result = eeg_checkset(eeg)
+            np.testing.assert_allclose(result['icawinv'], expected)
+            np.testing.assert_allclose(result['icaweights'], weights)
 
     def test_icaact_product_uses_the_data_dtype(self):
         weights = np.array([[0.25, -0.5, 0.125, 0.125]], dtype=np.float64)

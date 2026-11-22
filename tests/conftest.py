@@ -547,6 +547,10 @@ HEAVY_REFERENCE_NODEIDS = (
     "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_source_reconstruction_eeg",
     "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_study_script[teststudy]",
     "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_time_freq_all_elec",
+    # Sample ICA dipoles on four-shell BESA and MNI BEM.
+    "tests/test_dipfit_component_parity.py::test_inside_brain_grid_counts_match_eeglab",
+    "tests/test_dipfit_component_parity.py::test_single_dipole_fits_match_eeglab",
+    "tests/test_dipfit_component_parity.py::test_symmetric_two_dipole_fits_match_eeglab",
 )
 
 MATLAB_NODEID_PARTS = (

@@ -6,10 +6,16 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 import numpy as np
-from scipy.optimize import minimize
 
+from eegprep.functions.miscfunc.fminunc import fminunc
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError
 
+
+_WARP_MAX_ITERATIONS = 1500
+_WARP_FUNCTION_TOLERANCE = 1e-4
+_WARP_STEP_TOLERANCE = 1e-6
+# ft_warp_optim.m does not set TypicalX. fminunc's default is ones(n, 1).
+_WARP_TYPICAL_X = 1.0
 
 _WARP_LEVELS = {
     "rigidbody": 1,
@@ -232,8 +238,14 @@ def warp_error(params: Any, points: Any, target: Any, method: str = "traditional
     return float(np.mean(np.linalg.norm(warped - target_points, axis=1)))
 
 
-def warp_optim(points: Any, target: Any, method: str = "traditional") -> tuple[np.ndarray, np.ndarray]:
-    """Optimize a DIPFIT-style warp from ``points`` to ``target``."""
+def warp_optim(
+    points: Any, target: Any, method: str = "traditional", *, return_status: bool = False
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Optimize a DIPFIT-style warp from ``points`` to ``target``.
+
+    ``return_status`` adds the last stage's stop report. ``converged`` is true
+    when that stage stops on TolFun or TolX.
+    """
     source, _ = _as_points(points)
     target_points, _ = _as_points(target)
     if source.shape != target_points.shape:
@@ -243,22 +255,34 @@ def warp_optim(points: Any, target: Any, method: str = "traditional") -> tuple[n
         raise ValueError("method must be rigidbody, globalrescale, traditional, or nonlin1..nonlin5")
     level = _WARP_LEVELS[selected]
     params: np.ndarray | None = None
+    status: dict[str, Any] | None = None
+    stages: list[dict[str, Any]] = []
     if level >= 1:
-        params = _optimize_warp(np.zeros(6), source, target_points, "rigidbody")
-    assert params is not None
+        params, status = _optimize_warp(np.zeros(6), source, target_points, "rigidbody")
+        stages.append(status)
+    assert params is not None and status is not None
     if level >= 2:
-        params = _optimize_warp(np.concatenate([params, [1.0]]), source, target_points, "globalrescale")
+        params, status = _optimize_warp(np.concatenate([params, [1.0]]), source, target_points, "globalrescale")
+        stages.append(status)
     if level >= 3:
-        params = _optimize_warp(np.concatenate([params, [params[6], params[6]]]), source, target_points, "traditional")
+        params, status = _optimize_warp(
+            np.concatenate([params, [params[6], params[6]]]), source, target_points, "traditional"
+        )
+        stages.append(status)
     if level >= 4:
         transform = traditional(params)
         params = np.column_stack([transform[:3, 3], transform[:3, :3]]).reshape(3, 4)
-        params = _optimize_warp(params, source, target_points, "nonlin1")
+        params, status = _optimize_warp(params, source, target_points, "nonlin1")
+        stages.append(status)
     for order in range(2, max(level - 3, 1) + 1):
         needed = _polynomial_term_count(order)
         params = np.column_stack([params, np.zeros((3, needed - params.shape[1]))])
-        params = _optimize_warp(params, source, target_points, f"nonlin{order}")
-    return warp_apply(params, source, selected), np.asarray(params, dtype=float)
+        params, status = _optimize_warp(params, source, target_points, f"nonlin{order}")
+        stages.append(status)
+    fitted = warp_apply(params, source, selected), np.asarray(params, dtype=float)
+    if return_status:
+        return (*fitted, {**status, "stages": stages})
+    return fitted
 
 
 def electroderealign(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -276,10 +300,13 @@ def electroderealign(cfg: dict[str, Any]) -> dict[str, Any]:
     template_value = cfg.get("template")
     if method == "interactive":
         raise DIPFITUnavailableError(
-            "electroderealign interactive GUI alignment is not available in standalone EEGPrep"
+            "electroderealign: interactive alignment has no standalone window. "
+            "Set cfg['method'] to 'traditional', 'realignfiducial', 'rigidbody', or another in-memory warp."
         )
     if template_value is None:
-        raise DIPFITUnavailableError("electroderealign currently requires an in-memory template electrode structure")
+        raise DIPFITUnavailableError(
+            "electroderealign: cfg['template'] is missing. Pass an in-memory electrode dictionary with label and pnt."
+        )
     templates = template_value if isinstance(template_value, list) else [template_value]
     template_structs = [_electrode_struct(template, "cfg['template']") for template in templates]
     if method == "realignfiducial":
@@ -401,7 +428,10 @@ def _label_key(label: str, case_sensitive: bool) -> str:
 
 def _electrode_struct(value: Any, name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
-        raise DIPFITUnavailableError(f"{name} must be an in-memory electrode structure in standalone EEGPrep")
+        raise DIPFITUnavailableError(
+            f"electroderealign: {name} is not an in-memory electrode structure. "
+            "Pass a dictionary with label and pnt or elecpos."
+        )
     points = value.get("pnt", value.get("elecpos"))
     labels = [str(label) for label in value.get("label", [])]
     coordinates, _ = _as_points(points)
@@ -410,19 +440,28 @@ def _electrode_struct(value: Any, name: str) -> dict[str, Any]:
     return {"label": labels, "pnt": coordinates}
 
 
-def _optimize_warp(initial: np.ndarray, source: np.ndarray, target: np.ndarray, method: str) -> np.ndarray:
+def _optimize_warp(
+    initial: np.ndarray, source: np.ndarray, target: np.ndarray, method: str
+) -> tuple[np.ndarray, dict[str, Any]]:
     shape = np.asarray(initial).shape
+    start = np.asarray(initial, dtype=float).ravel()
 
     def objective(flat: np.ndarray) -> float:
-        return warp_error(flat.reshape(shape), source, target, method)
+        return warp_error(np.asarray(flat, dtype=float).reshape(shape), source, target, method)
 
-    result = minimize(
+    # ft_warp_optim.m: MaxIter 1500, TolFun 1e-4, LargeScale off.
+    # MaxFunEvals and TypicalX are left at the fminunc defaults.
+    fitted, status = fminunc(
         objective,
-        np.asarray(initial, dtype=float).ravel(),
-        method="Powell",
-        options={"maxiter": 1200, "xtol": 1e-7, "ftol": 1e-7, "disp": False},
+        start,
+        maxiter=_WARP_MAX_ITERATIONS,
+        tol_fun=_WARP_FUNCTION_TOLERANCE,
+        tol_x=_WARP_STEP_TOLERANCE,
+        typical_x=_WARP_TYPICAL_X,
+        max_fun_evals=100 * start.size,
+        return_status=True,
     )
-    return result.x.reshape(shape)
+    return np.asarray(fitted, dtype=float).reshape(shape), status
 
 
 def _apply_polynomial_warp(matrix: np.ndarray, points: np.ndarray, method: str | None) -> np.ndarray:

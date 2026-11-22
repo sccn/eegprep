@@ -342,7 +342,6 @@ class CoregisterDialog(_BaseDialog):
             self.transform = estimate_coregistration_transform(
                 self.source,
                 self.reference,
-                initial=self.transform,
                 method=method,
             )
         except (NotImplementedError, ValueError) as exc:

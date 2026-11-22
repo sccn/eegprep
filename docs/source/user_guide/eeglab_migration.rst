@@ -102,14 +102,17 @@ the limits. Cancelling the menu discards its changes.
      - The default head model is the packaged dipoli boundary-element volume
        from DIPFIT ``standard_vol.mat``. Grid search uses EEGLAB's
        ``linspace(-85,85,24)`` and ``linspace(0,85,12)`` points that fall
-       inside the brain mesh, then refines each dipole with SciPy BFGS.
-       That BFGS refinement has no inside-brain constraint, so a fit can
-       land outside the brain mesh with a lower residual than EEGLAB's.
-       Sample component 3 does this. The optimizer is the analogue of
-       ``fminunc`` and is not bit-identical to MATLAB. Components 1 and 2
-       of the sample dataset land within 1 mm of EEGLAB. On that sample,
-       component 3's lower residual than EEGLAB is an observation, not a
-       general rule. EEGLAB's settings
+       inside the brain mesh. Nonlinear refinement follows FieldTrip's
+       ``fminunc`` settings: ``TypicalX`` of 10 mm, so the forward difference
+       is ``sqrt(eps)*sign'(x)*max(|x|, 10)``, a scaled BFGS inverse Hessian,
+       and a cubic Wolfe line search. The bracket end ``a`` is the last step
+       that met sufficient decrease. Sectioning keeps a trial at least 10%
+       of the interval from ``a`` and 50% from the other end.
+       Relative TolFun is ``1e-9`` and TolX is ``1e-6``. ``MaxFunEvals`` is
+       ``2*MaxIter*n`` (6000 for one dipole at the default 1000 iterations).
+       Component 3 of the MNI fit
+       matches EEGLAB and remains inside the brain mesh. Nonlinear
+       positions are unconstrained by default, as in FieldTrip. EEGLAB's settings
        dialog switches a channel file whose name contains
        ``standard-10-5-cap385`` to the BESA sphere. EEGPrep keeps the MNI
        model and applies that file's cap385-to-MNI coregistration. A channel

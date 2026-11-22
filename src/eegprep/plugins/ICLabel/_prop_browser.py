@@ -305,13 +305,15 @@ def _plot_dipfit(axes: list[Any], dipfit: DipfitData | None) -> None:
     volume = load_standard_mri_volume()
     for axis, mri_slice in zip(axes, dipfit_mri_slices(volume, dipfit.positions)):
         axis.set_facecolor("black")
-        axis.imshow(mri_slice.image, cmap="gray", origin="lower", extent=mri_slice.extent, interpolation="nearest")
+        axis.imshow(
+            mri_slice["image"], cmap="gray", origin="lower", extent=mri_slice["extent"], interpolation="nearest"
+        )
         axis.set_aspect("equal", adjustable="box")
         axis.set_xticks([])
         axis.set_yticks([])
         for spine in axis.spines.values():
             spine.set_visible(False)
-        _plot_dipfit_points(axis, dipfit, mri_slice.x_axis, mri_slice.y_axis)
+        _plot_dipfit_points(axis, dipfit, mri_slice["x_axis"], mri_slice["y_axis"])
     axes[0].set_title("Dipole Position", fontsize=12, fontweight="normal", pad=7)
     _plot_dipfit_values(axes[-1], dipfit)
 

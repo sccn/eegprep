@@ -177,7 +177,7 @@ def test_pop_editset_gui_cancel_or_no_changes_returns_original_without_history()
     assert com == ""
 
 
-def test_pop_editset_direct_data_and_ica_assignments_update_shape_and_clear_ica_inverse():
+def test_pop_editset_direct_data_and_ica_assignments_update_shape_and_rebuild_ica_inverse():
     data = np.ones((3, 5, 2), dtype=np.float32)
     weights = np.eye(3)
     out = pop_editset(
@@ -196,7 +196,7 @@ def test_pop_editset_direct_data_and_ica_assignments_update_shape_and_clear_ica_
     assert out["trials"] == 2
     np.testing.assert_array_equal(out["icaweights"], weights)
     np.testing.assert_array_equal(out["icasphere"], np.eye(3))
-    assert out["icawinv"].size == 0
+    np.testing.assert_array_equal(out["icawinv"], np.eye(3))
     assert out["icaact"].shape == (3, 5, 2)
     np.testing.assert_array_equal(out["icachansind"], [0, 1, 2])
 

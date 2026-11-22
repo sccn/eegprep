@@ -9,13 +9,13 @@ import re
 from typing import Any
 
 import numpy as np
-from scipy.optimize import least_squares
 
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence as _parse_numeric_sequence_value
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.readlocs import readlocs
+from eegprep.plugins.dipfit._coordinates import warp_optim
 
 DEFAULT_COREGISTER_TRANSFORM = np.asarray([0.0, -10.0, 0.0, -0.1, 0.0, -1.6, 1100.0, 1100.0, 1100.0])
-_SCALE_LOWER_BOUND = 1e-9
 
 _FIDUCIAL_LABELS = {"nz", "nasion", "nazion", "fidnz", "lpa", "left", "fidt9", "rpa", "right", "fidt10"}
 _LABEL_1020 = {
@@ -169,10 +169,10 @@ def coregister(
     """Coregister one electrode montage to another without opening a GUI.
 
     This mirrors EEGLAB's noninteractive ``coregister(..., 'manual', 'off')``
-    path for the transform types EEGPrep can compute standalone. ``warp='auto'``
-    or ``warpmethod='traditional'`` fits the 9-parameter Talairach transform to
-    common labels. ``alignfid`` and ``warpmethod='globalrescale'`` fit a shared
-    scale transform.
+    path. ``warp='auto'`` or ``warpmethod='traditional'`` fits the 9-parameter
+    Talairach transform to common labels. ``alignfid`` and
+    ``warpmethod='globalrescale'`` fit a shared scale transform. Channel files
+    may be Cartesian ``.xyz``/``.sfp`` text or template ``.elc``/``.elp`` files.
     """
     source = load_coregistration_electrodes(chanlocs1, chaninfo=chaninfo1)
     target = load_coregistration_electrodes(chanlocs2, chaninfo=chaninfo2) if chanlocs2 is not None else None
@@ -183,9 +183,7 @@ def coregister(
             if warp is None or (isinstance(warp, str) and warp.lower() == "auto")
             else [str(label) for label in np.asarray(warp, dtype=object).ravel()]
         )
-        transform_array = estimate_coregistration_transform(
-            source, target, initial=transform, method=method, labels=labels
-        )
+        transform_array = estimate_coregistration_transform(source, target, method=method, labels=labels)
     else:
         transform_array = normalise_coregistration_transform(transform, default=[0, 0, 0, 0, 0, 0, 1, 1, 1])
         if target is not None and str(autoscale).lower() == "on" and transform is None:
@@ -221,9 +219,16 @@ def read_electrode_file(path: str | Path) -> ElectrodeSet:
         label, point = parsed
         labels.append(label)
         points.append(point)
-    if not points:
-        raise ValueError(f"no electrode positions found in {loc_path}")
-    return ElectrodeSet(labels, np.asarray(points, dtype=float), str(loc_path))
+    if points:
+        return ElectrodeSet(labels, np.asarray(points, dtype=float), str(loc_path))
+    try:
+        locs = readlocs(str(loc_path))
+    except (OSError, ValueError, IndexError) as exc:
+        raise ValueError(
+            f"coregister: no electrode positions found in {loc_path}. Use a Cartesian .xyz, .sfp, .elc, or .elp file."
+        ) from exc
+    loaded = electrodes_from_chanlocs(locs)
+    return ElectrodeSet(loaded.labels, loaded.points, str(loc_path))
 
 
 def _resolve_coregistration_file(value: str | Path) -> Path:
@@ -310,11 +315,16 @@ def estimate_coregistration_transform(
     source: ElectrodeSet,
     target: ElectrodeSet,
     *,
-    initial: Any = None,
     method: str = "traditional",
     labels: list[str] | None = None,
 ) -> np.ndarray:
-    """Fit a traditional transform to common source/target electrode labels."""
+    """Fit a traditional transform to common source/target electrode labels.
+
+    The fit is FieldTrip's staged ``ft_warp_optim`` mean-distance warp. Angles
+    come back in degrees and are converted to the radians EEGLAB stores, then
+    ``coregister.m`` ``checktransf`` keeps the yaw and pitch signs with the
+    smaller mean squared distance.
+    """
     source_indices, target_indices, _labels = match_electrodes(source, target, labels=labels)
     if source_indices.size < 3:
         raise ValueError("at least three common electrode labels are required for coregistration")
@@ -323,33 +333,8 @@ def estimate_coregistration_transform(
     method = method.lower()
     if method not in {"traditional", "globalrescale"}:
         raise ValueError("EEGPrep coregistration supports standalone 'traditional' and 'globalrescale' alignment")
-    initial_transform = _initial_transform(source_points, target_points)
-    if initial is not None:
-        user_initial = _canonicalise_fit_transform(
-            normalise_coregistration_transform(initial, default=initial_transform)
-        )
-        if (
-            _fit_rms(source_points, target_points, user_initial)
-            <= _fit_rms(source_points, target_points, initial_transform) * 5
-        ):
-            initial_transform = user_initial
-    initial_transform = _canonicalise_fit_transform(initial_transform)
-    if method == "globalrescale":
-        x0 = np.concatenate([initial_transform[:6], [max(float(np.mean(initial_transform[6:9])), _SCALE_LOWER_BOUND)]])
-        result = least_squares(
-            lambda values: _fit_residual(source_points, target_points, _expand_globalrescale(values)),
-            x0,
-            bounds=([-np.inf] * 6 + [_SCALE_LOWER_BOUND], [np.inf] * 7),
-            max_nfev=5000,
-        )
-        return _canonicalise_fit_transform(_expand_globalrescale(result.x))
-    result = least_squares(
-        lambda values: _fit_residual(source_points, target_points, values),
-        initial_transform,
-        bounds=([-np.inf] * 6 + [_SCALE_LOWER_BOUND] * 3, [np.inf] * 9),
-        max_nfev=5000,
-    )
-    return _canonicalise_fit_transform(result.x)
+    _warped, params = warp_optim(source_points, target_points, method)
+    return _dipfit_transform_from_warp(params, source_points, target_points)
 
 
 def match_electrodes(
@@ -465,10 +450,38 @@ def _normalise_label(label: str) -> str:
     )
 
 
-def _initial_transform(source_points: np.ndarray, target_points: np.ndarray) -> np.ndarray:
-    ratio = _radius_ratio(source_points, target_points)
-    translation = np.nanmean(target_points, axis=0) - np.nanmean(source_points * ratio, axis=0)
-    return np.asarray([translation[0], translation[1], translation[2], 0, 0, 0, ratio, ratio, ratio], dtype=float)
+def _dipfit_transform_from_warp(params: np.ndarray, source_points: np.ndarray, target_points: np.ndarray) -> np.ndarray:
+    values = np.asarray(params, dtype=float).ravel().copy()
+    if values.size not in (6, 7, 9):
+        raise ValueError("coregister warp returned an unexpected parameter count")
+    values[3:6] = np.deg2rad(values[3:6])
+    if values.size == 6:
+        values = np.concatenate([values, np.ones(3)])
+    elif values.size == 7:
+        values = np.concatenate([values, [values[6], values[6]]])
+    return _choose_rotation_signs(values, source_points, target_points)
+
+
+def _choose_rotation_signs(transform: np.ndarray, source_points: np.ndarray, target_points: np.ndarray) -> np.ndarray:
+    current = np.asarray(transform, dtype=float).copy()
+    base = _mean_squared_distance(current, source_points, target_points)
+    current[5] = -current[5]
+    flipped = _mean_squared_distance(current, source_points, target_points)
+    if base < flipped:
+        current[5] = -current[5]
+        best = base
+    else:
+        best = flipped
+    current[3] = -current[3]
+    flipped = _mean_squared_distance(current, source_points, target_points)
+    if best < flipped:
+        current[3] = -current[3]
+    return current
+
+
+def _mean_squared_distance(transform: np.ndarray, source_points: np.ndarray, target_points: np.ndarray) -> float:
+    delta = apply_coregistration_transform(source_points, transform) - target_points
+    return float(np.mean(np.sum(delta * delta, axis=1)))
 
 
 def _radius_ratio(source_points: np.ndarray, target_points: np.ndarray) -> float:
@@ -479,30 +492,6 @@ def _radius_ratio(source_points: np.ndarray, target_points: np.ndarray) -> float
     if not np.isfinite(source_mean) or source_mean == 0 or not np.isfinite(target_mean):
         return 1.0
     return target_mean / source_mean
-
-
-def _fit_residual(source_points: np.ndarray, target_points: np.ndarray, transform: np.ndarray) -> np.ndarray:
-    transformed = apply_coregistration_transform(source_points, transform)
-    scale = max(float(np.nanmedian(np.linalg.norm(target_points, axis=1))), 1.0)
-    return ((transformed - target_points) / scale).ravel()
-
-
-def _fit_rms(source_points: np.ndarray, target_points: np.ndarray, transform: np.ndarray) -> float:
-    residual = _fit_residual(source_points, target_points, transform)
-    return float(np.sqrt(np.nanmean(residual**2)))
-
-
-def _expand_globalrescale(values: np.ndarray) -> np.ndarray:
-    return np.asarray(
-        [values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[6], values[6]]
-    )
-
-
-def _canonicalise_fit_transform(transform: Any) -> np.ndarray:
-    values = normalise_coregistration_transform(transform)
-    values[3:6] = (values[3:6] + np.pi) % (2 * np.pi) - np.pi
-    values[6:9] = np.maximum(np.abs(values[6:9]), _SCALE_LOWER_BOUND)
-    return values
 
 
 def _is_number(value: str) -> bool:

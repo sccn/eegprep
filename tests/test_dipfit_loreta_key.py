@@ -8,9 +8,8 @@ import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.dipfit._fitting import loreta_key_source_points
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
-from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield
+from eegprep.plugins.dipfit.pop_leadfield import loreta_key_source_points, pop_leadfield
 from tests.eeglab_tests.backend import call_matlab, skip_without_matlab_plugin
 
 
@@ -28,6 +27,7 @@ def _stacked_leadfield(fields: list) -> np.ndarray:
     return np.concatenate([np.asarray(field, dtype=float) for field in fields], axis=1)
 
 
+@pytest.mark.matlab
 @pytest.mark.timeout(1800)
 def test_loreta_key_leadfield_matches_fieldtrip_for_the_selected_head_model(eeglab_matlab_engine, request):
     eeglab_root = request.config.getoption("--eeglab-root")

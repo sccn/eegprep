@@ -13,6 +13,7 @@ from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
 from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.matlab_inputs import as_dataset_list, restore_dataset_container, struct_records
 from eegprep.functions.miscfunc.misc import matlab_mtimes, round_mat
+from eegprep.functions.miscfunc.pinv import pinv
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +332,10 @@ def _event_sort_key(event):
     return (0 if epoch is None else epoch, 0 if latency is None else latency)
 
 
+def _array_is_empty(value) -> bool:
+    return value is None or np.asarray(value).size == 0
+
+
 def _refresh_icaact(EEG) -> None:
     """Recompute stored activations from the current data array."""
     if (
@@ -499,6 +504,14 @@ def eeg_checkset(EEG, *checks, load_data=True):
     except exception_type as e:
         logger.error("Error computing ICA activations: " + str(e))
         EEG['icaact'] = np.array([])
+
+    try:
+        weights = EEG.get('icaweights')
+        sphere = EEG.get('icasphere')
+        if not _array_is_empty(weights) and not _array_is_empty(sphere) and _array_is_empty(EEG.get('icawinv')):
+            EEG['icawinv'] = pinv(np.asarray(weights, dtype=float) @ np.asarray(sphere, dtype=float))
+    except exception_type as e:
+        logger.error("Error computing ICA inverse weights: " + str(e))
 
     # Handle optional check modes (matches MATLAB's eeg_checkset(EEG, 'mode') API)
     for check in checks:

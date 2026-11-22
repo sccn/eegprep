@@ -9,23 +9,25 @@ import pytest
 from scipy.io import savemat
 
 from eegprep import pop_loadset
-from eegprep.plugins.dipfit._fitting import (
-    DipfitForwardData,
-    default_search_grids,
-    dipfit_nonlinear,
-    fit_component_grid,
-    prepare_forward_data,
-)
+from eegprep.plugins.dipfit.dipfit_gridsearch import default_search_grids, fitting_config
+from eegprep.plugins.dipfit.dipfit_nonlinear import dipfit_nonlinear
+from eegprep.plugins.dipfit.eeglab2fieldtrip import eeglab2fieldtrip
 from eegprep.plugins.dipfit._utils import channel_template_filename, lookupchantemplate, template_by_name
-from eegprep.plugins.dipfit.fieldtrip.bem import (
+from eegprep.plugins.dipfit.ft_dipolefitting import (
     eeg_infinite_dipole,
     eeg_leadfieldb,
-    ft_prepare_vol_sens,
     load_bem_headmodel,
+    prepare_headmodel_sens,
+    compute_dipole_leadfield as ft_compute_leadfield,
+    inside_headmodel as ft_inside_headmodel,
+    project_elec,
+    surface_inside,
+    transfer_elec,
+    ft_dipolefitting,
 )
-from eegprep.plugins.dipfit.forward.ft_compute_leadfield import ft_compute_leadfield
-from eegprep.plugins.dipfit.fieldtrip.geometry import ft_inside_headmodel, project_elec, surface_inside, transfer_elec
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings, pop_dipfit_settings_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
+from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 from eegprep.utils.bem_parity import PARITY_DIPOLES_MM, bem_parity_payload
 from tests.eeglab_tests.backend import skip_without_matlab_plugin
 from tests.fixtures import create_test_eeg_with_ica
@@ -33,6 +35,13 @@ from tests.fixtures import create_test_eeg_with_ica
 
 _CAP385_TO_MNI = np.asarray([0.832146, -15.6287, 2.41142, 0.0812144, 0.000937391, -1.5732, 1.17419, 1.06011, 1.14846])
 _SAMPLE = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"
+
+
+def _prepare_eeg(eeg):
+    comp = eeglab2fieldtrip(eeg)
+    cfg = fitting_config(eeg)
+    cfg["channel"] = [label for label in cfg["channel"] if label in comp["topolabel"]]
+    return prepare_headmodel_sens(cfg, comp["elec"], eeg["chanlocs"])
 
 
 def _octahedron() -> tuple[np.ndarray, np.ndarray]:
@@ -73,7 +82,9 @@ def test_identity_bem_on_a_spherical_mesh_matches_the_infinite_dipole():
         eeg_infinite_dipole(dipole, vertices, 1.0),
         atol=1e-12,
     )
-    headmodel, sens = ft_prepare_vol_sens(volume, {"elecpos": vertices, "label": [f"V{i}" for i in range(6)]})
+    headmodel, sens = prepare_headmodel_sens(
+        {"vol": volume}, {"elecpos": vertices, "label": [f"V{i}" for i in range(6)]}, []
+    )
     prepared = ft_compute_leadfield(dipole, sens, headmodel)
     referenced = eeg_infinite_dipole(dipole, vertices, 1.0)
     referenced = referenced - np.mean(referenced, axis=0, keepdims=True)
@@ -155,44 +166,48 @@ def test_missing_channel_filename_keeps_the_bem_template_transform(caplog):
     )
     out["dipfit"]["coord_transform"] = []
     with caplog.at_level("WARNING"):
-        prepare_forward_data(out, [1])
+        _prepare_eeg(out)
     assert "empty coord_transform" in caplog.text
 
 
 def test_shared_bem_leadfield_selects_the_matching_candidate():
-    maps = np.asarray([[1.0, 0.0], [0.0, 1.0], [-1.0, -1.0]], dtype=float)
-    forward = DipfitForwardData(
-        positions=np.zeros((3, 3)),
-        maps=maps,
-        components=[1, 2],
-        chansel=[1, 2, 3],
-        labels=["A", "B", "C"],
-        head_radius=85.0,
-        coordformat="MNI",
-        headmodel={"type": "dipoli"},
-        sens={},
+    vertices, triangles = _octahedron()
+    volume = {
+        "type": "dipoli",
+        "cond": np.ones(1),
+        "bnd": [{"pos": vertices, "tri": triangles}],
+        "mat": np.eye(6),
+        "unit": "mm",
+    }
+    labels = [f"E{i}" for i in range(6)]
+    vol, sens = prepare_headmodel_sens({"vol": volume}, {"elecpos": vertices, "label": labels}, [])
+    candidates = np.asarray([[-0.2, 0.1, 0.05], [0.2, 0.1, 0.1]])
+    fields = ft_compute_leadfield(candidates, sens, vol)
+    maps = np.column_stack([fields[:, :3] @ [0.2, -0.4, 0.7], fields[:, 3:] @ [0.5, 0.3, -0.2]])
+    comp = {"elec": {"elecpos": vertices, "label": labels}, "topo": maps, "topolabel": labels}
+    source = ft_dipolefitting(
+        {
+            "vol": volume,
+            "component": [1, 2],
+            "nonlinear": "no",
+            "xgrid": [-0.2, 0.2],
+            "ygrid": [0.1],
+            "zgrid": [0.05, 0.1],
+        },
+        comp,
     )
-    candidates = np.asarray([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]], dtype=float)
-    leadfield = np.zeros((3, 6))
-    leadfield[:, 0] = maps[:, 0]
-    leadfield[:, 4] = maps[:, 1]
-
-    first = fit_component_grid(forward, 1, candidates, leadfield=leadfield)
-    second = fit_component_grid(forward, 2, candidates, leadfield=leadfield)
-
-    np.testing.assert_allclose(first["posxyz"], [[0.0, 0.0, 0.0]])
-    np.testing.assert_allclose(second["posxyz"], [[10.0, 0.0, 0.0]])
-    assert first["rv"] < 1e-10
-    assert second["rv"] < 1e-10
+    for dipole, expected in zip(source["dip"], candidates, strict=True):
+        np.testing.assert_allclose(dipole["pos"], [expected])
+        assert dipole["rv"] < 1e-10
 
 
 def test_packaged_dipoli_leadfield_matches_the_prepared_system_matrix():
     eeg = pop_dipfit_settings(pop_loadset(str(_SAMPLE)), model="standardBEM")
-    forward = prepare_forward_data(eeg, [1])
-    headmodel = forward.headmodel
+    vol, sens = _prepare_eeg(eeg)
+    headmodel = vol
     assert headmodel is not None
     dipole = PARITY_DIPOLES_MM[:1]
-    leadfield = ft_compute_leadfield(dipole, forward.sens, headmodel)
+    leadfield = ft_compute_leadfield(dipole, sens, headmodel)
     vertices = np.vstack([boundary["pos"] for boundary in headmodel["bnd"]])
     rebuilt = headmodel["mat"] @ eeg_infinite_dipole(dipole, vertices, 1.0)
     np.testing.assert_allclose(leadfield, rebuilt, atol=1e-12)
@@ -238,22 +253,22 @@ def _custom_headmodel_eeg(hdmfile: Path):
 def test_renamed_dipoli_mat_uses_the_bem_path(tmp_path):
     path = tmp_path / "subject_bem.mat"
     _write_volume_mat(path, kind="dipoli", with_boundary=True)
-    forward = prepare_forward_data(_custom_headmodel_eeg(path), [1])
-    headmodel = forward.headmodel
+    vol, sens = _prepare_eeg(_custom_headmodel_eeg(path))
+    headmodel = vol
     assert headmodel is not None
     assert headmodel["type"] == "dipoli"
     assert headmodel["bnd"][0]["pos"].shape[0] == 6
-    assert forward.sens is not None
-    leadfield = ft_compute_leadfield(np.asarray([[0.0, 0.0, 0.0]]), forward.sens, headmodel)
+    assert sens is not None
+    leadfield = ft_compute_leadfield(np.asarray([[0.0, 0.0, 0.0]]), sens, headmodel)
     assert leadfield.shape == (6, 3)
 
 
 def test_on_disk_standard_vol_name_is_read_from_its_contents(tmp_path):
     path = tmp_path / "standard_vol.mat"
     _write_volume_mat(path, kind="dipoli", with_boundary=True)
-    forward = prepare_forward_data(_custom_headmodel_eeg(path), [1])
-    assert forward.headmodel is not None
-    assert forward.headmodel["bnd"][0]["pos"].shape[0] == 6
+    vol, sens = _prepare_eeg(_custom_headmodel_eeg(path))
+    assert vol is not None
+    assert vol["bnd"][0]["pos"].shape[0] == 6
 
 
 def test_renamed_dipoli_npz_uses_the_bem_path(tmp_path):
@@ -270,21 +285,21 @@ def test_renamed_dipoli_npz_uses_the_bem_path(tmp_path):
         bnd0_pos=vertices,
         bnd0_tri=triangles + 1,
     )
-    forward = prepare_forward_data(_custom_headmodel_eeg(path), [1])
-    assert forward.headmodel is not None
-    assert forward.headmodel["type"] == "dipoli"
-    assert forward.headmodel["bnd"][0]["pos"].shape[0] == 6
+    vol, sens = _prepare_eeg(_custom_headmodel_eeg(path))
+    assert vol is not None
+    assert vol["type"] == "dipoli"
+    assert vol["bnd"][0]["pos"].shape[0] == 6
 
 
 def test_unreadable_headmodel_file_does_not_fall_back_to_the_sphere(tmp_path):
     sphere = tmp_path / "single_sphere.mat"
     _write_volume_mat(sphere, kind="singlesphere", with_boundary=False)
     with pytest.raises(ValueError, match="not a boundary-element"):
-        prepare_forward_data(_custom_headmodel_eeg(sphere), [1])
+        _prepare_eeg(_custom_headmodel_eeg(sphere))
 
     missing = tmp_path / "missing_headmodel.mat"
     with pytest.raises(FileNotFoundError, match="not found"):
-        prepare_forward_data(_custom_headmodel_eeg(missing), [1])
+        _prepare_eeg(_custom_headmodel_eeg(missing))
 
 
 def test_bem_nonlinear_uses_the_callers_maxiter(tmp_path):
@@ -306,7 +321,7 @@ def test_openmeeg_file_is_rejected(tmp_path):
     path = tmp_path / "openmeeg_subject.mat"
     _write_volume_mat(path, kind="openmeeg", with_boundary=True)
     with pytest.raises(ValueError, match="OpenMEEG"):
-        prepare_forward_data(_custom_headmodel_eeg(path), [1])
+        _prepare_eeg(_custom_headmodel_eeg(path))
 
 
 def test_standard_besa_template_uses_the_four_shell_model(tmp_path):
@@ -314,18 +329,18 @@ def test_standard_besa_template_uses_the_four_shell_model(tmp_path):
         create_test_eeg_with_ica(n_channels=4, n_samples=8, n_components=1),
         model="standardBESA",
     )
-    forward = prepare_forward_data(eeg, [1])
-    assert forward.headmodel is not None
-    assert str(forward.headmodel["type"]).lower() == "concentricspheres"
-    np.testing.assert_allclose(np.sort(forward.headmodel["r"]), [71.0, 72.0, 79.0, 85.0])
+    vol, sens = _prepare_eeg(eeg)
+    assert vol is not None
+    assert str(vol["type"]).lower() == "concentricspheres"
+    np.testing.assert_allclose(np.sort(vol["r"]), [71.0, 72.0, 79.0, 85.0])
 
     installed = tmp_path / "standard_BESA" / "standard_BESA.mat"
     installed.parent.mkdir()
     installed.write_bytes(b"")
     eeg["dipfit"]["hdmfile"] = str(installed)
-    named = prepare_forward_data(eeg, [1])
-    assert str(named.headmodel["type"]).lower() == "concentricspheres"
-    np.testing.assert_allclose(named.headmodel["r"], forward.headmodel["r"])
+    named_vol, named_sens = _prepare_eeg(eeg)
+    assert str(named_vol["type"]).lower() == "concentricspheres"
+    np.testing.assert_allclose(named_vol["r"], vol["r"])
 
 
 def test_pop_multifit_default_bem_returns_finite_positions():
@@ -337,9 +352,20 @@ def test_pop_multifit_default_bem_returns_finite_positions():
     assert leadfield.shape[1] == 9
     assert leadfield.shape[0] == len(payload["labels"])
     eeg = pop_dipfit_settings(pop_loadset(str(_SAMPLE)), model="standardBEM")
-    forward = prepare_forward_data(eeg, [1, 2])
-    assert forward.headmodel is not None
-    assert ft_inside_headmodel(positions[:2], forward.headmodel).all()
+    vol, sens = _prepare_eeg(eeg)
+    assert vol is not None
+    assert ft_inside_headmodel(positions, vol).all()
+    # MATLAB R2025b, Optimization Toolbox, eeglab_data_epochs_ica.set.
+    reference_comp3 = np.asarray([6.55824727, 66.13345290, -22.03144084])
+    assert np.linalg.norm(positions[2] - reference_comp3) < 1.0
+
+
+def test_multifit_threshold_one_means_one_percent():
+    eeg = pop_dipfit_settings(pop_loadset(str(_SAMPLE)), model="standardBEM")
+    coarse = pop_dipfit_gridsearch(eeg, [1], gui=False)
+    fitted = pop_multifit(coarse, [1], threshold=1, gui=False)
+    assert fitted["dipfit"]["model"][0]["posxyz"] == []
+    assert fitted["dipfit"]["model"][0]["rv"] == 1.0
 
 
 @pytest.mark.matlab
@@ -361,11 +387,11 @@ def test_bem_leadfield_and_multifit_match_fieldtrip(eeglab_backend, eeglab_matla
     if matlab_positions.shape != python_positions.shape:
         matlab_positions = matlab_positions.T
     distances = np.linalg.norm(matlab_positions - python_positions, axis=1)
-    assert np.all(distances[:2] < 1.0)
+    assert np.all(distances < 1.0)
     matlab_rv = np.asarray(reference["rv"], dtype=float).ravel()
     python_rv = np.asarray(payload["rv"], dtype=float).ravel()
     assert matlab_rv.shape == python_rv.shape == (3,)
-    assert python_rv[2] <= matlab_rv[2]
+    np.testing.assert_allclose(python_rv, matlab_rv, atol=1e-8, rtol=1e-6)
     eeg = pop_dipfit_settings(pop_loadset(str(_SAMPLE)), model="standardBEM")
-    forward = prepare_forward_data(eeg, [1, 2, 3])
-    assert not ft_inside_headmodel(python_positions[2:3], forward.headmodel).any()
+    vol, sens = _prepare_eeg(eeg)
+    assert ft_inside_headmodel(python_positions[2:3], vol).all()

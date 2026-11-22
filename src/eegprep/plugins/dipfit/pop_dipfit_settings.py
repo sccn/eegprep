@@ -62,10 +62,10 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     dipfit: dict[str, Any] = raw_dipfit if isinstance(raw_dipfit, dict) else {}
     selected_model = _template_index(dipfit)
     template = STANDARD_TEMPLATES[selected_model - 1]
-    hdmfile = str(dipfit.get("hdmfile") or template.hdmfile)
-    mrifile = str(dipfit.get("mrifile") or template.mrifile)
-    chanfile = str(dipfit.get("chanfile") or template.chanfile)
-    coordformat = str(dipfit.get("coordformat") or template.coordformat or "MNI")
+    hdmfile = str(dipfit.get("hdmfile") or template["hdmfile"])
+    mrifile = str(dipfit.get("mrifile") or template["mrifile"])
+    chanfile = str(dipfit.get("chanfile") or template["chanfile"])
+    coordformat = str(dipfit.get("coordformat") or template["coordformat"] or "MNI")
     coord_index = {"spherical": 1, "mni": 2}.get(coordformat.lower(), 4)
     stored_transform = dipfit.get("coord_transform")
     found, looked_up = lookupchantemplate(channel_template_filename(EEG), template)
@@ -74,7 +74,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     elif found:
         coord_transform = looked_up
     else:
-        coord_transform = template.coord_transform
+        coord_transform = template["coord_transform"]
     coreg_text = " ".join(f"{float(value):g}" for value in coord_transform) if coord_transform else ""
     browse_enabled = selected_model == len(STANDARD_TEMPLATES)
     return DialogSpec(
@@ -97,7 +97,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Select a head model", font_weight="bold"),
             ControlSpec(
                 "popupmenu",
-                "|".join(template.name for template in STANDARD_TEMPLATES),
+                "|".join(template["name"] for template in STANDARD_TEMPLATES),
                 tag="model",
                 value=selected_model,
                 callback=CallbackSpec(
@@ -164,7 +164,7 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None = None) -> dict[str, Any]
     except (TypeError, ValueError):
         coord_index = int(state["coordformat"]) - 1
     options: dict[str, Any] = {
-        "model": template.shortname,
+        "model": template["shortname"],
         "hdmfile": str(result.get("hdmfile") or "").strip() or state["hdmfile"],
         "mrifile": str(result.get("mrifile") or "").strip() or state["mrifile"],
         "chanfile": str(result.get("chanfile") or "").strip() or state["chanfile"],
@@ -229,9 +229,9 @@ def _template_index(dipfit: dict[str, Any]) -> int:
     hdmfile = str(dipfit.get("hdmfile") or "").replace("\\", "/").lower()
     model = str(dipfit.get("model") or "").strip().lower()
     for index, template in enumerate(STANDARD_TEMPLATES, start=1):
-        if template.shortname and model == template.shortname.lower():
+        if template["shortname"] and model == template["shortname"].lower():
             return index
-        template_file = template.hdmfile.replace("\\", "/").lower()
+        template_file = template["hdmfile"].replace("\\", "/").lower()
         if template_file and hdmfile.endswith(template_file):
             return index
     if hdmfile:
