@@ -491,6 +491,22 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Equivalent-dipole fits follow FieldTrip <code class="docutils literal notranslate"><span class="pre">fminunc</span></code> settings. The
+forward difference is <code class="docutils literal notranslate"><span class="pre">sqrt(eps)*sign'(x)*max(|x|,</span> <span class="pre">10</span> <span class="pre">mm)</span></code>, FieldTrip’s
+<code class="docutils literal notranslate"><span class="pre">TypicalX</span></code>, and the scaled BFGS update follows MATLAB’s search
+directions. <code class="docutils literal notranslate"><span class="pre">MaxFunEvals</span></code> is <code class="docutils literal notranslate"><span class="pre">2*MaxIter*n</span></code>. The bracket end <code class="docutils literal notranslate"><span class="pre">a</span></code> is
+the last step that met sufficient decrease. Sectioning keeps the next trial
+at least 10% of the interval from <code class="docutils literal notranslate"><span class="pre">a</span></code> and 50% from the other end, and
+stops when
+<code class="docutils literal notranslate"><span class="pre">(a</span> <span class="pre">-</span> <span class="pre">c)</span> <span class="pre">*</span> <span class="pre">phi'(a)</span></code> is at most <code class="docutils literal notranslate"><span class="pre">eps(max(1,</span> <span class="pre">|f|))</span></code>. The
+finite-difference gradient reuses the function value already
+computed at that point. Component 3 of the MNI fit matches EEGLAB and stays
+inside the brain mesh. <code class="docutils literal notranslate"><span class="pre">coregister</span></code> reads <code class="docutils literal notranslate"><span class="pre">.elc</span></code> and <code class="docutils literal notranslate"><span class="pre">.elp</span></code> templates
+and uses the FieldTrip traditional warp. <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> rebuilds an empty
+<code class="docutils literal notranslate"><span class="pre">icawinv</span></code> from <code class="docutils literal notranslate"><span class="pre">icaweights*icasphere</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_leadfield</span></code> stores explicit
+source points and the LORETA-KEY grid on that solver. <code class="docutils literal notranslate"><span class="pre">pop_dipfit_loreta</span></code>
+checks the stored leadfield and then reports that eLORETA is not bundled.
+(#660)</p></li>
 <li><p>After <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> removes every sample, <code class="docutils literal notranslate"><span class="pre">trials</span></code> is 1. EEGLAB keeps a
 stored 0, because <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> skips the <code class="docutils literal notranslate"><span class="pre">size(data,3)</span></code> correction
 when <code class="docutils literal notranslate"><span class="pre">EEG.data</span></code> is empty (<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 792-827). Continuous

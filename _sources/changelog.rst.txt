@@ -10,6 +10,22 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
+  forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
+  ``TypicalX``, and the scaled BFGS update follows MATLAB's search
+  directions. ``MaxFunEvals`` is ``2*MaxIter*n``. The bracket end ``a`` is
+  the last step that met sufficient decrease. Sectioning keeps the next trial
+  at least 10% of the interval from ``a`` and 50% from the other end, and
+  stops when
+  ``(a - c) * phi'(a)`` is at most ``eps(max(1, |f|))``. The
+  finite-difference gradient reuses the function value already
+  computed at that point. Component 3 of the MNI fit matches EEGLAB and stays
+  inside the brain mesh. ``coregister`` reads ``.elc`` and ``.elp`` templates
+  and uses the FieldTrip traditional warp. ``eeg_checkset`` rebuilds an empty
+  ``icawinv`` from ``icaweights*icasphere``. ``pop_leadfield`` stores explicit
+  source points and the LORETA-KEY grid on that solver. ``pop_dipfit_loreta``
+  checks the stored leadfield and then reports that eLORETA is not bundled.
+  (#660)
 - After ``eeg_eegrej`` removes every sample, ``trials`` is 1. EEGLAB keeps a
   stored 0, because ``eeg_checkset`` skips the ``size(data,3)`` correction
   when ``EEG.data`` is empty (``eeg_checkset.m`` lines 792-827). Continuous

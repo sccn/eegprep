@@ -850,14 +850,28 @@ decides it.</p>
 </section>
 <section id="dipfit">
 <h2>DIPFIT<a class="headerlink" href="#dipfit" title="Link to this heading">#</a></h2>
-<p>DIPFIT helpers fit <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> with the four-shell BESA leadfield. They store
+<p>DIPFIT fits ICA topographies using the four-shell <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> model or the
+packaged MNI <code class="docutils literal notranslate"><span class="pre">standardBEM</span></code> dipoli model. It stores
 model fields under <code class="docutils literal notranslate"><span class="pre">EEG[&quot;dipfit&quot;][&quot;model&quot;]</span></code> and keep command strings replayable:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_dipfit_settings</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;standardBESA&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_multifit</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Unavailable MRI/BEM, AFNI, LORETA, and STUDY-level source-statistics workflows
-raise explicit errors.</p>
+<p>The solver uses plain dictionaries and works without MATLAB or an EEGLAB
+checkout. <code class="docutils literal notranslate"><span class="pre">dipfit_gridsearch</span></code> and <code class="docutils literal notranslate"><span class="pre">dipfit_nonlinear</span></code> both call the single
+<code class="docutils literal notranslate"><span class="pre">plugins/dipfit/ft_dipolefitting.py</span></code> module. Its <code class="docutils literal notranslate"><span class="pre">prepare_headmodel_sens</span></code>,
+<code class="docutils literal notranslate"><span class="pre">inside_brain_grid</span></code>, and <code class="docutils literal notranslate"><span class="pre">compute_dipole_leadfield</span></code> functions expose sensor
+projection, brain masks, and average-referenced leadfields in millimeters.
+Symmetric pairs mirror the y coordinate for BESA or x coordinate for MNI.
+<code class="docutils literal notranslate"><span class="pre">threshold</span></code> is an RV percentage. <code class="docutils literal notranslate"><span class="pre">rmout=&quot;on&quot;</span></code> removes positions beyond
+85 mm for spherical models, matching DIPFIT’s behavior.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_leadfield</span></code> stores a leadfield for explicit source points or the
+LORETA-KEY in-head grid, using the same BESA and MNI solvers as
+<code class="docutils literal notranslate"><span class="pre">pop_multifit</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_dipfit_loreta</span></code> checks that leadfield and then reports
+that FieldTrip source analysis is not bundled. MRI headmodel construction and
+STUDY-level source statistics raise explicit errors. <code class="docutils literal notranslate"><span class="pre">pop_dipfit_headmodel</span></code>
+keeps its dialog and reports that MRI head-model construction is not
+implemented.</p>
 </section>
 <section id="eeg-bids">
 <h2>EEG-BIDS<a class="headerlink" href="#eeg-bids" title="Link to this heading">#</a></h2>

@@ -642,14 +642,17 @@ clearly instead of being faked.</p></td>
 <td><p>The default head model is the packaged dipoli boundary-element volume
 from DIPFIT <code class="docutils literal notranslate"><span class="pre">standard_vol.mat</span></code>. Grid search uses EEGLAB’s
 <code class="docutils literal notranslate"><span class="pre">linspace(-85,85,24)</span></code> and <code class="docutils literal notranslate"><span class="pre">linspace(0,85,12)</span></code> points that fall
-inside the brain mesh, then refines each dipole with SciPy BFGS.
-That BFGS refinement has no inside-brain constraint, so a fit can
-land outside the brain mesh with a lower residual than EEGLAB’s.
-Sample component 3 does this. The optimizer is the analogue of
-<code class="docutils literal notranslate"><span class="pre">fminunc</span></code> and is not bit-identical to MATLAB. Components 1 and 2
-of the sample dataset land within 1 mm of EEGLAB. On that sample,
-component 3’s lower residual than EEGLAB is an observation, not a
-general rule. EEGLAB’s settings
+inside the brain mesh. Nonlinear refinement follows FieldTrip’s
+<code class="docutils literal notranslate"><span class="pre">fminunc</span></code> settings: <code class="docutils literal notranslate"><span class="pre">TypicalX</span></code> of 10 mm, so the forward difference
+is <code class="docutils literal notranslate"><span class="pre">sqrt(eps)*sign'(x)*max(|x|,</span> <span class="pre">10)</span></code>, a scaled BFGS inverse Hessian,
+and a cubic Wolfe line search. The bracket end <code class="docutils literal notranslate"><span class="pre">a</span></code> is the last step
+that met sufficient decrease. Sectioning keeps a trial at least 10%
+of the interval from <code class="docutils literal notranslate"><span class="pre">a</span></code> and 50% from the other end.
+Relative TolFun is <code class="docutils literal notranslate"><span class="pre">1e-9</span></code> and TolX is <code class="docutils literal notranslate"><span class="pre">1e-6</span></code>. <code class="docutils literal notranslate"><span class="pre">MaxFunEvals</span></code> is
+<code class="docutils literal notranslate"><span class="pre">2*MaxIter*n</span></code> (6000 for one dipole at the default 1000 iterations).
+Component 3 of the MNI fit
+matches EEGLAB and remains inside the brain mesh. Nonlinear
+positions are unconstrained by default, as in FieldTrip. EEGLAB’s settings
 dialog switches a channel file whose name contains
 <code class="docutils literal notranslate"><span class="pre">standard-10-5-cap385</span></code> to the BESA sphere. EEGPrep keeps the MNI
 model and applies that file’s cap385-to-MNI coregistration. A channel
