@@ -20,6 +20,7 @@ _EPS = np.finfo(float).eps
 _SOLID_ANGLE_TOLERANCE = 1000 * _EPS
 _FUNCTION_TOLERANCE = 1e-9
 _STEP_TOLERANCE = 1e-6
+_TYPICAL_X_MM = 10.0
 _ARMIJO = 0.01
 _WOLFE_CURVATURE = 0.9
 _LINE_SEARCH_ITERATIONS = 40
@@ -548,15 +549,66 @@ def _line_search(fun, grad, x, p, g, f, first_step=1.0):
                 b, fb, gb = a, fa, ga
             a, fa, ga = c, fc, gc
         if max(abs((b - a) * p) / (1 + abs(x + c * p))) < _STEP_TOLERANCE:
+            # MATLAB replaces a worse interpolated point with the lowest bracket value.
+            if fa <= fc and fa <= fb:
+                return a, fa, grad(x + a * p)
+            if fb <= fc:
+                return b, fb, grad(x + b * p)
             return c, fc, gcvec
     return None, f, g
+
+
+def _fminunc(fun, start, maxiter=1000):
+    """FieldTrip dipole ``fminunc``: TypicalX of 10 mm, scaled BFGS, Wolfe search.
+
+    The forward difference is ``sqrt(eps) * sign'(x) * max(|x|, 10)``, with
+    ``sign'(0) = 1``. The inverse Hessian starts as the identity, is scaled by
+    ``(s'y)/(y'y)`` on the first accepted step, and takes the BFGS update only
+    when ``s'y`` clears the curvature guard. Iteration stops when
+    ``||g||_inf < TolFun * (1 + ||g0||_inf)`` or
+    ``||dx / (1 + |x|)||_inf < TolX``.
+    """
+
+    def grad(x):
+        value = fun(x)
+        step = np.sqrt(_EPS) * np.where(x < 0, -1.0, 1.0) * np.maximum(np.abs(x), _TYPICAL_X_MM)
+        return np.array([(fun(x + np.eye(len(x))[i] * step[i]) - value) / step[i] for i in range(len(x))])
+
+    values = np.array(start, dtype=float).ravel()
+    value = fun(values)
+    gradient = grad(values)
+    initial_gradient = np.linalg.norm(gradient, np.inf)
+    inverse = np.eye(len(values))
+    for iteration in range(maxiter):
+        if np.linalg.norm(gradient, np.inf) < _FUNCTION_TOLERANCE * (1 + initial_gradient):
+            break
+        direction = -inverse @ gradient
+        first_step = min(1 / initial_gradient, 1.0) if iteration == 0 else 1.0
+        alpha, new_value, new_gradient = _line_search(fun, grad, values, direction, gradient, value, first_step)
+        if alpha is None or new_value >= value:
+            break
+        delta = alpha * direction
+        values = values + delta
+        delta_gradient = new_gradient - gradient
+        value, gradient = new_value, new_gradient
+        if np.linalg.norm(delta / (1 + np.abs(values)), np.inf) < _STEP_TOLERANCE:
+            break
+        curvature = delta @ delta_gradient
+        if curvature >= np.sqrt(_EPS) * max(_EPS, np.linalg.norm(delta) * np.linalg.norm(delta_gradient)):
+            if iteration == 0:
+                inverse = curvature / (delta_gradient @ delta_gradient) * np.eye(len(values))
+            projected = inverse @ delta_gradient
+            inverse += (1 + delta_gradient @ projected / curvature) * np.outer(delta, delta) / curvature - (
+                np.outer(delta, projected) + np.outer(projected, delta)
+            ) / curvature
+    return values
 
 
 class _EvaluationLimit(Exception):
     pass
 
 
-def _fminunc(
+def _fminunc_coregister(
     fun,
     start,
     maxiter=1000,
@@ -564,11 +616,13 @@ def _fminunc(
     tol_x=_STEP_TOLERANCE,
     max_fun_evals=None,
 ):
-    """Quasi-Newton BFGS with MATLAB fminunc's relative stopping tests.
+    """Quasi-Newton BFGS used by the traditional electrode warp.
 
-    Forward differences use ``sqrt(eps) * sign'(x)``, with ``sign'(0) = 1``.
-    TolFun stops on the relative infinity-norm of the gradient. TolX stops on
-    the relative step. The default evaluation budget is ``100 * n``.
+    ``ft_warp_optim`` leaves ``TypicalX`` unset. This forward difference is
+    ``sqrt(eps) * sign'(x)``, with ``sign'(0) = 1``, which is the step that
+    matches EEGLAB's traditional warp. TolFun stops on the relative
+    infinity-norm of the gradient. TolX stops on the relative step. The
+    default evaluation budget is ``100 * n``.
     """
     x = np.asarray(start, dtype=float).ravel().astype(float)
     if max_fun_evals is None:
@@ -678,16 +732,7 @@ def _refine_positions(initial, data, sens, vol, cfg):
         return unpack(result.x)
     if method != "fminunc":
         raise ValueError("optimfun must be 'fminunc' or 'fminsearch'")
-    return unpack(
-        _fminunc(
-            objective,
-            start,
-            maxiter=maxiter,
-            tol_fun=_FUNCTION_TOLERANCE,
-            tol_x=_STEP_TOLERANCE,
-            max_fun_evals=2 * maxiter * int(np.asarray(start).size),
-        )
-    )
+    return unpack(_fminunc(objective, start, maxiter))
 
 
 def surface_inside(dippos, pos, tri) -> np.ndarray:

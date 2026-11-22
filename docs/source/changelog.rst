@@ -10,9 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- Equivalent-dipole fits follow FieldTrip ``fminunc`` settings, including
-  the forward-difference step and relative TolFun/TolX stops that land on
-  the MATLAB R2025b solution. On ``eeglab_data_epochs_ica.set``, all 32
+- Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
+  forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
+  ``TypicalX``. An unscaled ``sqrt(eps)`` step moved MNI components 21 and
+  31 by about 11 mm and pushed the four-shell fits outside the sample-data
+  limits. When a cubic trial is worse than the bracket and the interval is
+  inside TolX, the line search keeps the lowest value already evaluated.
+  On ``eeglab_data_epochs_ica.set``, all 32
   components match within 0.00008 mm for four-shell BESA and within 0.00333
   mm for the MNI BEM. Component 3 of the MNI fit matches EEGLAB and stays
   inside the brain mesh. ``coregister`` reads ``.elc`` and ``.elp`` templates

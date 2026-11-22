@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError
-from eegprep.plugins.dipfit.ft_dipolefitting import _fminunc
+from eegprep.plugins.dipfit.ft_dipolefitting import _fminunc_coregister
 
 
 _WARP_MAX_ITERATIONS = 1500
@@ -428,7 +428,7 @@ def _optimize_warp(initial: np.ndarray, source: np.ndarray, target: np.ndarray, 
         return warp_error(np.asarray(flat, dtype=float).reshape(shape), source, target, method)
 
     # ft_warp_optim.m: fminunc, MaxIter 1500, TolFun 1e-4, default TolX and MaxFunEvals.
-    fitted = _fminunc(
+    fitted = _fminunc_coregister(
         objective,
         start,
         maxiter=_WARP_MAX_ITERATIONS,
