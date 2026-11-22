@@ -1429,29 +1429,41 @@ def _explicit_reref_nan_is_oracle_defect(
     return not python_gap and not oracle_gap
 
 
-def _stale_zero_trials_is_known(
+def _stale_zero_trials_detail(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
-) -> bool:
-    """True when EEGLAB dropped events because ``trials`` was still 0.
+) -> str | None:
+    """Name the known gap when a stored ``trials`` of 0 reaches ``eeg_eegrej``.
 
-    ``eeg_checkset.m`` lines 440-449 compare latency with ``pnts*trials+1``
-    before lines 821-826 set ``trials`` from the data shape. EEGPrep sets
-    ``trials`` first, so those events stay. A data mismatch is still filed.
+    ``eeg_checkset.m`` lines 440-449 drop latencies above ``pnts*trials+1``
+    before lines 821-826 set ``trials`` from ``size(data,3)``. Lines 792-827
+    skip that correction when ``EEG.data`` is empty, so rejecting every
+    sample leaves the stored 0. EEGPrep sets ``trials`` from the data shape
+    first. A data mismatch is still filed, as is a trials gap while samples
+    remain.
     """
     if case.function != "eeg_eegrej" or not python.ok or not oracle.ok:
-        return False
+        return None
     if python.data is None or oracle.data is None or python.srate is None or oracle.srate is None:
-        return False
+        return None
     stored = eeg.get("trials")
     if isinstance(stored, bool) or not isinstance(stored, (int, float, np.integer, np.floating)):
-        return False
+        return None
     if int(stored) != 0:
-        return False
+        return None
     data_gap, *_rest = compare_data(python.data, oracle.data, float(python.srate), float(oracle.srate), tolerance)
     if data_gap:
-        return False
-    kept = tuple(event for event in python.events if event[1] <= 1)
-    return kept == oracle.events and len(python.events) > len(oracle.events)
+        return None
+    if python.events != oracle.events:
+        kept = tuple(event for event in python.events if event[1] <= 1)
+        if kept == oracle.events and len(python.events) > len(oracle.events):
+            return "known difference: eeg_eegrej keeps events when trials was 0"
+        return None
+    if python.pnts != 0 or python.trials != 1 or oracle.trials != 0:
+        return None
+    meta_gap, *_rest = _compare_meta(python, replace(oracle, trials=python.trials), tolerance)
+    if meta_gap:
+        return None
+    return "known difference: eeg_eegrej reports one trial when the stored trials value was 0"
 
 
 def _scalar_valuelim_is_known(
@@ -2097,10 +2109,11 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             digest,
         )
     outcome = judge(python, oracle, tolerance, case, digest, tolerances)
-    if outcome.diverged and _stale_zero_trials_is_known(case, eeg, python, oracle, tolerance):
-        # eeg_checkset.m:440-449 uses the stored trials value. A stored 0
-        # drops events past sample 1, and lines 821-826 correct trials after
-        # that. EEGPrep sets trials from the data shape first.
+    stale_trials = _stale_zero_trials_detail(case, eeg, python, oracle, tolerance) if outcome.diverged else None
+    if stale_trials:
+        # eeg_checkset.m:440-449 uses the stored trials value before lines
+        # 821-826 correct it. Lines 792-827 skip that correction once
+        # EEG.data is empty. EEGPrep sets trials from the data shape first.
         return _outcome(
             case,
             False,
@@ -2108,7 +2121,7 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             "match",
             0.0,
             0.0,
-            "known difference: eeg_eegrej keeps events when trials was 0",
+            stale_trials,
             digest,
         )
     if outcome.diverged and _scalar_valuelim_is_known(case, eeg, python, oracle, tolerance):
@@ -2218,8 +2231,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         known_reref = outcome.diverged and _explicit_reref_nan_is_oracle_defect(
             step, current, python_side, oracle_side, tolerance
         )
-        known_trials = outcome.diverged and _stale_zero_trials_is_known(
-            step, current, python_side, oracle_side, tolerance
+        known_trials = (
+            _stale_zero_trials_detail(step, current, python_side, oracle_side, tolerance) if outcome.diverged else None
         )
         known_rmbase = (
             outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current)
@@ -2257,8 +2270,9 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             return _remember_oracle(_carry_outputs(returned, outcome), oracle_side)
         # Continue from the Python EEG when MATLAB's output is the known
         # defect: a NaN spread by the reference matrix, events dropped
-        # because trials was still 0, a one-element valuelim that rejected
-        # every epoch, or mean() filling a channel from one baseline NaN.
+        # because trials was still 0, trials left at 0 after every sample
+        # was removed, a one-element valuelim that rejected every epoch, or
+        # mean() filling a channel from one baseline NaN.
         # Later steps then see a real signal.
         if (known_reref or known_trials or known_trials_order or known_rmbase_mean or known_valuelim) and _eeg_dict(
             _python_eeg
@@ -2275,7 +2289,7 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         if known_reref:
             last_detail = f"{name}: known difference: a NaN stays on its channel under explicit re-reference"
         elif known_trials:
-            last_detail = f"{name}: known difference: eeg_eegrej keeps events when trials was 0"
+            last_detail = f"{name}: {known_trials}"
         elif known_trials_order:
             last_detail = f"{name}: known difference: pop_select keeps the first copy of a repeated trial"
         elif known_valuelim:
