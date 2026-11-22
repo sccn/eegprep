@@ -105,8 +105,9 @@ the limits. Cancelling the menu discards its changes.
        inside the brain mesh. Nonlinear refinement follows FieldTrip's
        ``fminunc`` settings: ``TypicalX`` of 10 mm, so the forward difference
        is ``sqrt(eps)*sign'(x)*max(|x|, 10)``, a scaled BFGS inverse Hessian,
-       and a cubic Wolfe line search. Sectioning keeps a trial at least 10%
-       of the bracket from the better endpoint and 50% from the other.
+       and a cubic Wolfe line search. The bracket end ``a`` is the last step
+       that met sufficient decrease. Sectioning keeps a trial at least 10%
+       of the interval from ``a`` and 50% from the other end.
        Relative TolFun is ``1e-9`` and TolX is ``1e-6``. Component 3 of the MNI fit
        matches EEGLAB and remains inside the brain mesh. Nonlinear
        positions are unconstrained by default, as in FieldTrip. EEGLAB's settings

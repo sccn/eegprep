@@ -13,10 +13,11 @@ Unreleased
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search
-  directions. Sectioning keeps the next trial at least 10% of the bracket
-  from the better endpoint and 50% from the other. A nonnegative slope at
-  the trial makes that trial the better endpoint and the previous step the
-  other. The finite-difference gradient reuses the function value already
+  directions. The bracket end ``a`` is the last step that met sufficient
+  decrease. Sectioning keeps the next trial at least 10% of the interval
+  from ``a`` and 50% from the other end, and stops when
+  ``(a - c) * phi'(a)`` is at most ``eps(max(1, |f|))``. The
+  finite-difference gradient reuses the function value already
   computed at that point. Component 3 of the MNI fit matches EEGLAB and stays
   inside the brain mesh. ``coregister`` reads ``.elc`` and ``.elp`` templates
   and uses the FieldTrip traditional warp. ``eeg_checkset`` rebuilds an empty

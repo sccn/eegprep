@@ -502,6 +502,8 @@ def ft_dipolefitting(cfg: dict, comp: dict) -> dict:
 
 
 def _cubic(a, fa, ga, b, fb, gb):
+    if a == b:
+        return a
     slope = (fa - fb) / (a - b)
     z = ga + gb - 3 * slope
     rad = z * z - ga * gb
@@ -514,48 +516,43 @@ def _cubic(a, fa, ga, b, fb, gb):
     return b - (b - a) * (gb + w - z) / denominator
 
 
-def _section_trial(trial, left, left_value, right, right_value):
-    """Keep a sectioning trial 10% off the better end and 50% off the other."""
-    width = abs(right - left)
-    if width == 0.0:
-        return trial
-    if left_value <= right_value:
-        better, other = left, right
-    else:
-        better, other = right, left
-    direction = 1.0 if other > better else -1.0
-    close = better + 0.1 * width * direction
-    far = better + 0.5 * width * direction
-    low, high = (close, far) if close <= far else (far, close)
+def _section_trial(trial, anchor, other):
+    """Clip a sectioning trial to 10% from ``anchor`` and 50% from ``other``."""
+    low, high = sorted((anchor + 0.1 * (other - anchor), other - 0.5 * (other - anchor)))
     return float(min(max(trial, low), high))
 
 
 def _line_search(fun, grad, x, p, g, f, first_step=1.0):
+    """Strong Wolfe search. ``a`` is the last step that met sufficient decrease."""
     derivative = g @ p
     a, fa, ga = 0.0, f, derivative
     b = first_step
+    last = (0.0, f, g)
+    positive_slope = False
     for i in range(_LINE_SEARCH_ITERATIONS):
         fb = fun(x + b * p)
         gbvec = grad(x + b * p, fb)
         gb = gbvec @ p
+        last = (b, fb, gbvec)
         if fb > f + _ARMIJO * b * derivative or (i and fb >= fa):
             break
         if abs(gb) <= -_WOLFE_CURVATURE * derivative:
             return b, fb, gbvec
         if gb >= 0:
+            positive_slope = True
             break
         # MATLAB extrapolates between one and nine previous interval lengths.
         new = _cubic(a, fa, ga, b, fb, gb)
         new = np.clip(new, b + (b - a), b + 9 * (b - a)) if new > b else b + 9 * (b - a)
         a, fa, ga = b, fb, gb
         b = new
-    last = None
+    if positive_slope:
+        a, fa, ga, b, fb, gb = b, fb, gb, a, fa, ga
+    roundoff = np.spacing(max(1.0, abs(f)))
     for _ in range(_LINE_SEARCH_ITERATIONS):
-        # TolX stops fminunc on the accepted step. Inside the line search the bracket
-        # is an alpha interval, and the point returned is the latest trial.
-        if abs(b - a) <= _STEP_TOLERANCE:
-            break
-        c = _section_trial(_cubic(a, fa, ga, b, fb, gb), a, fa, b, fb)
+        c = _section_trial(_cubic(a, fa, ga, b, fb, gb), a, b)
+        if (a - c) * ga <= roundoff:
+            return c, last[1], last[2]
         fc = fun(x + c * p)
         gcvec = grad(x + c * p, fc)
         gc = gcvec @ p
@@ -565,13 +562,10 @@ def _line_search(fun, grad, x, p, g, f, first_step=1.0):
         else:
             if abs(gc) <= -_WOLFE_CURVATURE * derivative:
                 return c, fc, gcvec
-            # A nonnegative slope makes the trial the better end and the previous step the other.
-            if gc >= 0:
+            if gc * (b - a) >= 0:
                 b, fb, gb = a, fa, ga
             a, fa, ga = c, fc, gc
-    if last is not None:
-        return last
-    return None, f, g
+    return last
 
 
 def _fminunc(fun, start, maxiter=1000):
