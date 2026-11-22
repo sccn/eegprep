@@ -341,10 +341,6 @@ def test_coregister_fits_traditional_and_shared_scale_transforms():
             dtype=float,
         ),
     )
-    # Accuracy against ft_warp_optim is the MATLAB parity test. Here the
-    # traditional fit only has to improve tenfold, and the rigid-body stage
-    # has to stop on TolFun or TolX. The traditional stage spends its
-    # MaxFunEvals budget before those tests.
     degrees = np.asarray([5.0, -3.0, 2.0, *np.rad2deg([0.05, -0.04, 0.03]), 2.0, 1.5, 1.2])
     target_points = warp_apply(degrees, source.points, "traditional")
     recovered, _params, status = warp_optim(source.points, target_points, "traditional", return_status=True)
