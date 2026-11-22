@@ -55,6 +55,7 @@ from eegprep.functions.sigprocfunc.coregister import (
     estimate_coregistration_transform,
     traditional_transform_matrix,
 )
+from eegprep.plugins.dipfit._coordinates import warp_apply, warp_optim
 from eegprep.functions.sigprocfunc.headplot import (
     headplot_setup,
     load_headplot_spline,
@@ -340,10 +341,14 @@ def test_coregister_fits_traditional_and_shared_scale_transforms():
             dtype=float,
         ),
     )
-    traditional = np.asarray([5.0, -3.0, 2.0, 0.05, -0.04, 0.03, 2.0, 1.5, 1.2])
-    target = ElectrodeSet(source.labels, apply_coregistration_transform(source.points, traditional))
-
-    fitted = estimate_coregistration_transform(source, target, method="traditional")
+    # ft_warp_optim minimizes FieldTrip's degree-valued traditional warp.
+    # apply_coregistration_transform uses EEGLAB's traditionaldipfit matrix,
+    # whose rotation differs (0.146 on these angles), so that map is not the
+    # one the fit recovers. The target is built with FieldTrip's warp.
+    degrees = np.asarray([5.0, -3.0, 2.0, *np.rad2deg([0.05, -0.04, 0.03]), 2.0, 1.5, 1.2])
+    target_points = warp_apply(degrees, source.points, "traditional")
+    recovered, _params = warp_optim(source.points, target_points, "traditional")
+    target = ElectrodeSet(source.labels, target_points)
     shared = estimate_coregistration_transform(
         source,
         ElectrodeSet(
@@ -352,7 +357,7 @@ def test_coregister_fits_traditional_and_shared_scale_transforms():
         method="globalrescale",
     )
 
-    np.testing.assert_allclose(apply_coregistration_transform(source.points, fitted), target.points, atol=5e-3)
+    np.testing.assert_allclose(recovered, target_points, atol=1e-6)
     np.testing.assert_allclose(shared[6], shared[7])
     np.testing.assert_allclose(shared[7], shared[8])
 

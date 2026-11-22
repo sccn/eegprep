@@ -333,11 +333,7 @@ def _event_sort_key(event):
 
 
 def _array_is_empty(value) -> bool:
-    if value is None:
-        return True
-    if not hasattr(value, "size"):
-        return np.asarray(value).size == 0
-    return value.size == 0
+    return value is None or np.asarray(value).size == 0
 
 
 def _refresh_icaact(EEG) -> None:

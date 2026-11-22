@@ -7,13 +7,15 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.fminunc import fminunc
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError
-from eegprep.plugins.dipfit.ft_dipolefitting import _fminunc_coregister
 
 
 _WARP_MAX_ITERATIONS = 1500
 _WARP_FUNCTION_TOLERANCE = 1e-4
 _WARP_STEP_TOLERANCE = 1e-6
+# ft_warp_optim.m does not set TypicalX. fminunc's default is ones(n, 1).
+_WARP_TYPICAL_X = 1.0
 
 _WARP_LEVELS = {
     "rigidbody": 1,
@@ -427,13 +429,15 @@ def _optimize_warp(initial: np.ndarray, source: np.ndarray, target: np.ndarray, 
     def objective(flat: np.ndarray) -> float:
         return warp_error(np.asarray(flat, dtype=float).reshape(shape), source, target, method)
 
-    # ft_warp_optim.m: fminunc, MaxIter 1500, TolFun 1e-4, default TolX and MaxFunEvals.
-    fitted = _fminunc_coregister(
+    # ft_warp_optim.m: MaxIter 1500, TolFun 1e-4, LargeScale off.
+    # MaxFunEvals and TypicalX are left at the fminunc defaults.
+    fitted = fminunc(
         objective,
         start,
         maxiter=_WARP_MAX_ITERATIONS,
         tol_fun=_WARP_FUNCTION_TOLERANCE,
         tol_x=_WARP_STEP_TOLERANCE,
+        typical_x=_WARP_TYPICAL_X,
         max_fun_evals=100 * start.size,
     )
     return np.asarray(fitted, dtype=float).reshape(shape)

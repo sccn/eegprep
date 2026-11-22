@@ -15,15 +15,14 @@ from scipy.io import loadmat
 from scipy.optimize import minimize
 from scipy.special import lpmv
 
+from eegprep.functions.miscfunc.fminunc import fminunc
+
 
 _EPS = np.finfo(float).eps
 _SOLID_ANGLE_TOLERANCE = 1000 * _EPS
 _FUNCTION_TOLERANCE = 1e-9
 _STEP_TOLERANCE = 1e-6
 _TYPICAL_X_MM = 10.0
-_ARMIJO = 0.01
-_WOLFE_CURVATURE = 0.9
-_LINE_SEARCH_ITERATIONS = 40
 
 
 def standard_besa_headmodel() -> dict:
@@ -501,196 +500,6 @@ def ft_dipolefitting(cfg: dict, comp: dict) -> dict:
     return {"dip": dips, "Vdata": data, "Vmodel": modeled, "label": channels}
 
 
-def _cubic(a, fa, ga, b, fb, gb):
-    if a == b:
-        return a
-    slope = (fa - fb) / (a - b)
-    z = ga + gb - 3 * slope
-    rad = z * z - ga * gb
-    if rad < 0:
-        return (a + b) / 2
-    w = np.sign(b - a) * np.sqrt(rad)
-    denominator = gb - ga + 2 * w
-    if denominator == 0:
-        return (a + b) / 2
-    return b - (b - a) * (gb + w - z) / denominator
-
-
-def _section_trial(trial, anchor, other):
-    """Clip a sectioning trial to 10% from ``anchor`` and 50% from ``other``."""
-    low, high = sorted((anchor + 0.1 * (other - anchor), other - 0.5 * (other - anchor)))
-    return float(min(max(trial, low), high))
-
-
-def _line_search(fun, grad, x, p, g, f, first_step=1.0):
-    """Strong Wolfe search. ``a`` is the last step that met sufficient decrease."""
-    derivative = g @ p
-    a, fa, ga = 0.0, f, derivative
-    b = first_step
-    last = (0.0, f, g)
-    positive_slope = False
-    for i in range(_LINE_SEARCH_ITERATIONS):
-        fb = fun(x + b * p)
-        gbvec = grad(x + b * p, fb)
-        gb = gbvec @ p
-        last = (b, fb, gbvec)
-        if fb > f + _ARMIJO * b * derivative or (i and fb >= fa):
-            break
-        if abs(gb) <= -_WOLFE_CURVATURE * derivative:
-            return b, fb, gbvec
-        if gb >= 0:
-            positive_slope = True
-            break
-        # MATLAB extrapolates between one and nine previous interval lengths.
-        new = _cubic(a, fa, ga, b, fb, gb)
-        new = np.clip(new, b + (b - a), b + 9 * (b - a)) if new > b else b + 9 * (b - a)
-        a, fa, ga = b, fb, gb
-        b = new
-    if positive_slope:
-        a, fa, ga, b, fb, gb = b, fb, gb, a, fa, ga
-    roundoff = np.spacing(max(1.0, abs(f)))
-    for _ in range(_LINE_SEARCH_ITERATIONS):
-        c = _section_trial(_cubic(a, fa, ga, b, fb, gb), a, b)
-        if (a - c) * ga <= roundoff:
-            return c, last[1], last[2]
-        fc = fun(x + c * p)
-        gcvec = grad(x + c * p, fc)
-        gc = gcvec @ p
-        last = (c, fc, gcvec)
-        if fc > f + _ARMIJO * c * derivative or fc >= fa:
-            b, fb, gb = c, fc, gc
-        else:
-            if abs(gc) <= -_WOLFE_CURVATURE * derivative:
-                return c, fc, gcvec
-            if gc * (b - a) >= 0:
-                b, fb, gb = a, fa, ga
-            a, fa, ga = c, fc, gc
-    return last
-
-
-def _fminunc(fun, start, maxiter=1000):
-    """FieldTrip dipole ``fminunc``: TypicalX of 10 mm, scaled BFGS, Wolfe search.
-
-    The forward difference is ``sqrt(eps) * sign'(x) * max(|x|, 10)``, with
-    ``sign'(0) = 1``. The inverse Hessian starts as the identity, is scaled by
-    ``(s'y)/(y'y)`` on the first accepted step, and takes the BFGS update only
-    when ``s'y`` clears the curvature guard. Iteration stops when
-    ``||g||_inf < TolFun * (1 + ||g0||_inf)`` or
-    ``||dx / (1 + |x|)||_inf < TolX``.
-    """
-
-    def grad(point, known):
-        step = np.sqrt(_EPS) * np.where(point < 0, -1.0, 1.0) * np.maximum(np.abs(point), _TYPICAL_X_MM)
-        return np.array([(fun(point + np.eye(len(point))[i] * step[i]) - known) / step[i] for i in range(len(point))])
-
-    values = np.array(start, dtype=float).ravel()
-    value = fun(values)
-    gradient = grad(values, value)
-    initial_gradient = np.linalg.norm(gradient, np.inf)
-    inverse = np.eye(len(values))
-    for iteration in range(maxiter):
-        if np.linalg.norm(gradient, np.inf) < _FUNCTION_TOLERANCE * (1 + initial_gradient):
-            break
-        direction = -inverse @ gradient
-        first_step = min(1 / initial_gradient, 1.0) if iteration == 0 else 1.0
-        alpha, new_value, new_gradient = _line_search(fun, grad, values, direction, gradient, value, first_step)
-        if alpha is None or new_value >= value:
-            break
-        delta = alpha * direction
-        values = values + delta
-        delta_gradient = new_gradient - gradient
-        value, gradient = new_value, new_gradient
-        if np.linalg.norm(delta / (1 + np.abs(values)), np.inf) < _STEP_TOLERANCE:
-            break
-        curvature = delta @ delta_gradient
-        if curvature >= np.sqrt(_EPS) * max(_EPS, np.linalg.norm(delta) * np.linalg.norm(delta_gradient)):
-            if iteration == 0:
-                inverse = curvature / (delta_gradient @ delta_gradient) * np.eye(len(values))
-            projected = inverse @ delta_gradient
-            inverse += (1 + delta_gradient @ projected / curvature) * np.outer(delta, delta) / curvature - (
-                np.outer(delta, projected) + np.outer(projected, delta)
-            ) / curvature
-    return values
-
-
-class _EvaluationLimit(Exception):
-    pass
-
-
-def _fminunc_coregister(
-    fun,
-    start,
-    maxiter=1000,
-    tol_fun=_FUNCTION_TOLERANCE,
-    tol_x=_STEP_TOLERANCE,
-    max_fun_evals=None,
-):
-    """Quasi-Newton BFGS used by the traditional electrode warp.
-
-    ``ft_warp_optim`` leaves ``TypicalX`` unset. This forward difference is
-    ``sqrt(eps) * sign'(x)``, with ``sign'(0) = 1``, which is the step that
-    matches EEGLAB's traditional warp. TolFun stops on the relative
-    infinity-norm of the gradient. TolX stops on the relative step. The
-    default evaluation budget is ``100 * n``.
-    """
-    x = np.asarray(start, dtype=float).ravel().astype(float)
-    if max_fun_evals is None:
-        max_fun_evals = 100 * x.size
-    evaluations = 0
-
-    def counted(values):
-        nonlocal evaluations
-        evaluations += 1
-        if evaluations > max_fun_evals:
-            raise _EvaluationLimit
-        return float(fun(np.asarray(values, dtype=float)))
-
-    def grad(point):
-        value = counted(point)
-        step = np.sqrt(_EPS) * np.where(point < 0, -1.0, 1.0)
-        slope = np.empty(point.size)
-        for index in range(point.size):
-            trial = point.copy()
-            trial[index] += step[index]
-            slope[index] = (counted(trial) - value) / step[index]
-        return value, slope
-
-    try:
-        f, g = grad(x)
-        g0 = np.linalg.norm(g, np.inf)
-        inverse = np.eye(x.size)
-        for iteration in range(maxiter):
-            if np.linalg.norm(g, np.inf) <= tol_fun * max(1.0, g0):
-                break
-            direction = -inverse @ g
-            if g @ direction >= 0:
-                inverse = np.eye(x.size)
-                direction = -g
-            first_step = min(1.0 / g0, 1.0) if iteration == 0 and g0 > 0 else 1.0
-            alpha, nf, ng = _line_search(counted, lambda point, known: grad(point)[1], x, direction, g, f, first_step)
-            if alpha is None or nf >= f:
-                break
-            dx = alpha * direction
-            x = x + dx
-            dg = ng - g
-            f, g = nf, ng
-            if np.linalg.norm(dx / (1.0 + np.abs(x)), np.inf) < tol_x:
-                break
-            curvature = float(dx @ dg)
-            if curvature >= np.sqrt(_EPS) * max(_EPS, np.linalg.norm(dx) * np.linalg.norm(dg)):
-                if iteration == 0:
-                    inverse = curvature / float(dg @ dg) * np.eye(x.size)
-                vector = inverse @ dg
-                inverse = (
-                    inverse
-                    + (1.0 + float(dg @ vector) / curvature) * np.outer(dx, dx) / curvature
-                    - (np.outer(dx, vector) + np.outer(vector, dx)) / curvature
-                )
-    except _EvaluationLimit:
-        pass
-    return x
-
-
 def _refine_positions(initial, data, sens, vol, cfg):
     axis = cfg.get("symmetry")
     if axis not in (None, "", "x", "y", "z"):
@@ -741,7 +550,18 @@ def _refine_positions(initial, data, sens, vol, cfg):
         return unpack(result.x)
     if method != "fminunc":
         raise ValueError("optimfun must be 'fminunc' or 'fminsearch'")
-    return unpack(_fminunc(objective, start, maxiter))
+    # ft_inverse_dipolefit.m sets MaxFunEvals to 2*MaxIter*length(param).
+    return unpack(
+        fminunc(
+            objective,
+            start,
+            maxiter=maxiter,
+            tol_fun=_FUNCTION_TOLERANCE,
+            tol_x=_STEP_TOLERANCE,
+            typical_x=_TYPICAL_X_MM,
+            max_fun_evals=2 * maxiter * start.size,
+        )
+    )
 
 
 def surface_inside(dippos, pos, tri) -> np.ndarray:
