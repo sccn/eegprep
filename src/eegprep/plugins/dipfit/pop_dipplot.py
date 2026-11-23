@@ -12,7 +12,7 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on
 from eegprep.functions.popfunc.plot_utils import numeric_vector, show_figures
 from eegprep.plugins.dipfit._coordinates import sph2spm
-from eegprep.plugins.dipfit._mri import dipfit_mri_slices, load_standard_mri_volume
+from eegprep.plugins.dipfit._mri import dipfit_mri_slices, load_dipfit_mri_volume
 from eegprep.plugins.dipfit._utils import (
     DIPFITUnavailableError,
     dipfit_history,
@@ -136,7 +136,7 @@ def pop_dipplot_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="extra_options", value=""),
         ),
         known_differences=(
-            "MRI slices use the packaged avg152t1 volume for MNI and spherical BESA coordinates. A custom MRI file is refused.",
+            "Spherical plots use the packaged avg152t1 volume. MNI plots use standard_mri. A custom MRI file is refused.",
         ),
         row_spacing=4,
     )
@@ -183,15 +183,22 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
     all_positions = []
     located: list[np.ndarray] = []
     groups: list[list[Any]] = []
+    plotted: list[int] = []
+    volume, volume_name = load_dipfit_mri_volume(coordformat) if use_mri else ({}, "")
     for component in components:
         model = models[component - 1]
         positions = np.asarray(model.get("posxyz", []), dtype=float)
         if positions.ndim == 1:
             positions = positions.reshape(1, -1)
-        if positions.shape[1] < 3:
+        if positions.size == 0 or positions.shape[1] < 3:
             continue
         positions = positions[:, :3]
+        chosen = _selected_row_indices(model, positions.shape[0])
+        if not chosen:
+            continue
         moments = _model_moments(model, positions.shape[0], options)[:, :3]
+        positions = positions[chosen]
+        moments = moments[chosen]
         positions, moments = _display_dipole(positions, moments, coordformat)
         all_positions.extend(positions.tolist())
         rv = model.get("rv", np.nan)
@@ -222,17 +229,19 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
                     )
                 )
         groups.append(artists)
+        plotted.append(component)
     axis.set_xlabel("X")
     axis.set_ylabel("Y")
     axis.set_zlabel("Z")
-    axis.set_title(f"DIPFIT dipoles ({coordformat or 'unknown coordinates'})")
+    title = options.get("title")
+    axis.set_title(str(title) if title else f"DIPFIT dipoles ({coordformat or 'unknown coordinates'})")
     _set_equal_3d_axes(axis, np.asarray(all_positions, dtype=float) if all_positions else np.zeros((1, 3)))
-    if components:
+    if plotted:
         axis.legend(loc="best")
     if slice_axes:
-        setattr(fig, "eegprep_mri", "avg152t1")
+        setattr(fig, "eegprep_mri", volume_name)
     fig.tight_layout()
-    _add_dipole_navigation(fig, groups, models, components, slice_axes, located, options)
+    _add_dipole_navigation(fig, groups, models, plotted, slice_axes, located, options, volume)
     return fig
 
 
@@ -246,7 +255,19 @@ def _display_dipole(positions, moments, coordformat):
     return transformed[:, :3], moved[:, :3] - transformed[:, :3]
 
 
-def _add_dipole_navigation(fig, groups, models, components, slice_axes, located, options) -> None:
+def _selected_row_indices(model: dict[str, Any], count: int) -> list[int]:
+    if "select" not in model or model.get("select") is None:
+        return list(range(count))
+    raw = np.atleast_1d(np.asarray(model.get("select"), dtype=float)).ravel()
+    chosen = []
+    for value in raw:
+        index = int(value) - 1
+        if 0 <= index < count:
+            chosen.append(index)
+    return chosen
+
+
+def _add_dipole_navigation(fig, groups, models, components, slice_axes, located, options, volume) -> None:
     from matplotlib.widgets import Button
 
     if not groups:
@@ -266,7 +287,7 @@ def _add_dipole_navigation(fig, groups, models, components, slice_axes, located,
         if slice_axes:
             for artist in state["slice_artists"]:
                 artist.remove()
-            state["slice_artists"] = _plot_mri_slices(slice_axes, located[state["index"]], options)
+            state["slice_artists"] = _plot_mri_slices(slice_axes, located[state["index"]], options, volume)
         fig.canvas.draw_idle()
 
     def plot_one(_event=None) -> None:
@@ -360,9 +381,8 @@ def _model_moments(model: dict[str, Any], count: int, options: dict[str, Any]) -
     return moments
 
 
-def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, Any]) -> list[Any]:
+def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, Any], volume: dict) -> list[Any]:
     _validate_mri_option(options.get("mri", ""))
-    volume = load_standard_mri_volume()
     artists: list[Any] = []
     for axis, mri_slice, title in zip(
         axes,

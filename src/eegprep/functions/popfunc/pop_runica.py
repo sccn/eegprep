@@ -656,13 +656,32 @@ def _parse_algorithm_options(icatype, text):
 
 def _parse_count_text(icatype, text):
     tokens = [part for part in re.split(r"[\s,]+", str(text).strip()) if part]
+    if not tokens:
+        return {}
     numbers = []
     for token in tokens:
-        try:
-            numbers.append(int(float(token)))
-        except ValueError:
-            continue
+        number = _positional_count(token)
+        if number is None:
+            example = "32 100" if icatype == "sobi" else "32"
+            raise ValueError(
+                f"pop_runica: {icatype} options must be positional counts such as {example}. "
+                f"Use that form instead of {str(text).strip()!r}."
+            )
+        numbers.append(number)
     return _counts_from_sequence(icatype, numbers)
+
+
+def _positional_count(token):
+    cleaned = token.strip().strip("'\"")
+    if _is_int_text(cleaned):
+        return int(cleaned)
+    try:
+        value = float(cleaned)
+    except ValueError:
+        return None
+    if value.is_integer():
+        return int(value)
+    return None
 
 
 def _counts_from_sequence(icatype, values):

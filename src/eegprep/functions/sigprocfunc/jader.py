@@ -22,8 +22,12 @@ def jader(data, m: int | None = None) -> np.ndarray:
     if n_samples < 2:
         raise ValueError("jader: at least two samples are required.")
     centered = samples - samples.mean(axis=1, keepdims=True)
-    covariance = (centered @ centered.T) / n_samples
-    eigenvalues, eigenvectors = np.linalg.eigh(covariance)
+    # MATLAB's X*X' is exactly symmetric. Mirror the lower triangle, which is
+    # the one ``eigh`` reads, so a 1-ulp gemm imbalance stays on that path.
+    product = (centered @ centered.T) / n_samples
+    lower = np.tril(product)
+    covariance = lower + np.tril(lower, -1).T
+    eigenvalues, eigenvectors = _matlab_eig(covariance)
     chosen = np.arange(sensors - sources, sensors)
     scales = np.sqrt(np.maximum(eigenvalues[chosen], 0.0))
     basis = eigenvectors[:, chosen]
@@ -54,7 +58,7 @@ def jader(data, m: int | None = None) -> np.ndarray:
             cumulants[:, column : column + sources] = np.sqrt(2.0) * cross
             column += sources
 
-    _values, rotation = np.linalg.eigh(cumulants[:, :sources])
+    _values, rotation = _matlab_eig(cumulants[:, :sources])
     for start in range(0, sources * cumulant_count, sources):
         cumulants[:, start : start + sources] = cumulants[:, start : start + sources] @ rotation
     cumulants = rotation.T @ cumulants
@@ -96,3 +100,22 @@ def jader(data, m: int | None = None) -> np.ndarray:
     separating = separating[order, :][::-1, :]
     signs = np.sign(np.sign(separating[:, 0]) + 0.1)
     return np.diag(signs) @ separating
+
+
+def _matlab_eig(matrix):
+    """Match MATLAB ``eig``: the symmetric solver only when ``A`` equals ``A.'``.
+
+    The first JADE cumulant block is not exactly symmetric, so MATLAB takes the
+    general unsorted path. Real parts are kept only when that path's result is real.
+    """
+    array = np.asarray(matrix)
+    if array.shape[0] == array.shape[1] and np.array_equal(array, array.T):
+        return np.linalg.eigh(array)
+    values, vectors = np.linalg.eig(array)
+    if not np.iscomplexobj(values) and not np.iscomplexobj(vectors):
+        return values, vectors
+    real_values = np.real_if_close(values, tol=1000)
+    real_vectors = np.real_if_close(vectors, tol=1000)
+    if not np.iscomplexobj(real_values) and not np.iscomplexobj(real_vectors):
+        return np.asarray(real_values, dtype=float), np.asarray(real_vectors, dtype=float)
+    return values, vectors

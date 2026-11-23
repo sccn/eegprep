@@ -122,6 +122,28 @@ def test_packaged_standard_mri_volume_supports_dipfit_viewprops_slices():
     assert slices[0]["extent"] == (-125.0, 91.0, -72.0, 108.0)
 
 
+def test_mri_slices_keep_the_component_3_anatomy_upright():
+    """Air above the vertex belongs at the top of an origin='lower' image."""
+    volume = load_standard_mri_volume()
+    slices = dipfit_mri_slices(volume, [[-0.05, 61.6, -41.1]])
+    sagittal, coronal, axial = (item["image"] for item in slices)
+
+    assert coronal[-20:].mean() < 1.0
+    assert coronal[:20].mean() > 30.0
+    assert sagittal[-15:].mean() < sagittal[:15].mean()
+    anterior = max(_tissue_span(axial[row]) for row in range(205, 212))
+    posterior = max(_tissue_span(axial[row]) for row in range(25, 36))
+    assert anterior < 30
+    assert posterior > 80
+
+
+def _tissue_span(row) -> int:
+    columns = np.flatnonzero(np.asarray(row) > 20)
+    if columns.size == 0:
+        return 0
+    return int(columns[-1] - columns[0])
+
+
 def test_pop_dipfit_settings_gui_uses_first_dataset_and_applies_to_all():
     first = _ica_eeg()
     second = _ica_eeg()
@@ -265,6 +287,7 @@ def test_pop_multifit_batch_manual_and_leadfield_use_native_backend():
     fitted, com = pop_multifit(eeg, [1], "threshold", 100, return_com=True)
 
     assert fitted["dipfit"]["model"][0]["rv"] < 0.05
+    assert fitted["dipfit"]["coord_transform"] == [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
     assert "pop_multifit" in com
 
     batched, batch_com = pop_dipfit_batch(eeg, [1], [true_pos[0]], [true_pos[1]], [true_pos[2]], 100, return_com=True)
@@ -730,6 +753,46 @@ def test_spherical_dipoles_are_drawn_with_sph2spm():
         shown = np.column_stack(figures[0].axes[0].collections[0]._offsets3d)
         np.testing.assert_allclose(shown[0], expected, atol=1e-6)
         assert figures[0].eegprep_mri == "avg152t1"
+        assert figures[0].axes[1].images[0].get_array().shape == (91, 109)
+    finally:
+        plt.close(figures[0])
+
+
+def test_mni_dipole_slices_use_the_colin_volume():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "mrifile": "standard_BEM/standard_mri.mat",
+        "model": [{"posxyz": [[-0.05, 61.6, -41.1]], "momxyz": [[0.0, 0.0, 1.0]], "component": 1}],
+    }
+    figures = pop_dipplot(eeg, [1], gui=False, plot=True)
+    try:
+        assert figures[0].eegprep_mri == "standard_mri"
+        assert figures[0].axes[1].images[0].get_array().shape == (181, 217)
+    finally:
+        plt.close(figures[0])
+
+
+def test_pop_dipplot_draws_only_the_selected_dipole():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "model": [
+            {
+                "posxyz": [[4.0, 5.0, 6.0], [0.0, 0.0, 0.0]],
+                "momxyz": [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+                "select": [1],
+                "component": 1,
+            }
+        ],
+    }
+    figures = pop_dipplot(eeg, [1], gui=False, plot=True, projlines="on", normlen="on", title="IC 3")
+    try:
+        shown = np.column_stack(figures[0].axes[0].collections[0]._offsets3d)
+        assert shown.shape[0] == 1
+        np.testing.assert_allclose(shown[0], [4.0, 5.0, 6.0])
+        assert figures[0].axes[0].get_title() == "IC 3"
+        assert figures[0].axes[0].lines
     finally:
         plt.close(figures[0])
 
@@ -780,7 +843,10 @@ def test_nonlinear_plot_buttons_show_the_dialog_dipole(qapp, monkeypatch):
         calls["topo"] = (typeplot, items, rowcols, plotdip)
 
     def dipoles(dataset, components, **kwargs):
-        calls["dipole"] = np.asarray(dataset["dipfit"]["model"][0]["posxyz"], dtype=float)
+        model = dataset["dipfit"]["model"][0]
+        calls["dipole"] = np.asarray(model["posxyz"], dtype=float)
+        calls["select"] = list(model.get("select", []))
+        calls["kwargs"] = kwargs
         return [], ""
 
     monkeypatch.setattr("eegprep.functions.popfunc.pop_topoplot.pop_topoplot", topo)
@@ -794,6 +860,10 @@ def test_nonlinear_plot_buttons_show_the_dialog_dipole(qapp, monkeypatch):
         dialog.close()
     assert calls["topo"] == (0, 1, [1, 1], 1)
     np.testing.assert_allclose(calls["dipole"].reshape(-1)[:3], [4.0, 5.0, 6.0])
+    assert calls["select"] == [1]
+    assert calls["kwargs"]["projlines"] == "on"
+    assert calls["kwargs"]["normlen"] == "on"
+    assert calls["kwargs"]["title"] == "IC 1"
 
 
 def test_coregister_fields_and_writeback_use_four_significant_digits(qapp, monkeypatch):

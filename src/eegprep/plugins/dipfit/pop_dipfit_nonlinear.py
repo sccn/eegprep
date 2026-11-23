@@ -241,7 +241,14 @@ def apply_nonlinear_dialog_action(widgets: dict[str, Any], params: dict[str, Any
         from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
 
         working, component = _apply_nonlinear_gui_model(copy_eeg(eeg), _nonlinear_widget_result(widgets))
-        pop_dipplot(working, [component], gui=False)
+        pop_dipplot(
+            working,
+            [component],
+            gui=False,
+            normlen="on",
+            projlines="on",
+            title=f"IC {component}",
+        )
         return
     result = _nonlinear_widget_result(widgets)
     symmetry = None

@@ -29,6 +29,102 @@ def _eeglab_flattened(data):
     return np.concatenate([data[:, :, trial] for trial in range(data.shape[2])], axis=1)
 
 
+def test_pop_runica_passes_the_eeglab_learning_rate(monkeypatch):
+    """pop_runica.m passes lrate 0.001 unless the caller already supplied one."""
+    from eegprep.functions.popfunc.eeg_runica import eeg_runica
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+
+    eeg = _continuous_eeg()
+    captured = []
+
+    def fake_runica(data, **kwargs):
+        captured.append(kwargs)
+        return np.eye(2), np.eye(2), np.zeros(2), np.zeros((2, 1)), np.ones((2, 1)), []
+
+    monkeypatch.setattr("eegprep.functions.popfunc.eeg_runica.runica", fake_runica)
+
+    eeg_runica(eeg, extended=1, maxsteps=1)
+    _output, command = pop_runica(eeg, icatype="runica", extended=1, gui=False, return_com=True)
+    pop_runica(eeg, icatype="runica", extended=1, lrate=1e-5, gui=False, return_com=True)
+    _output, explicit = pop_runica(eeg, icatype="runica", extended=1, lrate=1e-5, gui=False, return_com=True)
+
+    assert [call["lrate"] for call in captured] == [0.001, 0.001, 1e-5, 1e-5]
+    assert "lrate" not in command
+    assert "'lrate', 1e-05" in explicit
+
+
+def test_named_sobi_option_text_names_the_positional_form():
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+
+    eeg = _continuous_eeg()
+    with pytest.raises(ValueError, match=r"pop_runica:.*32 100") as caught:
+        pop_runica(eeg, icatype="sobi", options="'p', 100", gui=False)
+    assert "sobi" in str(caught.value)
+    _output, command = pop_runica(eeg, icatype="sobi", options="2 1", gui=False, return_com=True)
+    assert command == "EEG = pop_runica(EEG, 'icatype', 'sobi', 'options', {2 1});"
+
+
+@pytest.mark.matlab_oracle
+@pytest.mark.slow
+@pytest.mark.timeout(1800)
+def test_seeded_pop_runica_on_eeglab_data_matches_pythoncompat(eeglab_backend):
+    """Seeded pop_runica matches EEGLAB when MATLAB runica has pythoncompat on.
+
+    Both sides receive the same loaded dataset and extended=1. EEGLAB then
+    passes lrate 0.001, which eeg_runica supplies when the caller does not.
+    """
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+    from tests.eeglab_tests import assert_matlab_near
+
+    dataset = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    eeg = pop_loadset(str(dataset))
+    python_out, command = pop_runica(eeg, icatype="runica", extended=1, gui=False, return_com=True)
+    matlab_out = eeglab_backend(
+        "pop_runica",
+        eeg,
+        "icatype",
+        "runica",
+        "extended",
+        1.0,
+        "pythoncompat",
+        "on",
+    )
+    assert "lrate" not in command
+    for field in ("icaweights", "icasphere", "icawinv"):
+        assert_matlab_near(python_out[field], np.asarray(matlab_out[field], dtype=float))
+
+
+def test_jader_uses_general_eig_when_the_cumulant_is_not_exactly_symmetric(monkeypatch):
+    from eegprep.functions.sigprocfunc.jader import jader
+
+    data = np.random.default_rng(0).standard_normal((6, 200))
+    real_eigh = np.linalg.eigh
+    real_eig = np.linalg.eig
+    general = []
+
+    def eigh(matrix, *args, **kwargs):
+        array = np.asarray(matrix)
+        if array.shape[0] == array.shape[1] and not np.array_equal(array, array.T):
+            raise AssertionError("eigh used where MATLAB eig takes the general path")
+        return real_eigh(array, *args, **kwargs)
+
+    def eig(matrix, *args, **kwargs):
+        array = np.asarray(matrix)
+        if array.shape[0] == array.shape[1] and not np.array_equal(array, array.T):
+            general.append(array.copy())
+        return real_eig(array, *args, **kwargs)
+
+    monkeypatch.setattr(np.linalg, "eigh", eigh)
+    monkeypatch.setattr(np.linalg, "eig", eig)
+
+    separating = jader(data)
+
+    assert general
+    assert np.max(np.abs(general[0] - general[0].T)) > 0
+    assert np.isfinite(separating).all()
+
+
 def test_eeg_runica_flattens_and_reshapes_epoched_data_like_eeglab(monkeypatch):
     eeg = _epoched_eeg()
     captured = {}

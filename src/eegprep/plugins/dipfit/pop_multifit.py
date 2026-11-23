@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_checkset import _normalise_empty_dipfit_transform
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
@@ -97,6 +98,7 @@ def pop_multifit(
     if str(options.get("dipplot", "off")).lower() == "on":
         plot_options = matlab_plot_options(options.get("plotopt", ""))
         pop_dipplot(out, components, **plot_options)
+    _normalise_empty_dipfit_transform(out)
     return (out, command) if return_com else out
 
 

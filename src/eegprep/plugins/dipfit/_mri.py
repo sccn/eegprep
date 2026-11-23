@@ -8,8 +8,25 @@ import numpy as np
 
 @lru_cache(maxsize=1)
 def load_standard_mri_volume() -> dict:
-    """Load the packaged MNI anatomy, voxel transform, and coordinate grids."""
-    resource = files("eegprep") / "resources/dipfit/standard_BEM/standard_mri_mni.npz"
+    """Load the packaged Colin ``standard_mri`` anatomy used for MNI models."""
+    return _load_mri_volume("resources/dipfit/standard_BEM/standard_mri_mni.npz")
+
+
+@lru_cache(maxsize=1)
+def load_besa_mri_volume() -> dict:
+    """Load the packaged ``avg152t1`` anatomy used for spherical BESA models."""
+    return _load_mri_volume("resources/dipfit/standard_BESA/avg152t1.npz")
+
+
+def load_dipfit_mri_volume(coordformat: str) -> tuple[dict, str]:
+    """Return the EEGLAB template volume and its figure label for ``coordformat``."""
+    if str(coordformat).lower() == "spherical":
+        return load_besa_mri_volume(), "avg152t1"
+    return load_standard_mri_volume(), "standard_mri"
+
+
+def _load_mri_volume(resource_path: str) -> dict:
+    resource = files("eegprep") / resource_path
     with resource.open("rb") as stream, np.load(stream) as data:
         return {key: data[key] for key in ("anatomy", "transform", "xgrid", "ygrid", "zgrid")}
 
@@ -31,7 +48,7 @@ def dipfit_mri_slices(volume: dict, positions) -> tuple[dict, ...]:
         x, y = coordinates[x_axis], coordinates[y_axis]
         slices.append(
             {
-                "image": np.rot90(np.take(volume["anatomy"], indices[axis], axis=axis).astype(float)),
+                "image": np.take(volume["anatomy"], indices[axis], axis=axis).astype(float).T,
                 "extent": (float(x[0]), float(x[-1]), float(y[0]), float(y[-1])),
                 "x_axis": x_axis,
                 "y_axis": y_axis,
