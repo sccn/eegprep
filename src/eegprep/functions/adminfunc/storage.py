@@ -218,6 +218,20 @@ class MemmapData:
         # Releasing our reference lets NumPy close the OS map once every view
         # is gone and avoids invalidating those still-live arrays.
 
+    def close_file(self) -> None:
+        """Close the OS mapping so the sidecar can be replaced.
+
+        Windows denies ``os.replace`` while this process still maps the file.
+        """
+        array = self._array
+        self._array = None
+        if array is None:
+            return
+        array.flush()
+        handle = getattr(array, "_mmap", None)
+        if handle is not None:
+            handle.close()
+
     def copy(self, order: str = "C") -> np.ndarray:
         """Return an in-memory copy of the mapped data."""
         return np.array(self._memmap(), copy=True, order=order)

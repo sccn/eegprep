@@ -1,6 +1,7 @@
 """EEG data saving and loading utilities."""
 
 import copy
+import gc
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,13 @@ from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 
 
 default_empty = np.array([])
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except OSError:
+        return left.absolute() == right.absolute()
 
 
 def flatten_dict_sub(d, parent_key='', sep='_'):
@@ -583,6 +591,9 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
                 raise
             scipy.io.savemat(set_tmp, eeglab_dict, appendmat=False, long_field_names=True)
         if save_two_files:
+            if isinstance(data_value, MemmapData) and _same_path(data_value.path, fdt_final):
+                data_value.close_file()
+                gc.collect()
             os.replace(fdt_tmp, fdt_final)
         os.replace(set_tmp, file_name)
     except Exception as exc:
