@@ -84,9 +84,7 @@ def _write_cnt(
     for event in events:
         keypad_accept = (int(event.get("accept_ev1", 0)) << 4) | int(event.get("keypad", 0))
         event_offset = (
-            int(event["sample"])
-            if event_type == 3
-            else data_offset + int(event["sample"]) * channels * dtype.itemsize
+            int(event["sample"]) if event_type == 3 else data_offset + int(event["sample"]) * channels * dtype.itemsize
         )
         if event_type == 1:
             event_records.extend(
