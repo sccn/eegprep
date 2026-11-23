@@ -36,7 +36,7 @@ Behavior:
   Without it an `ImportError` names the extra. PyTorch is not needed.
 - Native runs load the packaged full-precision network, `iclabel.onnx`, which matches the PyTorch
   network of earlier releases to about 1e-6. The browser loads `iclabel_int8.onnx`, an 8-bit weight-only
-  quantization of it. How closely each file matches is reported in the user guide:
+  quantization of it. On the frozen 217-component evaluation set that file's parity evidence covers Brain (18), Eye (5), Muscle (1), and Other (193), and does not cover Heart, Line Noise, or Channel Noise, which that set does not contain. How closely the two files match on the classes it does contain is reported in the user guide:
   https://sccn.github.io/eegprep/user_guide/ica_rejection.html#iclabel-measured-agreement
 - In Pyodide/Emscripten the synchronous `iclabel` and `pop_iclabel` raise `RuntimeError`.
   Use `await iclabel_async(EEG)` or `await pop_iclabel_async(EEG, 'default')`.
