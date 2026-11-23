@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
+import pytest
 
 from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.functions.popfunc.eeg_runica import eeg_runica
@@ -189,11 +192,45 @@ def test_sobi_and_jader_recover_independent_sources():
         "chanlocs": [{}, {}, {}],
     }
 
-    sobi_out = pop_runica(eeg, icatype="sobi", options={"p": 10}, gui=False)
-    jade_out = pop_runica(eeg, icatype="jade", gui=False)
+    _blank, blank_command = pop_runica(eeg, icatype="sobi", gui=False, return_com=True)
+    assert blank_command == "EEG = pop_runica(EEG, 'icatype', 'sobi');"
+    sobi_out, sobi_command = pop_runica(eeg, icatype="sobi", options={"p": 10}, gui=False, return_com=True)
+    jade_out, jade_command = pop_runica(eeg, icatype="jade", gui=False, return_com=True)
+    assert sobi_command == "EEG = pop_runica(EEG, 'icatype', 'sobi', 'options', {3 10});"
+    assert jade_command == "EEG = pop_runica(EEG, 'icatype', 'jader');"
     for output in (sobi_out, jade_out):
         weights = output["icaweights"] @ output["icasphere"]
         np.testing.assert_allclose(output["icawinv"] @ weights, np.eye(3), atol=1e-6)
+        np.testing.assert_allclose(np.linalg.norm(output["icawinv"], axis=0), np.sqrt(3), rtol=1e-6)
         recovered = weights @ eeg["data"]
         correlation = np.abs(np.corrcoef(sources[:2], recovered)[:2, 2:])
         assert np.all(correlation.max(axis=1) > 0.9)
+
+
+def test_sobi_whitener_uses_the_right_singular_vectors():
+    """MATLAB [~,S,VV] = svd(X.','0'); Q = pinv(S)*VV.' numpy's Vh is that VV.'"""
+    from eegprep.functions.sigprocfunc.sobi import sobi
+
+    data = np.array([[1.0, 2.0, 3.0, 4.0, 2.5], [0.5, -1.0, 0.25, 1.5, -0.4], [0.2, 0.7, -0.3, 0.9, 1.1]])
+    mixing = sobi(data, p=2)
+    centered = data - data.mean(axis=1, keepdims=True)
+    _left, scales, vectors = np.linalg.svd(centered.T, full_matrices=False)
+    whitener = np.linalg.pinv(np.diag(scales)) @ vectors
+    unmixing = np.linalg.pinv(mixing)
+    product = whitener @ np.linalg.pinv(unmixing)
+    np.testing.assert_allclose(product @ product.T, np.eye(data.shape[0]), atol=1e-6)
+
+
+@pytest.mark.matlab
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+def test_sobi_mixing_matches_matlab_on_eeglab_data(eeglab_matlab_engine):
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
+    from eegprep.functions.sigprocfunc.sobi import sobi
+    from tests.eeglab_tests import assert_matlab_near
+    from tests.eeglab_tests.backend import call_matlab
+
+    dataset = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    data = np.asarray(pop_loadset(str(dataset))["data"], dtype=float)
+    reference = call_matlab(eeglab_matlab_engine, "sobi", data, nargout=1)
+    assert_matlab_near(sobi(data), np.asarray(reference, dtype=float))

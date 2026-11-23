@@ -14,6 +14,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import finite_pinv, matlab_mtimes
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_on as _is_on
+from eegprep.functions.popfunc.plot_utils import show_figures
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 
 logger = logging.getLogger(__name__)
@@ -346,15 +347,22 @@ def _plot_subcomp_erps(original: dict, output: dict) -> None:
     after = np.asarray(output["data"], dtype=float)[indices].mean(axis=-1)
     import matplotlib.pyplot as plt
 
+    channels = int(before.shape[0])
+    rows = int(np.ceil(channels / 2))
     figure = plt.figure()
-    axis = figure.add_subplot(111)
-    times = np.linspace(float(original.get("xmin", 0.0)), float(original.get("xmax", 0.0)), before.shape[-1])
-    for row in before:
-        axis.plot(times, row, color="tab:blue", linewidth=0.8)
-    for row in after:
-        axis.plot(times, row, color="tab:red", linewidth=0.8)
-    axis.set_title("Trial ERPs (blue) with and (red) without these components")
-    figure.show()
+    times = np.linspace(
+        float(original.get("xmin", 0.0)) * 1000.0,
+        float(original.get("xmax", 0.0)) * 1000.0,
+        before.shape[-1],
+    )
+    for index in range(channels):
+        column = 0 if index < rows else 1
+        row = index if index < rows else index - rows
+        axis = figure.add_subplot(rows, 2, row * 2 + column + 1)
+        axis.plot(times, before[index], color="b", linewidth=0.8)
+        axis.plot(times, after[index], color="r", linewidth=0.8)
+    figure.suptitle("Trial ERPs (blue) with and (red) without these components")
+    show_figures(figure)
 
 
 def _history_command(components: Any, plotag: int | bool, keepcomp: int | bool) -> str:

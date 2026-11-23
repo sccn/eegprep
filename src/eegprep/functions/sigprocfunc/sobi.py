@@ -32,7 +32,8 @@ def sobi(data, n: int | None = None, p: int | None = None) -> np.ndarray:
     flattened = flattened - flattened.mean(axis=1, keepdims=True)
     samples = flattened.reshape(channels, n_samples, n_trials, order="F")
     _singular, scales, vectors = np.linalg.svd(flattened.T, full_matrices=False)
-    whitener = np.linalg.pinv(np.diag(scales)) @ vectors.T
+    # numpy's Vh is MATLAB's VV' from [~,S,VV] = svd(X','0').
+    whitener = np.linalg.pinv(np.diag(scales)) @ vectors
     samples = np.einsum("ij,jkl->ikl", whitener, samples)
 
     covariances = np.zeros((channels, lagged * channels), dtype=float)

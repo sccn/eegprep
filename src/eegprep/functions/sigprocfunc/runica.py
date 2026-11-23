@@ -626,8 +626,7 @@ def runica(data, *args, **kwargs):
         seed = int(time.time() * 1000) % (2**32)
         rng = np.random.RandomState(seed)
     else:
-        # Fixed seed for reproducibility (MATLAB default)
-        # MATLAB uses rand('state', 0) which corresponds to seed 5489
+        # pythoncompat stream rng(5489,'twister'). rndreset off in EEGLAB is rand('state', 0).
         rng = np.random.RandomState(5489)
 
     # Store RNG for use in training loop

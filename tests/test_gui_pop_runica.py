@@ -241,37 +241,45 @@ class PopRunicaGuiTests(unittest.TestCase):
         np.testing.assert_array_equal(out["etc"]["oldicaweights"][0], np.eye(4))
 
     def test_qt_renderer_reads_listbox_as_one_based_row(self):
-        class ListboxWidget:
-            def property(self, name):
-                return None
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        pytest.importorskip("PySide6")
+        from PySide6.QtWidgets import QApplication, QListWidget
 
-            def currentRow(self):
-                return 1
-
-            def currentIndex(self):
-                raise AssertionError("QListWidget currentIndex returns a QModelIndex")
-
-        self.assertEqual(QtDialogRenderer._read_widget(ListboxWidget()), 2)
+        QApplication.instance() or QApplication([])
+        widget = QListWidget()
+        widget.addItems(["runica", "sobi", "jader"])
+        widget.setCurrentRow(1)
+        self.assertEqual(QtDialogRenderer._read_widget(widget), 2)
 
     def test_qt_renderer_reads_multiselect_listbox_as_one_based_rows(self):
-        class Index:
-            def __init__(self, row):
-                self._row = row
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        pytest.importorskip("PySide6")
+        from PySide6.QtWidgets import QAbstractItemView, QApplication, QListWidget
 
-            def row(self):
-                return self._row
+        QApplication.instance() or QApplication([])
+        widget = QListWidget()
+        widget.addItems(["first", "second", "third"])
+        widget.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        widget.setProperty("eegprep_multiselect", True)
+        widget.item(2).setSelected(True)
+        widget.item(0).setSelected(True)
+        self.assertEqual(QtDialogRenderer._read_widget(widget), [1, 3])
 
-        class ListboxWidget:
-            def property(self, name):
-                return True if name == "eegprep_multiselect" else None
+    def test_selecting_sobi_or_jade_clears_the_options_box(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        pytest.importorskip("PySide6")
+        from PySide6.QtWidgets import QApplication
 
-            def selectedIndexes(self):
-                return [Index(2), Index(0)]
-
-            def currentRow(self):
-                raise AssertionError("multi-select listboxes should read selected indexes")
-
-        self.assertEqual(QtDialogRenderer._read_widget(ListboxWidget()), [1, 3])
+        QApplication.instance() or QApplication([])
+        _app, dialog, widgets = QtDialogRenderer().build_dialog(pop_runica_dialog_spec(_eeg()))
+        try:
+            widgets["icatype"].setCurrentRow(5)
+            self.assertEqual(widgets["params"].text(), "")
+            self.assertEqual(widgets["icatype"].item(6).text(), "Jade (jader.m function)")
+            widgets["icatype"].setCurrentRow(6)
+            self.assertEqual(widgets["params"].text(), "")
+        finally:
+            dialog.close()
 
     def test_qt_renderer_defaults_to_all_selected_dataset_rows(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

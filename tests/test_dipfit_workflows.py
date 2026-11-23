@@ -660,12 +660,15 @@ def test_dipole_plot_navigation_moves_between_components():
     figures, _command = pop_dipplot(eeg, [1, 2], gui=False, plot=True, return_com=True)
     try:
         navigation = figures[0].eegprep_dipplot
-        assert navigation["area"].get_text() == "bankssts L"
+        assert navigation["area"].get_text() == "Comp: 1 bankssts L"
+        before = np.array(figures[0].axes[1].images[0].get_array())
         navigation["plot_one"]()
         assert navigation["state"]["single"] is True
         navigation["next"]()
         assert navigation["state"]["index"] == 1
-        assert navigation["area"].get_text() == "bankssts R"
+        assert navigation["area"].get_text() == "Comp: 2 bankssts R"
+        after = np.array(figures[0].axes[1].images[0].get_array())
+        assert not np.array_equal(before, after)
         navigation["prev"]()
         assert navigation["state"]["index"] == 0
     finally:
@@ -697,10 +700,150 @@ def test_nonlinear_fit_button_updates_the_displayed_model(qapp, monkeypatch):
     try:
         assert widgets["plotmap"].isEnabled()
         assert widgets["fitposition"].isEnabled()
+        widgets["dip1mom"].setText("1340.8900000000001 0 0")
         widgets["flip1"].click()
-        assert widgets["dip1mom"].text().split()[0].startswith("-")
+        assert widgets["dip1mom"].text().split()[0] == "-1340.89"
         widgets["fitposition"].click()
         assert widgets["dip1pos"].text().split()[:3] == ["9", "8", "7"]
         assert widgets["relvar"].text() == "1%"
     finally:
         dialog.close()
+
+
+def test_spherical_dipoles_are_drawn_with_sph2spm():
+    from eegprep.plugins.dipfit._coordinates import sph2spm
+
+    raw = np.array([0.0, 0.0, 85.0])
+    expected = (sph2spm() @ np.array([*raw, 1.0]))[:3]
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=3)
+    eeg["dipfit"] = {
+        "coordformat": "spherical",
+        "mrifile": "standard_BESA/avg152t1.mat",
+        "model": [
+            {"posxyz": [[0.0, 0.0, 0.0]], "component": 1},
+            {"posxyz": [[0.0, 0.0, 0.0]], "component": 2},
+            {"posxyz": [raw.tolist()], "momxyz": [[0.0, 0.0, 1.0]], "component": 3},
+        ],
+    }
+    figures, _command = pop_dipplot(eeg, [3], gui=False, plot=True, return_com=True)
+    try:
+        shown = np.column_stack(figures[0].axes[0].collections[0]._offsets3d)
+        np.testing.assert_allclose(shown[0], expected, atol=1e-6)
+        assert figures[0].eegprep_mri == "avg152t1"
+    finally:
+        plt.close(figures[0])
+
+
+def test_empty_besa_coord_transform_labels_component_1_superiorfrontal_r():
+    from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+    from eegprep.plugins.dipfit.eeg_compatlas import _atlas, eeg_compatlas
+
+    vertices, colors, labels, _tree = _atlas()
+    chosen = next(
+        index
+        for index, color in enumerate(colors)
+        if int(color) > 0 and str(labels[int(color) - 1]) == "superiorfrontal R"
+    )
+    point = traditionaldipfit([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]) @ np.array([*vertices[chosen], 1.0])
+    eeg = {
+        "data": np.zeros((1, 8)),
+        "nbchan": 1,
+        "pnts": 8,
+        "trials": 1,
+        "srate": 100.0,
+        "icaweights": np.eye(1),
+        "dipfit": {
+            "coordformat": "spherical",
+            "coord_transform": [],
+            "model": [{"posxyz": [point[:3].tolist()], "component": 1}],
+        },
+    }
+
+    labeled = eeg_compatlas(eeg, components=[1])
+    assert labeled["dipfit"]["model"][0]["areadk"] == "superiorfrontal R"
+
+    checked = eeg_checkset(copy.deepcopy(eeg))
+    assert checked["dipfit"]["coord_transform"] == [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+
+
+def test_nonlinear_plot_buttons_show_the_dialog_dipole(qapp, monkeypatch):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "model": [{"posxyz": [[1.0, 2.0, 3.0]], "momxyz": [[0.1, 0.2, 0.3]], "rv": 0.2, "component": 1}],
+    }
+    calls = {}
+
+    def topo(dataset, typeplot, items, title, rowcols, plotdip, **kwargs):
+        calls["topo"] = (typeplot, items, rowcols, plotdip)
+
+    def dipoles(dataset, components, **kwargs):
+        calls["dipole"] = np.asarray(dataset["dipfit"]["model"][0]["posxyz"], dtype=float)
+        return [], ""
+
+    monkeypatch.setattr("eegprep.functions.popfunc.pop_topoplot.pop_topoplot", topo)
+    monkeypatch.setattr("eegprep.plugins.dipfit.pop_dipplot.pop_dipplot", dipoles)
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(pop_dipfit_nonlinear_dialog_spec(eeg), {})
+    try:
+        widgets["plotmap"].click()
+        widgets["dip1pos"].setText("4 5 6")
+        widgets["plotdip"].click()
+    finally:
+        dialog.close()
+    assert calls["topo"] == (0, 1, [1, 1], 1)
+    np.testing.assert_allclose(calls["dipole"].reshape(-1)[:3], [4.0, 5.0, 6.0])
+
+
+def test_coregister_fields_and_writeback_use_four_significant_digits(qapp, monkeypatch):
+    from PySide6.QtWidgets import QCheckBox, QLineEdit
+
+    from eegprep.functions.guifunc.coregister import CoregisterDialog
+    from eegprep.functions.guifunc.qt import _dipfit_coregister
+
+    monkeypatch.setattr(
+        "eegprep.functions.guifunc.qt.run_coregister_dialog",
+        lambda *_args, **_kwargs: [1.2345678901234567, 0, 0, 0, 0, 0, 1, 1, 1],
+    )
+    widgets = {
+        "chanfile": QLineEdit("standard_BESA/standard-10-5-cap385.elp"),
+        "hdmfile": QLineEdit("standard_BESA/standard_BESA.mat"),
+        "coord_transform": QLineEdit(),
+        "nocoreg": QCheckBox(),
+    }
+    _dipfit_coregister(
+        None,
+        widgets,
+        {
+            "chanfile": "chanfile",
+            "hdmfile": "hdmfile",
+            "target": "coord_transform",
+            "no_coreg": "nocoreg",
+            "chanlocs": [],
+        },
+    )
+    assert widgets["coord_transform"].text().split()[0] == "1.235"
+
+    locs = [{"labels": "Fz", "X": 0.0, "Y": 80.0, "Z": 10.0}, {"labels": "Cz", "X": 0.0, "Y": 0.0, "Z": 90.0}]
+    dialog = CoregisterDialog(
+        locs,
+        locs,
+        chaninfo=None,
+        meshfile=None,
+        transform=[1.2345678901234567, 0, 0, 0, 0, 0, 1, 1, 1],
+        parent=None,
+        title="coregister",
+    )
+    try:
+        assert dialog._fields["right"].text() == "1.235"
+    finally:
+        dialog.close()
+
+
+def test_headless_coregister_resolves_a_stored_dipfit_template():
+    from eegprep.functions.sigprocfunc.coregister import _resolve_coregistration_file
+
+    resolved = _resolve_coregistration_file("standard_BESA/standard-10-5-cap385.elp")
+    assert resolved.is_file()
+    assert resolved.name == "standard-10-5-cap385.elp"

@@ -59,7 +59,10 @@ therefore keeps all 384 points. Passing those same points through ``epoch.m``
 would drop the last one.
 
 ``pop_runica`` lists Extended Infomax, Robust Extended Infomax, AMICA, Infomax
-picard, FastICA picard, SOBI, and JADE. binica is not in that list.
+picard, FastICA picard, SOBI, and Jade. binica is not in that list. The SOBI
+and Jade options boxes start empty. An empty SOBI run records
+``EEG = pop_runica(EEG, 'icatype', 'sobi');``, which EEGLAB can replay.
+Typed counts are stored as ``'options', {n p}``.
 
 ``pop_mergeset`` prefills the first two loaded dataset indices. EEGLAB
 prefills ``1``. The merged data, ICA, and history are unchanged.

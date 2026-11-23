@@ -67,12 +67,15 @@ def _component_set(components: Any, count: int) -> set[int]:
 
 
 def _transform(dipfit: dict[str, Any]) -> np.ndarray:
-    stored = dipfit.get("coord_transform")
-    try:
-        if stored is not None and np.asarray(stored, dtype=float).size:
-            return traditionaldipfit(stored)
-    except (TypeError, ValueError):
-        stored = None
+    if "coord_transform" in dipfit:
+        stored = dipfit.get("coord_transform")
+        try:
+            values = np.asarray([] if stored is None else stored, dtype=float).reshape(-1)
+            if values.size == 0:
+                values = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            return traditionaldipfit(values)
+        except (TypeError, ValueError):
+            pass
     coordformat = str(dipfit.get("coordformat", "")).lower()
     if coordformat == "mni":
         return traditionaldipfit(_MNI_TRANSFORM)

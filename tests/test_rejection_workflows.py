@@ -957,6 +957,47 @@ def test_subcomp_lists_flagged_components_and_offers_erp_and_trial_plots():
     assert out["icaweights"].shape[0] == 1
 
 
+def test_selectcomps_draws_a_map_for_a_pop_loadset_dataset():
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+
+    from eegprep.functions.popfunc.pop_selectcomps import _component_map_pixmap
+
+    QApplication.instance() or QApplication([])
+    from PySide6 import QtGui
+
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH.with_name("eeglab_data_epochs_ica.set")))
+    assert isinstance(eeg["chanlocs"], np.ndarray)
+    pixmap = _component_map_pixmap(eeg, 1, QtGui)
+    assert pixmap is not None
+    assert pixmap.width() > 0
+    assert pixmap.height() > 0
+
+
+def test_subcomp_erp_plot_is_a_per_channel_grid(monkeypatch):
+    from eegprep.functions.popfunc import pop_subcomp as subcomp_module
+
+    shown = []
+    monkeypatch.setattr(subcomp_module, "show_figures", lambda figures, **_kwargs: shown.append(figures))
+    original = create_test_eeg_with_ica(n_channels=4, n_samples=16, n_components=2)
+    original["trials"] = 2
+    original["data"] = np.ones((4, 16, 2))
+    output = copy.deepcopy(original)
+    output["data"] = np.zeros((4, 16, 2))
+
+    subcomp_module._plot_subcomp_erps(original, output)
+
+    figure = shown[0]
+    assert len(figure.axes) == 4
+    assert len(figure.axes[0].lines) == 2
+    assert figure.axes[0].lines[0].get_color() == "b"
+    assert figure.axes[0].lines[1].get_color() == "r"
+    plt.close(figure)
+
+
 def _classified_component_eeg(rows: int = 3) -> dict:
     eeg = create_test_eeg(n_channels=4, n_samples=32)
     eeg["icaweights"] = np.eye(rows, 4)

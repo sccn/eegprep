@@ -337,7 +337,7 @@ class CoregisterDialog(_BaseDialog):
     def _sync_fields(self) -> None:
         for tag, value in zip(self._field_tags, self.transform, strict=False):
             self._fields[tag].blockSignals(True)
-            self._fields[tag].setText(format(float(value), ".17g"))
+            self._fields[tag].setText(format(float(value), ".4g"))
             self._fields[tag].blockSignals(False)
 
     def _fields_changed(self) -> None:

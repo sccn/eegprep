@@ -251,9 +251,10 @@ def _component_map_pixmap(EEG: dict[str, Any], component: int, qt_gui):
     try:
         axis = figure.add_axes((0.02, 0.02, 0.96, 0.96))
         electrodes = "off" if int(EEG.get("nbchan", 0) or 0) > 64 else "on"
+        chanlocs = EEG.get("chanlocs")
         topoplot(
             weights[:, component - 1],
-            EEG.get("chanlocs") or [],
+            [] if chanlocs is None else chanlocs,
             axes=axis,
             electrodes=electrodes,
             numcontour=8,
@@ -264,7 +265,5 @@ def _component_map_pixmap(EEG: dict[str, Any], component: int, qt_gui):
         buffer = np.ascontiguousarray(canvas.buffer_rgba())
         image = qt_gui.QImage(buffer.data, width, height, buffer.strides[0], qt_gui.QImage.Format.Format_RGBA8888)
         return qt_gui.QPixmap.fromImage(image.copy())
-    except (TypeError, ValueError, RuntimeError):
-        return None
     finally:
         plt.close(figure)

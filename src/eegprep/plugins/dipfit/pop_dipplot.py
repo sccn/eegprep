@@ -11,6 +11,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on
 from eegprep.functions.popfunc.plot_utils import numeric_vector, show_figures
+from eegprep.plugins.dipfit._coordinates import sph2spm
 from eegprep.plugins.dipfit._mri import dipfit_mri_slices, load_standard_mri_volume
 from eegprep.plugins.dipfit._utils import (
     DIPFITUnavailableError,
@@ -180,6 +181,7 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
         axis = fig.add_subplot(111, projection="3d")
         slice_axes = []
     all_positions = []
+    located: list[np.ndarray] = []
     groups: list[list[Any]] = []
     for component in components:
         model = models[component - 1]
@@ -188,12 +190,15 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
             positions = positions.reshape(1, -1)
         if positions.shape[1] < 3:
             continue
-        moments = _model_moments(model, positions.shape[0], options)
-        all_positions.extend(positions[:, :3].tolist())
+        positions = positions[:, :3]
+        moments = _model_moments(model, positions.shape[0], options)[:, :3]
+        positions, moments = _display_dipole(positions, moments, coordformat)
+        all_positions.extend(positions.tolist())
         rv = model.get("rv", np.nan)
         label = f"IC {component}"
         if _is_scalar(rv) and np.isfinite(float(rv)):
             label += f" (RV {float(rv) * 100:.1f}%)"
+        located.append(positions)
         artists: list[Any] = [
             axis.scatter(positions[:, 0], positions[:, 1], positions[:, 2], s=55, label=label),
             axis.quiver(
@@ -208,7 +213,7 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
                 linewidth=1.4,
             ),
         ]
-        for row in positions[:, :3]:
+        for row in positions:
             artists.append(axis.text(row[0], row[1], row[2], str(component), fontsize=9))
             if _option_on(options.get("projlines")):
                 artists.extend(
@@ -225,19 +230,28 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
     if components:
         axis.legend(loc="best")
     if slice_axes:
-        _plot_mri_slices(slice_axes, np.asarray(all_positions, dtype=float), options)
         setattr(fig, "eegprep_mri", "avg152t1")
     fig.tight_layout()
-    _add_dipole_navigation(fig, groups, models, components)
+    _add_dipole_navigation(fig, groups, models, components, slice_axes, located, options)
     return fig
 
 
-def _add_dipole_navigation(fig, groups, models, components) -> None:
+def _display_dipole(positions, moments, coordformat):
+    if str(coordformat).lower() != "spherical":
+        return positions, moments
+    matrix = sph2spm()
+    ones = np.ones((positions.shape[0], 1))
+    transformed = np.hstack((positions, ones)) @ matrix.T
+    moved = np.hstack((positions + moments, ones)) @ matrix.T
+    return transformed[:, :3], moved[:, :3] - transformed[:, :3]
+
+
+def _add_dipole_navigation(fig, groups, models, components, slice_axes, located, options) -> None:
     from matplotlib.widgets import Button
 
     if not groups:
         return
-    state = {"index": 0, "single": False}
+    state = {"index": 0, "single": False, "slice_artists": []}
     area = fig.text(0.02, 0.62, "", fontsize=8)
     fig.subplots_adjust(left=0.18)
 
@@ -247,7 +261,12 @@ def _add_dipole_navigation(fig, groups, models, components) -> None:
             for artist in artists:
                 artist.set_visible(visible)
         model = models[components[state["index"]] - 1]
-        area.set_text(str(model.get("areadk") or ""))
+        label = str(model.get("areadk") or "").strip()
+        area.set_text(f"Comp: {components[state['index']]} {label}".strip())
+        if slice_axes:
+            for artist in state["slice_artists"]:
+                artist.remove()
+            state["slice_artists"] = _plot_mri_slices(slice_axes, located[state["index"]], options)
         fig.canvas.draw_idle()
 
     def plot_one(_event=None) -> None:
@@ -341,28 +360,35 @@ def _model_moments(model: dict[str, Any], count: int, options: dict[str, Any]) -
     return moments
 
 
-def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, Any]) -> None:
+def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, Any]) -> list[Any]:
     _validate_mri_option(options.get("mri", ""))
     volume = load_standard_mri_volume()
+    artists: list[Any] = []
     for axis, mri_slice, title in zip(
         axes,
         dipfit_mri_slices(volume, positions),
         ("Sagittal", "Coronal", "Axial"),
         strict=True,
     ):
-        axis.imshow(mri_slice["image"], cmap="gray", origin="lower", extent=mri_slice["extent"])
-        axis.scatter(
-            positions[:, mri_slice["x_axis"]],
-            positions[:, mri_slice["y_axis"]],
-            s=35,
-            c="tab:red",
-            edgecolors="white",
-            linewidths=0.5,
+        artists.append(axis.imshow(mri_slice["image"], cmap="gray", origin="lower", extent=mri_slice["extent"]))
+        artists.append(
+            axis.scatter(
+                positions[:, mri_slice["x_axis"]],
+                positions[:, mri_slice["y_axis"]],
+                s=35,
+                c="tab:red",
+                edgecolors="white",
+                linewidths=0.5,
+            )
         )
         if _option_on(options.get("projlines")):
             for row in positions:
-                axis.axvline(row[mri_slice["x_axis"]], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
-                axis.axhline(row[mri_slice["y_axis"]], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
+                artists.append(
+                    axis.axvline(row[mri_slice["x_axis"]], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
+                )
+                artists.append(
+                    axis.axhline(row[mri_slice["y_axis"]], color="tab:red", linestyle=":", linewidth=0.6, alpha=0.5)
+                )
         if _option_on(options.get("drawedges")):
             for spine in axis.spines.values():
                 spine.set_color("white")
@@ -370,6 +396,7 @@ def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, 
         axis.set_title(title)
         axis.set_xlabel(("X", "Y", "Z")[mri_slice["x_axis"]])
         axis.set_ylabel(("X", "Y", "Z")[mri_slice["y_axis"]])
+    return artists
 
 
 _PACKAGED_MRI_MARKERS = ("standard_mri", "standard_bem", "standard_besa")

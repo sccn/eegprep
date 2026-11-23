@@ -206,31 +206,9 @@ def _component_count_or_one(EEG: dict[str, Any]) -> int:
     return max(component_count(EEG), 1)
 
 
-def apply_nonlinear_dialog_action(widgets: dict[str, Any], params: dict[str, Any]) -> None:
-    """Run one manual-fit dialog button and write the result back into the fields."""
-    action = str(params.get("action", ""))
-    if action in {"flip1", "flip2"}:
-        tag = "dip1mom" if action == "flip1" else "dip2mom"
-        flipped = -numeric_vector(widgets[tag].text(), dtype=float)
-        widgets[tag].setText(" ".join(format(float(value), ".17g") for value in flipped))
-        return
-    eeg = params.get("eeg")
-    if not isinstance(eeg, dict):
-        return
-    component_text = widgets["component"].text()
-    component_index = int(float(component_text or 1))
-    if action == "plotmap":
-        from eegprep.functions.popfunc.pop_prop import pop_prop
-
-        pop_prop(eeg, 0, component_index)
-        return
-    if action == "plotdip":
-        from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
-
-        pop_dipplot(eeg, [component_index], gui=False)
-        return
-    result = {
-        "component": component_text,
+def _nonlinear_widget_result(widgets: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "component": widgets["component"].text(),
         "dip1sel": bool(widgets["dip1sel"].isChecked()),
         "dip2sel": bool(widgets["dip2sel"].isChecked()),
         "dip1pos": widgets["dip1pos"].text(),
@@ -239,6 +217,33 @@ def apply_nonlinear_dialog_action(widgets: dict[str, Any], params: dict[str, Any
         "dip2mom": widgets["dip2mom"].text(),
         "dip2sym": bool(widgets["dip2sym"].isChecked()),
     }
+
+
+def apply_nonlinear_dialog_action(widgets: dict[str, Any], params: dict[str, Any]) -> None:
+    """Run one manual-fit dialog button and write the result back into the fields."""
+    action = str(params.get("action", ""))
+    if action in {"flip1", "flip2"}:
+        tag = "dip1mom" if action == "flip1" else "dip2mom"
+        flipped = -numeric_vector(widgets[tag].text(), dtype=float)
+        widgets[tag].setText(" ".join(format(float(value), "g") for value in flipped))
+        return
+    eeg = params.get("eeg")
+    if not isinstance(eeg, dict):
+        return
+    component_text = widgets["component"].text()
+    component_index = int(float(component_text or 1))
+    if action == "plotmap":
+        from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+
+        pop_topoplot(eeg, 0, component_index, "Component map", [1, 1], 1)
+        return
+    if action == "plotdip":
+        from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+
+        working, component = _apply_nonlinear_gui_model(copy_eeg(eeg), _nonlinear_widget_result(widgets))
+        pop_dipplot(working, [component], gui=False)
+        return
+    result = _nonlinear_widget_result(widgets)
     symmetry = None
     if result["dip2sel"] and result["dip2sym"]:
         symmetry = "x" if str(dipfit_record(eeg).get("coordformat", "")).lower() == "mni" else "y"

@@ -379,6 +379,17 @@ class QtDialogRenderer:
             source = widgets[params["source"]]
             target = widgets[params["target"]]
             source.editingFinished.connect(lambda: self._mirror_text(source, target))
+        elif callback.name == "set_algorithm_options":
+            source = widgets.get("icatype")
+            target = widgets.get(params["target"])
+            choices = tuple(params.get("options", ()))
+
+            def apply_options(index, target=target, choices=choices):
+                if target is not None and _is_text_widget(target) and 0 <= int(index) < len(choices):
+                    target.setText(str(choices[int(index)]))
+
+            if source is not None and _qt_isinstance(source, "QListWidget"):
+                source.currentRowChanged.connect(apply_options)
         elif callback.name == "select_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -1543,7 +1554,7 @@ def _dipfit_coregister(button: Any, widgets: dict[str, Any], params: Mapping[str
         return
     if not fitted:
         return
-    widgets[params["target"]].setText(" ".join(format(float(value), ".17g") for value in fitted))
+    widgets[params["target"]].setText(" ".join(format(float(value), ".4g") for value in fitted))
     no_coreg = widgets.get(params.get("no_coreg", ""))
     if no_coreg is not None and _is_button(no_coreg):
         no_coreg.setChecked(False)
