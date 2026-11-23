@@ -486,12 +486,11 @@ Unreleased
   ``pop_select``'s 0-based indices (#543). Duplicate-channel draws use the
   cropped channel count. Python out-of-range errors name ``pop_select``, the
   invalid indices, ``nbchan``, and the valid Python and EEGLAB/GUI ranges.
-- Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
-  with ``return_study`` on, so the console rebuilds the same study.
-  ``pop_importbids.m`` always returns ``STUDY`` and ``ALLEEG``. The direct
-  call still returns the datasets unless ``return_study=True``. The history
-  also keeps the dialog's ``recordings`` selection, along with task, session,
-  run, and subject.
+- A folder import returns ``STUDY`` and ``ALLEEG`` and records
+  ``[STUDY ALLEEG] = pop_importbids(...)``. It does not pass ``return_study``,
+  which EEGLAB rejects. A single file still returns that dataset. The history also
+  keeps the dialog's ``recordings`` selection, along with task, session, run,
+  and subject.
 - ``pop_importbids(..., subjects=[1, 2])`` uses the same 1-based participant
   indices as the import dialog (``pop_importbids.m`` lines 163 and 281).
   Replaying the recorded ``'subjects', [1 2]`` command selects those
@@ -647,9 +646,9 @@ Unreleased
 - Importing a BIDS dataset replaces a missing ``chaninfo.plotrad`` or
   ``chaninfo.shrink`` with an empty array, so File > Save no longer fails while
   ``savemat`` is writing those fields. The import dialog matches
-  ``pop_importbids.m`` lines 104-164 and loads an in-memory study. It does not
-  copy datasets into ``derivatives/eeglab`` (``pop_importbids.m`` lines 839 and
-  892 do).
+  ``pop_importbids.m`` lines 104-164, copies each dataset into
+  ``derivatives/eeglab``, and returns the in-memory study with those datasets
+  (``pop_importbids.m`` lines 839 and 892).
 - ``pop_writeeeg`` keeps every EDF and BDF sample and every event annotation.
   EEGLAB ``writeeeg.m`` line 139 shortens a block longer than 1000 samples to
   one second (``round(srate)`` samples per record). Biosig then pads the file
