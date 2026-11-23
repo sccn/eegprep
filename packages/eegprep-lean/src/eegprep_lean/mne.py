@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from .channels import MISSING_CHANNEL_TYPE, _channel_type
+from .channels import _stored_channel_type
 from .eeg import microvolts_per, require_physical
 from .extras import is_missing_extra, missing_extra_error
 from .window import Window
@@ -29,8 +29,9 @@ def to_mne_raw(window: Window, *, ch_types: str | Sequence[str] | None = None) -
     ``misc`` and ``STIM`` is ``stim``. A declared type outside that set
     (``TRIG``, ``EKG``, ``HEOG``) becomes ``misc``, so a later EEG pick leaves it out.
     MNE's EEGLAB reader instead warns and marks that channel as EEG. A blank type,
-    ``n/a`` or ``nan`` is ``eeg``, the same stand-in a missing ``channel_type`` gets, and
-    so is a window that carries no types at all.
+    ``n/a`` or ``nan`` is ``eeg``. That is the one place an untyped channel is treated as
+    EEG: the dataset keeps ``''``, and EEGLAB only counts such a channel as EEG. A window
+    that carries no types at all is ``eeg`` for the same reason.
 
     ``ch_types`` overrides that: one MNE type for every channel, or one per channel. A
     value outside that set, or the wrong count, raises ``ValueError``.
@@ -65,7 +66,7 @@ def _mne_channel_types(
     if ch_types is not None:
         return _explicit_mne_types(ch_types, n_channels, accepted)
     if window.types is None:
-        return MISSING_CHANNEL_TYPE.lower()
+        return "eeg"
     if len(window.types) != n_channels:
         raise ValueError(
             f"to_mne_raw found {len(window.types)} entries in Window.types for {n_channels} channels. "
@@ -108,7 +109,10 @@ def _mne_channel_type(channel_type: object, accepted: frozenset[str]) -> str:
             f"to_mne_raw found channel type {channel_type!r}, which is not text. "
             "Set each Window.types entry to a string such as 'EEG', 'EOG', or 'ECG'."
         )
-    candidate = _channel_type(channel_type).lower()
+    stored = _stored_channel_type(channel_type)
+    if not stored:
+        return "eeg"
+    candidate = stored.lower()
     if candidate in accepted:
         return candidate
     return "misc"

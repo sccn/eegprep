@@ -77,7 +77,7 @@ class Window:
     types: tuple[str, ...] | None = None
     """The group's ``channel_type`` per row.
 
-    A channel that declares none is ``EEG``. None only on a window that was not read
+    A channel that declares none is ``''``. None only on a window that was not read
     from a group.
     """
 

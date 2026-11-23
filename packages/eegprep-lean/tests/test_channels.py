@@ -117,11 +117,13 @@ class TestLabelsAndUnits:
         assert mixed.unit((0, 1)) is None
         assert mixed.unit((0,)) == "uV"
 
-    @pytest.mark.parametrize("missing", [{}, {"channel_type": ""}, {"channel_type": "  "}, {"channel_type": "n/a"}])
+    @pytest.mark.parametrize(
+        "missing",
+        [{}, {"channel_type": ""}, {"channel_type": "  "}, {"channel_type": "n/a"}, {"channel_type": "nan"}],
+    )
     def test_a_channel_with_no_type_does_not_drop_the_others(self, missing: dict) -> None:
-        """A group that types the ECG and not its neighbor used to return no types at all,
-        so the ECG was selected with the EEG. The untyped channel is EEG, which is what
-        EEGLAB counts an empty or ``n/a`` type as."""
+        """A group that types the ECG and not its neighbor used to return no types at all.
+        The untyped channel stays ``''``, which is the empty ``chanlocs.type`` EEGLAB keeps."""
         metadata = GroupMetadata.from_attributes(
             {
                 "modality": "EEG",
@@ -134,8 +136,8 @@ class TestLabelsAndUnits:
             name=GROUP_NAME,
         )
 
-        assert metadata.types((0, 1, 2)) == ("EEG", "EEG", "ECG")
-        assert metadata.types((2, 999)) == ("ECG", "EEG")
+        assert metadata.types((0, 1, 2)) == ("EEG", "", "ECG")
+        assert metadata.types((2, 999)) == ("ECG", "")
 
 
 @pytest.mark.network

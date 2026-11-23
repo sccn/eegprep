@@ -77,6 +77,11 @@ class TestWithMne:
 
         assert to_mne_raw(typed).get_channel_types() == ["eeg", "eog", "ecg"]
 
+    def test_an_empty_type_is_eeg_only_in_mne(self) -> None:
+        typed = dataclasses.replace(window(), types=("", "n/a", "ECG"))
+
+        assert to_mne_raw(typed).get_channel_types() == ["eeg", "eeg", "ecg"]
+
     def test_emg_misc_stim_and_an_unknown_type(self) -> None:
         typed = dataclasses.replace(
             window(

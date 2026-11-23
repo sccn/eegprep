@@ -198,7 +198,7 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
         )
 
     # One channel of this group declares no channel_type. The typed neighbors, including
-    # the ECG, still have to come back typed; dropping every type is what let ICA see the ECG.
+    # the ECG, still have to come back typed; the hole stays an empty type.
     mixed_channels = [
         {"label": "E1", "unit": UNIT, "channel_type": "EEG", "row_index": 0},
         {"label": "E2", "unit": UNIT, "row_index": 1},
@@ -387,15 +387,15 @@ class TestChannelSelection:
 
     def test_a_channel_with_no_type_does_not_drop_the_typed_ones(self, served) -> None:
         """The middle channel of this Zarr group has no ``channel_type``. Its neighbors
-        keep theirs, and the hole is EEG, the same fallback an untyped channel gets."""
+        keep theirs, and the hole stays ``''`` rather than being rewritten to ``EEG``."""
         index, _, _ = served
         store = index.store(MIXED_STORE_PATH)
 
         window = read(index, store, start_sample=0, n_samples=2)
 
-        assert window.types == ("EEG", "EEG", "ECG")
+        assert window.types == ("EEG", "", "ECG")
         eeg = to_eeg(window, dataset_id="xx099999", store=MIXED_STORE_PATH, index_digest="0" * 64)
-        assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "EEG", "ECG"]
+        assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "", "ECG"]
 
     def test_a_slice_selects_channels_too(self, served) -> None:
         """`channels` takes a sequence, a slice, or None. The slice branch was reachable

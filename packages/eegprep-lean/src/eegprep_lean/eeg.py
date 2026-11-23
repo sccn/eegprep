@@ -16,7 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from . import __version__
-from .channels import _channel_type
+from .channels import _stored_channel_type
 from .locations import NOSE_DIRECTION, chanlocs_from_electrodes
 from .window import Window
 
@@ -129,9 +129,12 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
     labels alone and there is no such record.
 
     When ``window.types`` is set, each ``chanlocs`` entry gets that channel's type. A
-    blank, ``n/a`` or ``nan`` entry is ``EEG``. A type the window does carry is written
-    unchanged, so ``pop_select(EEG, chantype=["EEG"])`` leaves out an ECG or EOG channel
-    stored in the EEG group. A window with ``types`` left unset has no ``type`` field.
+    blank, ``n/a`` or ``nan`` entry is ``''``, which is the empty ``chanlocs.type``
+    EEGLAB keeps for an untyped channel. A type the window does carry is written as
+    given, so ``pop_select(EEG, chantype=["EEG"])`` leaves out an ECG or EOG channel
+    stored in the EEG group, and leaves out a channel whose type is still empty. A
+    window with ``types`` left unset has no ``type`` field. Counting an empty type as
+    EEG is not done here.
     """
     labels = require_physical(window)
     factor = microvolts_per(window.unit)
@@ -155,7 +158,7 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
             chaninfo["nosedir"] = NOSE_DIRECTION
     if window.types is not None:
         for chanloc, channel_type in zip(chanlocs, window.types, strict=True):
-            chanloc["type"] = _channel_type(channel_type)
+            chanloc["type"] = _stored_channel_type(channel_type)
 
     eeg = _emptyset()
     eeg.update(

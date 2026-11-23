@@ -28,27 +28,25 @@ from .index import ChannelGroup, DatasetIndex, IndexError_, Store
 from .transport import Transport, default_transport
 
 
-#: What a channel is when the group names no type for it. EEGLAB counts an empty type,
-#: and the ``n/a`` BIDS writes for that empty cell, with the EEG channels
-#: (``eeg_getchantype``). It does not invent a type from the label. MNE's EEGLAB reader
-#: defaults a missing ``chanlocs.type`` to ``eeg``. ``to_mne_raw`` uses the same stand-in
-#: when a window carries no types at all.
-MISSING_CHANNEL_TYPE = "EEG"
-
-#: Spellings of "this channel was not typed", as opposed to a type the group did declare.
-#: ``n/a`` is the BIDS missing value; ``nan`` is the other token EEGLAB treats as unset.
+#: Spellings of a channel the group did not type. ``n/a`` is the BIDS missing value;
+#: ``nan`` is the other token EEGLAB treats as unset. Stored as ``''``, which is what
+#: EEGLAB keeps in ``chanlocs.type``. EEGLAB counts an empty type as EEG only where it
+#: counts channels. This package does that stand-in in :func:`eegprep_lean.to_mne_raw`
+#: and nowhere else: writing ``EEG`` into the field would make a missing type look like
+#: one the group declared.
 _UNTYPED = frozenset({"", "n/a", "nan"})
 
 
-def _channel_type(channel_type: str) -> str:
-    """The declared type, or :data:`MISSING_CHANNEL_TYPE` when the group gave none.
+def _stored_channel_type(channel_type: str) -> str:
+    """The type to store. Blank, ``n/a`` and ``nan`` are ``''``.
 
-    A type outside the BIDS list is kept as declared. EEGLAB's channel-file writer would
-    rewrite that to ``MISC`` on the way out; what the store said is what ``chanlocs`` gets.
+    A type the group did declare is kept, with surrounding whitespace removed. EEGLAB
+    leaves ``chanlocs.type`` empty for an untyped channel and only treats that channel
+    as EEG where it counts channels.
     """
     text = channel_type.strip()
     if text.lower() in _UNTYPED:
-        return MISSING_CHANNEL_TYPE
+        return ""
     return text
 
 
@@ -104,14 +102,15 @@ class GroupMetadata:
         return labels if all(labels) else None
 
     def types(self, rows: tuple[int, ...]) -> tuple[str, ...]:
-        """Channel type for each row.
+        """Channel type for each row, as stored.
 
-        A row whose ``channel_type`` is missing, blank, ``n/a`` or ``nan`` is
-        :data:`MISSING_CHANNEL_TYPE`. The rows that do declare one keep it, so a single
-        untyped channel does not drop the ECG stored beside it.
+        A row whose ``channel_type`` is missing, blank, ``n/a`` or ``nan`` is ``''``.
+        The rows that do declare one keep it, so a single untyped channel does not drop
+        the ECG stored beside it. ``''`` is not rewritten to ``EEG``: EEGLAB keeps an
+        untyped ``chanlocs.type`` empty and only counts that channel as EEG.
         """
         by_row = {channel.row_index: channel.channel_type for channel in self.channels}
-        return tuple(_channel_type(by_row.get(row, "")) for row in rows)
+        return tuple(_stored_channel_type(by_row.get(row, "")) for row in rows)
 
     def unit(self, rows: tuple[int, ...]) -> str | None:
         """The unit these rows share, or None when they do not share one.
