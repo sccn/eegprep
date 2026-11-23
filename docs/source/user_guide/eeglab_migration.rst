@@ -581,6 +581,17 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_editset`` evaluates it. EEGPrep has no caller workspace.
        ``test_reference_importevent_original_named_workspace_variables``
        passes the same arrays and checks the latencies ``1`` and ``50``.
+   * - ``topoplot`` ``plotchans``
+     - 0-based indices from ``0`` through ``len(chan_locs) - 1``. Empty
+       draws every channel that has ``theta``. EEGLAB ``topoplot.m`` lines
+       605-608 and 703-716 take 1-based indices and intersect them with the
+       located channels. A value outside that range raises ``ValueError``
+       naming ``topoplot`` and the valid range.
+   * - ``topoplot`` common reference
+     - When there is one more channel location than value, and the last
+       location is selected, that location is dropped. ``topoplot.m`` lines
+       749-753 do the same. NaN and Inf values are removed from the
+       locations and the values together (lines 760-779).
    * - Empty ``topoplot`` locations
      - An interpolated ``topoplot`` raises ``ValueError`` when channel
        locations are ``None`` or empty. The message names ``topoplot`` and

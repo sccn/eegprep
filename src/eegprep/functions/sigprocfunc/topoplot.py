@@ -1,5 +1,7 @@
 """EEG topographic plotting functions."""
 
+import warnings
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
@@ -25,28 +27,21 @@ def griddata_v4(x, y, v, xq, yq):
     vq : 2D array
         Interpolated values at query points.
     """
-    # MATLAB griddata averages values at coincident points before calling gdatav4;
-    # otherwise 0*log(0) puts NaN off the diagonal and solve returns NaN weights.
-    xy, inverse = np.unique(x + 1j * y, return_inverse=True)
-    v = np.bincount(inverse, weights=v) / np.bincount(inverse)
+    x, y, v, merged_count = _merge_coincident_points(x, y, v)
+    if merged_count:
+        warnings.warn(
+            f"topoplot griddata_v4 merged {merged_count} coincident points by averaging their coordinates and values.",
+            UserWarning,
+            stacklevel=2,
+        )
 
-    d =np.abs(xy[:, None] - xy[None, :])
+    xy = x + 1j * y
+    d = np.abs(xy[:, None] - xy[None, :])
 
     with np.errstate(divide='ignore', invalid='ignore'):
         g = (d**2) * (np.log(d) - 1)  # Green's function
     np.fill_diagonal(g, 0)  # Fix value along diagonal
-
-    # Add Tikhonov regularization to handle ill-conditioned matrices
-    # This prevents numerical issues when electrodes are very close together
-    n = len(v)
-    regularization = 1e-8 * np.trace(g) / n * np.eye(n)
-    g_reg = g + regularization
-
-    try:
-        weights = np.linalg.solve(g_reg, v)
-    except np.linalg.LinAlgError:
-        # If still singular, use pseudoinverse as last resort
-        weights = np.linalg.pinv(g_reg) @ v
+    weights = np.linalg.solve(g, v)
 
     # Evaluate at requested points (vectorized)
     # q is (M, N), xy is (L,) -> d_q is (M, N, L)
@@ -64,6 +59,75 @@ def griddata_v4(x, y, v, xq, yq):
         vq = g_q @ weights
 
     return vq
+
+
+def _merge_coincident_points(x, y, v):
+    """Average locations MATLAB ``griddata`` merges before ``gdatav4``.
+
+    ``mergepoints2D`` calls ``mergesimpts([y, x, v], [tol_y, tol_x, Inf],
+    'average')`` with ``tol = spacing(0.5 * (max - min)) ** (1/3)``. Rows
+    are sorted by ``(y, x, v)``. Each unclaimed row is an anchor, and every
+    unclaimed row within tolerance of that anchor on both axes joins it.
+    The group is replaced by the mean of its coordinates and values. A
+    chain does not merge by neighbor transitivity: ``C`` stays separate
+    when it is outside tolerance of anchor ``A``, even if it is within
+    tolerance of ``B``. A row that sorts between ``A`` and ``D`` does not
+    keep ``D`` out when ``D`` is within tolerance of ``A``.
+    """
+    x = np.asarray(x, dtype=float).reshape(-1)
+    y = np.asarray(y, dtype=float).reshape(-1)
+    v = np.asarray(v, dtype=float).reshape(-1)
+    tol_x = float(np.spacing(0.5 * (np.max(x) - np.min(x))) ** (1.0 / 3.0))
+    tol_y = float(np.spacing(0.5 * (np.max(y) - np.min(y))) ** (1.0 / 3.0))
+    order = np.lexsort((v, x, y))
+    y_sorted = y[order]
+    x_sorted = x[order]
+    v_sorted = v[order]
+    claimed = np.zeros(x.size, dtype=bool)
+    merged_x = []
+    merged_y = []
+    merged_v = []
+    merged_count = 0
+    for index in range(x.size):
+        if claimed[index]:
+            continue
+        close = (np.abs(y_sorted - y_sorted[index]) <= tol_y) & (np.abs(x_sorted - x_sorted[index]) <= tol_x)
+        close &= ~claimed
+        close[index] = True
+        claimed[close] = True
+        group_size = int(np.count_nonzero(close))
+        if group_size > 1:
+            merged_count += group_size
+        merged_x.append(float(np.mean(x_sorted[close])))
+        merged_y.append(float(np.mean(y_sorted[close])))
+        merged_v.append(float(np.mean(v_sorted[close])))
+    return np.asarray(merged_x), np.asarray(merged_y), np.asarray(merged_v), merged_count
+
+
+def _plot_channel_indices(plotchans, located, n_channels):
+    """Return sorted 0-based channels to draw.
+
+    Empty ``plotchans`` means every located channel. Otherwise the values
+    must be integers in ``0 .. n_channels - 1`` and are intersected with the
+    located channels, matching ``topoplot.m`` lines 703-716.
+    """
+    located = np.asarray(located, dtype=int)
+    if plotchans is None or np.asarray(plotchans).size == 0:
+        return located
+    requested = np.asarray(plotchans, dtype=float).reshape(-1)
+    if not np.all(np.isfinite(requested)) or np.any(requested != np.trunc(requested)):
+        raise ValueError(
+            "topoplot: plotchans must be integer 0-based channel indices. "
+            f"Got {np.asarray(plotchans).reshape(-1).tolist()}. "
+            "Pass whole indices such as [0, 2, 5]."
+        )
+    requested = requested.astype(int)
+    if np.any(requested < 0) or np.any(requested >= n_channels):
+        raise ValueError(
+            f"topoplot: plotchans must be 0-based indices from 0 through {n_channels - 1}. "
+            f"Got {requested.tolist()}. Pass the channel indices to include, for example [0, 2]."
+        )
+    return np.intersect1d(requested, located)
 
 
 def _require_channel_locations(chan_locs) -> None:
@@ -90,7 +154,9 @@ def topoplot(datavector, chan_locs, **kwargs):
 
         - noplot : str or tuple, default 'off'
         - plotgrid : str, default 'off'
-        - plotchans : list, default []
+        - plotchans : sequence of int, default []
+          0-based channel indices to include. Empty draws every channel that
+          has ``theta``. EEGLAB's ``plotchans`` is 1-based.
         - ELECTRODES : str, default 'on'
         - intrad : float, default nan
         - plotrad : float, default nan
@@ -172,20 +238,18 @@ def topoplot(datavector, chan_locs, **kwargs):
     )
     Th = np.deg2rad(Th)
     allchansind = list(range(len(Th)))
-    plotchans = indices
-
-    if len(tmpeloc) == len(datavector) + 1:
-        if plotchans and plotchans[-1] == len(tmpeloc):
-            plotchans.pop()
-
+    # topoplot.m:703-781, with plotchans 0-based.
+    plotchans = _plot_channel_indices(plotchans, indices, len(tmpeloc))
+    if len(tmpeloc) == len(datavector) + 1 and plotchans.size and int(plotchans[-1]) == len(tmpeloc) - 1:
+        plotchans = plotchans[:-1]
     if len(datavector) > 1:
-        inds = np.union1d(np.where(np.isnan(datavector))[0], np.where(np.isinf(datavector))[0])
-        plotchans = sorted(set(plotchans) - set(inds))
+        nonfinite = np.flatnonzero(~np.isfinite(datavector))
+        plotchans = np.setdiff1d(plotchans, nonfinite)
 
     x, y = np.cos(Th) * Rd, np.sin(Th) * Rd
     # Keep the original channel positions. Dropping a channel here would renumber
     # datavector[pltchans] and move later values onto the wrong electrodes.
-    if not plotchans or not np.any(np.isfinite(Th[plotchans]) & np.isfinite(Rd[plotchans])):
+    if plotchans.size == 0 or not np.any(np.isfinite(Th[plotchans]) & np.isfinite(Rd[plotchans])):
         raise ValueError(
             "topoplot: no channel has a finite theta and radius. "
             "Import channel locations with Edit > Channel locations before drawing a scalp map."

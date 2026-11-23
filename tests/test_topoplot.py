@@ -80,6 +80,83 @@ class TestGriddataV4(unittest.TestCase):
 
         np.testing.assert_allclose(actual, expected)
 
+    def test_near_duplicate_points_merge_to_the_averaged_sensor(self):
+        x, y, values, xq, yq = _circle_samples()
+        for offset in (1e-9, 1e-7):
+            with self.subTest(offset=offset):
+                expected = _averaged_duplicate_map(x, y, values, xq, yq, offset)
+                with self.assertWarns(UserWarning) as caught:
+                    actual = griddata_v4(
+                        np.append(x, x[0] + offset),
+                        np.append(y, y[0]),
+                        np.append(values, 3.0),
+                        xq,
+                        yq,
+                    )
+                self.assertIn("topoplot griddata_v4 merged 2", str(caught.warning))
+                np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=1e-12)
+
+    def test_points_one_millimeter_apart_on_the_unit_circle_stay_separate(self):
+        x, y, values, xq, yq = _circle_samples()
+        offset = 1e-3
+        collapsed = _averaged_duplicate_map(x, y, values, xq, yq, offset)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", UserWarning)
+            actual = griddata_v4(
+                np.append(x, x[0] + offset),
+                np.append(y, y[0]),
+                np.append(values, 3.0),
+                xq,
+                yq,
+            )
+        self.assertFalse(any("griddata_v4" in str(item.message) for item in caught))
+        self.assertFalse(np.allclose(actual, collapsed, atol=1e-8, rtol=1e-6))
+
+    def test_chain_merges_only_points_within_tolerance_of_the_anchor(self):
+        # Corners fix the axis span so the tolerance stays near 6e-6. A chain
+        # A-B-C with each step inside that tolerance still leaves C out when C
+        # is outside tolerance of A. A point that sorts between A and D does
+        # not stop D joining A when D itself is within tolerance of A.
+        corners = np.array([[-1.0, -1.0, -1.0], [1.0, -1.0, 0.0], [-1.0, 1.0, 0.5], [1.0, 1.0, 1.0]])
+        query = np.linspace(-1, 1, 11)
+        xq, yq = np.meshgrid(query, query)
+        chains = {
+            "stops_at_anchor": (
+                np.array([[0.0, 0.0, 1.0], [4e-6, 0.0, 3.0], [9e-6, 0.0, 7.0]]),
+                np.array([[2e-6, 0.0, 2.0], [9e-6, 0.0, 7.0]]),
+            ),
+            "keeps_point_past_an_outlier": (
+                np.array([[0.0, 0.0, 1.0], [0.5, 1e-6, 10.0], [1e-6, 2e-6, 3.0]]),
+                np.array([[5e-7, 1e-6, 2.0], [0.5, 1e-6, 10.0]]),
+            ),
+        }
+        for name, (cluster, merged_cluster) in chains.items():
+            with self.subTest(chain=name):
+                points = np.vstack((corners, cluster))
+                merged = np.vstack((corners, merged_cluster))
+                with self.assertWarns(UserWarning) as caught:
+                    actual = griddata_v4(points[:, 0], points[:, 1], points[:, 2], xq, yq)
+                self.assertIn("topoplot griddata_v4 merged 2", str(caught.warning))
+                expected = griddata_v4(merged[:, 0], merged[:, 1], merged[:, 2], xq, yq)
+                np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=1e-12)
+
+
+def _circle_samples():
+    theta = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+    x, y = np.cos(theta), np.sin(theta)
+    values = np.linspace(-1, 1, 8)
+    query = np.linspace(-1, 1, 11)
+    xq, yq = np.meshgrid(query, query)
+    return x, y, values, xq, yq
+
+
+def _averaged_duplicate_map(x, y, values, xq, yq, offset):
+    merged_x = x.copy()
+    merged_values = values.copy()
+    merged_x[0] = x[0] + offset / 2
+    merged_values[0] = 0.5 * (values[0] + 3.0)
+    return griddata_v4(merged_x, y, merged_values, xq, yq)
+
 
 class TestTopoplot(unittest.TestCase):
     """Test the topoplot function."""
@@ -131,6 +208,46 @@ class TestTopoplot(unittest.TestCase):
         _, expected, _, _, _ = topoplot(data[keep], [self.chan_locs[i] for i in keep], noplot='on')
 
         np.testing.assert_allclose(actual, expected, equal_nan=True)
+
+    def test_nonfinite_value_at_either_end_or_the_middle_matches_dropping_that_channel(self):
+        for bad in (np.nan, np.inf, -np.inf):
+            for index in (0, len(self.datavector) // 2, len(self.datavector) - 1):
+                with self.subTest(bad=bad, index=index):
+                    data = self.datavector.copy()
+                    data[index] = bad
+                    keep = [i for i in range(len(data)) if i != index]
+                    _, actual, _, _, _ = topoplot(data, self.chan_locs, noplot="on")
+                    _, expected, _, _, _ = topoplot(data[keep], [self.chan_locs[i] for i in keep], noplot="on")
+                    np.testing.assert_allclose(actual, expected, equal_nan=True)
+
+    def test_one_extra_channel_location_drops_the_common_reference(self):
+        locs = [
+            {"labels": f"E{index}", "theta": index * (360.0 / 16.0), "radius": 0.4 if index else 0.0}
+            for index in range(16)
+        ]
+        locs.append({"labels": "Ref", "theta": 10.0, "radius": 0.2})
+        data = np.linspace(-1.0, 1.0, 16)
+        _, actual, _, _, _ = topoplot(data, locs, noplot="on")
+        _, expected, _, _, _ = topoplot(data, locs[:-1], noplot="on")
+        np.testing.assert_allclose(actual, expected, equal_nan=True)
+
+    def test_plotchans_keeps_the_requested_channels(self):
+        keep = [0, 5, 8]
+        _, actual, _, _, _ = topoplot(self.datavector, self.chan_locs, noplot="on", plotchans=keep)
+        _, expected, _, _, _ = topoplot(
+            self.datavector[keep],
+            [self.chan_locs[index] for index in keep],
+            noplot="on",
+        )
+        np.testing.assert_allclose(actual, expected, equal_nan=True)
+
+    def test_plotchans_outside_the_channel_list_names_the_fix(self):
+        message = (
+            r"topoplot: plotchans must be 0-based indices from 0 through 8\. "
+            r"Got \[0, 99\]\. Pass the channel indices to include, for example \[0, 2\]\."
+        )
+        with self.assertRaisesRegex(ValueError, message):
+            topoplot(self.datavector, self.chan_locs, noplot="on", plotchans=[0, 99])
 
     def test_missing_or_empty_channel_locations_name_the_problem(self):
         message = (
@@ -366,6 +483,80 @@ class TestTopoplotParity(unittest.TestCase):
         np.testing.assert_allclose(
             Zi_py, Zi_ml, rtol=1e-5, atol=1e-8, err_msg="topoplot Zi results differ for gridscale=32", equal_nan=True
         )
+
+
+def _matlab_chanlocs(locations):
+    # readlocs keeps a channel only when both theta and X are non-empty.
+    records = np.zeros(
+        len(locations),
+        dtype=[
+            ("labels", "U16"),
+            ("theta", float),
+            ("radius", float),
+            ("X", float),
+            ("Y", float),
+            ("Z", float),
+        ],
+    )
+    for index, location in enumerate(locations):
+        theta = np.deg2rad(location["theta"])
+        radius = float(location["radius"])
+        records[index] = (
+            location["labels"],
+            location["theta"],
+            radius,
+            np.cos(theta) * radius,
+            np.sin(theta) * radius,
+            0.0,
+        )
+    return records
+
+
+@pytest.mark.matlab_oracle
+@pytest.mark.parity
+def test_reference_near_duplicate_and_nan_channel(eeglab_backend):
+    """Compare near-duplicate and NaN maps with MATLAB topoplot under the existing Zi tolerance."""
+    theta = np.linspace(0, 360, 8, endpoint=False)
+    locations = [
+        {"labels": f"E{index}", "theta": float(angle), "radius": 0.4 if index else 0.0}
+        for index, angle in enumerate(theta)
+    ]
+    values = np.linspace(-1.0, 1.0, len(locations))
+    near = [dict(location) for location in locations]
+    near.append({"labels": "Dup", "theta": locations[1]["theta"], "radius": locations[1]["radius"] + 1e-9})
+    near_values = np.append(values, 3.0)
+    missing = values.copy()
+    missing[0] = np.nan
+
+    def _zi(data, locs):
+        _handle, zi, _plotrad, _xi, _yi = topoplot(data, locs, noplot="on", verbose="off")
+        return zi
+
+    def _matlab_zi(data, locs):
+        outputs = eeglab_backend(
+            "topoplot",
+            np.asarray(data, dtype=float).reshape(-1, 1),
+            _matlab_chanlocs(locs),
+            noplot="on",
+            verbose="off",
+            nargout=5,
+        )
+        return np.asarray(outputs[1], dtype=float)
+
+    np.testing.assert_allclose(
+        _zi(near_values, near),
+        _matlab_zi(near_values, near),
+        rtol=1e-5,
+        atol=1e-8,
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(
+        _zi(missing, locations),
+        _matlab_zi(missing, locations),
+        rtol=1e-5,
+        atol=1e-8,
+        equal_nan=True,
+    )
 
 
 if __name__ == '__main__':

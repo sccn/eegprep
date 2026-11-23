@@ -16,6 +16,11 @@ Unreleased
   ``n_good_samples`` and ``n_rejected_samples``, counts only. With rejection
   on, ``returned_iter`` is the iterate the weights come from and ``best_iter``
   is omitted.
+- ``topoplot`` averages sensors that MATLAB ``griddata`` treats as the same
+  point, and ``plotchans`` selects 0-based channel indices. A non-finite
+  value drops that channel from the locations and the values together. One
+  extra channel location is the common reference and is left off the map.
+  (#670)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search
