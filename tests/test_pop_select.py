@@ -817,6 +817,21 @@ def test_tutorial_epoch_crop_matches_epoch_half_open_window():
     assert [len(epoch["event"]) for epoch in out["epoch"]] == [1, 2, 1, 2, 2]
 
 
+def test_epoched_point_range_keeps_the_event_on_the_last_sample():
+    eeg = create_test_eeg(n_channels=1, n_samples=128, n_trials=2, srate=128.0)
+    eeg["xmin"] = -0.5
+    eeg["xmax"] = -0.5 + 127 / 128
+    eeg["event"] = [
+        {"type": "end", "latency": 64.0, "epoch": 1},
+        {"type": "past", "latency": 65.0, "epoch": 1},
+    ]
+
+    out = pop_select(eeg, point=[1, 64])
+
+    assert out["pnts"] == 64
+    assert [event["type"] for event in out["event"]] == ["end"]
+
+
 def test_time_range_outside_the_data_raises_and_keeps_the_dataset():
     eeg = create_test_eeg(n_channels=1, n_samples=20, srate=100.0)
     original = eeg["data"].copy()

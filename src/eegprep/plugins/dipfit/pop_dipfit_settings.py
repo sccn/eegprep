@@ -71,7 +71,10 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     coordformat = str(dipfit.get("coordformat") or template["coordformat"] or "MNI")
     coord_index = {"spherical": 1, "mni": 2}.get(coordformat.lower(), 4)
     stored_transform = dipfit.get("coord_transform")
-    template_states = [_dialog_template_state(EEG, item) for item in STANDARD_TEMPLATES]
+    template_states = [
+        _dialog_template_state(EEG, item, warp=index == selected_model)
+        for index, item in enumerate(STANDARD_TEMPLATES, start=1)
+    ]
     if stored_transform:
         coreg_text = " ".join(f"{float(value):g}" for value in numeric_vector(stored_transform, dtype=float))
         no_coreg = False
@@ -228,7 +231,18 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
             if found:
                 dipfit["coord_transform"] = list(transform)
             else:
-                _matched, warped = resolved_coord_transform(out, template)
+                try:
+                    _matched, warped = resolved_coord_transform(out, template)
+                except (OSError, ValueError) as exc:
+                    raise ValueError(
+                        "pop_dipfit_settings: co-registration failed, so no transform was stored. "
+                        f"{exc}. Pass a 9-value coord_transform, or coord_transform=[] to skip co-registration."
+                    ) from exc
+                if not warped:
+                    raise ValueError(
+                        "pop_dipfit_settings: no channel file is set, so the electrodes were not co-registered. "
+                        "Pass a 9-value coord_transform, or coord_transform=[] to skip co-registration."
+                    )
                 dipfit["coord_transform"] = warped
     for key in ("hdmfile", "mrifile", "chanfile", "coordformat"):
         value = options.get(key)
@@ -280,11 +294,22 @@ def _template_index(dipfit: dict[str, Any]) -> int:
     return 2
 
 
-def _dialog_template_state(EEG: dict[str, Any], template: dict[str, Any]) -> dict[str, Any]:
+def _dialog_template_state(EEG: dict[str, Any], template: dict[str, Any], *, warp: bool) -> dict[str, Any]:
     state = template_form_state(template)
-    matched, transform = resolved_coord_transform(EEG, template)
+    found, transform = lookupchantemplate(channel_template_filename(EEG), template)
+    if found:
+        state["coord_transform"] = " ".join(f"{float(value):g}" for value in transform)
+        state["no_coreg"] = not bool(transform)
+        return state
+    state["no_coreg"] = False
+    if not warp:
+        state["coord_transform"] = ""
+        return state
+    try:
+        transform = align_channels_to_template(EEG, str(template.get("chanfile") or ""))
+    except (OSError, ValueError):
+        transform = []
     state["coord_transform"] = " ".join(f"{float(value):g}" for value in transform)
-    state["no_coreg"] = bool(matched and not transform)
     return state
 
 

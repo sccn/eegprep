@@ -156,6 +156,18 @@ def test_sample_cap385_file_selects_mni_bem_and_its_coregistration():
     np.testing.assert_allclose([x_values[0], x_values[-1], z_values[0], z_values[-1]], [-85.0, 85.0, 0.0, 85.0])
 
 
+def test_unmatched_montage_without_enough_landmarks_names_the_fix():
+    eeg = create_test_eeg_with_ica(n_channels=2, n_samples=8, n_components=1)
+    eeg["chaninfo"] = {"filename": ""}
+
+    with pytest.raises(ValueError, match="pop_dipfit_settings: co-registration failed") as exc:
+        pop_dipfit_settings(eeg, model="standardBEM")
+
+    assert "coord_transform=[]" in str(exc.value)
+    spec = pop_dipfit_settings_dialog_spec(eeg)
+    assert spec.function_name == "pop_dipfit_settings"
+
+
 def test_missing_channel_filename_warps_the_montage_instead_of_using_the_identity_scale(caplog):
     eeg = pop_loadset(str(_SAMPLE))
     eeg["chaninfo"] = dict(eeg["chaninfo"])
@@ -335,6 +347,7 @@ def test_standard_besa_template_uses_the_four_shell_model(tmp_path):
     eeg = pop_dipfit_settings(
         create_test_eeg_with_ica(n_channels=4, n_samples=8, n_components=1),
         model="standardBESA",
+        coord_transform=[],
     )
     vol, sens = _prepare_eeg(eeg)
     assert vol is not None

@@ -135,7 +135,7 @@ def pop_dipplot_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="extra_options", value=""),
         ),
         known_differences=(
-            "EEGPrep draws the packaged MNI MRI slices with every localized dipole. A custom MRI file is refused; use the packaged standard MRI.",
+            "MRI slices are drawn for MNI coordinates only, using the packaged standard MRI. Spherical BESA dipoles stay in their own coordinates. A custom MRI file is refused.",
         ),
         row_spacing=4,
     )
@@ -168,7 +168,10 @@ def _validate_components_have_positions(models: list[dict[str, Any]], components
 
 
 def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components: list[int], options: dict[str, Any]):
-    use_mri = True
+    coordformat = str(dipfit_record(EEG).get("coordformat", ""))
+    # Spherical BESA positions are not in the packaged MNI volume. Drawing them on those slices
+    # would place the dipoles in the wrong head, and the BESA MRI path is not that volume.
+    use_mri = coordformat.lower() == "mni"
     if use_mri:
         fig = plt.figure(figsize=(11, 8))
         grid = fig.add_gridspec(2, 3, height_ratios=[1.1, 1.0])
@@ -211,7 +214,6 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
     axis.set_xlabel("X")
     axis.set_ylabel("Y")
     axis.set_zlabel("Z")
-    coordformat = dipfit_record(EEG).get("coordformat", "")
     axis.set_title(f"DIPFIT dipoles ({coordformat or 'unknown coordinates'})")
     _set_equal_3d_axes(axis, np.asarray(all_positions, dtype=float) if all_positions else np.zeros((1, 3)))
     if components:
@@ -310,13 +312,17 @@ def _plot_mri_slices(axes: list[Any], positions: np.ndarray, options: dict[str, 
         axis.set_ylabel(("X", "Y", "Z")[mri_slice["y_axis"]])
 
 
+_PACKAGED_MRI_MARKERS = ("standard_mri", "standard_bem", "standard_besa")
+
+
 def _validate_mri_option(value: Any) -> None:
-    text = str(value or "").strip()
-    if not text or "standard_mri" in text or "standard_BEM" in text:
+    text = str(value or "").replace("\\", "/").strip().lower()
+    if not text or any(marker in text for marker in _PACKAGED_MRI_MARKERS):
         return
     raise DIPFITUnavailableError(
         "pop_dipplot: custom MRI files are not plotted. "
-        "Omit mri, or pass the packaged standard MRI, so the standard_mri slices are used."
+        "Omit mri, or pass a packaged template MRI (standard_BEM or standard_BESA), "
+        "so the standard_mri slices are used."
     )
 
 

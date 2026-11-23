@@ -38,7 +38,7 @@ def pop_selectcomps(
     if gui is None:
         gui = compnum is None and reject is None
     if gui:
-        if renderer is not None and hasattr(renderer, "run"):
+        if renderer is not None:
             result = inputgui(pop_selectcomps_dialog_spec(EEG), renderer=renderer)
             if result is None:
                 return (EEG, "") if return_com else EEG
@@ -149,7 +149,7 @@ def _run_component_browser(EEG: dict[str, Any], compnum: list[int]) -> np.ndarra
         button.setStyleSheet("background-color: #f6c1c1;" if rejected else "background-color: #d9ead3;")
 
     def open_component(component: int) -> None:
-        pop_prop(EEG, 0, component, spec_opt={"freqrange": [1, 50]}, plot="off")
+        pop_prop(EEG, 0, component, spec_opt={"freqrange": [1, 50]})
         chooser = QtWidgets.QDialog(dialog)
         chooser.setObjectName("pop_prop_reject")
         chooser.setWindowTitle(f"pop_prop() - component {component}")

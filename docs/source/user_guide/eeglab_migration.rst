@@ -91,8 +91,9 @@ nasion, LPA, and RPA. Creating a head model from an MRI and eLORETA stay
 disabled in the menu: FieldTrip MRI segmentation and ``ft_sourceanalysis``
 eLORETA are not available, and a partial solver would not match EEGLAB.
 Direct calls still raise ``DIPFITUnavailableError`` with the same reason.
-Dipole plots draw the packaged MNI slices with the dipoles. A custom MRI is
-refused.
+Dipole plots draw the packaged MNI slices when the coordinates are MNI. Spherical
+BESA dipoles stay in spherical coordinates, because those positions are not in
+the MNI volume. A custom MRI is refused.
 
 ``pop_selectevent`` emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can

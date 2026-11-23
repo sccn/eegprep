@@ -201,8 +201,8 @@ def resolved_coord_transform(EEG: dict[str, Any], template: dict[str, Any]) -> t
     """Return ``(keyword matched, transform)``.
 
     A keyword match is kept even when its transform is empty (BESA cap385).
-    Otherwise the montage is warped onto the template landmarks. EEGLAB leaves
-    that field blank and refuses Ok; EEGPrep fills the warp when it can.
+    Otherwise the montage is warped onto the template landmarks. A failed warp
+    is raised; the dialog catches it when it is only filling the text field.
     """
     found, transform = lookupchantemplate(channel_template_filename(EEG), template)
     if found:
@@ -210,10 +210,7 @@ def resolved_coord_transform(EEG: dict[str, Any], template: dict[str, Any]) -> t
     chanfile = str(template.get("chanfile") or "")
     if not chanfile:
         return False, []
-    try:
-        return False, align_channels_to_template(EEG, chanfile)
-    except (OSError, ValueError):
-        return False, []
+    return False, align_channels_to_template(EEG, chanfile)
 
 
 def _fiducial_count(nodatchans: Any) -> int:

@@ -37,7 +37,7 @@ from eegprep.plugins.dipfit.pop_dipfit_nonlinear import (
     pop_dipfit_nonlinear_dialog_spec,
 )
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings, pop_dipfit_settings_dialog_spec
-from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot, pop_dipplot_dialog_spec
 from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield, pop_leadfield_dialog_spec
 from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 from tests.fixtures import create_test_eeg, create_test_eeg_with_ica
@@ -50,7 +50,7 @@ def _ica_eeg() -> dict:
 
 
 def _configured_ica_eeg() -> dict:
-    eeg, _command = pop_dipfit_settings(_ica_eeg(), model="standardBEM", return_com=True)
+    eeg, _command = pop_dipfit_settings(_ica_eeg(), model="standardBEM", coord_transform=[], return_com=True)
     eeg["dipfit"]["model"] = [
         {"posxyz": [0, -20, 40], "momxyz": [1, 0, 0], "rv": 0.12, "component": 1},
         {"posxyz": [25, 10, 35], "momxyz": [0, 1, 0], "rv": 0.2, "component": 2},
@@ -90,14 +90,14 @@ def _known_dipole_eeg() -> tuple[dict, np.ndarray, np.ndarray]:
     eeg["icaweights"] = np.linalg.pinv(eeg["icawinv"])
     eeg["icasphere"] = np.eye(eeg["nbchan"])
     eeg["icachansind"] = np.arange(eeg["nbchan"])
-    eeg, _com = pop_dipfit_settings(eeg, model="standardBESA", return_com=True)
+    eeg, _com = pop_dipfit_settings(eeg, model="standardBESA", coord_transform=[], return_com=True)
     return eeg, true_pos, true_mom
 
 
 def test_pop_dipfit_settings_stores_standard_model_and_python_history():
     eeg = _ica_eeg()
 
-    out, com = pop_dipfit_settings(eeg, model="standardBEM", chanomit=[2], return_com=True)
+    out, com = pop_dipfit_settings(eeg, model="standardBEM", chanomit=[2], coord_transform=[], return_com=True)
 
     assert out is not eeg
     assert out["dipfit"]["coordformat"] == "MNI"
@@ -209,7 +209,7 @@ def test_mni_nonlinear_fit_uses_the_packaged_bem():
     eeg["icaweights"] = np.linalg.pinv(eeg["icawinv"])
     eeg["icasphere"] = np.eye(eeg["nbchan"])
     eeg["icachansind"] = np.arange(eeg["nbchan"])
-    eeg, _com = pop_dipfit_settings(eeg, model="standardBEM", return_com=True)
+    eeg, _com = pop_dipfit_settings(eeg, model="standardBEM", coord_transform=[], return_com=True)
     eeg["dipfit"]["model"] = [{"posxyz": [[0.0, 0.0, 40.0]], "momxyz": [[0.0, 0.0, 1.0]], "rv": 1.0, "component": 1}]
 
     refined = pop_dipfit_nonlinear(eeg, component=1, gui=False)
@@ -344,6 +344,24 @@ def test_load_afni_atlas_uses_nibabel_zero_based_voxel_affine(tmp_path):
     np.testing.assert_array_equal(labels, [7])
 
 
+def test_besa_dipole_plot_uses_the_dialog_mri_without_mni_slices():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "spherical",
+        "mrifile": "standard_BESA/avg152t1.mat",
+        "hdmfile": "standard_BESA/standard_BESA.mat",
+        "model": [{"posxyz": [[10.0, -20.0, 40.0]], "momxyz": [[0.0, 0.0, 1.0]], "rv": 0.02, "component": 1}],
+    }
+    mri = _dialog_control(pop_dipplot_dialog_spec(eeg), "mri").value
+
+    figures, _command = pop_dipplot(eeg, [1], mri=mri, gui=False, plot=True, return_com=True)
+
+    assert "avg152t1.mat" in str(mri)
+    assert len(figures) == 1
+    assert len(figures[0].axes) == 1
+    plt.close(figures[0])
+
+
 def test_pop_dipplot_defaults_to_localized_components_when_some_models_are_empty():
     eeg = _configured_ica_eeg()
     eeg["dipfit"]["model"].append({"posxyz": [], "momxyz": [], "rv": 1.0, "component": 3})
@@ -402,7 +420,9 @@ def test_gui_dipfit_template_choice_updates_files_and_browse(qapp):
 
 def test_besa_coarse_fit_and_autofit_keep_linspace_history():
     eeg = pop_dipfit_settings(
-        create_test_eeg_with_ica(n_channels=4, n_samples=40, n_components=2), model="standardBESA"
+        create_test_eeg_with_ica(n_channels=4, n_samples=40, n_components=2),
+        model="standardBESA",
+        coord_transform=[],
     )
     fitted, command = pop_dipfit_gridsearch(
         eeg,
@@ -430,7 +450,11 @@ def test_besa_coarse_fit_and_autofit_keep_linspace_history():
 
 
 def test_loreta_key_leadfield_and_missing_source_analysis():
-    eeg = pop_dipfit_settings(create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBEM")
+    eeg = pop_dipfit_settings(
+        create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1),
+        model="standardBEM",
+        coord_transform=[],
+    )
     with pytest.raises(ValueError, match="pop_leadfield"):
         pop_dipfit_loreta(eeg, [1])
 
@@ -480,7 +504,9 @@ def test_autofit_plot_accepts_quoted_normlen_and_shows_dipoles(monkeypatch):
     monkeypatch.setattr(matplotlib.figure.Figure, "show", lambda self: shown.append(self))
     monkeypatch.setattr("eegprep.functions.popfunc.plot_utils.backend_can_display", lambda: True)
     eeg = pop_dipfit_settings(
-        create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1), model="standardBESA"
+        create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1),
+        model="standardBESA",
+        coord_transform=[],
     )
     coarse, _command = pop_dipfit_gridsearch(eeg, [1], [0], [0], [40], 100, return_com=True)
     try:

@@ -448,8 +448,14 @@ def _pop_select_apply(EEG, **kwargs):
                 EEG['icaact'] = EEG['icaact'][:, start:stop, :]
 
             if _has_content(EEG.get('event')):
-                lim1 = tmin * srate
-                lim2 = tmax * srate
+                if point_mat.size:
+                    # The slice includes sample `last`. The time conversion's upper latency is that
+                    # sample, and the half-open test would drop an event sitting on it.
+                    lim1 = float(reallim1)
+                    lim2 = float(reallim2) + 1.0
+                else:
+                    lim1 = tmin * srate
+                    lim2 = tmax * srate
                 newevents = []
                 for ev in EEG['event']:
                     if 'epoch' not in ev or 'latency' not in ev:
