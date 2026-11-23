@@ -214,7 +214,16 @@ def _is_nan(value: Any) -> bool:
         return False
 
 
-_CHANEVENT_CALLS = {"abs": np.abs, "round": np.round, "bitand": np.bitwise_and}
+def _matlab_round(value: Any) -> np.ndarray:
+    array = np.asarray(value, dtype=np.float64)
+    return np.sign(array) * np.floor(np.abs(array) + 0.5)
+
+
+def _matlab_bitand(left: Any, right: Any) -> np.ndarray:
+    return np.bitwise_and(np.asarray(np.trunc(left), dtype=np.int64), np.asarray(np.trunc(right), dtype=np.int64))
+
+
+_CHANEVENT_CALLS = {"abs": np.abs, "round": _matlab_round, "bitand": _matlab_bitand}
 
 
 def _event_code(value: Any) -> Any:
@@ -248,9 +257,11 @@ def _apply_oper(x: np.ndarray, oper: str) -> np.ndarray:
     else:
         raise ValueError(_oper_error(oper))
     try:
-        result = _eval_oper(expression, np.asarray(x, dtype=np.float64))
-    except ValueError:
-        raise
+        result = _eval_oper(expression, np.asarray(x, dtype=np.float64), oper)
+    except ValueError as exc:
+        if str(exc).startswith("pop_chanevent:"):
+            raise
+        raise ValueError(_oper_error(oper)) from exc
     except Exception as exc:
         raise ValueError(_oper_error(oper)) from exc
     return np.asarray(result, dtype=np.float64)
@@ -278,19 +289,21 @@ def _matlab_expression(oper: str) -> str:
     return "".join(output)
 
 
-def _eval_oper(node: ast.AST, x: np.ndarray) -> Any:
+def _eval_oper(node: ast.AST, x: np.ndarray, oper: str) -> Any:
     if isinstance(node, ast.Name):
         if node.id != "X":
-            raise ValueError(_oper_error(node.id))
+            raise ValueError(_oper_error(oper))
         return x
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
         return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Invert):
+        return np.logical_not(_eval_oper(node.operand, x, oper))
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
-        value = _eval_oper(node.operand, x)
+        value = _eval_oper(node.operand, x, oper)
         return value if isinstance(node.op, ast.UAdd) else -value
     if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
-        left = _eval_oper(node.left, x)
-        right = _eval_oper(node.right, x)
+        left = _eval_oper(node.left, x, oper)
+        right = _eval_oper(node.right, x, oper)
         if isinstance(node.op, ast.Add):
             return left + right
         if isinstance(node.op, ast.Sub):
@@ -299,15 +312,13 @@ def _eval_oper(node: ast.AST, x: np.ndarray) -> Any:
             return left * right
         return left / right
     if isinstance(node, ast.Compare) and len(node.ops) == len(node.comparators):
-        current = _eval_oper(node.left, x)
-        result = np.ones(np.shape(x), dtype=bool)
+        current = _eval_oper(node.left, x, oper)
         for op, comparator in zip(node.ops, node.comparators):
-            other = _eval_oper(comparator, x)
-            result = result & _compare(op, current, other)
-            current = other
-        return result
+            other = _eval_oper(comparator, x, oper)
+            current = _compare(op, current, other, oper)
+        return current
     if isinstance(node, ast.BoolOp) and isinstance(node.op, (ast.And, ast.Or)):
-        values = [_eval_oper(item, x) for item in node.values]
+        values = [_eval_oper(item, x, oper) for item in node.values]
         combined = np.asarray(values[0], dtype=bool)
         for value in values[1:]:
             other = np.asarray(value, dtype=bool)
@@ -315,13 +326,13 @@ def _eval_oper(node: ast.AST, x: np.ndarray) -> Any:
         return combined
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _CHANEVENT_CALLS:
         if node.keywords:
-            raise ValueError(_oper_error(node.func.id))
-        args = [_eval_oper(arg, x) for arg in node.args]
+            raise ValueError(_oper_error(oper))
+        args = [_eval_oper(arg, x, oper) for arg in node.args]
         return _CHANEVENT_CALLS[node.func.id](*args)
-    raise ValueError(_oper_error(ast.dump(node)))
+    raise ValueError(_oper_error(oper))
 
 
-def _compare(op: ast.cmpop, left: Any, right: Any) -> Any:
+def _compare(op: ast.cmpop, left: Any, right: Any, oper: str) -> Any:
     if isinstance(op, ast.Gt):
         return left > right
     if isinstance(op, ast.Lt):
@@ -334,7 +345,7 @@ def _compare(op: ast.cmpop, left: Any, right: Any) -> Any:
         return left == right
     if isinstance(op, ast.NotEq):
         return left != right
-    raise ValueError(_oper_error(type(op).__name__))
+    raise ValueError(_oper_error(oper))
 
 
 def _oper_error(oper: str) -> str:
@@ -377,16 +388,16 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         ControlSpec('edit', tag='edgelen', value='0'),
         ControlSpec('spacer'),
     ]
-    for label, tag, default, enabled in [
-        ('Assign duration to each events?', 'duration', False, True),
-        ('Delete event channel(s)?', 'delchan', True, True),
-        ('Delete old events if any?', 'delevent', True, True),
-        ('All events of same type?', 'nbtype', False, True),
+    for label, tag, default in [
+        ('Assign duration to each events?', 'duration', False),
+        ('Delete event channel(s)?', 'delchan', True),
+        ('Delete old events if any?', 'delevent', True),
+        ('All events of same type?', 'nbtype', False),
     ]:
         controls.extend(
             [
                 ControlSpec('text', label),
-                ControlSpec('checkbox', tag=tag, value=default, enabled=enabled),
+                ControlSpec('checkbox', tag=tag, value=default),
                 ControlSpec('spacer'),
             ]
         )
@@ -395,8 +406,8 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         function_name='pop_chanevent',
         help_text='pop_chanevent',
         eeglab_source='functions/popfunc/pop_chanevent.m',
-        geometry=tuple([[2, 1, 0.5]] * 8),
+        geometry=tuple([[1.5, 1.2, 2.2]] * 8),
         controls=tuple(controls),
         weighted_columns=True,
-        size=(640, 276),
+        size=(760, 276),
     )

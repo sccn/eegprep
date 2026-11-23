@@ -606,29 +606,37 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   ``bitand``, ``&``, ``|``, and parentheses. It does not evaluate arbitrary
   MATLAB text.
 * A Neuroscan CNT import keeps the file length. EEGLAB's reader can append
-  three extra samples. Event latency copies the 1-based ``offset`` already
-  stored by the Python reader (EEGLAB adds 1 because its offset is 0-based).
-  The first boundary is kept because its duration is left unset.
+  three extra samples. ``loadcnt`` stores the same 0-based sample offset as
+  MATLAB ``loadcnt``, and ``pop_loadcnt`` adds 1, matching ``pop_loadcnt.m``
+  line 152. The first boundary is kept because its duration is left unset.
 * File-IO names an empty discontinuity annotation ``boundary``. EEGLAB's
   file-io plugin can leave that type empty.
 * ``pop_saveset`` creates a missing folder. EEGLAB errors when the folder does
   not exist. A failed save does not leave a partial ``.set`` or ``.fdt``, and
   it does not replace a file that was already there.
 * BIDS import writes ``derivatives/eeglab`` and does not modify the raw BIDS
-  folder. Resave of a file inside the raw folder is refused. The recorded
-  import command includes ``return_study`` so replaying it returns the STUDY.
-  EEGLAB's command has no such option because it always returns the STUDY.
+  folder. Resave of a file inside the raw folder is refused. A folder import
+  records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not pass
+  ``return_study``, which EEGLAB rejects. A recording with no ``ses-`` folder
+  is written under ``sub-<label>/eeg``.
+* File > Quit asks before discarding unsaved datasets. EEGLAB's Quit callback
+  (``eeglab.m`` line 619) closes the window without asking. Cancel keeps
+  EEGPrep open so the datasets can be saved first.
 * The BIDS export wizard opens from an empty session: a welcome page, then a
-  file grid. Participant info is one row per dataset, and event-field
-  Levels, LongName, Description, and Units are written to ``*_events.json``.
+  file grid with one task per file. Participant info is one row per dataset,
+  and event-field Levels, LongName, Description, and Units are written to
+  ``task-<task>_events.json``. The export asks for the power-line frequency
+  when that field is still ``n/a``.
 * BIDS coordinate-system names drop ``task-``, ``desc-``, and ``run-``.
   EEGLAB's electrode writer drops only ``task-`` and ``desc-`` and can emit a
   ``run-`` name that the BIDS validator rejects. The ``sample`` column in
   ``events.tsv`` is the integer sample index.
 * EDF export keeps events as EDF+ annotations and does not pad the recording.
   EEGLAB can add an event channel and drop annotations.
-* ``pop_studyerp`` fills subject codes ``S01``, ``S02``, ... so the dialog can
-  be accepted immediately. EEGLAB waits until those codes are typed.
+* ``pop_studyerp`` fills subject codes ``S01``, ``S02``, ... from the subject
+  index. EEGLAB does the same with ``sprintf('S%2.2d', index)`` and does not
+  wait for those codes to be typed. Each dataset cell has a browse button,
+  and the commands are ordered with condition as the outer loop.
 * The task-info dialog scrolls. EEGLAB draws a dialog taller than a laptop
   screen.
 * ``pop_importerplab`` Cancel returns without changing the dataset. EEGLAB

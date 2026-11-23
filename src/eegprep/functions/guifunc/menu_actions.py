@@ -284,6 +284,7 @@ class MenuActionDispatcher:
         self.native_file_dialogs = native_file_dialogs
         self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
         self._long_tasks: list[LongTaskHandle] = []
+        self._last_data_folder = ""
 
     def dispatch_gui(self, action: str, parent: Any | None = None) -> Coroutine[Any, Any, None] | None:
         """Run a menu action from Qt and show user-facing errors.
@@ -380,7 +381,6 @@ class MenuActionDispatcher:
                                 )
                                 return
                             pop_saveset(eeg, target)
-                            eeg["saved"] = "yes"
                 parent.close()
             return
         if base == "clear_study":

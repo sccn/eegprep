@@ -97,7 +97,7 @@ def test_study_end_to_end_workflow_roundtrips_and_syncs_console(tmp_path):
     study, cluster_plot_command, cluster_figure = pop_clustedit(
         study, alleeg, action="plot", clusters=[2, 3], return_com=True
     )
-    _saved, _datasets, save_command = pop_savestudy(
+    saved, saved_datasets, save_command = pop_savestudy(
         study, alleeg, filename="phase_6c.study", filepath=tmp_path, return_com=True
     )
     loaded, loaded_alleeg, load_command = pop_loadstudy(
@@ -108,6 +108,8 @@ def test_study_end_to_end_workflow_roundtrips_and_syncs_console(tmp_path):
     assert loaded["currentdesign"] == 1
     assert loaded["design"][0]["variable"][0]["label"] == "condition"
     assert loaded["changrp"][0]["measureinfo"]["computed"] == ["erp", "spec"]
+    assert "specdata" not in loaded["changrp"][0]
+    assert np.asarray(saved["changrp"][0]["specdata"]).size
     assert loaded["cluster"][0]["child"] == [cluster["name"] for cluster in loaded["cluster"][1:]]
     assert sum(len(cluster.get("comps") or []) for cluster in loaded["cluster"][1:]) == 6
     assert len(loaded_alleeg) == 2
@@ -115,7 +117,7 @@ def test_study_end_to_end_workflow_roundtrips_and_syncs_console(tmp_path):
     assert all(eeg.get("icaweights") is not None and np.asarray(eeg["icaweights"]).size for eeg in loaded_alleeg)
     assert [info["subject"] for info in loaded["datasetinfo"]] == ["S01", "S02"]
 
-    session = EEGPrepSession(STUDY=loaded, ALLEEG=loaded_alleeg, CURRENTSTUDY=1)
+    session = EEGPrepSession(STUDY=saved, ALLEEG=saved_datasets, CURRENTSTUDY=1)
     workspace = EEGPrepConsoleWorkspace(
         session,
         exports={"pop_chanplot": pop_chanplot, "pop_clustedit": pop_clustedit},

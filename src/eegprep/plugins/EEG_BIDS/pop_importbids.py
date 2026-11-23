@@ -98,12 +98,12 @@ def pop_importbids(
             dataset["history"] = command
         if source.is_dir():
             root = Path(output_dir) if output_dir else source / "derivatives" / "eeglab"
-            study = pop_savestudy(study, datasets, filename=root / f"{_study_filename(study_name)}.study")
-        if return_study:
-            if return_com:
-                return study, datasets, command
-            return study, datasets
-        eegs = datasets
+            study, _datasets, _command = pop_savestudy(
+                study, datasets, filename=root / f"{_study_filename(study_name)}.study"
+            )
+        if return_com:
+            return study, datasets, command
+        return study, datasets
     result: dict[str, Any] | list[dict[str, Any]] = eegs[0] if len(eegs) == 1 else eegs
     if isinstance(result, list):
         for eeg in result:
@@ -483,11 +483,9 @@ def _history_command(source: Path, dialog: dict[str, Any], *, return_study: bool
     for key in ("bidstask", "sessions", "runs", "recordings", "subjects"):
         if dialog.get(key):
             parts.extend([format_history_value(key), format_history_value(dialog[key])])
-    if return_study:
-        parts.extend([format_history_value("return_study"), "'on'"])
     call = f"pop_importbids({', '.join(parts)})"
     if return_study:
-        return f"[STUDY, ALLEEG] = {call};"
+        return f"[STUDY ALLEEG] = {call};"
     return f"EEG = {call};"
 
 
@@ -512,8 +510,9 @@ def _save_derivatives(eegs: list[dict[str, Any]], source: Path, output_dir: Any)
     for eeg in eegs:
         subject = _entity_id(_field_text(eeg.get("subject"), "01"))
         session = _entity_id(_field_text(eeg.get("session"), ""))
+        source_path = f"{eeg.get('filepath') or ''}/{eeg.get('filename') or ''}".replace("\\", "/")
         folder = root / f"sub-{subject}"
-        if session:
+        if session and f"/ses-{session}/" in f"/{source_path}/":
             folder = folder / f"ses-{session}"
         folder = folder / "eeg"
         folder.mkdir(parents=True, exist_ok=True)

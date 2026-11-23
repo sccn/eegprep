@@ -559,7 +559,12 @@ def test_loaded_cluster_sets_keep_one_column_per_component():
                     "name": "ParentCluster",
                     "sets": np.array([[1, 1, 2], [1, 2, 2]]),
                     "comps": np.array([[3, 4, 5]]),
-                }
+                },
+                {
+                    "name": "One component",
+                    "sets": np.array([[1], [2]]),
+                    "comps": np.array([7]),
+                },
             ]
         }
     )
@@ -567,3 +572,6 @@ def test_loaded_cluster_sets_keep_one_column_per_component():
     comps = np.asarray(study["cluster"][0]["comps"]).ravel()
     assert sets.shape == (2, 3)
     assert sets.shape[1] == comps.size
+    one_column = np.asarray(study["cluster"][1]["sets"])
+    assert one_column.shape == (2, 1)
+    assert one_column.shape[1] == np.asarray(study["cluster"][1]["comps"]).size

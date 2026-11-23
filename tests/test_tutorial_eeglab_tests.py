@@ -1449,7 +1449,7 @@ def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_p
         export_commands.append(command)
     _add_face_type_to_bids_events(bids_root)
 
-    imported, import_command = pop_importbids(
+    _study, imported, import_command = pop_importbids(
         bids_root,
         eventtype="value",
         bidsevent="replace",

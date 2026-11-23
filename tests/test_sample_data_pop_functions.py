@@ -729,7 +729,8 @@ def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command.startswith("[STUDY ALLEEG] = pop_studywizard(")
+    assert command.startswith("[STUDY ALLEEG] = std_editset(")
+    assert "'subject'" in command
 
 
 @eeglab_test("unittesting_popfunc/pop_saveh/popfunc_pop_saveh_wrapperTest.m", "test_test_pop_saveh")
@@ -824,7 +825,8 @@ def test_pop_exportbids_writes_valid_bids_dataset_from_sample(tmp_path, sample_e
 def test_pop_importbids_reads_sample_bids_export(tmp_path, sample_eeg):
     root, _command = pop_exportbids(sample_eeg, tmp_path / "bids", return_com=True)
 
-    imported, command = pop_importbids(root, return_com=True)
+    _study, datasets, command = pop_importbids(root, return_com=True)
+    imported = datasets[0]
 
     assert imported["data"].shape == sample_eeg["data"].shape
     assert imported["event"][0]["type"] == sample_eeg["event"][0]["type"]

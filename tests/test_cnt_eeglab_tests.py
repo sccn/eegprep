@@ -86,7 +86,7 @@ def _write_cnt(
         event_offset = (
             int(event["sample"])
             if event_type == 3
-            else data_offset + (int(event["sample"]) + 1) * channels * dtype.itemsize
+            else data_offset + int(event["sample"]) * channels * dtype.itemsize
         )
         if event_type == 1:
             event_records.extend(
@@ -264,7 +264,7 @@ def test_pop_loadcnt_normalizes_type3_global_sample_frames(tmp_path: Path) -> No
     low_level = loadcnt(path, dataformat="int32")
     eeg = pop_loadcnt(path, dataformat="int32")
 
-    assert [event["offset"] for event in low_level["event"]] == [1, 10]
+    assert [event["offset"] for event in low_level["event"]] == [0, 9]
     assert [event["latency"] for event in eeg["event"]] == [1, 10]
 
 

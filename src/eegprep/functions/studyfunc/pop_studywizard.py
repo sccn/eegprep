@@ -7,7 +7,7 @@ from typing import Any
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.studyfunc._study_utils import build_matlab_call
+from eegprep.functions.studyfunc._study_utils import MatlabLiteral, build_matlab_call, matlab_command_cell
 from eegprep.functions.studyfunc.std_editset import std_editset
 
 
@@ -60,10 +60,14 @@ def pop_studywizard(
     )
     command = build_matlab_call(
         ("STUDY", "ALLEEG"),
-        "pop_studywizard",
-        filenames=selected,
-        name=name,
+        "std_editset",
+        "STUDY",
+        MatlabLiteral("[]"),
+        commands=commands,
+        updatedat="on",
+        dict_formatter=matlab_command_cell,
     )
+    command += "\n" + build_matlab_call(("STUDY", "ALLEEG"), "std_checkset", "STUDY", "ALLEEG")
     return (study, alleeg, command) if return_com else (study, alleeg)
 
 

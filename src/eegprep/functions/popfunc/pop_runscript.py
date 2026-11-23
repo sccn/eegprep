@@ -33,6 +33,7 @@ def pop_runscript(filename: str | Path, namespace: dict[str, Any] | None = None)
 
 
 def _run_history_lines(path: Path, namespace: dict[str, Any]) -> None:
+    pending: list[str] = []
     unsupported: list[int] = []
     for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw.strip()
@@ -46,10 +47,12 @@ def _run_history_lines(path: Path, namespace: dict[str, Any]) -> None:
         except SyntaxError:
             unsupported.append(number)
             continue
-        exec(python, namespace)
+        pending.append(python)
     if unsupported:
         shown = ", ".join(str(number) for number in unsupported)
         raise ValueError(
             f"pop_runscript: {path.name} line {shown} is not a supported pop_ or eeg_ history command. "
             "Remove that line or rewrite it as a Python call, then run the script again."
         )
+    for python in pending:
+        exec(python, namespace)

@@ -94,10 +94,12 @@ def pop_loadstudy(
     study, alleeg = std_checkset(study, alleeg)
     std_checkfiles(study, alleeg)
     study["saved"] = "yes"
-    command_kwargs: dict[str, Any] = {"filename": path.name, "filepath": str(path.parent)}
-    if not load_datasets:
-        command_kwargs["load_datasets"] = "off"
-    command = build_matlab_call(("STUDY", "ALLEEG"), "pop_loadstudy", **command_kwargs)
+    command = build_matlab_call(
+        ("STUDY", "ALLEEG"),
+        "pop_loadstudy",
+        filename=path.name,
+        filepath=str(path.parent),
+    )
     return (study, alleeg, command) if return_com else (study, alleeg)
 
 
@@ -109,7 +111,9 @@ def _study_path(filename: str | Path, filepath: str | Path | None) -> Path:
 
 
 def _read_study(path: Path) -> dict[str, Any]:
-    header = path.read_bytes()[: len(_MATLAB_HEADER)]
+    header = path.read_bytes()[:128]
+    if header.startswith(b"MATLAB 7.3"):
+        return _study_from_mat73(path)
     if header.startswith(_MATLAB_HEADER):
         return _study_from_mat(path)
     with path.open(encoding="utf-8") as stream:
@@ -117,6 +121,21 @@ def _read_study(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("STUDY file must contain a JSON object")
     return payload
+
+
+def _study_from_mat73(path: Path) -> dict[str, Any]:
+    import h5py
+
+    from eegprep.functions.popfunc.pop_loadset_h5 import _read_value
+
+    with h5py.File(path, "r") as handle:
+        if "STUDY" not in handle:
+            raise ValueError(f"{path} does not contain a STUDY variable")
+        group = handle["STUDY"]
+        study = {key: _read_value(value, key) for key, value in group.items() if not str(key).startswith("#")}
+    if not isinstance(study, dict):
+        raise ValueError(f"{path} does not contain a STUDY structure")
+    return _normalize_loaded_study(study)
 
 
 def _study_from_mat(path: Path) -> dict[str, Any]:
@@ -154,7 +173,7 @@ def _normalize_loaded_study(study: dict[str, Any]) -> dict[str, Any]:
                 continue
             for field in ("comps", "sets", "child", "parent", "allinds", "setinds"):
                 if isinstance(cluster.get(field), np.ndarray):
-                    cluster[field] = _loaded_cluster_field(cluster[field])
+                    cluster[field] = _loaded_cluster_field(cluster[field], field=field)
     designs = study.get("design")
     if isinstance(designs, list):
         for design in designs:
@@ -169,13 +188,12 @@ def _normalize_loaded_study(study: dict[str, Any]) -> dict[str, Any]:
     return study
 
 
-def _loaded_cluster_field(array: np.ndarray) -> list[Any]:
-    # sets is a matrix with one column per component. Flattening it makes
-    # pop_clust reject the parent cluster because the column count no longer
-    # matches comps.
+def _loaded_cluster_field(array: np.ndarray, *, field: str) -> list[Any]:
     if array.size == 0:
         return []
-    if array.ndim >= 2 and min(array.shape[:2]) > 1:
+    if field != "comps" and array.ndim == 2:
+        return array.tolist()
+    if array.ndim > 2 and min(array.shape[:2]) > 1:
         return array.tolist()
     return array.reshape(-1, order="F").tolist()
 

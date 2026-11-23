@@ -6,6 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+import h5py
 import numpy as np
 import scipy.io
 
@@ -16,6 +17,7 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc._study_utils import build_matlab_call, ensure_study
 from eegprep.functions.studyfunc.std_checkset import std_checkset
+from eegprep.functions.studyfunc.std_rmalldatafields import std_rmalldatafields
 
 
 def pop_savestudy(
@@ -32,11 +34,12 @@ def pop_savestudy(
 ) -> Any:
     """Save a STUDY structure.
 
-    The default file is an EEGLAB MATLAB v6 ``.study`` (``save -v6``).
-    ``fileformat='json'`` or a ``.json`` name writes the JSON form
-    ``pop_loadstudy`` still reads. ``return_com=True`` returns
-    ``(study, datasets, command)`` so ``[STUDY ALLEEG] = pop_savestudy(...)``
-    keeps ``ALLEEG`` as the dataset list.
+    The default file is an EEGLAB MATLAB v6 ``.study`` (``save -v6``). A file
+    larger than the v6 limit is written as MATLAB v7.3, the same fallback as
+    ``pop_savestudy.m``. Precomputed measure arrays are removed from the file
+    and kept on the returned STUDY. ``fileformat='json'`` writes JSON;
+    resaving a ``.study`` that currently holds JSON writes MATLAB, which is
+    what EEGLAB can load. The return is always ``(study, datasets, command)``.
     """
     if not STUDY:
         raise ValueError("pop_savestudy cannot save an empty STUDY")
@@ -63,7 +66,7 @@ def pop_savestudy(
     study["filename"] = path.name
     study["filepath"] = str(path.parent)
     study["saved"] = "yes"
-    _write_study(path, study, fileformat)
+    _write_study(path, std_rmalldatafields(study), fileformat, savemode=savemode)
     command = build_matlab_call(
         ("STUDY", "ALLEEG"),
         "pop_savestudy",
@@ -74,19 +77,19 @@ def pop_savestudy(
         savemode=savemode if savemode else None,
         resavedatasets="on" if resavedatasets == "on" else None,
     )
-    return (study, datasets, command) if return_com else study
+    return study, datasets, command
 
 
-def _write_study(path: Path, study: dict[str, Any], fileformat: str | None) -> None:
+def _write_study(path: Path, study: dict[str, Any], fileformat: str | None, *, savemode: str | None) -> None:
     chosen = str(fileformat or "").lower()
     if chosen not in {"", "mat", "matlab", "json"}:
         raise ValueError(
             f"pop_savestudy: format {fileformat!r} is not 'mat' or 'json'. "
             "Use fileformat='mat' for an EEGLAB .study file, or fileformat='json' for JSON."
         )
-    if chosen == "" and path.suffix.lower() == ".json":
-        chosen = "json"
-    if chosen == "" and path.is_file() and path.read_bytes()[:1] == b"{":
+    if savemode == "resave":
+        chosen = "mat"
+    elif chosen == "" and path.suffix.lower() == ".json":
         chosen = "json"
     if chosen == "json":
         write_json(path, study)
@@ -96,12 +99,106 @@ def _write_study(path: Path, study: dict[str, Any], fileformat: str | None) -> N
     try:
         scipy.io.savemat(temporary, {"STUDY": disk}, appendmat=False, format="5", long_field_names=True)
         temporary.replace(path)
+    except (OverflowError, ValueError) as exc:
+        temporary.unlink(missing_ok=True)
+        if not _mat5_too_large(exc):
+            raise ValueError(
+                f"pop_savestudy: could not write {path}: {exc}. "
+                "Choose a writable .study path with File > Save current study as."
+            ) from exc
+        _write_study_v73(path, disk)
     except Exception as exc:
         temporary.unlink(missing_ok=True)
         raise ValueError(
             f"pop_savestudy: could not write {path}: {exc}. "
             "Choose a writable .study path with File > Save current study as."
         ) from exc
+
+
+def _mat5_too_large(exc: BaseException) -> bool:
+    if isinstance(exc, OverflowError):
+        return True
+    text = str(exc).lower()
+    return "2gb" in text or "2 gb" in text or "too large" in text or "too big" in text
+
+
+def _write_study_v73(path: Path, study: Any) -> None:
+    temporary = path.with_name(f".{path.name}.v73.tmp")
+    temporary.unlink(missing_ok=True)
+    with h5py.File(temporary, "w", userblock_size=512) as handle:
+        _write_mat73_value(handle, "STUDY", study, handle)
+    header = b"MATLAB 7.3 MAT-file, Platform: eegprep, Created by pop_savestudy"
+    with temporary.open("r+b") as stream:
+        stream.write(header + b" " * (128 - len(header)))
+    temporary.replace(path)
+
+
+def _write_mat73_value(parent: h5py.Group, name: str, value: Any, root: h5py.File) -> None:
+    if isinstance(value, dict):
+        group = parent.create_group(name)
+        for key, item in value.items():
+            _write_mat73_value(group, str(key), item, root)
+        return
+    if isinstance(value, str):
+        _write_mat73_char(parent, name, value)
+        return
+    if isinstance(value, (bool, np.bool_)):
+        dataset = parent.create_dataset(name, data=np.uint8([[1 if value else 0]]))
+        dataset.attrs["MATLAB_class"] = b"logical"
+        return
+    if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool):
+        dataset = parent.create_dataset(name, data=np.array([[float(value)]], dtype=np.float64))
+        dataset.attrs["MATLAB_class"] = b"double"
+        return
+    if isinstance(value, np.ndarray) and value.dtype.names:
+        _write_mat73_struct(parent, name, value, root)
+        return
+    if isinstance(value, np.ndarray) and value.dtype == object:
+        _write_mat73_cell(parent, name, value, root)
+        return
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            dataset = parent.create_dataset(name, data=np.asarray(value.shape, dtype=np.uint64))
+            dataset.attrs["MATLAB_class"] = b"double"
+            dataset.attrs["MATLAB_empty"] = np.uint8(1)
+            return
+        dataset = parent.create_dataset(name, data=np.asarray(value, dtype=np.float64).T)
+        dataset.attrs["MATLAB_class"] = b"double"
+        return
+    _write_mat73_char(parent, name, str(value))
+
+
+def _write_mat73_char(parent: h5py.Group, name: str, text: str) -> None:
+    codes = np.frombuffer(text.encode("utf-16-le"), dtype="<u2").reshape(-1, 1)
+    dataset = parent.create_dataset(name, data=codes if codes.size else np.zeros((0, 1), dtype="<u2"))
+    dataset.attrs["MATLAB_class"] = b"char"
+    if codes.size == 0:
+        dataset.attrs["MATLAB_empty"] = np.uint8(1)
+
+
+def _write_mat73_struct(parent: h5py.Group, name: str, array: np.ndarray, root: h5py.File) -> None:
+    group = parent.create_group(name)
+    rows = array.reshape(-1, order="F")
+    ref_dtype = h5py.special_dtype(ref=h5py.Reference)
+    for field in array.dtype.names or ():
+        refs = np.empty((len(rows), 1), dtype=ref_dtype)
+        for index, row in enumerate(rows):
+            holder = root.require_group("#refs#").create_group(f"{name}_{field}_{index}_{id(row)}")
+            _write_mat73_value(holder, "value", row[field], root)
+            refs[index, 0] = holder["value"].ref
+        group.create_dataset(field, data=refs)
+
+
+def _write_mat73_cell(parent: h5py.Group, name: str, array: np.ndarray, root: h5py.File) -> None:
+    flat = array.reshape(-1, order="F")
+    ref_dtype = h5py.special_dtype(ref=h5py.Reference)
+    refs = np.empty(array.T.shape, dtype=ref_dtype)
+    for index, item in enumerate(flat):
+        holder = root.require_group("#refs#").create_group(f"{name}_cell_{index}_{id(item)}")
+        _write_mat73_value(holder, "value", item, root)
+        refs.reshape(-1, order="F")[index] = holder["value"].ref
+    dataset = parent.create_dataset(name, data=refs)
+    dataset.attrs["MATLAB_class"] = b"cell"
 
 
 def _study_for_mat(value: Any) -> Any:

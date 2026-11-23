@@ -351,7 +351,8 @@ def test_bids_import_prefers_the_value_column(tmp_path):
         "0.5\t0\t50\tnan\tnan\n",
         encoding="utf-8",
     )
-    imported = pop_importbids(root)
+    _study, datasets = pop_importbids(root)
+    imported = datasets[0]
     assert [event["type"] for event in imported["event"][:2]] == ["stimulus", "response"]
     assert imported["event"][2]["type"] == ""
     assert imported["etc"]["event_column"] == "value"
@@ -396,7 +397,8 @@ def test_bids_import_prefers_the_value_column(tmp_path):
 
 def test_imported_bids_dataset_can_be_saved(tmp_path):
     root = pop_exportbids(_eeg(), tmp_path / "bids")
-    imported = pop_importbids(root)
+    _study, datasets = pop_importbids(root)
+    imported = datasets[0]
     chaninfo = imported["chaninfo"]
     assert chaninfo["plotrad"] is not None
     assert chaninfo["shrink"] is not None
@@ -550,7 +552,7 @@ def test_import_dialog_participant_indices_are_one_based(tmp_path):
     datasets[0]["subject"] = "001"
     datasets[1]["subject"] = "002"
     root = Path(pop_exportbids(datasets, tmp_path / "bids", task="oddball"))
-    imported, command = pop_importbids(
+    _study, datasets, command = pop_importbids(
         root,
         gui=True,
         return_com=True,
@@ -566,9 +568,10 @@ def test_import_dialog_participant_indices_are_one_based(tmp_path):
             }
         ),
     )
+    imported = datasets[0]
     assert imported["subject"] == "002"
     assert "'subjects', [2]" in command
-    both, both_command = pop_importbids(
+    _study, both, both_command = pop_importbids(
         root,
         gui=True,
         return_com=True,
@@ -613,17 +616,17 @@ def test_import_dialog_subject_history_replays_the_same_participants(tmp_path):
         "bidssubjects": True,
         "folder": str(tmp_path / "derivatives" / "eeglab"),
     }
-    imported, command = pop_importbids(
+    _study, datasets, command = pop_importbids(
         root,
         gui=True,
         return_com=True,
         renderer=_Renderer({**dialog, "bidssubjectsstr": "2"}),
     )
-    assert imported["subject"] == "002"
+    assert datasets[0]["subject"] == "002"
     assert _imported_subjects(_replay_history(command)) == ["002"]
-    assert pop_importbids(root, subjects=[2])["subject"] == "002"
+    assert pop_importbids(root, subjects=[2])[1][0]["subject"] == "002"
 
-    both, both_command = pop_importbids(
+    _study, both, both_command = pop_importbids(
         root,
         gui=True,
         return_com=True,
@@ -631,7 +634,7 @@ def test_import_dialog_subject_history_replays_the_same_participants(tmp_path):
     )
     assert _imported_subjects(both) == ["001", "002"]
     assert _imported_subjects(_replay_history(both_command)) == ["001", "002"]
-    assert _imported_subjects(pop_importbids(root, subjects=[1, 2])) == ["001", "002"]
+    assert _imported_subjects(pop_importbids(root, subjects=[1, 2])[1]) == ["001", "002"]
     with pytest.raises(ValueError, match="pop_importbids: participant index 0"):
         pop_importbids(root, subjects=[0])
     with pytest.raises(ValueError, match="pop_importbids: participant index 3"):

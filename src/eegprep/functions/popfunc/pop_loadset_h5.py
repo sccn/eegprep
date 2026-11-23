@@ -41,6 +41,8 @@ def _read_value(node, field=None):
 
     raw = node[()]
     matlab_class = node.attrs.get('MATLAB_class', b'')
+    if isinstance(matlab_class, str):
+        matlab_class = matlab_class.encode('ascii')
     if node.attrs.get('MATLAB_empty', False):
         value = '' if matlab_class == b'char' else np.empty(tuple(int(n) for n in raw.reshape(-1)))
     elif matlab_class == b'char':

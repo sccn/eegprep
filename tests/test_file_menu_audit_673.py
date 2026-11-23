@@ -133,14 +133,14 @@ def test_cnt_event_latency_is_one_based_and_has_no_duration():
         {"stimtype": 1, "accept_ev1": 0, "offset": 10, "keypad_accept": 0, "keyboard": 0},
         keystroke=False,
     )
-    assert event == {"type": 1, "latency": 10.0}
+    assert event == {"type": 1, "latency": 11.0}
     boundary = _eeg_event(
         {"stimtype": 0, "accept_ev1": 11, "offset": 1, "keypad_accept": 0, "keyboard": 0},
         keystroke=False,
     )
     assert boundary["type"] == "boundary"
     assert "duration" not in boundary
-    assert boundary["latency"] == 1.0
+    assert boundary["latency"] == 2.0
 
 
 def test_pop_savestudy_writes_matlab_v6_and_still_reads_json(tmp_path):
@@ -382,7 +382,9 @@ def test_studywizard_cancel_changes_nothing_and_ok_applies_condition():
     info = study["datasetinfo"][0]
     assert str(info["subject"]) == "S3"
     assert str(info["condition"]) == "left"
-    assert "pop_studywizard" in command
+    assert "std_editset" in command
+    assert "'condition'" in command
+    assert "'left'" in command
 
 
 def test_dataset_history_dialog_starts_in_the_dataset_folder(tmp_path):
@@ -449,10 +451,13 @@ def test_participant_table_dialog_stores_each_row(qapp):
     assert first["etc"]["bids"]["participant"]["Gender"] == "M"
     assert second["etc"]["bids"]["participant"]["Gender"] == "F"
     assert "pop_participantinfo" in command
+    assert "'rows', 2" not in command
+    assert "Gender" in command
+    assert "rows" not in first["etc"]["bids"]["participant"]
 
 
 def test_mff_segmentation_follows_categories_not_epochs_xml(tmp_path):
-    from eegprep.functions.popfunc.pop_mffimport import _epoch_events, _looks_segmented
+    from eegprep.functions.popfunc.pop_mffimport import _looks_segmented
 
     folder = tmp_path / "continuous.mff"
     folder.mkdir()
@@ -460,13 +465,6 @@ def test_mff_segmentation_follows_categories_not_epochs_xml(tmp_path):
     assert not _looks_segmented(folder)
     (folder / "categories.xml").write_text("<categories/>", encoding="utf-8")
     assert _looks_segmented(folder)
-
-    class _Epochs:
-        times = np.array([-0.1, 0.0, 0.1])
-        events = np.array([[5000, 0, 1]])
-
-    events = _epoch_events(_Epochs(), "code")
-    assert events[0]["latency"] == 2.0
 
 
 def test_pop_loadeeg_parses_subset_text_into_replayable_history():
@@ -562,3 +560,292 @@ def test_matlab_study_history_is_console_replayable():
     python = _console_python_command(command)
     ast.parse(python)
     assert python.startswith("STUDY, ALLEEG = std_editset(")
+
+
+def test_chanevent_expression_matches_matlab_round_bitand_and_chaining():
+    from eegprep.functions.popfunc.pop_chanevent import _apply_oper
+
+    rounded = _apply_oper(np.array([0.5, 1.5, 2.5, -2.5]), "round(X)")
+    assert list(rounded) == [1.0, 2.0, 3.0, -3.0]
+    masked = _apply_oper(np.array([1.9, 2.2]), "bitand(X, 1)")
+    assert list(masked) == [1.0, 0.0]
+    chained = np.asarray(_apply_oper(np.array([0.0, 2.0, 4.0]), "1<X<3"), dtype=bool)
+    assert chained[2]
+    inverted = np.asarray(_apply_oper(np.array([0.0, 1.0]), "~(X>0)"), dtype=bool)
+    assert list(inverted) == [True, False]
+    with pytest.raises(ValueError, match="not_a_call") as caught:
+        _apply_oper(np.array([1.0]), "not_a_call(X)")
+    assert "ast." not in str(caught.value)
+    spec = pop_chanevent_dialog_spec()
+    hint = next(control for control in spec.controls if control.string == "Optional. Ex: X>3")
+    row = spec.geometry[spec.controls.index(hint) // 3]
+    assert row[2] > 1
+
+
+def test_pop_loadeeg_history_is_positional_and_events_follow_latency(tmp_path, monkeypatch):
+    from eegprep.functions.popfunc.pop_loadeeg import pop_loadeeg
+
+    path = tmp_path / "epochs.eeg"
+    path.write_bytes(b"")
+
+    def fake(_path, **_ranges):
+        signal = np.zeros((1, 8))
+        return signal, [1, 1], [1, 1], np.array([0.5, 0.01]), [0, 0], ["Cz"], 4, 2, 100.0, -0.1, 0.03
+
+    monkeypatch.setattr("eegprep.functions.popfunc.pop_loadeeg.loadeeg", fake)
+    eeg, command = pop_loadeeg(
+        path.name,
+        str(path.parent),
+        [],
+        [1],
+        [],
+        [],
+        return_com=True,
+    )
+    latencies = [float(event["latency"]) for event in eeg["event"]]
+    assert latencies == sorted(latencies)
+    assert "'triallist'" not in command
+    assert "'chanlist'" not in command
+    assert command.startswith(f"EEG = pop_loadeeg('{path.name}', '{path.parent}'")
+
+
+def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
+    mne = pytest.importorskip("mne")
+    from eegprep.functions.popfunc.pop_mffimport import _epochs_from_categories, pop_mffimport
+
+    assert not hasattr(mne, "read_epochs_egi")
+    srate = 250.0
+    info = mne.create_info(257, srate, "eeg")
+    raw = mne.io.RawArray(np.ones((257, 600)), info, verbose="error")
+    folder = tmp_path / "testmff.mff"
+    folder.mkdir()
+    (folder / "epochs.xml").write_text(
+        "<epochs><epoch><beginTime>0</beginTime><endTime>1200000</endTime></epoch>"
+        "<epoch><beginTime>1200000</beginTime><endTime>2400000</endTime></epoch></epochs>",
+        encoding="utf-8",
+    )
+    keys = "".join(f"<key><code>{code}</code><data>stim</data></key>" for code in ("1", "2", "3", "4"))
+    (folder / "categories.xml").write_text(
+        "<categories><cat><name>target</name><segments>"
+        f"<segment><beginTime>0</beginTime><endTime>1200000</endTime>{keys}</segment>"
+        f"<segment><beginTime>1200000</beginTime><endTime>2400000</endTime>{keys}</segment>"
+        "</segments></cat></categories>",
+        encoding="utf-8",
+    )
+    eeg = _epochs_from_categories(raw, folder, "code")
+    assert eeg["data"].shape == (257, 300, 2)
+    assert len(eeg["event"]) == 10
+    broken = tmp_path / "broken.mff"
+    broken.mkdir()
+    (broken / "categories.xml").write_text("<categories/>", encoding="utf-8")
+    with pytest.raises(Exception) as caught:
+        pop_mffimport(broken)
+    assert not isinstance(caught.value, AttributeError)
+
+
+def test_importbids_history_and_sessionless_derivative_path(tmp_path):
+    from eegprep.plugins.EEG_BIDS.pop_importbids import _history_command, _save_derivatives
+
+    eeg = _continuous()
+    eeg["subject"] = "001"
+    eeg["session"] = 1
+    eeg["filename"] = "sub-001_task-rest_eeg.set"
+    eeg["filepath"] = str(tmp_path / "sub-001" / "eeg")
+    _save_derivatives([eeg], tmp_path, tmp_path / "derivatives" / "eeglab")
+    assert (tmp_path / "derivatives" / "eeglab" / "sub-001" / "eeg" / "sub-001_task-rest_eeg.set").is_file()
+    assert not (tmp_path / "derivatives" / "eeglab" / "sub-001" / "ses-1").exists()
+    command = _history_command(tmp_path, {}, return_study=True)
+    assert command.startswith("[STUDY ALLEEG] = pop_importbids(")
+    assert "return_study" not in command
+
+
+def test_pop_savestudy_strips_measures_resaves_json_as_mat_and_falls_back_to_v73(tmp_path, monkeypatch):
+    eeg = _continuous()
+    eeg["subject"] = "S01"
+    study, alleeg = pop_study(None, [eeg], name="Audit")
+    study["cluster"] = [{"name": "Parent", "sets": [[1]], "comps": [1], "specdata": np.ones((2, 3))}]
+    saved, datasets, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path)
+    assert command.startswith("[STUDY ALLEEG] = pop_savestudy(")
+    assert datasets[0]["subject"] == "S01"
+    assert saved["cluster"][0]["specdata"].shape == (2, 3)
+    loaded, _alleeg = pop_loadstudy(tmp_path / "audit.study", load_datasets="off")
+    assert "specdata" not in loaded["cluster"][0]
+    json_path = tmp_path / "legacy.study"
+    json_path.write_text('{"name": "legacy"}', encoding="utf-8")
+    study["filename"] = json_path.name
+    study["filepath"] = str(tmp_path)
+    pop_savestudy(study, alleeg, savemode="resave")
+    assert json_path.read_bytes().startswith(b"MATLAB")
+
+    def too_big(*_args, **_kwargs):
+        raise OverflowError("Matrix too large to save with Matlab 5 format")
+
+    monkeypatch.setattr("eegprep.functions.studyfunc.pop_savestudy.scipy.io.savemat", too_big)
+    pop_savestudy(study, alleeg, filename="huge.study", filepath=tmp_path)
+    huge = tmp_path / "huge.study"
+    assert huge.read_bytes().startswith(b"MATLAB 7.3")
+    reloaded, _ignored = pop_loadstudy(huge, load_datasets="off")
+    assert reloaded["name"] == "Audit"
+
+
+def test_study_commands_stay_replayable_and_studyerp_is_condition_major():
+    from eegprep.functions.studyfunc._study_utils import matlab_flat_commands
+    from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp, pop_studyerp_grid_dialog_spec
+
+    rendered = str(matlab_flat_commands([{"index": 1, "load": "a.set", "subject": "S01"}]))
+    assert rendered.startswith("{{'index'")
+    assert "''index''" not in rendered
+    spec = pop_studyerp_grid_dialog_spec(2, 2)
+    buttons = [control for control in spec.controls if control.style == "pushbutton"]
+    assert len(buttons) == 4
+    assert {control.string for control in buttons} == {"..."}
+    answers = [
+        {"cond": "2", "subjects": "2"},
+        {
+            "study_name": "ERP",
+            "cond1": "rare",
+            "cond2": "frequent",
+            "set1_1": str(SAMPLE),
+            "set1_2": str(SAMPLE),
+            "set2_1": str(SAMPLE),
+            "set2_2": str(SAMPLE),
+        },
+    ]
+
+    class Grid:
+        def run(self, spec, initial_values=None):
+            return answers.pop(0)
+
+    _study, _datasets, command = pop_studyerp(gui=True, renderer=Grid(), return_com=True)
+    import re
+
+    indexes = [int(value) for value in re.findall(r"'index', (\d+)", command)]
+    assert indexes == [2, 4, 3, 5]
+
+
+def test_coordsystem_acq_entity_is_allowed(tmp_path):
+    folder = tmp_path / "bids"
+    (folder / "sub-001" / "eeg").mkdir(parents=True)
+    (folder / "dataset_description.json").write_text('{"Name": "acq"}', encoding="utf-8")
+    (folder / "sub-001_acq-high_coordsystem.json").write_text("{}", encoding="utf-8")
+    result = validate_bids(folder)
+    assert not any("acq-" in error for error in result["errors"])
+
+
+def test_bids_wizard_keeps_a_task_on_every_file(tmp_path):
+    from eegprep.plugins.EEG_BIDS.bids_tools import bids_exporter, bids_exporter_grid_spec
+
+    spec = bids_exporter_grid_spec(row_count=6)
+    assert any(control.tag == "file6" for control in spec.controls)
+    first = tmp_path / "one.set"
+    second = tmp_path / "two.set"
+    pop_saveset(_continuous(), first)
+    pop_saveset(_continuous(), second)
+    output, _command = bids_exporter(
+        entries=[
+            {"file": str(first), "subject": "001", "task": "rest"},
+            {"file": str(second), "subject": "002", "task": "oddball"},
+        ],
+        output_dir=tmp_path / "out",
+    )
+    root = Path(output)
+    assert (root / "sub-001" / "eeg" / "sub-001_task-rest_eeg.set").is_file()
+    assert (root / "sub-002" / "eeg" / "sub-002_task-oddball_eeg.set").is_file()
+    assert (root / "sub-001" / "eeg" / "task-rest_events.json").is_file()
+    assert (root / "sub-002" / "eeg" / "task-oddball_events.json").is_file()
+    assert not list(root.rglob("sub-*_events.json"))
+
+
+def test_export_uses_channel_type_and_prompts_for_power_line(tmp_path):
+    from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
+
+    eeg = _continuous()
+    eeg["subject"] = "001"
+    eeg["data"] = np.zeros((2, 10))
+    eeg["nbchan"] = 2
+    eeg["chanlocs"] = [{"labels": "Cz", "type": "EOG"}, {"labels": "Pz", "type": "EEG"}]
+    out = tmp_path / "bids"
+
+    class Power:
+        def run(self, spec, initial_values=None):
+            return {"PowerLineFrequency": 2}
+
+    pop_exportbids(eeg, out, task="rest", renderer=Power())
+    channels = (out / "sub-001" / "eeg" / "sub-001_task-rest_channels.tsv").read_text(encoding="utf-8")
+    assert "Cz\tEOG\tuV" in channels
+    sidecar = (out / "sub-001" / "eeg" / "sub-001_task-rest_eeg.json").read_text(encoding="utf-8")
+    assert '"PowerLineFrequency": "60"' in sidecar
+
+
+def test_quit_asks_before_discarding_unsaved_datasets():
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, _require_qt_widgets
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    session = EEGPrepSession()
+    eeg = _continuous()
+    eeg["saved"] = "no"
+    session.ALLEEG = [eeg]
+    prompts = []
+
+    class Widgets:
+        class QMessageBox:
+            Yes = 1
+            No = 2
+            Cancel = 3
+
+            @staticmethod
+            def question(_parent, _title, text, *_args, **_kwargs):
+                prompts.append(text)
+                return 3
+
+    dispatcher = MenuActionDispatcher(session)
+    assert dispatcher._last_data_folder == ""
+    original = _require_qt_widgets
+    try:
+        import eegprep.functions.guifunc.menu_actions as menu_actions
+
+        menu_actions._require_qt_widgets = lambda: Widgets
+        closed = []
+
+        class Parent:
+            def close(self):
+                closed.append(True)
+
+        dispatcher.dispatch("quit", Parent())
+    finally:
+        menu_actions._require_qt_widgets = original
+    assert prompts == ["Some datasets are unsaved. Save them before quitting?"]
+    assert closed == []
+
+
+def test_pop_runscript_runs_nothing_when_a_line_is_unsupported(tmp_path):
+    script = tmp_path / "history.m"
+    script.write_text("EEG = 1;\nthis is not a supported command (\n", encoding="utf-8")
+    namespace: dict = {}
+    with pytest.raises(ValueError, match="line 2"):
+        pop_runscript(script, namespace)
+    assert namespace == {}
+
+
+def test_pop_fileio_honours_dataformat_from_the_popup(tmp_path):
+    from eegprep.functions.popfunc.pop_fileio import pop_fileio
+
+    source = tmp_path / "recording.set"
+    pop_saveset(_continuous(), source)
+    renamed = tmp_path / "recording.bin"
+    renamed.write_bytes(source.read_bytes())
+    loaded = pop_fileio(renamed, dataformat="eeglab")
+    assert loaded["nbchan"] == 1
+    array = tmp_path / "values.mat"
+    import scipy.io
+
+    scipy.io.savemat(array, {"data": np.arange(8).reshape(2, 4)})
+    imported = pop_fileio(array, dataformat="matlab-array")
+    assert imported["data"].shape[0] == 2
+
+
+def test_size_mb_rounds_half_up(monkeypatch):
+    from eegprep.functions.guifunc.main_window import _size_mb
+
+    monkeypatch.setattr("eegprep.functions.guifunc.main_window._memory_bytes", lambda _value, _seen: 1_250_000)
+    assert _size_mb({}) == "1.3"

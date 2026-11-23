@@ -178,6 +178,6 @@ def test_study_save_load_and_bids_metadata(tmp_path):
 
     ast.parse(_console_python_command(save_command))
     assert "demo''s.study" in load_command
-    assert "'load_datasets', 'off'" in load_command
+    assert "load_datasets" not in load_command
     assert "'filepath'" in load_command
     ast.parse(_console_python_command(load_command))

@@ -68,6 +68,16 @@ def pop_exportbids(
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
     task_info = _task_info(datasets, task, study)
+    if (gui or renderer is not None) and str(task_info.get("PowerLineFrequency") or "n/a") == "n/a":
+        chosen = _power_line_prompt(renderer)
+        if chosen is None:
+            return ("", "") if return_com else ""
+        task_info["PowerLineFrequency"] = chosen
+        for dataset in datasets:
+            etc = dataset.setdefault("etc", {})
+            bids = etc.setdefault("bids", {})
+            stored = bids.setdefault("task", {})
+            stored["PowerLineFrequency"] = chosen
     _write_description(root / "dataset_description.json", task_info, license_name)
     _write_readme(root / "README", task_info)
     if changes_text:
@@ -136,8 +146,6 @@ def pop_exportbids_dialog_spec(*, task: str = "eeg") -> DialogSpec:
         known_differences=(
             "Task name is on this dialog. EEGLAB asks in a second window when STUDY.task is empty "
             "(pop_exportbids.m lines 90-98).",
-            "PowerLineFrequency defaults to n/a, the value bids_writetinfofile.m line 70 writes. "
-            "EEGLAB prompts when the field is missing (pop_exportbids.m lines 100-113).",
             "The dialog records a replayable pop_exportbids command with the dataset list, task, "
             "license, changes, and createids. pop_exportbids.m lines 247-252 leave that command empty.",
         ),
@@ -385,6 +393,7 @@ def _write_recordings(
     for subject_label in exported:
         subject_counts[subject_label] = subject_counts.get(subject_label, 0) + 1
     run_counts: dict[str, int] = {}
+    written_events: set[tuple[Path, str]] = set()
     for eeg, info, subject_label in zip(datasets, infos, exported):
         session = _entity_label(eeg.get("session")) or _entity_label(info.get("session"))
         run = _entity_label(eeg.get("run")) or _entity_label(info.get("run"))
@@ -397,10 +406,12 @@ def _write_recordings(
             eeg_dir = eeg_dir / f"ses-{session}"
         eeg_dir = eeg_dir / "eeg"
         eeg_dir.mkdir(parents=True, exist_ok=True)
+        file_task = str(eeg.get("task") or info.get("task") or task).strip() or task
+        _check_task_name(file_task)
         prefix = f"sub-{subject_label}"
         if session:
             prefix += f"_ses-{session}"
-        prefix += f"_task-{task}"
+        prefix += f"_task-{file_task}"
         if run and (several or _entity_label(eeg.get("run")) or _entity_label(info.get("run"))):
             prefix += f"_run-{run}"
         target = eeg_dir / f"{prefix}_eeg.set"
@@ -412,8 +423,13 @@ def _write_recordings(
         pop_saveset(deepcopy(eeg), str(target))
         _write_channels(eeg_dir / f"{prefix}_channels.tsv", eeg)
         _write_events(eeg_dir / f"{prefix}_events.tsv", eeg)
-        _write_events_json(eeg_dir / f"{prefix}_events.json", eeg)
-        _write_eeg_json(eeg_dir / f"{prefix}_eeg.json", eeg, task_info)
+        events_key = (eeg_dir, file_task)
+        if events_key not in written_events:
+            _write_events_json(eeg_dir / f"task-{file_task}_events.json", eeg)
+            written_events.add(events_key)
+        file_info = dict(task_info)
+        file_info["TaskName"] = file_task
+        _write_eeg_json(eeg_dir / f"{prefix}_eeg.json", eeg, file_info)
         electrode_stem = _electrode_basename(prefix)
         _write_electrodes(eeg_dir / f"{electrode_stem}_electrodes.tsv", eeg)
         _write_coordsystem(eeg_dir / f"{electrode_stem}_coordsystem.json", eeg)
@@ -450,8 +466,10 @@ def _write_channels(path: Path, eeg: dict[str, Any]) -> None:
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         writer.writerow(["name", "type", "units"])
-        for label in channel_labels(eeg):
-            writer.writerow([label, _channel_type(label), "uV"])
+        channels = _channel_records(eeg)
+        for index, label in enumerate(channel_labels(eeg)):
+            channel = channels[index] if index < len(channels) and isinstance(channels[index], dict) else label
+            writer.writerow([label, _channel_type(channel), "uV"])
 
 
 def _write_events(path: Path, eeg: dict[str, Any]) -> None:
@@ -522,16 +540,41 @@ def _write_eeg_json(path: Path, eeg: dict[str, Any], task_info: dict[str, Any]) 
 
 
 def _electrode_basename(stem: str) -> str:
-    # Coordinate-system files reject task-, desc-, and run-. EEGLAB only drops task- and desc-.
     name = stem
     for token in ("task-", "desc-", "run-"):
         name = _drop_filename_entity(name, token)
     return name
 
 
-def _channel_type(label: str) -> str:
+def _channel_records(eeg: dict[str, Any]) -> list[Any]:
+    channels = eeg.get("chanlocs")
+    if isinstance(channels, np.ndarray):
+        channels = channels.reshape(-1).tolist()
+    if isinstance(channels, (list, tuple)):
+        return list(channels)
+    return []
+
+
+def _channel_text(value: Any) -> str:
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ""
+        value = value.reshape(-1)[0]
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _channel_type(channel: Any) -> str:
+    if isinstance(channel, dict):
+        declared = _channel_text(channel.get("type"))
+        if declared:
+            return declared
+        label = _channel_text(channel.get("labels"))
+    else:
+        label = channel
     text = str(label).upper()
-    if any(token in text for token in ("EOG", "HEOG", "VEOG")):
+    if "EOG" in text:
         return "EOG"
     if "ECG" in text or "EKG" in text:
         return "ECG"
@@ -541,7 +584,31 @@ def _channel_type(label: str) -> str:
 
 
 def _type_count(eeg: dict[str, Any], kind: str) -> int:
-    return sum(_channel_type(label) == kind for label in channel_labels(eeg))
+    channels = _channel_records(eeg)
+    labels = channel_labels(eeg)
+    count = 0
+    for index, label in enumerate(labels):
+        channel = channels[index] if index < len(channels) and isinstance(channels[index], dict) else label
+        if _channel_type(channel) == kind:
+            count += 1
+    return count
+
+
+def _power_line_prompt(renderer: Any) -> str | None:
+    spec = DialogSpec(
+        title="Power line frequency -- pop_exportbids()",
+        function_name="pop_exportbids",
+        eeglab_source="plugins/EEG-BIDS/pop_exportbids.m",
+        geometry=((1,), (1,)),
+        controls=(
+            ControlSpec("text", "Power line frequency (Hz)"),
+            ControlSpec("popupmenu", "50|60", tag="PowerLineFrequency", value=1),
+        ),
+    )
+    result = inputgui(spec, renderer=renderer)
+    if result is None:
+        return None
+    return "60" if int(result.get("PowerLineFrequency") or 1) == 2 else "50"
 
 
 def _write_participants_json(path: Path, fields: list[str], datasets: list[dict[str, Any]]) -> None:

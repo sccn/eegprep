@@ -424,6 +424,8 @@ def matlab_flat_commands(commands: list[Any]) -> MatlabLiteral:
     """Format a flat STUDY command list as one EEGLAB name/value cell."""
     from eegprep.functions.popfunc._pop_utils import format_history_value
 
+    if commands and all(isinstance(item, dict) for item in commands):
+        return MatlabLiteral(matlab_command_cell(commands))
     parts: list[str] = []
     index = 0
     while index < len(commands):

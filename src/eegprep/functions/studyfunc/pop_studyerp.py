@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.studyfunc._study_utils import build_matlab_call
+from eegprep.functions.studyfunc._study_utils import build_matlab_call, matlab_command_cell
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.std_editset import std_editset
 
@@ -70,9 +70,30 @@ def pop_studyerp_grid_dialog_spec(n_conditions: int, n_subjects: int) -> DialogS
         controls.append(ControlSpec("edit", tag=f"cond{index}"))
         geometry.append((1, 3.5))
     for subject in range(1, n_subjects + 1):
+        row: list[float] = []
         for condition in range(1, n_conditions + 1):
+            if condition > 1:
+                controls.append(ControlSpec("spacer"))
+                row.append(0.2)
             controls.append(ControlSpec("edit", tag=f"set{condition}_{subject}"))
-        geometry.append(tuple([3.5] * n_conditions))
+            controls.append(
+                ControlSpec(
+                    "pushbutton",
+                    "...",
+                    tag=f"browse{condition}_{subject}",
+                    callback=CallbackSpec(
+                        "select_file",
+                        {
+                            "button": f"browse{condition}_{subject}",
+                            "target": f"set{condition}_{subject}",
+                            "caption": "Choose dataset to add to STUDY -- pop_study()",
+                            "filter": "EEGLAB dataset (*.set)",
+                        },
+                    ),
+                )
+            )
+            row.extend((3.5, 0.5))
+        geometry.append(tuple(row))
     controls.append(
         ControlSpec(
             "text",
@@ -101,22 +122,20 @@ def _studyerp_from_dialogs(renderer: Any, *, return_com: bool) -> Any:
     if not grid:
         return (None, [], "") if return_com else (None, [])
     commands = []
-    index = 1
-    for subject in range(1, n_subjects + 1):
-        for condition in range(1, n_conditions + 1):
+    for condition in range(1, n_conditions + 1):
+        condition_name = str(grid.get(f"cond{condition}") or "").strip() or f"condition {condition}"
+        for subject in range(1, n_subjects + 1):
             filename = str(grid.get(f"set{condition}_{subject}") or "").strip()
             if not filename:
                 continue
-            condition_name = str(grid.get(f"cond{condition}") or "").strip() or f"condition {condition}"
             commands.append(
                 {
-                    "index": index,
+                    "index": n_conditions * subject + condition - 1,
                     "load": filename,
                     "subject": f"S{subject:02d}",
                     "condition": condition_name,
                 }
             )
-            index += 1
     if not commands:
         raise ValueError("pop_studyerp: no dataset files were entered. Fill at least one dataset box, then press Ok.")
     name = str(grid.get("study_name") or "").strip() or "Simple ERP STUDY"
@@ -138,6 +157,7 @@ def _studyerp_from_dialogs(renderer: Any, *, return_com: bool) -> Any:
         name=name,
         commands=commands,
         updatedat="off",
+        dict_formatter=matlab_command_cell,
     )
     return (study, datasets, command) if return_com else (study, datasets)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -49,11 +50,10 @@ def pop_mffimport(
             )
         chosen = _TYPE_FIELDS[index - 1]
     mne = import_optional_dependency("mne", feature="pop_mffimport")
+    raw = mne.io.read_raw_egi(path, preload=True, verbose="error")
     if _looks_segmented(path):
-        epochs = mne.read_epochs_egi(path, verbose="error")
-        eeg = _epochs_to_eeg(epochs, path, chosen)
+        eeg = _epochs_from_categories(raw, path, chosen)
     else:
-        raw = mne.io.read_raw_egi(path, preload=True, verbose="error")
         eeg = mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))
     eeg = _drop_synthetic_channels(eeg)
     eeg["setname"] = eeg.get("setname") or path.stem
@@ -80,8 +80,6 @@ def pop_mffimport_dialog_spec() -> DialogSpec:
 
 
 def _looks_segmented(path: Path) -> bool:
-    # pop_mffimport.m epochs only when categories exist. Continuous MFF folders
-    # also contain epochs.xml, one entry per recording block.
     folder = path if path.is_dir() else path.parent
     return (folder / "categories.xml").is_file() or (folder / "Categories.xml").is_file()
 
@@ -97,10 +95,44 @@ def _type_choice(value: str) -> str:
     return text
 
 
-def _epochs_to_eeg(epochs: Any, path: Path, typefield: str) -> dict[str, Any]:
-    array = np.asarray(epochs.get_data())
-    data = np.transpose(array, (1, 2, 0))
-    times = np.asarray(epochs.times)
+def _epochs_from_categories(raw: Any, path: Path, typefield: str) -> dict[str, Any]:
+    segments = _mff_segments(path)
+    if not segments:
+        raise ValueError(
+            f"pop_mffimport: {path} looks segmented but categories.xml has no segments. "
+            "Export the epochs from Net Station again, then import the .mff folder."
+        )
+    continuous = np.asarray(raw.get_data())
+    srate = float(raw.info["sfreq"])
+    pieces = []
+    events: list[dict[str, Any]] = []
+    for trial, segment in enumerate(segments, start=1):
+        first = int(round(segment["begin"] * srate))
+        last = int(round(segment["end"] * srate))
+        if last <= first or first < 0 or last > continuous.shape[1]:
+            raise ValueError(
+                f"pop_mffimport: segment {trial} of {path.name} spans samples {first}:{last}, "
+                f"outside 0:{continuous.shape[1]}. Check epochs.xml and categories.xml, then import again."
+            )
+        pieces.append(continuous[:, first:last])
+    lengths = {piece.shape[1] for piece in pieces}
+    if len(lengths) != 1:
+        shown = ", ".join(str(length) for length in sorted(lengths))
+        raise ValueError(
+            f"pop_mffimport: {path.name} segments have different lengths ({shown}). "
+            "EEGLAB epochs need one length. Re-segment the recording, then import again."
+        )
+    data = np.stack(pieces, axis=2)
+    pnts = int(data.shape[1])
+    for trial, segment in enumerate(segments, start=1):
+        latency = float((trial - 1) * pnts + 1)
+        events.append({"type": _segment_type(segment, typefield), "latency": latency, "epoch": trial})
+        for key in segment["keys"]:
+            events.append(
+                {"type": _key_type(key, typefield), "latency": latency, "epoch": trial, "mffkeys": key["code"]}
+            )
+    times = np.arange(pnts) / srate
+    names = list(raw.ch_names)
     eeg = eeg_emptyset()
     eeg.update(
         {
@@ -108,50 +140,101 @@ def _epochs_to_eeg(epochs: Any, path: Path, typefield: str) -> dict[str, Any]:
             "filename": path.name,
             "filepath": str(path.parent if path.is_file() else path),
             "nbchan": int(data.shape[0]),
-            "pnts": int(data.shape[1]),
+            "pnts": pnts,
             "trials": int(data.shape[2]),
-            "srate": float(epochs.info["sfreq"]),
-            "xmin": float(times[0]) if times.size else 0.0,
+            "srate": srate,
+            "xmin": 0.0,
             "xmax": float(times[-1]) if times.size else 0.0,
             "times": times * 1000.0,
             "data": data,
-            "chanlocs": [{"labels": name, "type": "EEG"} for name in epochs.ch_names],
-            "event": _epoch_events(epochs, typefield),
+            "chanlocs": [{"labels": name, "type": "EEG"} for name in names],
+            "event": events,
         }
     )
     return eeg
 
 
-def _epoch_events(epochs: Any, typefield: str) -> list[dict[str, Any]]:
-    events = []
-    metadata = getattr(epochs, "metadata", None)
-    # events[:, 0] is a sample in the original continuous file, not an offset
-    # inside the epoch. The time-locking event sits at the zero-time sample.
-    zero = int(np.argmin(np.abs(np.asarray(epochs.times)))) if np.asarray(epochs.times).size else 0
-    for index, row in enumerate(np.asarray(epochs.events)):
-        meta = metadata.iloc[index] if metadata is not None and index < len(metadata) else None
-        event = {
-            "type": _epoch_type(row, meta, typefield),
-            "latency": float(index * epochs.times.size + zero + 1),
-            "epoch": index + 1,
-        }
-        if metadata is not None and index < len(metadata):
-            for key, value in metadata.iloc[index].items():
-                event[str(key)] = value
-        events.append(event)
-    return events
+def _mff_segments(path: Path) -> list[dict[str, Any]]:
+    folder = path if path.is_dir() else path.parent
+    categories = _first_xml(folder, ("categories.xml", "Categories.xml"))
+    epochs = _first_xml(folder, ("epochs.xml", "Epochs.xml"))
+    bounds = _epoch_bounds(epochs) if epochs is not None else []
+    segments: list[dict[str, Any]] = []
+    if categories is not None:
+        for category in categories.iter():
+            if _xml_name(category.tag) != "cat":
+                continue
+            label = _child_text(category, "name")
+            for segment in category.iter():
+                if _xml_name(segment.tag) not in {"segment", "seg"}:
+                    continue
+                keys = [
+                    {"code": _child_text(key, "code"), "data": _child_text(key, "data")}
+                    for key in segment.iter()
+                    if _xml_name(key.tag) == "key"
+                ]
+                begin = _seconds(_child_text(segment, "beginTime"))
+                end = _seconds(_child_text(segment, "endTime"))
+                if bounds and len(segments) < len(bounds):
+                    begin, end = bounds[len(segments)]
+                segments.append({"name": label, "begin": begin, "end": end, "keys": keys})
+    if not segments and bounds:
+        segments = [
+            {"name": str(index), "begin": begin, "end": end, "keys": []}
+            for index, (begin, end) in enumerate(bounds, start=1)
+        ]
+    return segments
 
 
-def _epoch_type(row: Any, meta: Any, typefield: str) -> str:
-    if meta is not None and typefield == "label":
-        for key in ("label", "Label", "description"):
-            if key in meta.index and str(meta[key]).strip():
-                return str(meta[key])
-    if meta is not None and typefield == "mffkeys":
-        for key in ("mffkeys", "code", "label"):
-            if key in meta.index and str(meta[key]).strip():
-                return str(meta[key])
-    return str(row[2])
+def _epoch_bounds(root: ET.Element) -> list[tuple[float, float]]:
+    bounds = []
+    for epoch in root.iter():
+        if _xml_name(epoch.tag) != "epoch":
+            continue
+        bounds.append((_seconds(_child_text(epoch, "beginTime")), _seconds(_child_text(epoch, "endTime"))))
+    return bounds
+
+
+def _first_xml(folder: Path, names: tuple[str, ...]) -> ET.Element | None:
+    for name in names:
+        file = folder / name
+        if file.is_file():
+            return ET.parse(file).getroot()
+    return None
+
+
+def _xml_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _child_text(node: ET.Element, name: str) -> str:
+    for child in list(node):
+        if _xml_name(child.tag) == name:
+            return str(child.text or "").strip()
+    return ""
+
+
+def _seconds(text: str) -> float:
+    if not text:
+        return 0.0
+    value = float(text)
+    if abs(value) >= 1000:
+        return value / 1_000_000.0
+    return value
+
+
+def _segment_type(segment: dict[str, Any], typefield: str) -> str:
+    if typefield == "code" and segment["keys"] and segment["keys"][0]["code"]:
+        return str(segment["keys"][0]["code"])
+    if typefield == "mffkeys" and segment["keys"]:
+        return str(segment["keys"][0]["data"] or segment["keys"][0]["code"] or segment["name"])
+    return str(segment["name"] or "TLE")
+
+
+def _key_type(key: dict[str, str], typefield: str) -> str:
+    if typefield == "label":
+        return key["data"] or key["code"] or "key"
+    return key["code"] or key["data"] or "key"
 
 
 def _drop_synthetic_channels(eeg: dict[str, Any]) -> dict[str, Any]:

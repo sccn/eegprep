@@ -658,10 +658,7 @@ def raw_bids_root(path: Path) -> Path | None:
     for parent in (resolved.parent, *resolved.parent.parents):
         if not (parent / "dataset_description.json").is_file():
             continue
-        try:
-            relative = resolved.relative_to(parent)
-        except ValueError:
-            return None
+        relative = resolved.relative_to(parent)
         if "derivatives" in parent.parts or "derivatives" in relative.parts:
             return None
         if _dataset_type(parent) == "derivative":

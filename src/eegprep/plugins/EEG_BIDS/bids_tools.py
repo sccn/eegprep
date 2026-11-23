@@ -130,8 +130,7 @@ def pop_participantinfo(
         else:
             edited = rows
         _store_participant_rows(datasets or [target], edited, column_info)
-        command = _update_bids_metadata(target, "participant", {"rows": len(edited)}, "pop_participantinfo")[1]
-        return target, command
+        return target, _participant_history(target, edited, column_info)
     if gui or renderer is not None:
         collected = _dialog_metadata(pop_participantinfo_dialog_spec(), renderer, _participant_initial(target))
         if collected is None:
@@ -294,12 +293,12 @@ def validate_bids(root: str | Path) -> dict[str, list[str] | str | None]:
 
 def _check_coordsystem_names(path: Path, errors: list[str]) -> None:
     """Flag coordinate-system names that BIDS rejects, even without bids-validator."""
-    forbidden = ("_run-", "_task-", "_desc-", "_acq-", "_rec-")
+    forbidden = ("_run-", "_task-", "_desc-", "_rec-")
     for file in path.rglob("*coordsystem.json"):
         if any(token in file.name for token in forbidden):
             errors.append(
                 f"validate_bids: {file.name} uses a BIDS entity that coordsystem.json does not allow. "
-                "Remove run-, task-, desc-, acq-, and rec- from that filename, then validate again."
+                "Remove run-, task-, desc-, and rec- from that filename, then validate again."
             )
 
 
@@ -329,7 +328,7 @@ def _export_wizard(
             return "", ""
         output_dir = str(grid.get("output") or output_dir or "").strip()
         entries = []
-        for index in range(1, _WIZARD_ROWS + 1):
+        for index in _wizard_row_indexes(grid):
             filename = str(grid.get(f"file{index}") or "").strip()
             if not filename:
                 continue
@@ -353,17 +352,15 @@ def _export_wizard(
             "bids_exporter: an output folder is required. Enter the output folder on the export grid, then press Ok."
         )
     datasets = []
-    task = "eeg"
     for entry in entries:
         dataset = _load_recording(str(entry["file"]))
         if entry.get("subject"):
             dataset["subject"] = entry["subject"]
-        for key in ("session", "run", "condition", "group"):
+        for key in ("session", "run", "condition", "group", "task"):
             if entry.get(key):
                 dataset[key] = entry[key]
-        if entry.get("task"):
-            task = str(entry["task"])
         datasets.append(dataset)
+    task = str(entries[0].get("task") or "eeg")
     return pop_exportbids(datasets, output_dir, task=task, return_com=True)
 
 
@@ -385,14 +382,20 @@ def bids_exporter_welcome_spec() -> DialogSpec:
     )
 
 
-def bids_exporter_grid_spec() -> DialogSpec:
+def bids_exporter_grid_spec(row_count: int | None = None) -> DialogSpec:
     """Return the raw-file grid from ``bids_exporter.m``."""
+    count = _WIZARD_ROWS if row_count is None else int(row_count)
+    if count < 1:
+        raise ValueError(
+            "bids_exporter: the file grid needs at least one row. "
+            "Pass row_count as a positive whole number, then open the wizard again."
+        )
     controls = [
         ControlSpec("text", "Output folder"),
         ControlSpec("edit", tag="output"),
     ]
     geometry: list[tuple[int, ...]] = [(1, 3)]
-    for index in range(1, _WIZARD_ROWS + 1):
+    for index in range(1, count + 1):
         controls.extend(
             [
                 ControlSpec("edit", tag=f"file{index}"),
@@ -413,6 +416,26 @@ def bids_exporter_grid_spec() -> DialogSpec:
         controls=tuple(controls),
         scrollable=True,
     )
+
+
+def _wizard_row_indexes(grid: dict[str, Any]) -> list[int]:
+    indexes = [int(key[4:]) for key in grid if key.startswith("file") and key[4:].isdigit()]
+    return sorted(indexes)
+
+
+def _participant_history(
+    target: dict[str, Any],
+    rows: list[dict[str, Any]],
+    column_info: dict[str, dict[str, str]] | None,
+) -> str:
+    from eegprep.functions.studyfunc._study_utils import matlab_command_cell
+
+    target_name = "STUDY" if "datasetinfo" in target else "EEG"
+    pieces = [target_name, format_history_value("rows"), matlab_command_cell(rows)]
+    if column_info:
+        described = [{"Field": field, **info} for field, info in column_info.items()]
+        pieces.extend([format_history_value("column_info"), matlab_command_cell(described)])
+    return f"LASTCOM = pop_participantinfo({', '.join(pieces)});"
 
 
 def _participant_table(datasets: list[dict[str, Any]]) -> tuple[list[dict[str, str]] | None, dict[str, dict[str, str]]]:

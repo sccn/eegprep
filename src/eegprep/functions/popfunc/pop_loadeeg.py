@@ -10,6 +10,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+from eegprep.functions.popfunc._file_io import events_to_records
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_importepoch import pop_importepoch
@@ -18,6 +19,12 @@ from eegprep.functions.sigprocfunc.loadeeg import loadeeg
 
 def pop_loadeeg(
     filename: str | Path,
+    filepath: str | Path | None = None,
+    range_chan: Any = None,
+    range_sweeps: Any = None,
+    range_type: Any = None,
+    range_response: Any = None,
+    data_format: str | None = None,
     *,
     triallist: Any = None,
     typerange: Any = None,
@@ -36,11 +43,19 @@ def pop_loadeeg(
     reaction times are present, an RT event.
     """
     path = Path(filename)
+    if filepath and not path.is_file():
+        path = Path(filepath) / path
     if not path.is_file():
         raise ValueError(
             f"pop_loadeeg: {path} is not a Neuroscan .eeg file. Choose a .eeg file with File > Import data."
         )
-    ranges = _explicit_ranges(triallist, typerange, chanlist, responsetype, format)
+    ranges = _explicit_ranges(
+        triallist if triallist is not None else range_sweeps,
+        typerange if typerange is not None else range_type,
+        chanlist if chanlist is not None else range_chan,
+        responsetype if responsetype is not None else range_response,
+        format or data_format,
+    )
     if gui or renderer is not None:
         result = inputgui(pop_loadeeg_dialog_spec(), renderer=renderer)
         if result is None:
@@ -78,7 +93,7 @@ def pop_loadeeg(
         columns = [np.asarray(rts, dtype=float) * 1000.0, *columns]
         latency_fields = ["RT"]
     table = np.column_stack(columns)
-    imported = pop_importepoch(
+    eeg = pop_importepoch(
         eeg,
         table,
         fields,
@@ -87,7 +102,7 @@ def pop_loadeeg(
         headerlines=0,
         clearevents=1,
     )
-    eeg = imported[0] if isinstance(imported, tuple) else imported
+    _order_events_by_latency(eeg)
     command = _history(path, ranges)
     history = str(eeg.get("history") or "").strip()
     eeg["history"] = f"{history}\n{command}".lstrip()
@@ -159,9 +174,29 @@ def _explicit_ranges(
 
 
 def _history(path: Path, ranges: dict[str, Any]) -> str:
-    parts = [format_history_value(path)]
-    for key in ("format", "triallist", "typerange", "chanlist", "responsetype"):
-        if key not in ranges:
-            continue
-        parts.extend([format_history_value(key), format_history_value(ranges[key])])
+    parts = [
+        format_history_value(path.name),
+        format_history_value(str(path.parent)),
+        format_history_value(ranges.get("chanlist", [])),
+        format_history_value(ranges.get("triallist", [])),
+        format_history_value(ranges.get("typerange", [])),
+        format_history_value(ranges.get("responsetype", [])),
+    ]
+    if ranges.get("format"):
+        parts.append(format_history_value(ranges["format"]))
     return f"EEG = pop_loadeeg({', '.join(parts)});"
+
+
+def _order_events_by_latency(eeg: dict[str, Any]) -> None:
+    events = events_to_records(eeg.get("event"))
+    events.sort(
+        key=lambda event: (float(event.get("latency") or 0), int(event.get("epoch") or 0), str(event.get("type")))
+    )
+    eeg["event"] = events
+    urevents = events_to_records(eeg.get("urevent"))
+    if not urevents:
+        return
+    urevents.sort(key=lambda event: (float(event.get("latency") or 0), str(event.get("type"))))
+    eeg["urevent"] = urevents
+    for index, event in enumerate(events):
+        event["urevent"] = index + 1

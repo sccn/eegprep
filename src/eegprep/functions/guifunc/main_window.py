@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal, ROUND_HALF_UP
 import ctypes
 import ctypes.util
 import logging
@@ -963,14 +964,8 @@ def _collection_len(value: Any) -> int:
 
 
 def _size_mb(value: Any) -> str:
-    number = _memory_bytes(value, set()) / 1e6
-    sign = -1 if number < 0 else 1
-    scaled = abs(number) * 10
-    whole = int(scaled)
-    if scaled - whole >= 0.5:
-        whole += 1
-    text = f"{sign * whole / 10:.1f}"
-    return text
+    number = Decimal(_memory_bytes(value, set())) / Decimal("1000000")
+    return str(number.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
 def _memory_bytes(value: Any, seen: set[int]) -> int:
