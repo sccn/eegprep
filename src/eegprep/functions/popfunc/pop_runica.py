@@ -19,6 +19,8 @@ from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_pamica import eeg_pamica
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.eeg_runica import _pca_option_key, apply_runica_data_rank, eeg_runica
+from eegprep.functions.sigprocfunc.jader import jader
+from eegprep.functions.sigprocfunc.sobi import sobi
 
 
 _ALGORITHMS = (
@@ -27,6 +29,8 @@ _ALGORITHMS = (
     ("runamica15", "AMICA (slowest; best)", "'maxiter', 2000"),
     ("picard", "Infomax picard.m", "'maxiter', 500, 'mode', 'standard'"),
     ("picard", "FastICA picard.m (fastest)", "'maxiter', 500"),
+    ("sobi", "SOBI (sobi.m function)", "'p', 100"),
+    ("jader", "JADE (jader.m function)", ""),
 )
 logger = logging.getLogger(__name__)
 
@@ -436,10 +440,43 @@ def _run_ica_backend(EEG, icatype, options, *, reorder):
         return eeg_amica(EEG, sortcomps=reorder, **_amica_options(options))
     if icatype == "pamica":
         return eeg_pamica(EEG, sortcomps=reorder, **_pamica_options(options))
+    if icatype == "sobi":
+        data = _flatten_dataset_data(EEG)
+        mixing = sobi(data, n=_optional_count(options.get("n"), data.shape[0]), p=_optional_count(options.get("p")))
+        return _dataset_from_ica(EEG, np.linalg.pinv(mixing), reorder=reorder)
+    if icatype == "jader":
+        data = _flatten_dataset_data(EEG)
+        weights = jader(data, m=_optional_count(options.get("m")))
+        return _dataset_from_ica(EEG, weights, reorder=reorder)
     raise NotImplementedError(
-        "EEGPrep pop_runica supports runica, picard, runamica15/amica, and pamica. "
+        "EEGPrep pop_runica supports runica, picard, runamica15/amica, pamica, sobi, and jader. "
         f"The '{icatype}' ICA algorithm is not ported yet."
     )
+
+
+def _optional_count(value, default=None):
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def _dataset_from_ica(EEG, weights, *, reorder):
+    output = copy.deepcopy(EEG)
+    unmixing = np.asarray(weights, dtype=float)
+    data = _flatten_dataset_data(output)
+    sphere = np.eye(unmixing.shape[1])
+    if is_on(reorder):
+        mixing = np.linalg.pinv(unmixing @ sphere)
+        activations = unmixing @ sphere @ data
+        variance = np.sum(mixing**2, axis=0) * np.sum(activations.T**2, axis=0)
+        variance /= data.shape[0] * data.shape[1] - 1
+        unmixing = unmixing[np.argsort(variance)[::-1]]
+    output["icaweights"] = unmixing
+    output["icasphere"] = sphere
+    output["icawinv"] = np.linalg.pinv(unmixing @ sphere)
+    output["icaact"] = np.array([])
+    output["icachansind"] = np.arange(data.shape[0])
+    return output
 
 
 def _picard_options(options, *, channel_count):
@@ -560,7 +597,11 @@ def _algorithm_index(icatype):
 
 def _normalise_icatype(icatype):
     value = str(icatype).lower()
-    return "runamica15" if value == "amica" else value
+    if value == "amica":
+        return "runamica15"
+    if value == "jade":
+        return "jader"
+    return value
 
 
 def _normalise_ica_options(icatype, options, extra):

@@ -59,6 +59,6 @@ for index, model in enumerate(EEG["dipfit"]["model"][:3], start=1):
     coords = "; ".join(f"({x:6.1f}, {y:6.1f}, {z:6.1f})" for x, y, z in pos)
     print(f"IC{index}: posxyz={coords} rv={100 * rv:.1f}%")
 
-# 5. Dipole plot over the packaged MNI MRI slices (Component dipole plot).
+# 5. Dipole plot over the packaged avg152t1 MRI slices (Component dipole plot).
 _, com = pop_dipplot(EEG, [1, 2, 3], gui=False, cornermri="on", return_com=True)
 print(com)

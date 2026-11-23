@@ -173,7 +173,12 @@ def _drive_event_dialog(eeg, edit):
             try:
                 edit(dialog, widgets, qt_module)
                 dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
-                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+                values = {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+                state = getattr(widgets.get("eventnum"), "_eegprep_event_state", None)
+                if isinstance(state, dict):
+                    values["field_displays"] = state["field_displays"]
+                    values["structure_ops"] = state["structure_ops"]
+                return values
             finally:
                 dialog.close()
 
@@ -267,3 +272,28 @@ def test_run_gui_rejects_an_event_number_outside_the_list():
     with pytest.raises(ValueError, match=r"pop_editeventvals: event number 999 is outside 1 to 5"):
         pop_editeventvals(deepcopy(eeg), gui=True, renderer=Renderer())
     assert eeg["event"][0]["type"] == "e1"
+
+
+def test_event_structure_edits_do_not_mutate_the_dialog_spec():
+    eeg = _continuous_events(2)
+    spec = pop_editeventvals_dialog_spec(eeg)
+    original_ops = [
+        list(control.callback.params.get("structure_ops") or [])
+        for control in spec.controls
+        if control.callback is not None and control.callback.name == "edit_event_structure"
+    ]
+    _renderer, dialog, widgets, _ok = _qt_event_dialog(eeg)
+    try:
+        widgets["insert_button"].click()
+        state = widgets["eventnum"]._eegprep_event_state
+        assert state["structure_ops"] == [("insert", 1)]
+        assert len(state["field_displays"]) == 3
+    finally:
+        dialog.close()
+    current_ops = [
+        list(control.callback.params.get("structure_ops") or [])
+        for control in spec.controls
+        if control.callback is not None and control.callback.name == "edit_event_structure"
+    ]
+    assert current_ops == original_ops
+    assert all(ops == [] for ops in current_ops)

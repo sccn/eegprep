@@ -1138,7 +1138,13 @@ def test_chanedit_offers_lookup_for_labels_without_coordinates():
         def run(self, spec, initial_values=None):
             self.seen.append(spec.function_name)
             if spec.function_name == "chanedit_lookup":
-                return {"filename": controls_by_tag(spec)["filename"].value}
+                controls = controls_by_tag(spec)
+                assert "use BESA file for 4-shell dipfit spherical model" in controls["template"].string
+                assert "use MNI coordinate file for BEM dipfit model" in controls["template"].string
+                assert "use BESA file and look up EOG channels" in controls["template"].string
+                assert controls["template"].value == 2
+                assert str(controls["filename"].value).endswith("standard_1005.elc")
+                return {"filename": controls["filename"].value}
             return {control.tag: control.value for control in spec.controls if control.tag}
 
     renderer = Renderer()

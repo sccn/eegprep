@@ -97,7 +97,7 @@ def dipfit_record(EEG: dict[str, Any]) -> dict[str, Any]:
 def template_form_state(template: dict[str, Any]) -> dict[str, Any]:
     """Return dialog field values for one head-model template."""
     coord_index = {"spherical": 1, "mni": 2}.get(template["coordformat"].lower(), 4)
-    transform = " ".join(f"{float(value):g}" for value in template["coord_transform"])
+    transform = _format_coord_transform(template["coord_transform"])
     return {
         "hdmfile": template["hdmfile"],
         "mrifile": template["mrifile"],
@@ -127,9 +127,17 @@ def dipfit_history(function_name: str, *args: Any, assignment: bool = True, **kw
     return f"EEG = {command}" if assignment else command
 
 
+def _format_coord_transform(values: Any) -> str:
+    return " ".join(format(float(value), ".17g") for value in values)
+
+
 def _history_token(value: Any) -> str:
-    if isinstance(value, str) and value.strip().startswith("linspace("):
-        return value.strip()
+    if isinstance(value, str):
+        text = value.strip()
+        if text.startswith("linspace("):
+            return text
+        if re.fullmatch(r"'[^']*'(?:\s+'[^']*')+", text):
+            return "{" + text + "}"
     return python_literal(value)
 
 

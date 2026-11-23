@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import os
 from unittest import mock
 
@@ -20,7 +21,7 @@ from eegprep.plugins.dipfit._coordinates import (
 )
 from eegprep.plugins.dipfit.eeglab2fieldtrip import eeglab2fieldtrip
 from eegprep.plugins.dipfit.dipfit_gridsearch import fitting_config
-from eegprep.plugins.dipfit._utils import DIPFITUnavailableError, normalize_model_list
+from eegprep.plugins.dipfit._utils import DIPFITUnavailableError, dipfit_history, normalize_model_list
 from eegprep.plugins.dipfit.ft_dipolefitting import (
     compute_dipole_leadfield as ft_compute_leadfield,
     standard_besa_headmodel,
@@ -358,7 +359,8 @@ def test_besa_dipole_plot_uses_the_dialog_mri_without_mni_slices():
 
     assert "avg152t1.mat" in str(mri)
     assert len(figures) == 1
-    assert len(figures[0].axes) == 1
+    assert figures[0].eegprep_mri == "avg152t1"
+    assert any(axis.images for axis in figures[0].axes)
     plt.close(figures[0])
 
 
@@ -526,3 +528,179 @@ def qapp():
         pytest.skip(f"PySide6 Qt libraries unavailable in this environment: {exc}")
     app = QApplication.instance() or QApplication([])
     yield app
+
+
+@pytest.mark.modal_dialogs
+def test_default_bem_coregister_click_returns_a_transform(qapp):
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication, QPushButton
+
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(
+        pop_dipfit_settings_dialog_spec(create_test_eeg(n_channels=4)), {}
+    )
+    stage = {"name": ""}
+
+    def accept_coregister() -> None:
+        active = QApplication.activeModalWidget()
+        if active is None or active is dialog:
+            QTimer.singleShot(20, accept_coregister)
+            return
+        stage["name"] = active.objectName()
+        ok = active.findChild(QPushButton, "ok")
+        if ok is not None:
+            ok.click()
+        else:
+            active.accept()
+
+    try:
+        QTimer.singleShot(20, accept_coregister)
+        widgets["coregister"].click()
+        values = [float(item) for item in widgets["coord_transform"].text().split()]
+        assert stage["name"] == "coregister"
+        assert len(values) == 9
+        assert all(np.isfinite(value) for value in values)
+    finally:
+        dialog.close()
+
+
+def test_besa_template_is_packaged_and_warps(qapp):
+    from eegprep.functions.guifunc.coregister import load_coregister_mesh
+    from eegprep.functions.sigprocfunc.coregister import coregister
+    from eegprep.plugins.dipfit._utils import packaged_dipfit_file
+
+    electrodes = packaged_dipfit_file("standard_BESA/standard-10-5-cap385.elp")
+    mesh = load_coregister_mesh(str(packaged_dipfit_file("standard_BESA/standard_BESA.mat")))
+    assert mesh is not None
+    assert mesh.vertices.shape[1] == 3
+    result = coregister(str(electrodes), str(electrodes), warp="auto")
+    assert result.transform.shape == (9,)
+    assert np.isfinite(result.transform).all()
+
+
+def test_disabled_dipfit_menu_tooltips_reach_the_main_window(qapp):
+    from eegprep.functions.guifunc.main_window import build_main_window
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    window = build_main_window(EEGPrepSession(), all_menus=True)
+    actions = {}
+
+    def collect(action) -> None:
+        menu = action.menu()
+        if menu is not None:
+            for child in menu.actions():
+                collect(child)
+        if action.data():
+            actions[str(action.data())] = action
+
+    try:
+        for action in window.window.menuBar().actions():
+            collect(action)
+        headmodel = actions["pop_dipfit_headmodel"]
+        loreta = actions["pop_dipfit_loreta"]
+        assert not headmodel.isEnabled()
+        assert not loreta.isEnabled()
+        assert "boundary-element head model" in headmodel.toolTip()
+        assert "eLORETA" in loreta.toolTip()
+    finally:
+        window.window.close()
+
+
+def test_multifit_history_emits_a_matlab_plot_cell():
+    command = dipfit_history("pop_multifit", [1], plotopt="'normlen' 'on'")
+    assert "{'normlen' 'on'}" in command
+
+
+def test_compatlas_labels_the_nearest_desikan_killiany_area():
+    from eegprep.plugins.dipfit._coordinates import traditionaldipfit
+    from eegprep.plugins.dipfit.eeg_compatlas import _atlas, eeg_compatlas
+
+    vertices, colors, labels, _tree = _atlas()
+    chosen = int(np.flatnonzero(colors > 0)[0])
+    transformed = traditionaldipfit(
+        [0.0, -26.604623, -46.0, 0.12346256, 0.0, -1.5707963, 1000.0, 1000.0, 1000.0]
+    ) @ np.array([*vertices[chosen], 1.0])
+    eeg = {
+        "icaweights": np.eye(1),
+        "dipfit": {
+            "coordformat": "MNI",
+            "model": [{"posxyz": [transformed[:3].tolist()], "component": 1}],
+        },
+    }
+
+    labeled = eeg_compatlas(eeg, components=[1])
+
+    assert labeled["dipfit"]["model"][0]["areadk"] == str(labels[int(colors[chosen]) - 1])
+
+
+def test_dipole_plot_navigation_moves_between_components():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=2)
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "mrifile": "standard_BEM/standard_mri.mat",
+        "model": [
+            {
+                "posxyz": [[10.0, -20.0, 30.0]],
+                "momxyz": [[0.0, 0.0, 1.0]],
+                "rv": 0.02,
+                "areadk": "bankssts L",
+                "component": 1,
+            },
+            {
+                "posxyz": [[-10.0, 15.0, 25.0]],
+                "momxyz": [[0.0, 1.0, 0.0]],
+                "rv": 0.03,
+                "areadk": "bankssts R",
+                "component": 2,
+            },
+        ],
+    }
+
+    figures, _command = pop_dipplot(eeg, [1, 2], gui=False, plot=True, return_com=True)
+    try:
+        navigation = figures[0].eegprep_dipplot
+        assert navigation["area"].get_text() == "bankssts L"
+        navigation["plot_one"]()
+        assert navigation["state"]["single"] is True
+        navigation["next"]()
+        assert navigation["state"]["index"] == 1
+        assert navigation["area"].get_text() == "bankssts R"
+        navigation["prev"]()
+        assert navigation["state"]["index"] == 0
+    finally:
+        plt.close(figures[0])
+
+
+def test_nonlinear_fit_button_updates_the_displayed_model(qapp, monkeypatch):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.plugins.dipfit import pop_dipfit_nonlinear as nonlinear_module
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "spherical",
+        "model": [{"posxyz": [[1.0, 2.0, 3.0]], "momxyz": [[0.1, 0.2, 0.3]], "rv": 0.2, "component": 1}],
+    }
+
+    def fitted(dataset, **_kwargs):
+        updated = copy.deepcopy(dataset)
+        updated["dipfit"]["model"][0] = {
+            "posxyz": [[9.0, 8.0, 7.0]],
+            "momxyz": [[-1.0, 0.0, 0.0]],
+            "rv": 0.01,
+            "component": 1,
+        }
+        return updated
+
+    monkeypatch.setattr(nonlinear_module, "run_nonlinear", fitted)
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(pop_dipfit_nonlinear_dialog_spec(eeg), {})
+    try:
+        assert widgets["plotmap"].isEnabled()
+        assert widgets["fitposition"].isEnabled()
+        widgets["flip1"].click()
+        assert widgets["dip1mom"].text().split()[0].startswith("-")
+        widgets["fitposition"].click()
+        assert widgets["dip1pos"].text().split()[:3] == ["9", "8", "7"]
+        assert widgets["relvar"].text() == "1%"
+    finally:
+        dialog.close()

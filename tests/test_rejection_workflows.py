@@ -27,6 +27,7 @@ from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
 from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
+from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from tests.eeglab_tests import assert_matlab_near, eeglab_test, load_matlab_test_fixture
@@ -825,7 +826,7 @@ def test_component_selection_and_viewprops_are_replayable_without_scrolling_brow
 
 
 @pytest.mark.modal_dialogs
-def test_selectcomps_map_click_stores_rejection_on_ok(monkeypatch):
+def test_selectcomps_map_click_stores_rejection_on_ok():
     import os
 
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -833,40 +834,40 @@ def test_selectcomps_map_click_stores_rejection_on_ok(monkeypatch):
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication, QPushButton
 
-    import eegprep.functions.popfunc.pop_prop as pop_prop_module
-
-    monkeypatch.setattr(pop_prop_module, "pop_prop", lambda *_args, **_kwargs: None)
     app = QApplication.instance() or QApplication([])
     eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=2)
-    stage = {"prop": False, "app": app}
+    stage = {"prop": False, "clicked": False, "app": app}
 
-    def click_map() -> None:
-        dialog = QApplication.activeModalWidget()
-        button = dialog.findChild(QPushButton, "comp1") if dialog is not None else None
-        if button is None:
-            QTimer.singleShot(20, click_map)
+    def visible(name: str):
+        return [widget for widget in app.allWidgets() if widget.objectName() == name and widget.isVisible()]
+
+    def drive() -> None:
+        properties = visible("pop_prop")
+        if properties:
+            properties[-1].findChild(QPushButton, "accept_reject").click()
+            stage["prop"] = True
+            properties[-1].accept()
+            QTimer.singleShot(20, drive)
             return
-        button.click()
-
-    def toggle() -> None:
-        dialog = QApplication.activeModalWidget()
-        if dialog is None or dialog.objectName() != "pop_prop_reject":
-            QTimer.singleShot(20, toggle)
+        browsers = [
+            widget for widget in visible("pop_selectcomps") if widget.findChild(QPushButton, "comp1") is not None
+        ]
+        prompts = [widget for widget in visible("pop_selectcomps") if widget.findChild(QPushButton, "comp1") is None]
+        if browsers and not stage["clicked"]:
+            stage["clicked"] = True
+            QTimer.singleShot(30, drive)
+            browsers[-1].findChild(QPushButton, "comp1").click()
             return
-        dialog.findChild(QPushButton, "accept_reject").click()
-        stage["prop"] = True
-        dialog.findChild(QPushButton, "close_prop").click()
-
-    def finish() -> None:
-        dialog = QApplication.activeModalWidget()
-        if dialog is None or dialog.objectName() != "pop_selectcomps":
-            QTimer.singleShot(20, finish)
+        if browsers and stage["prop"]:
+            browsers[-1].findChild(QPushButton, "ok").click()
             return
-        dialog.findChild(QPushButton, "ok").click()
+        if prompts:
+            prompts[-1].findChild(QPushButton, "ok").click()
+            QTimer.singleShot(20, drive)
+            return
+        QTimer.singleShot(20, drive)
 
-    QTimer.singleShot(20, click_map)
-    QTimer.singleShot(40, toggle)
-    QTimer.singleShot(60, finish)
+    QTimer.singleShot(20, drive)
     out, command = pop_selectcomps(eeg, return_com=True)
 
     assert stage["prop"]
@@ -875,6 +876,85 @@ def test_selectcomps_map_click_stores_rejection_on_ok(monkeypatch):
     assert original_flags is None or int(np.asarray(original_flags).ravel()[0]) == 0
     assert "pop_selectcomps" in command
     assert "eeg_store" in command
+
+
+@pytest.mark.modal_dialogs
+def test_selectcomps_pages_past_thirty_five_components_and_draws_maps():
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication, QLabel, QPushButton
+
+    QApplication.instance() or QApplication([])
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=36)
+    seen = {"map": False}
+
+    def drive() -> None:
+        dialog = QApplication.activeModalWidget()
+        if dialog is None:
+            QTimer.singleShot(20, drive)
+            return
+        if dialog.objectName() == "questdlg2":
+            for button in dialog.findChildren(QPushButton):
+                if button.text() == "OK":
+                    button.click()
+                    QTimer.singleShot(20, drive)
+                    return
+        if dialog.objectName() != "pop_selectcomps":
+            QTimer.singleShot(20, drive)
+            return
+        last = dialog.findChild(QPushButton, "comp36")
+        if last is not None:
+            pixmap = dialog.findChild(QLabel, "map36").pixmap()
+            seen["map"] = pixmap is not None and not pixmap.isNull()
+            dialog.findChild(QPushButton, "ok").click()
+            return
+        dialog.findChild(QPushButton, "ok").click()
+        QTimer.singleShot(20, drive)
+
+    QTimer.singleShot(20, drive)
+    pop_selectcomps(eeg)
+    assert seen["map"]
+
+
+@pytest.mark.modal_dialogs
+def test_subcomp_lists_flagged_components_and_offers_erp_and_trial_plots():
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication, QLabel, QPushButton
+
+    QApplication.instance() or QApplication([])
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=3)
+    eeg["reject"] = {"gcompreject": np.array([0, 1, 1])}
+    prompts = []
+
+    def drive() -> None:
+        dialog = QApplication.activeModalWidget()
+        if dialog is None:
+            QTimer.singleShot(20, drive)
+            return
+        prompt = dialog.findChild(QLabel, "questdlg2_prompt")
+        buttons = [button.text() for button in dialog.findChildren(QPushButton)]
+        prompts.append(("" if prompt is None else prompt.text(), buttons))
+        for label in ("Yes", "Accept"):
+            button = next((item for item in dialog.findChildren(QPushButton) if item.text() == label), None)
+            if button is not None:
+                button.click()
+                if label != "Accept":
+                    QTimer.singleShot(20, drive)
+                return
+        QTimer.singleShot(20, drive)
+
+    QTimer.singleShot(20, drive)
+    out = pop_subcomp(eeg)
+    assert any("Components [2,3] flagged for rejection." in text for text, _buttons in prompts)
+    assert any(buttons[:4] == ["Cancel", "Plot ERPs", "Plot single trials", "Accept"] for _text, buttons in prompts)
+    assert out["icaweights"].shape[0] == 1
 
 
 def _classified_component_eeg(rows: int = 3) -> dict:

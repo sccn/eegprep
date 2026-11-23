@@ -163,3 +163,37 @@ def test_finalize_ica_fields_recomputes_stale_backend_inverse_after_sorting():
     out = finalize_ica_fields(eeg, sortcomps=True, posact=False)
 
     np.testing.assert_allclose(out["icawinv"], pinv(out["icaweights"] @ out["icasphere"]))
+
+
+def test_sobi_and_jader_recover_independent_sources():
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+
+    rng = np.random.default_rng(1)
+    samples = 1000
+
+    def autoregressive(coefficient):
+        values = np.zeros(samples)
+        noise = rng.standard_normal(samples)
+        for index in range(1, samples):
+            values[index] = coefficient * values[index - 1] + noise[index]
+        return values
+
+    sources = np.vstack([autoregressive(0.95), autoregressive(0.4), np.sin(np.linspace(0, 80, samples))])
+    mixing = np.array([[1.0, 0.4, 0.1], [0.2, 1.0, 0.3], [0.3, 0.2, 1.0]])
+    eeg = {
+        "data": mixing @ sources,
+        "nbchan": 3,
+        "pnts": samples,
+        "trials": 1,
+        "srate": 250.0,
+        "chanlocs": [{}, {}, {}],
+    }
+
+    sobi_out = pop_runica(eeg, icatype="sobi", options={"p": 10}, gui=False)
+    jade_out = pop_runica(eeg, icatype="jade", gui=False)
+    for output in (sobi_out, jade_out):
+        weights = output["icaweights"] @ output["icasphere"]
+        np.testing.assert_allclose(output["icawinv"] @ weights, np.eye(3), atol=1e-6)
+        recovered = weights @ eeg["data"]
+        correlation = np.abs(np.corrcoef(sources[:2], recovered)[:2, 2:])
+        assert np.all(correlation.max(axis=1) > 0.9)

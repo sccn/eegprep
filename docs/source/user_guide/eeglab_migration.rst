@@ -59,7 +59,7 @@ therefore keeps all 384 points. Passing those same points through ``epoch.m``
 would drop the last one.
 
 ``pop_runica`` lists Extended Infomax, Robust Extended Infomax, AMICA, Infomax
-picard, and FastICA picard. SOBI, JADE, and binica are not in that list.
+picard, FastICA picard, SOBI, and JADE. binica is not in that list.
 
 ``pop_mergeset`` prefills the first two loaded dataset indices. EEGLAB
 prefills ``1``. The merged data, ICA, and history are unchanged.
@@ -70,16 +70,17 @@ Field buttons show the field name; clicking one shows the description. Delete,
 insert, and append edit the event list. Sort stays a command-line action and
 keeps the other edits. EEGLAB's sort-from-the-GUI path discards the edits.
 
-``pop_selectcomps`` opens one button per component. Clicking a button opens
-``pop_prop`` with ACCEPT/REJECT. OK stores ``EEG.reject.gcompreject``; Cancel
-discards the toggles. EEGLAB writes the flag before OK, so its Cancel cannot
-undo a click. The button label is ``Set thresholds``. EEGLAB spells that
+``pop_selectcomps`` asks which components to plot, then opens a scalp map and a
+button for each one, 35 per window. Clicking a button opens ``pop_prop`` with
+ACCEPT/REJECT on that window. OK stores ``EEG.reject.gcompreject``; Cancel
+discards the toggles. The button label is ``Set thresholds``. EEGLAB spells that
 button ``Set threhsolds``. Both that button and ``See comp. stats`` stay
 disabled until ``pop_icathresh`` and ``EEG.stats.compenta`` exist.
 
-``pop_firpmord`` uses the Herrmann Parks-McClellan length and returns
-``ceil(L) - 1``. The ``pop_firpm`` Estimate button rounds that order up to an
-even number, which is where EEGLAB rounds.
+``pop_firpmord`` follows MATLAB ``firpmord``: relative deviations, the Herrmann
+length, ``ceil(L) - 1``, and one extra tap when the last band passes and that
+order is odd. The ``pop_firpm`` Estimate button then rounds the order up to an
+even number.
 
 ``pop_dipfit_settings`` keeps a channel-file keyword transform when one
 matches. Otherwise it fills the montage warp from ``coregister(..., warp='auto')``
@@ -91,9 +92,8 @@ nasion, LPA, and RPA. Creating a head model from an MRI and eLORETA stay
 disabled in the menu: FieldTrip MRI segmentation and ``ft_sourceanalysis``
 eLORETA are not available, and a partial solver would not match EEGLAB.
 Direct calls still raise ``DIPFITUnavailableError`` with the same reason.
-Dipole plots draw the packaged MNI slices when the coordinates are MNI. Spherical
-BESA dipoles stay in spherical coordinates, because those positions are not in
-the MNI volume. A custom MRI is refused.
+Dipole plots draw the packaged avg152t1 MRI slices for MNI and spherical BESA
+coordinates. A custom MRI is refused.
 
 ``pop_selectevent`` emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can

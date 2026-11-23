@@ -190,8 +190,12 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
             f"pop_editeventvals: event number {event_index} is outside 1 to {len(events)}. "
             "Type an event number in that range and press Enter."
         )
-    displays = _indexed_field_displays(spec, "navigate_event")
-    structure_ops = _structure_operations(spec)
+    if "field_displays" in result or "structure_ops" in result:
+        displays = result.get("field_displays") or []
+        structure_ops = list(result.get("structure_ops") or [])
+    else:
+        displays = _indexed_field_displays(spec, "navigate_event")
+        structure_ops = _structure_operations(spec)
     options: list[tuple[str, Any]] = list(structure_ops)
     if structure_ops:
         return options

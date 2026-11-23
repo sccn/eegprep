@@ -135,7 +135,7 @@ def pop_dipplot_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="extra_options", value=""),
         ),
         known_differences=(
-            "MRI slices are drawn for MNI coordinates only, using the packaged standard MRI. Spherical BESA dipoles stay in their own coordinates. A custom MRI file is refused.",
+            "MRI slices use the packaged avg152t1 volume for MNI and spherical BESA coordinates. A custom MRI file is refused.",
         ),
         row_spacing=4,
     )
@@ -169,9 +169,7 @@ def _validate_components_have_positions(models: list[dict[str, Any]], components
 
 def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components: list[int], options: dict[str, Any]):
     coordformat = str(dipfit_record(EEG).get("coordformat", ""))
-    # Spherical BESA positions are not in the packaged MNI volume. Drawing them on those slices
-    # would place the dipoles in the wrong head, and the BESA MRI path is not that volume.
-    use_mri = coordformat.lower() == "mni"
+    use_mri = coordformat.lower() in {"mni", "spherical"}
     if use_mri:
         fig = plt.figure(figsize=(11, 8))
         grid = fig.add_gridspec(2, 3, height_ratios=[1.1, 1.0])
@@ -182,6 +180,7 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
         axis = fig.add_subplot(111, projection="3d")
         slice_axes = []
     all_positions = []
+    groups: list[list[Any]] = []
     for component in components:
         model = models[component - 1]
         positions = np.asarray(model.get("posxyz", []), dtype=float)
@@ -195,22 +194,29 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
         label = f"IC {component}"
         if _is_scalar(rv) and np.isfinite(float(rv)):
             label += f" (RV {float(rv) * 100:.1f}%)"
-        axis.scatter(positions[:, 0], positions[:, 1], positions[:, 2], s=55, label=label)
-        axis.quiver(
-            positions[:, 0],
-            positions[:, 1],
-            positions[:, 2],
-            moments[:, 0],
-            moments[:, 1],
-            moments[:, 2],
-            length=18.0,
-            normalize=_option_on(options.get("normlen")),
-            linewidth=1.4,
-        )
+        artists: list[Any] = [
+            axis.scatter(positions[:, 0], positions[:, 1], positions[:, 2], s=55, label=label),
+            axis.quiver(
+                positions[:, 0],
+                positions[:, 1],
+                positions[:, 2],
+                moments[:, 0],
+                moments[:, 1],
+                moments[:, 2],
+                length=18.0,
+                normalize=_option_on(options.get("normlen")),
+                linewidth=1.4,
+            ),
+        ]
         for row in positions[:, :3]:
-            axis.text(row[0], row[1], row[2], str(component), fontsize=9)
+            artists.append(axis.text(row[0], row[1], row[2], str(component), fontsize=9))
             if _option_on(options.get("projlines")):
-                axis.plot([row[0], row[0]], [row[1], row[1]], [0, row[2]], linestyle="--", color="0.4", linewidth=0.8)
+                artists.extend(
+                    axis.plot(
+                        [row[0], row[0]], [row[1], row[1]], [0, row[2]], linestyle="--", color="0.4", linewidth=0.8
+                    )
+                )
+        groups.append(artists)
     axis.set_xlabel("X")
     axis.set_ylabel("Y")
     axis.set_zlabel("Z")
@@ -220,8 +226,62 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
         axis.legend(loc="best")
     if slice_axes:
         _plot_mri_slices(slice_axes, np.asarray(all_positions, dtype=float), options)
+        setattr(fig, "eegprep_mri", "avg152t1")
     fig.tight_layout()
+    _add_dipole_navigation(fig, groups, models, components)
     return fig
+
+
+def _add_dipole_navigation(fig, groups, models, components) -> None:
+    from matplotlib.widgets import Button
+
+    if not groups:
+        return
+    state = {"index": 0, "single": False}
+    area = fig.text(0.02, 0.62, "", fontsize=8)
+    fig.subplots_adjust(left=0.18)
+
+    def apply() -> None:
+        for index, artists in enumerate(groups):
+            visible = not state["single"] or index == state["index"]
+            for artist in artists:
+                artist.set_visible(visible)
+        model = models[components[state["index"]] - 1]
+        area.set_text(str(model.get("areadk") or ""))
+        fig.canvas.draw_idle()
+
+    def plot_one(_event=None) -> None:
+        state["single"] = not state["single"]
+        plot_button.label.set_text("Plot all" if state["single"] else "Plot one")
+        apply()
+
+    def previous(_event=None) -> None:
+        state["index"] = max(0, state["index"] - 1)
+        apply()
+
+    def following(_event=None) -> None:
+        state["index"] = min(len(groups) - 1, state["index"] + 1)
+        apply()
+
+    plot_button = Button(fig.add_axes((0.01, 0.90, 0.14, 0.05)), "Plot one")
+    next_button = Button(fig.add_axes((0.01, 0.84, 0.14, 0.05)), "Next")
+    prev_button = Button(fig.add_axes((0.01, 0.78, 0.14, 0.05)), "Prev")
+    plot_button.on_clicked(plot_one)
+    next_button.on_clicked(following)
+    prev_button.on_clicked(previous)
+    setattr(
+        fig,
+        "eegprep_dipplot",
+        {
+            "plot_one": plot_one,
+            "next": following,
+            "prev": previous,
+            "state": state,
+            "area": area,
+            "buttons": (plot_button, next_button, prev_button),
+        },
+    )
+    apply()
 
 
 def _history_options(options: dict[str, Any]) -> dict[str, Any]:

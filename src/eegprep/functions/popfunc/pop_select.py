@@ -412,11 +412,8 @@ def _pop_select_apply(EEG, **kwargs):
             if time_mat.shape[0] != 1:
                 raise ValueError('Epoched data requires a single [tmin tmax] window')
             tmin, tmax = float(time_mat[0, 0]), float(time_mat[0, 1])
-            # epoch.m with the limits already in samples (pop_select.m:528-529, g.srate = 1).
-            # reallim(2) is round(tmax*srate - 1), so the last requested second is exclusive.
             time0 = 1.0 - xmin * srate
             if point_mat.size:
-                # A point range names both samples. epoch.m would drop the named last sample.
                 first = int(round(float(point_mat[0, 0])))
                 last = int(round(float(point_mat[0, 1])))
                 start = first - 1
@@ -449,8 +446,6 @@ def _pop_select_apply(EEG, **kwargs):
 
             if _has_content(EEG.get('event')):
                 if point_mat.size:
-                    # The slice includes sample `last`. The time conversion's upper latency is that
-                    # sample, and the half-open test would drop an event sitting on it.
                     lim1 = float(reallim1)
                     lim2 = float(reallim2) + 1.0
                 else:

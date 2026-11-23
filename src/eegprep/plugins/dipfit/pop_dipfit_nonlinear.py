@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._utils import (
@@ -70,6 +70,10 @@ def pop_dipfit_nonlinear_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     component, model = _current_dialog_model(EEG)
     first_selected = 1 in _dialog_selected_dipoles(model)
     second_selected = 2 in _dialog_selected_dipoles(model)
+
+    def action(name: str) -> CallbackSpec:
+        return CallbackSpec("dipfit_nonlinear_action", params={"action": name, "button": name, "eeg": EEG})
+
     return DialogSpec(
         title="Manual dipole fit -- pop_dipfit_nonlinear()",
         function_name="pop_dipfit_nonlinear",
@@ -88,7 +92,7 @@ def pop_dipfit_nonlinear_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         controls=(
             ControlSpec("text", "Component to fit"),
             ControlSpec("edit", tag="component", value=str(component)),
-            ControlSpec("pushbutton", "Plot map", tag="plotmap", enabled=False),
+            ControlSpec("pushbutton", "Plot map", tag="plotmap", callback=action("plotmap")),
             ControlSpec("text", "Residual variance = "),
             ControlSpec("text", _format_dialog_rv(model), tag="relvar"),
             ControlSpec("spacer"),
@@ -102,20 +106,22 @@ def pop_dipfit_nonlinear_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("edit", tag="dip1pos", value=_format_dialog_triplet(model.get("posxyz"), 0)),
             ControlSpec("edit", tag="dip1mom", value=_format_dialog_triplet(model.get("momxyz"), 0)),
-            ControlSpec("pushbutton", "Flip (in|out)", tag="flip1", enabled=False),
+            ControlSpec("pushbutton", "Flip (in|out)", tag="flip1", callback=action("flip1")),
             ControlSpec("text", "#2", tag="dip2"),
             ControlSpec("checkbox", tag="dip2sel", value=second_selected),
             ControlSpec("spacer"),
             ControlSpec("edit", tag="dip2pos", value=_format_dialog_triplet(model.get("posxyz"), 1)),
             ControlSpec("edit", tag="dip2mom", value=_format_dialog_triplet(model.get("momxyz"), 1)),
-            ControlSpec("pushbutton", "Flip (in|out)", tag="flip2", enabled=False),
+            ControlSpec("pushbutton", "Flip (in|out)", tag="flip2", callback=action("flip2")),
             ControlSpec("checkbox", "Symmetry constrain for dipole #2", tag="dip2sym", value=True),
-            ControlSpec("pushbutton", "Fit dipole(s)' position & moment", tag="fitposition", enabled=False),
-            ControlSpec("pushbutton", "OR fit only dipole(s)' moment", tag="fitmoment", enabled=False),
-            ControlSpec("pushbutton", "Plot dipole(s)", tag="plotdip", enabled=False),
-        ),
-        known_differences=(
-            "EEGPrep OK applies the displayed values and runs a spherical nonlinear fit; individual MATLAB callbacks are not mirrored.",
+            ControlSpec(
+                "pushbutton",
+                "Fit dipole(s)' position & moment",
+                tag="fitposition",
+                callback=action("fitposition"),
+            ),
+            ControlSpec("pushbutton", "OR fit only dipole(s)' moment", tag="fitmoment", callback=action("fitmoment")),
+            ControlSpec("pushbutton", "Plot dipole(s)", tag="plotdip", callback=action("plotdip")),
         ),
     )
 
@@ -198,3 +204,54 @@ def _apply_nonlinear_gui_model(EEG: dict[str, Any], result: dict[str, Any]) -> t
 
 def _component_count_or_one(EEG: dict[str, Any]) -> int:
     return max(component_count(EEG), 1)
+
+
+def apply_nonlinear_dialog_action(widgets: dict[str, Any], params: dict[str, Any]) -> None:
+    """Run one manual-fit dialog button and write the result back into the fields."""
+    action = str(params.get("action", ""))
+    if action in {"flip1", "flip2"}:
+        tag = "dip1mom" if action == "flip1" else "dip2mom"
+        flipped = -numeric_vector(widgets[tag].text(), dtype=float)
+        widgets[tag].setText(" ".join(format(float(value), ".17g") for value in flipped))
+        return
+    eeg = params.get("eeg")
+    if not isinstance(eeg, dict):
+        return
+    component_text = widgets["component"].text()
+    component_index = int(float(component_text or 1))
+    if action == "plotmap":
+        from eegprep.functions.popfunc.pop_prop import pop_prop
+
+        pop_prop(eeg, 0, component_index)
+        return
+    if action == "plotdip":
+        from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+
+        pop_dipplot(eeg, [component_index], gui=False)
+        return
+    result = {
+        "component": component_text,
+        "dip1sel": bool(widgets["dip1sel"].isChecked()),
+        "dip2sel": bool(widgets["dip2sel"].isChecked()),
+        "dip1pos": widgets["dip1pos"].text(),
+        "dip1mom": widgets["dip1mom"].text(),
+        "dip2pos": widgets["dip2pos"].text(),
+        "dip2mom": widgets["dip2mom"].text(),
+        "dip2sym": bool(widgets["dip2sym"].isChecked()),
+    }
+    symmetry = None
+    if result["dip2sel"] and result["dip2sym"]:
+        symmetry = "x" if str(dipfit_record(eeg).get("coordformat", "")).lower() == "mni" else "y"
+    working, component = _apply_nonlinear_gui_model(eeg, result)
+    fitted = run_nonlinear(
+        working,
+        component=component,
+        nonlinear="no" if action == "fitmoment" else "yes",
+        symmetry=symmetry,
+    )
+    model = normalize_model_list(fitted)[component - 1]
+    widgets["dip1pos"].setText(_format_dialog_triplet(model.get("posxyz"), 0))
+    widgets["dip1mom"].setText(_format_dialog_triplet(model.get("momxyz"), 0))
+    widgets["dip2pos"].setText(_format_dialog_triplet(model.get("posxyz"), 1))
+    widgets["dip2mom"].setText(_format_dialog_triplet(model.get("momxyz"), 1))
+    widgets["relvar"].setText(_format_dialog_rv(model))

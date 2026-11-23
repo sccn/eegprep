@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import matplotlib
@@ -32,6 +33,60 @@ except ImportError:  # pragma: no cover - optional GUI dependency
     QtWidgets = None
     QDialog = None
     FigureCanvas = None
+
+
+def load_coregister_mesh(meshfile: str | None) -> HeadplotMesh | None:
+    """Return the scalp mesh for a DIPFIT template or a headplot support file."""
+    if not meshfile:
+        return None
+    name = Path(str(meshfile)).name.lower()
+    text = str(meshfile).replace("\\", "/").lower()
+    if "standard_vol" in name:
+        from eegprep.plugins.dipfit.ft_dipolefitting import load_bem_headmodel
+
+        boundary = load_bem_headmodel(meshfile)["bnd"][0]
+        vertices = np.asarray(boundary["pos"], dtype=float)
+        faces = np.asarray(boundary["tri"], dtype=int)
+        return HeadplotMesh(vertices, faces, None, np.unique(faces), vertices.mean(axis=0), str(meshfile))
+    if "standard_besa" in text:
+        return _sphere_head_mesh(85.0, str(meshfile))
+    return load_headplot_mesh(meshfile)
+
+
+def _sphere_head_mesh(radius: float, source: str) -> HeadplotMesh:
+    rings = 16
+    segments = 24
+    theta = np.linspace(0.0, np.pi, rings)
+    phi = np.linspace(0.0, 2.0 * np.pi, segments, endpoint=False)
+    vertices = [
+        [
+            radius * np.sin(polar) * np.cos(azimuth),
+            radius * np.sin(polar) * np.sin(azimuth),
+            radius * np.cos(polar),
+        ]
+        for polar in theta
+        for azimuth in phi
+    ]
+    vertices_array = np.asarray(vertices, dtype=float)
+    faces = []
+    for ring in range(rings - 1):
+        for segment in range(segments):
+            first = ring * segments + segment
+            second = ring * segments + (segment + 1) % segments
+            third = (ring + 1) * segments + segment
+            fourth = (ring + 1) * segments + (segment + 1) % segments
+            faces.append([first, third, second])
+            faces.append([second, third, fourth])
+    face_array = np.asarray(faces, dtype=int)
+    return HeadplotMesh(
+        vertices_array,
+        face_array,
+        None,
+        np.unique(face_array),
+        vertices_array.mean(axis=0),
+        source,
+    )
+
 
 _BaseDialog = QDialog if QDialog is not None else object
 _EEGLAB_BLUE = EEGLAB_TEXT
@@ -123,7 +178,7 @@ class CoregisterDialog(_BaseDialog):
         self.setWindowTitle("coregister()")
         self.source = load_coregistration_electrodes(chanlocs, chaninfo=chaninfo)
         self.reference = load_coregistration_electrodes(reference) if reference else None
-        self.mesh = load_headplot_mesh(meshfile) if meshfile else None
+        self.mesh = load_coregister_mesh(meshfile)
         self.transform = normalise_coregistration_transform(transform, default=[0, 0, 0, 0, 0, 0, 1, 1, 1])
         self._title = title
         self._show_source_labels = False
@@ -282,7 +337,7 @@ class CoregisterDialog(_BaseDialog):
     def _sync_fields(self) -> None:
         for tag, value in zip(self._field_tags, self.transform, strict=False):
             self._fields[tag].blockSignals(True)
-            self._fields[tag].setText(f"{value:.6g}")
+            self._fields[tag].setText(format(float(value), ".17g"))
             self._fields[tag].blockSignals(False)
 
     def _fields_changed(self) -> None:

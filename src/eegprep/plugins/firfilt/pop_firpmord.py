@@ -34,8 +34,10 @@ def pop_firpmord(
 ):
     """Estimate Parks-McClellan FIR order and pass/stop weights.
 
-    The returned order is ``ceil(L) - 1`` from MATLAB ``firpmord``. Even
-    rounding belongs to the ``pop_firpm`` Estimate button, not to this function.
+    The order follows MATLAB ``firpmord``: relative deviations, the Herrmann
+    length, ``ceil(L) - 1``, and one extra tap when the last band passes and
+    that order is odd. The ``pop_firpm`` Estimate button rounds the result up
+    to an even number.
     """
     freqs_input = vector_or_none(f)
     amps_input = vector_or_none(a)
@@ -96,14 +98,13 @@ def pop_firpmord(
             "pop_firpmord: frequency edges must increase. "
             "Enter each transition as [low high] in Hz, or in fractions of fs."
         )
-    lengths = [
-        _remlpord_length(
-            float(devs[band]), float(devs[band + 1]), float(normalized[2 * band + 1] - normalized[2 * band])
-        )
-        for band in range(amps.size - 1)
-    ]
+    relative = devs / (np.abs(amps) + (amps == 0))
+    widths = normalized[1::2] - normalized[::2]
+    lengths = _band_lengths(relative, widths)
     order = int(math.ceil(max(lengths)) - 1)
-    weights = np.max(devs) / devs
+    if amps[-1] != 0 and order % 2 == 1:
+        order += 1
+    weights = np.max(relative) / relative
     pass_bands = np.flatnonzero(amps == 1)
     stop_bands = np.flatnonzero(amps == 0)
     if pass_bands.size == 0 or stop_bands.size == 0:
@@ -136,6 +137,19 @@ def pop_firpmord_dialog_spec() -> DialogSpec:
             ControlSpec("edit", tag="rs", value=""),
         ),
     )
+
+
+def _band_lengths(relative: np.ndarray, widths: np.ndarray) -> list[float]:
+    """MATLAB ``firpmord`` length. Inner bands use both neighbouring transitions."""
+    count = int(relative.size)
+    if count == 2:
+        return [_remlpord_length(float(relative[0]), float(relative[1]), float(widths[0]))]
+    lengths = []
+    for band in range(1, count - 1):
+        left = _remlpord_length(float(relative[band]), float(relative[band - 1]), float(widths[band - 1]))
+        right = _remlpord_length(float(relative[band]), float(relative[band + 1]), float(widths[band]))
+        lengths.append(max(left, right))
+    return lengths
 
 
 def _remlpord_length(d1: float, d2: float, df: float) -> float:

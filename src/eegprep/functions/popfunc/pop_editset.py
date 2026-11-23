@@ -661,16 +661,13 @@ def _parse_optional_number(value: Any) -> str | int | float:
 
 def _positive_float(value: Any, key: str) -> float:
     label = "Data sampling rate" if key == "srate" else key
+    hint = " Enter the rate in Hz, for example 128." if key == "srate" else " Enter a positive number."
     try:
         parsed = float(value)
     except (TypeError, ValueError):
-        raise ValueError(
-            f'pop_editset: {label} must be a positive number (got "{value}"). Enter the rate in Hz, for example 128.'
-        ) from None
+        raise ValueError(f'pop_editset: {label} must be a positive number (got "{value}").{hint}') from None
     if parsed <= 0:
-        raise ValueError(
-            f"pop_editset: {label} must be a positive number (got {parsed:g}). Enter the rate in Hz, for example 128."
-        )
+        raise ValueError(f"pop_editset: {label} must be a positive number (got {parsed:g}).{hint}")
     return parsed
 
 

@@ -22,6 +22,7 @@ from eegprep.plugins.dipfit._utils import (
     resolved_coord_transform,
     template_by_name,
     template_form_state,
+    _format_coord_transform,
 )
 
 
@@ -76,7 +77,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         for index, item in enumerate(STANDARD_TEMPLATES, start=1)
     ]
     if stored_transform:
-        coreg_text = " ".join(f"{float(value):g}" for value in numeric_vector(stored_transform, dtype=float))
+        coreg_text = _format_coord_transform(numeric_vector(stored_transform, dtype=float))
         no_coreg = False
     else:
         coreg_text = template_states[selected_model - 1]["coord_transform"]
@@ -298,7 +299,7 @@ def _dialog_template_state(EEG: dict[str, Any], template: dict[str, Any], *, war
     state = template_form_state(template)
     found, transform = lookupchantemplate(channel_template_filename(EEG), template)
     if found:
-        state["coord_transform"] = " ".join(f"{float(value):g}" for value in transform)
+        state["coord_transform"] = _format_coord_transform(transform)
         state["no_coreg"] = not bool(transform)
         return state
     state["no_coreg"] = False
@@ -309,7 +310,7 @@ def _dialog_template_state(EEG: dict[str, Any], template: dict[str, Any], *, war
         transform = align_channels_to_template(EEG, str(template.get("chanfile") or ""))
     except (OSError, ValueError):
         transform = []
-    state["coord_transform"] = " ".join(f"{float(value):g}" for value in transform)
+    state["coord_transform"] = _format_coord_transform(transform)
     return state
 
 
