@@ -9,6 +9,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_importepoch import pop_importepoch
@@ -18,6 +19,11 @@ from eegprep.functions.sigprocfunc.loadeeg import loadeeg
 def pop_loadeeg(
     filename: str | Path,
     *,
+    triallist: Any = None,
+    typerange: Any = None,
+    chanlist: Any = None,
+    responsetype: Any = None,
+    format: str | None = None,
     gui: bool = False,
     renderer: Any = None,
     return_com: bool = False,
@@ -34,12 +40,12 @@ def pop_loadeeg(
         raise ValueError(
             f"pop_loadeeg: {path} is not a Neuroscan .eeg file. Choose a .eeg file with File > Import data."
         )
-    ranges: dict[str, Any] = {}
+    ranges = _explicit_ranges(triallist, typerange, chanlist, responsetype, format)
     if gui or renderer is not None:
         result = inputgui(pop_loadeeg_dialog_spec(), renderer=renderer)
-        if not result:
+        if result is None:
             return ({}, "") if return_com else {}
-        ranges = _ranges(result)
+        ranges.update(_ranges(result))
     signal, accept, types, rts, responses, names, points, sweeps, srate, xmin, xmax = loadeeg(path, **ranges)
     if sweeps < 1 or points < 1:
         raise ValueError(
@@ -81,7 +87,7 @@ def pop_loadeeg(
         headerlines=0,
         clearevents=1,
     )
-    command = f"EEG = pop_loadeeg({format_history_value(path)});"
+    command = _history(path, ranges)
     history = str(eeg.get("history") or "").strip()
     eeg["history"] = f"{history}\n{command}".lstrip()
     return (eeg, command) if return_com else eeg
@@ -125,5 +131,36 @@ def _ranges(result: dict[str, Any]) -> dict[str, Any]:
     ):
         text = str(result.get(tag) or "").strip()
         if text:
-            ranges[key] = text
+            ranges[key] = parse_numeric_sequence(text, dtype=int)
     return ranges
+
+
+def _explicit_ranges(
+    triallist: Any,
+    typerange: Any,
+    chanlist: Any,
+    responsetype: Any,
+    sample_format: str | None,
+) -> dict[str, Any]:
+    ranges: dict[str, Any] = {}
+    if sample_format:
+        ranges["format"] = sample_format
+    for key, value in (
+        ("triallist", triallist),
+        ("typerange", typerange),
+        ("chanlist", chanlist),
+        ("responsetype", responsetype),
+    ):
+        if value in (None, "", "all"):
+            continue
+        ranges[key] = value if not isinstance(value, str) else parse_numeric_sequence(value, dtype=int)
+    return ranges
+
+
+def _history(path: Path, ranges: dict[str, Any]) -> str:
+    parts = [format_history_value(path)]
+    for key in ("format", "triallist", "typerange", "chanlist", "responsetype"):
+        if key not in ranges:
+            continue
+        parts.extend([format_history_value(key), format_history_value(ranges[key])])
+    return f"EEG = pop_loadeeg({', '.join(parts)});"

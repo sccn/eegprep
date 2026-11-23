@@ -1183,7 +1183,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
             mock.patch(
                 "eegprep.functions.studyfunc.pop_savestudy.pop_savestudy",
-                return_value=(saved, "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');"),
+                return_value=(saved, [], "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');"),
             ) as pop_savestudy,
         ):
             dispatcher.dispatch("pop_savestudy")

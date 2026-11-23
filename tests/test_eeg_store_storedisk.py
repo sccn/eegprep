@@ -105,7 +105,7 @@ def test_pop_savestudy_resaves_offloaded_study_dataset(tmp_path: Path):
     alleeg, _current, _current_set = eeg_store(alleeg, _saved_loaded_eeg(tmp_path, "two", 10), 0)
     study, alleeg = pop_study(None, alleeg, name="Storedisk study")
 
-    saved, command = pop_savestudy(
+    saved, _datasets, command = pop_savestudy(
         study,
         alleeg,
         tmp_path / "storedisk.study",

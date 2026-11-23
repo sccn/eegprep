@@ -84,7 +84,7 @@ stay in the file so a reloaded STUDY can still be plotted:
 
    from eegprep import pop_loadstudy, pop_savestudy
 
-   STUDY, com = pop_savestudy(STUDY, EEG, "analysis.study", return_com=True)
+   STUDY, ALLEEG, com = pop_savestudy(STUDY, ALLEEG, "analysis.study", return_com=True)
    STUDY, ALLEEG, com = pop_loadstudy("analysis.study", return_com=True)
 
 Precompute and plot STUDY measures:

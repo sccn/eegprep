@@ -1,6 +1,7 @@
 """EEG data saving and loading utilities."""
 
 import copy
+import json
 import os
 from pathlib import Path
 
@@ -661,10 +662,22 @@ def raw_bids_root(path: Path) -> Path | None:
             relative = resolved.relative_to(parent)
         except ValueError:
             return None
-        if relative.parts and relative.parts[0] == "derivatives":
+        if "derivatives" in parent.parts or "derivatives" in relative.parts:
+            return None
+        if _dataset_type(parent) == "derivative":
             return None
         return parent
     return None
+
+
+def _dataset_type(folder: Path) -> str:
+    try:
+        payload = json.loads((folder / "dataset_description.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    return str(payload.get("DatasetType") or "").strip().lower()
 
 
 def _refuse_raw_bids_resave(path: Path) -> None:

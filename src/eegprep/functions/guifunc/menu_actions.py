@@ -935,7 +935,7 @@ class MenuActionDispatcher:
                     return
                 if choice == qt_widgets.QMessageBox.Yes:
                     resavedatasets = "on"
-            study, command = pop_savestudy(
+            study, _datasets, command = pop_savestudy(
                 self.session.STUDY,
                 self.session.ALLEEG,
                 filename,

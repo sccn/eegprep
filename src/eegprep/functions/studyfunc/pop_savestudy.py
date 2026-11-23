@@ -34,7 +34,9 @@ def pop_savestudy(
 
     The default file is an EEGLAB MATLAB v6 ``.study`` (``save -v6``).
     ``fileformat='json'`` or a ``.json`` name writes the JSON form
-    ``pop_loadstudy`` still reads.
+    ``pop_loadstudy`` still reads. ``return_com=True`` returns
+    ``(study, datasets, command)`` so ``[STUDY ALLEEG] = pop_savestudy(...)``
+    keeps ``ALLEEG`` as the dataset list.
     """
     if not STUDY:
         raise ValueError("pop_savestudy cannot save an empty STUDY")
@@ -72,7 +74,7 @@ def pop_savestudy(
         savemode=savemode if savemode else None,
         resavedatasets="on" if resavedatasets == "on" else None,
     )
-    return (study, command) if return_com else study
+    return (study, datasets, command) if return_com else study
 
 
 def _write_study(path: Path, study: dict[str, Any], fileformat: str | None) -> None:

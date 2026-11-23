@@ -579,7 +579,7 @@ def commit_studydesign_editor(
         study = std_selectdesign(study, datasets, selected)
         commands.append(build_python_call(("STUDY",), "std_selectdesign", "STUDY", "ALLEEG", str(selected)))
     if resave and study.get("filename"):
-        study, command = pop_savestudy(study, datasets, savemode="resave", return_com=True)
+        study, _datasets, command = pop_savestudy(study, datasets, savemode="resave", return_com=True)
         commands.append(command)
     return study, datasets, "\n".join(command for command in commands if command)
 

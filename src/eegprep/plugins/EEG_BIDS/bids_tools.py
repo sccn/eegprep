@@ -355,7 +355,7 @@ def _export_wizard(
     datasets = []
     task = "eeg"
     for entry in entries:
-        dataset = pop_loadset(str(entry["file"]))
+        dataset = _load_recording(str(entry["file"]))
         if entry.get("subject"):
             dataset["subject"] = entry["subject"]
         for key in ("session", "run", "condition", "group"):
@@ -453,23 +453,76 @@ def _participant_table(datasets: list[dict[str, Any]]) -> tuple[list[dict[str, s
 
 
 def _event_table(stored: dict[str, Any]) -> list[dict[str, str]] | None:
+    return _qt_table("Edit BIDS event info - pop_eventinfo", _EVENT_COLUMNS, _event_rows(stored))
+
+
+def _event_rows(stored: dict[str, Any]) -> list[dict[str, str]]:
     rows = []
-    for bids_field, eeglab_field in _EVENT_FIELDS:
+    known = {field for field, _label in _EVENT_FIELDS}
+    fields = list(_EVENT_FIELDS) + [
+        (name, name) for name in stored if name not in known and isinstance(stored[name], dict)
+    ]
+    for bids_field, eeglab_field in fields:
         current = stored.get(bids_field)
-        description = current if isinstance(current, str) else ""
-        if isinstance(current, dict):
-            description = str(current.get("Description") or "")
+        if not isinstance(current, dict):
+            current = {"Description": "" if current is None else str(current), "eeglab_field": eeglab_field}
         rows.append(
             {
                 "bids_field": bids_field,
-                "eeglab_field": eeglab_field,
-                "Levels": "",
-                "LongName": "",
-                "Description": description,
-                "Units": "",
+                "eeglab_field": str(current.get("eeglab_field") or eeglab_field),
+                "Levels": _levels_text(current.get("Levels")),
+                "LongName": str(current.get("LongName") or ""),
+                "Description": str(current.get("Description") or ""),
+                "Units": str(current.get("Units") or ""),
             }
         )
-    return _qt_table("Edit BIDS event info - pop_eventinfo", _EVENT_COLUMNS, rows)
+    return rows
+
+
+def _levels_text(value: Any) -> str:
+    if isinstance(value, dict):
+        return ", ".join(f"{key}={item}" for key, item in value.items())
+    return "" if value in (None, "") else str(value)
+
+
+def _levels_value(text: str) -> str | dict[str, str]:
+    if "=" not in text:
+        return text
+    levels = {}
+    for part in text.split(","):
+        if "=" not in part:
+            continue
+        key, item = part.split("=", 1)
+        key, item = key.strip(), item.strip()
+        if key:
+            levels[key] = item
+    return levels or text
+
+
+def _load_recording(path: str) -> dict[str, Any]:
+    suffix = Path(path).suffix.lower()
+    if suffix in {".edf", ".bdf", ".gdf"}:
+        from eegprep.functions.popfunc.pop_biosig import pop_biosig
+
+        loaded = pop_biosig(path)
+    elif suffix == ".vhdr":
+        from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
+
+        loaded = pop_loadbv(path)
+    elif suffix == ".set":
+        loaded = pop_loadset(path)
+    else:
+        from eegprep.functions.popfunc.pop_fileio import pop_fileio
+
+        loaded = pop_fileio(path)
+    if isinstance(loaded, tuple):
+        loaded = loaded[0]
+    if not isinstance(loaded, dict):
+        raise ValueError(
+            f"bids_exporter: {path} did not load as an EEG dataset. "
+            "Use a .set, .edf, .bdf, .gdf, or BrainVision .vhdr file, then export again."
+        )
+    return loaded
 
 
 def _qt_table(title: str, columns: tuple[str, ...], rows: list[dict[str, str]]) -> list[dict[str, str]] | None:
@@ -554,7 +607,9 @@ def _event_field_map(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if not name:
             continue
         mapped[name] = {
-            key: row[key] for key in ("eeglab_field", "Levels", "LongName", "Description", "Units") if row.get(key)
+            key: _levels_value(str(row[key])) if key == "Levels" else row[key]
+            for key in ("eeglab_field", "Levels", "LongName", "Description", "Units")
+            if row.get(key)
         }
     return mapped
 

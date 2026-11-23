@@ -147,13 +147,13 @@ def test_pop_savestudy_writes_matlab_v6_and_still_reads_json(tmp_path):
     eeg = _continuous()
     eeg["subject"] = "S01"
     study, alleeg = pop_study(None, [eeg], name="Audit")
-    saved, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path, return_com=True)
+    saved, _datasets, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path, return_com=True)
     path = tmp_path / "audit.study"
     assert path.read_bytes().startswith(b"MATLAB 5.0 MAT-file")
     assert command.startswith("[STUDY ALLEEG] = pop_savestudy(")
     loaded, _alleeg = pop_loadstudy(path, load_datasets="off")
     assert loaded["name"] == "Audit"
-    json_study, _json_command = pop_savestudy(
+    json_study, _json_datasets, _json_command = pop_savestudy(
         study, alleeg, filename="audit.json", filepath=tmp_path, fileformat="json", return_com=True
     )
     assert json_study["filename"].endswith(".json")
@@ -291,7 +291,7 @@ def test_participant_rows_and_event_fields_are_written_on_export(tmp_path):
     assert participants["Age"]["Description"] == "Age at recording"
     events = json.loads(next(root.rglob("*_events.json")).read_text(encoding="utf-8"))
     assert events["value"]["Description"] == "stimulus code"
-    assert events["value"]["Levels"] == "1=rare"
+    assert events["value"]["Levels"] == {"1": "rare"}
 
 
 def test_bids_exporter_welcome_cancel_writes_nothing_and_grid_exports(tmp_path):
@@ -449,6 +449,110 @@ def test_participant_table_dialog_stores_each_row(qapp):
     assert first["etc"]["bids"]["participant"]["Gender"] == "M"
     assert second["etc"]["bids"]["participant"]["Gender"] == "F"
     assert "pop_participantinfo" in command
+
+
+def test_mff_segmentation_follows_categories_not_epochs_xml(tmp_path):
+    from eegprep.functions.popfunc.pop_mffimport import _epoch_events, _looks_segmented
+
+    folder = tmp_path / "continuous.mff"
+    folder.mkdir()
+    (folder / "epochs.xml").write_text("<epochs/>", encoding="utf-8")
+    assert not _looks_segmented(folder)
+    (folder / "categories.xml").write_text("<categories/>", encoding="utf-8")
+    assert _looks_segmented(folder)
+
+    class _Epochs:
+        times = np.array([-0.1, 0.0, 0.1])
+        events = np.array([[5000, 0, 1]])
+
+    events = _epoch_events(_Epochs(), "code")
+    assert events[0]["latency"] == 2.0
+
+
+def test_pop_loadeeg_parses_subset_text_into_replayable_history():
+    from eegprep.functions.popfunc.pop_loadeeg import _ranges
+
+    ranges = _ranges({"precision": 1, "trials": "1:3", "types": "1 2", "channels": "", "responses": ""})
+    assert ranges["triallist"] == [1, 2, 3]
+    assert ranges["typerange"] == [1, 2]
+
+
+def test_derivative_dataset_can_be_resaved(tmp_path):
+    root = tmp_path / "derivatives" / "eegprep"
+    eeg_dir = root / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (root / "dataset_description.json").write_text('{"Name": "prep", "DatasetType": "derivative"}', encoding="utf-8")
+    eeg = _continuous()
+    target = eeg_dir / "x.set"
+    pop_saveset(eeg, target)
+    eeg["saved"] = "no"
+    pop_saveset(eeg, target, savemode="resave")
+    assert target.is_file()
+
+
+def test_pop_savestudy_replay_keeps_alleeg_as_datasets(tmp_path):
+    from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, _console_python_command
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    eeg = _continuous()
+    eeg["subject"] = "S01"
+    study, alleeg = pop_study(None, [eeg], name="Audit")
+    _saved, datasets, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path, return_com=True)
+    session = EEGPrepSession()
+    session.set_study(study, datasets)
+    workspace = EEGPrepConsoleWorkspace(session)
+    exec(_console_python_command(command), workspace.namespace)  # noqa: S102
+    replayed = workspace.namespace["ALLEEG"]
+    assert isinstance(replayed, list)
+    assert replayed and isinstance(replayed[0], dict)
+
+
+def test_event_info_reopen_keeps_levels_longname_and_units():
+    from eegprep.plugins.EEG_BIDS.bids_tools import _event_rows, pop_eventinfo
+
+    eeg = _continuous()
+    fields = [
+        {
+            "bids_field": "value",
+            "Description": "stimulus code",
+            "Levels": "1=rare",
+            "LongName": "Stimulus",
+            "Units": "code",
+        }
+    ]
+    pop_eventinfo(eeg, event_fields=fields)
+    reopened = _event_rows(eeg["etc"]["bids"]["event"])
+    value = next(row for row in reopened if row["bids_field"] == "value")
+    assert value["Levels"] == "1=rare"
+    assert value["LongName"] == "Stimulus"
+    assert value["Units"] == "code"
+    pop_eventinfo(eeg, event_fields=reopened)
+    stored = eeg["etc"]["bids"]["event"]["value"]
+    assert stored["Levels"] == {"1": "rare"}
+    assert stored["LongName"] == "Stimulus"
+    assert stored["Units"] == "code"
+
+
+def test_bids_wizard_sends_edf_to_pop_biosig(tmp_path, monkeypatch):
+    from eegprep.plugins.EEG_BIDS.bids_tools import bids_exporter
+
+    path = tmp_path / "recording.edf"
+    path.write_bytes(b"not a real edf")
+    seen = {}
+
+    def fake(filename, **_kwargs):
+        seen["filename"] = filename
+        eeg = _continuous()
+        eeg["subject"] = "01"
+        return eeg
+
+    monkeypatch.setattr("eegprep.functions.popfunc.pop_biosig.pop_biosig", fake)
+    output, _command = bids_exporter(
+        entries=[{"file": str(path), "subject": "01", "task": "oddball"}],
+        output_dir=tmp_path / "out",
+    )
+    assert seen["filename"] == str(path)
+    assert Path(output, "dataset_description.json").is_file()
 
 
 def test_matlab_study_history_is_console_replayable():
