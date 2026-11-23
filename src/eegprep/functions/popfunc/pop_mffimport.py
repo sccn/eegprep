@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.extras import import_optional_dependency
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
@@ -18,9 +19,9 @@ from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 _SYNTHETIC_CHANNELS = {"stm+", "resp", "fbk+", "lrnd", "stim"}
 _TYPE_FIELDS = ("code", "label", "mffkeys")
-# EGI's MFF XML schema stores epoch and event times in nanoseconds unless the
-# element declares a different unit. mffmatlabio's Java layer divides version-0
-# values by 1000 before the same /1e6 conversion, which is this /1e9.
+# epochs.xml and categories.xml on EEGLAB's testmff.mff store microseconds with
+# no unit attribute. mff_import.m divides those Java times by 1e6. A unit or
+# units attribute still selects nanoseconds, milliseconds, or seconds.
 _TIME_DIVISOR = {
     "ns": 1e9,
     "nanosecond": 1e9,
@@ -148,11 +149,15 @@ def _epochs_from_categories(raw: Any, path: Path, typefield: str) -> dict[str, A
         )
     data = np.stack(pieces, axis=2)
     pnts = int(data.shape[1])
-    first = segments[0]
+    # The earliest epoch in time, not the first <cat> in the file. On testmff
+    # the first category is epoch 2, and pairing it with epoch 1's begin is -1.402.
+    first = min(segments, key=lambda segment: float(segment["begin"]))
     xmin = 0.0
     if first.get("event_begin") is not None:
         xmin = -(float(first["event_begin"]) - float(first["begin"]))
     events = _track_events(path, srate, segments, pnts, typefield)
+    events.extend(_category_events(segments, xmin, srate, pnts))
+    events.sort(key=lambda event: (float(event["latency"]), int(event["epoch"]), str(event["type"])))
     times = np.arange(pnts) / srate + xmin
     names = list(raw.ch_names)
     eeg = eeg_emptyset()
@@ -173,7 +178,8 @@ def _epochs_from_categories(raw: Any, path: Path, typefield: str) -> dict[str, A
             "event": events,
         }
     )
-    return eeg
+    checked = eeg_checkset(eeg)
+    return checked if isinstance(checked, dict) else eeg
 
 
 def _mff_segments(path: Path) -> list[dict[str, Any]]:
@@ -192,8 +198,6 @@ def _mff_segments(path: Path) -> list[dict[str, Any]]:
                     continue
                 begin = _declared_seconds(segment, "beginTime")
                 end = _declared_seconds(segment, "endTime")
-                if bounds and len(segments) < len(bounds):
-                    begin, end = bounds[len(segments)]
                 if begin is None or end is None:
                     continue
                 segments.append(
@@ -202,12 +206,21 @@ def _mff_segments(path: Path) -> list[dict[str, Any]]:
                         "begin": begin,
                         "end": end,
                         "event_begin": _first_seconds(segment, ("eventBegin", "evtBegin")),
+                        "event_end": _first_seconds(segment, ("eventEnd", "evtEnd")),
                         "keys": _xml_keys(segment),
                     }
                 )
+        segments.sort(key=lambda segment: (float(segment["begin"]), float(segment["end"])))
     if not segments and bounds:
         segments = [
-            {"name": str(index), "begin": begin, "end": end, "event_begin": None, "keys": []}
+            {
+                "name": str(index),
+                "begin": begin,
+                "end": end,
+                "event_begin": None,
+                "event_end": None,
+                "keys": [],
+            }
             for index, (begin, end) in enumerate(bounds, start=1)
         ]
     return segments
@@ -248,8 +261,7 @@ def _child_text(node: ET.Element, name: str) -> str:
 def _declared_seconds(node: ET.Element, name: str) -> float | None:
     """Convert one MFF time element using the unit it declares.
 
-    The EGI schema default is nanoseconds. A ``unit`` or ``units`` attribute
-    selects microseconds, milliseconds, or seconds instead.
+    Missing ``unit`` / ``units`` means microseconds, matching ``mff_import.m``.
     """
     for child in list(node):
         if _xml_name(child.tag) != name:
@@ -257,7 +269,7 @@ def _declared_seconds(node: ET.Element, name: str) -> float | None:
         text = str(child.text or "").strip()
         if not text:
             return None
-        unit = str(child.attrib.get("unit") or child.attrib.get("units") or "ns").strip().lower()
+        unit = str(child.attrib.get("unit") or child.attrib.get("units") or "us").strip().lower()
         divisor = _TIME_DIVISOR.get(unit)
         if divisor is None:
             shown = ", ".join(sorted(set(_TIME_DIVISOR)))
@@ -363,8 +375,8 @@ def _track_event(
     relative = _first_seconds(node, ("relativeBeginTime", "relativebegintime"))
     begin_text = _child_text(node, "beginTime")
     if relative is not None and relative > 0:
-        # mff_importevents.m uses relativebegintime/1e6*srate. XML values are
-        # nanoseconds, so /1e9*srate is the same instant.
+        # mff_importevents.m: relativebegintime/1e6*srate. The XML value is
+        # already in seconds here.
         latency = relative * srate
     elif begin_text and "T" not in begin_text:
         numeric = _first_seconds(node, ("beginTime",))
@@ -377,8 +389,7 @@ def _track_event(
             )
         latency = (_parse_mff_time(begin_text) - record_time).total_seconds() * srate
     latency = _correct_epoch_gap(latency, sample_beg, sample_len)
-    duration_seconds = _first_seconds(node, ("duration",))
-    duration = 0.0 if duration_seconds is None else duration_seconds * srate
+    duration = _duration_samples(node, srate)
     epoch = int(np.floor((latency + 1e-6) / pnts)) + 1 if pnts else 1
     epoch = min(max(epoch, 1), max(trials, 1))
     event: dict[str, Any] = {
@@ -395,6 +406,61 @@ def _track_event(
     }
     _attach_mff_keys(event, keys)
     return event
+
+
+def _duration_samples(node: ET.Element, srate: float) -> float:
+    """Return an event duration in samples.
+
+    EEGLAB stores ``getDuration()`` unchanged. On testmff.mff that value is
+    1000 samples. A ``unit`` attribute is a time, converted with the sampling rate.
+    """
+    for child in list(node):
+        if _xml_name(child.tag) != "duration":
+            continue
+        text = str(child.text or "").strip()
+        if not text:
+            return 0.0
+        unit = str(child.attrib.get("unit") or child.attrib.get("units") or "").strip().lower()
+        if not unit:
+            return float(text)
+        divisor = _TIME_DIVISOR.get(unit)
+        if divisor is None:
+            shown = ", ".join(sorted(set(_TIME_DIVISOR)))
+            raise ValueError(
+                f"pop_mffimport: <duration> declares unit {unit!r}, which is not one of {shown}. "
+                "Fix that unit in the MFF XML, then import again."
+            )
+        return float(text) / divisor * srate
+    return 0.0
+
+
+def _category_events(
+    segments: list[dict[str, Any]],
+    xmin: float,
+    srate: float,
+    pnts: int,
+) -> list[dict[str, Any]]:
+    """One time-lock event per trial, as ``mff_import.m`` adds from categories."""
+    events = []
+    for index, segment in enumerate(segments, start=1):
+        event_begin = segment.get("event_begin")
+        event_end = segment.get("event_end")
+        if event_begin is None or event_end is None:
+            duration = 0.0
+        else:
+            duration = (float(event_end) - float(event_begin)) * srate
+        latency = -xmin * srate + 1 + pnts * (index - 1)
+        epoch = int(np.floor((latency + 1e-6) / pnts)) + 1 if pnts else 1
+        epoch = min(max(epoch, 1), max(len(segments), 1))
+        event: dict[str, Any] = {
+            "type": str(segment.get("name") or "event"),
+            "latency": float(latency),
+            "duration": float(duration),
+            "epoch": epoch,
+        }
+        _attach_mff_keys(event, segment.get("keys") or [])
+        events.append(event)
+    return events
 
 
 def _event_type(code: str, label: str, keys: list[dict[str, str]], typefield: str) -> str:
@@ -462,7 +528,12 @@ def _parse_mff_time(text: str) -> datetime:
 
 
 def _drop_synthetic_channels(eeg: dict[str, Any]) -> dict[str, Any]:
-    labels = [str(channel.get("labels") or "") for channel in eeg.get("chanlocs") or []]
+    channels = eeg.get("chanlocs")
+    if channels is None:
+        return eeg
+    if isinstance(channels, np.ndarray):
+        channels = channels.reshape(-1).tolist()
+    labels = [str(channel.get("labels") or "") for channel in channels]
     keep = [index for index, label in enumerate(labels) if label.lower() not in _SYNTHETIC_CHANNELS]
     if len(keep) == len(labels):
         return eeg

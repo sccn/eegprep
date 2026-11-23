@@ -528,7 +528,6 @@ def _export_grid_dialog() -> _ExportGrid:
     try:
         from PySide6.QtWidgets import (
             QDialog,
-            QDialogButtonBox,
             QFileDialog,
             QGridLayout,
             QHBoxLayout,
@@ -617,9 +616,20 @@ def _export_grid_dialog() -> _ExportGrid:
 
     previous.clicked.connect(lambda: shift(-1))
     following.clicked.connect(lambda: shift(1))
-    buttons = QDialogButtonBox(getattr(QDialogButtonBox, "Ok") | getattr(QDialogButtonBox, "Cancel"), dialog)
-    buttons.accepted.connect(dialog.accept)
-    buttons.rejected.connect(dialog.reject)
+    help_button = QPushButton("Help")
+    help_button.setObjectName("help")
+    cancel_button = QPushButton("Cancel")
+    cancel_button.setObjectName("cancel")
+    ok_button = QPushButton("Ok")
+    ok_button.setObjectName("ok")
+    help_button.clicked.connect(lambda: _show_export_help(dialog))
+    cancel_button.clicked.connect(dialog.reject)
+    ok_button.clicked.connect(dialog.accept)
+    buttons = QHBoxLayout()
+    buttons.addWidget(help_button)
+    buttons.addStretch(1)
+    buttons.addWidget(cancel_button)
+    buttons.addWidget(ok_button)
     pages = QHBoxLayout()
     pages.addWidget(previous)
     pages.addWidget(page_label)
@@ -631,9 +641,15 @@ def _export_grid_dialog() -> _ExportGrid:
     layout.addLayout(output_row)
     layout.addLayout(grid)
     layout.addLayout(pages)
-    layout.addWidget(buttons)
+    layout.addLayout(buttons)
     dialog.adjustSize()
     return _ExportGrid(dialog, state, edits, output, page_label, save_page, shift)
+
+
+def _show_export_help(parent: Any) -> None:
+    from eegprep.functions.guifunc.pophelp import pophelp
+
+    pophelp("pop_exportbids", parent=parent)
 
 
 def _wizard_row_indexes(grid: dict[str, Any]) -> list[int]:
@@ -646,13 +662,14 @@ def _participant_history(
     rows: list[dict[str, Any]],
     column_info: dict[str, dict[str, str]] | None,
 ) -> str:
-    from eegprep.functions.studyfunc._study_utils import matlab_command_cell
+    """Return the history line EEGLAB records for this dialog.
 
-    pieces = ["EEG", "STUDY", format_history_value("rows"), matlab_command_cell(rows)]
-    if column_info:
-        described = [{"Field": field, **info} for field, info in column_info.items()]
-        pieces.extend([format_history_value("column_info"), matlab_command_cell(described)])
-    return f"[EEG, STUDY, command] = pop_participantinfo({', '.join(pieces)});"
+    ``rows`` and ``column_info`` are applied in EEGPrep. EEGLAB's
+    ``pop_participantinfo`` is interactive-only, so they are not written into
+    the command: replaying ``'rows'`` opens the table and never applies it.
+    """
+    del target, rows, column_info
+    return "[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);"
 
 
 def _participant_table(datasets: list[dict[str, Any]]) -> tuple[list[dict[str, str]] | None, dict[str, dict[str, str]]]:
@@ -1029,10 +1046,7 @@ def _update_bids_metadata(
     bids = etc.setdefault("bids", {})
     bids.setdefault(section, {}).update(metadata)
     if command_name == "pop_participantinfo":
-        pieces = ["EEG", "STUDY"]
-        for key, value in metadata.items():
-            pieces.extend([format_history_value(key), format_history_value(value)])
-        return target, f"[EEG, STUDY, command] = pop_participantinfo({', '.join(pieces)});"
+        return target, "[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);"
     target_name = "STUDY" if "datasetinfo" in target else "EEG"
     pieces = [target_name]
     for key, value in metadata.items():

@@ -609,7 +609,14 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   ``~=`` leave the channel unchanged in EEGLAB. EEGPrep evaluates those
   comparisons. ``bitand`` on a negative or non-integer channel raises an
   error that names ``pop_chanevent`` and tells you to round or take the
-  absolute value first. EEGLAB errors on those inputs as well.
+  absolute value first. EEGLAB errors on those inputs as well, and it also
+  rejects ``bitand(abs(round(X)),1)`` when ``EEG.data`` is single precision.
+* ``pop_participantinfo`` records
+  ``[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);``, the line
+  EEGLAB writes (``pop_participantinfo.m``). EEGLAB's function is
+  interactive-only: a ``'rows'`` argument opens the table and does not apply
+  the rows, so a batch MATLAB session hangs. EEGPrep's ``rows`` argument
+  scripts that table. Replay the recorded line in EEGLAB to open the dialog.
 * A Neuroscan CNT import keeps the file length. EEGLAB's reader can append
   three extra samples. ``loadcnt`` stores the same 0-based sample offset as
   MATLAB ``loadcnt``, and ``pop_loadcnt`` adds 1, matching ``pop_loadcnt.m``

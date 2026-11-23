@@ -52,6 +52,7 @@ class ControlSpec:
     tooltip: str | None = None
     enabled: bool = True
     font_weight: str | None = None
+    wrap: bool = False
 
 
 @dataclass(frozen=True)

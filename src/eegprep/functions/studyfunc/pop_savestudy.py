@@ -126,15 +126,14 @@ class _Mat73Writer:
     def __init__(self) -> None:
         self.count = 0
 
-    def holder(self, root: h5py.File) -> h5py.Group:
-        self.count += 1
-        return root.require_group("#refs#").create_group(f"r{self.count}")
-
 
 def _mat73_header() -> bytes:
-    """128-byte MATLAB v7.3 header: description, subsystem offset, version, endian."""
+    """128-byte MATLAB v7.3 header: description, subsystem offset, version, endian.
+
+    v7.3 is version ``0x0200``. Little-endian bytes 124-125 are ``00 02``.
+    """
     text = b"MATLAB 7.3 MAT-file, Platform: eegprep, Created by pop_savestudy"
-    return text[:116].ljust(116, b" ") + (0).to_bytes(8, "little") + (0x0100).to_bytes(2, "little") + b"IM"
+    return text[:116].ljust(116, b" ") + (0).to_bytes(8, "little") + (0x0200).to_bytes(2, "little") + b"IM"
 
 
 def _write_study_v73(path: Path, study: Any) -> None:
@@ -189,6 +188,19 @@ def _write_mat73_char(parent: h5py.Group, name: str, text: str) -> None:
         dataset.attrs["MATLAB_empty"] = np.uint8(1)
 
 
+def _referenced(root: h5py.File, writer: _Mat73Writer, value: Any) -> h5py.Reference:
+    """Store ``value`` directly in ``#refs#`` and return its object reference.
+
+    MATLAB follows the reference to the dataset or group itself. A wrapper
+    group whose only child is ``value`` is not a v7.3 object.
+    """
+    refs = root.require_group("#refs#")
+    writer.count += 1
+    name = f"r{writer.count}"
+    _write_mat73_value(refs, name, value, root, writer)
+    return refs[name].ref
+
+
 def _write_mat73_mapping(
     parent: h5py.Group,
     name: str,
@@ -197,14 +209,9 @@ def _write_mat73_mapping(
     writer: _Mat73Writer,
 ) -> None:
     group = parent.create_group(name)
-    group.attrs["MATLAB_class"] = b"struct"
-    ref_dtype = h5py.special_dtype(ref=h5py.Reference)
+    group.attrs["MATLAB_class"] = np.bytes_("struct")
     for key, item in mapping.items():
-        holder = writer.holder(root)
-        _write_mat73_value(holder, "value", item, root, writer)
-        refs = np.empty((1, 1), dtype=ref_dtype)
-        refs[0, 0] = holder["value"].ref
-        group.create_dataset(str(key), data=refs)
+        _write_mat73_value(group, str(key), item, root, writer)
 
 
 def _write_mat73_struct(
@@ -215,16 +222,13 @@ def _write_mat73_struct(
     writer: _Mat73Writer,
 ) -> None:
     group = parent.create_group(name)
-    group.attrs["MATLAB_class"] = b"struct"
+    group.attrs["MATLAB_class"] = np.bytes_("struct")
     rows = array.reshape(-1, order="F")
-    ref_dtype = h5py.special_dtype(ref=h5py.Reference)
+    ref_dtype = h5py.ref_dtype
     for field in array.dtype.names or ():
-        refs = np.empty((len(rows), 1), dtype=ref_dtype)
+        pointers = group.create_dataset(field, (len(rows), 1), dtype=ref_dtype)
         for index, row in enumerate(rows):
-            holder = writer.holder(root)
-            _write_mat73_value(holder, "value", row[field], root, writer)
-            refs[index, 0] = holder["value"].ref
-        group.create_dataset(field, data=refs)
+            pointers[index, 0] = _referenced(root, writer, row[field])
 
 
 def _write_mat73_cell(
@@ -235,14 +239,11 @@ def _write_mat73_cell(
     writer: _Mat73Writer,
 ) -> None:
     flat = array.reshape(-1, order="F")
-    ref_dtype = h5py.special_dtype(ref=h5py.Reference)
-    refs = np.empty(array.T.shape, dtype=ref_dtype)
+    refs = np.empty(array.T.shape, dtype=h5py.ref_dtype)
     for index, item in enumerate(flat):
-        holder = writer.holder(root)
-        _write_mat73_value(holder, "value", item, root, writer)
-        refs.reshape(-1, order="F")[index] = holder["value"].ref
+        refs.reshape(-1, order="F")[index] = _referenced(root, writer, item)
     dataset = parent.create_dataset(name, data=refs)
-    dataset.attrs["MATLAB_class"] = b"cell"
+    dataset.attrs["MATLAB_class"] = np.bytes_("cell")
 
 
 def _study_for_mat(value: Any, *, key: str | None = None) -> Any:

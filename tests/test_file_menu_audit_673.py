@@ -452,9 +452,7 @@ def test_participant_table_dialog_stores_each_row(qapp):
         timer.stop()
     assert first["etc"]["bids"]["participant"]["Gender"] == "M"
     assert second["etc"]["bids"]["participant"]["Gender"] == "F"
-    assert command.startswith("[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY,")
-    assert "'rows', 2" not in command
-    assert "Gender" in command
+    assert command == "[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);"
     assert "rows" not in first["etc"]["bids"]["participant"]
 
 
@@ -633,16 +631,16 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     folder = tmp_path / "testmff.mff"
     folder.mkdir()
     (folder / "epochs.xml").write_text(
-        "<epochs><epoch><beginTime>0</beginTime><endTime>1200000000</endTime></epoch>"
-        "<epoch><beginTime>1200000000</beginTime><endTime>2400000000</endTime></epoch></epochs>",
+        "<epochs><epoch><beginTime>0</beginTime><endTime>1200000</endTime></epoch>"
+        "<epoch><beginTime>1200000</beginTime><endTime>2400000</endTime></epoch></epochs>",
         encoding="utf-8",
     )
     (folder / "categories.xml").write_text(
         "<categories><cat><name>target</name><segments>"
-        "<segment><beginTime>0</beginTime><endTime>1200000000</endTime>"
-        "<eventBegin>202000000</eventBegin></segment>"
-        "<segment><beginTime>1200000000</beginTime><endTime>2400000000</endTime>"
-        "<eventBegin>1402000000</eventBegin></segment>"
+        "<segment><beginTime>0</beginTime><endTime>1200000</endTime>"
+        "<eventBegin>202000</eventBegin><eventEnd>202000</eventEnd></segment>"
+        "<segment><beginTime>1200000</beginTime><endTime>2400000</endTime>"
+        "<eventBegin>1402000</eventBegin><eventEnd>1402000</eventEnd></segment>"
         "</segments></cat></categories>",
         encoding="utf-8",
     )
@@ -652,10 +650,10 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     (folder / "Events_stm+.xml").write_text(
         "<eventTrack><name>stm+</name><trackType>STIM</trackType>"
         "<event><beginTime>2016-01-01T00:00:00.203960000+00:00</beginTime>"
-        "<relativeBeginTime>203960000</relativeBeginTime><duration>1000000</duration>"
+        "<relativeBeginTime>203960</relativeBeginTime><duration>1000</duration>"
         "<code>stm+</code><label>stm+</label><description></description>"
         "<keys><key><keyCode>cel#</keyCode><data>1</data><dataType>long</dataType></key></keys></event>"
-        "<event><relativeBeginTime>1406000000</relativeBeginTime><duration>1000000</duration>"
+        "<event><relativeBeginTime>1406000</relativeBeginTime><duration>1000</duration>"
         "<code>resp</code><label>resp</label></event>"
         "</eventTrack>",
         encoding="utf-8",
@@ -664,10 +662,11 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     assert eeg["data"].shape == (257, 300, 2)
     assert float(np.max(eeg["data"])) == pytest.approx(1e6)
     assert eeg["xmin"] == pytest.approx(-0.202)
-    assert [event["type"] for event in eeg["event"]] == ["stm+", "resp"]
+    assert [event["type"] for event in eeg["event"]] == ["stm+", "target", "resp", "target"]
     assert eeg["event"][0]["latency"] == pytest.approx(0.20396 * 250)
     assert eeg["event"][0]["mffkey_cel"] == "1"
-    assert eeg["event"][0]["duration"] == pytest.approx(0.001 * 250)
+    assert eeg["event"][0]["duration"] == pytest.approx(1000)
+    assert len(eeg["epoch"]) == 2
     seconds = tmp_path / "seconds.mff"
     seconds.mkdir()
     (seconds / "categories.xml").write_text(
@@ -679,8 +678,8 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     )
     declared = _epochs_from_categories(raw, seconds, "code")
     assert declared["data"].shape[1] == 300
-    assert declared["xmin"] == pytest.approx(-0.202)
-    assert declared["event"] == []
+    assert declared["event"][0]["latency"] == pytest.approx(0.202 * 250 + 1)
+    assert [event["type"] for event in declared["event"]] == ["target"]
     broken = tmp_path / "broken.mff"
     broken.mkdir()
     (broken / "categories.xml").write_text("<categories/>", encoding="utf-8")
@@ -931,10 +930,11 @@ def test_real_testmff_matches_eeglab_epochs():
     candidates = []
     if os.environ.get("EEGPREP_TESTMFF"):
         candidates.append(Path(os.environ["EEGPREP_TESTMFF"]))
-    candidates.append(Path(__file__).resolve().parents[1] / "sample_data" / "testmff.mff")
+    candidates.append(Path(__file__).resolve().parent / "fixtures" / "testmff.mff")
+    candidates.append(Path(__file__).resolve().parents[1] / "sample_data" / "test_data" / "testmff.mff")
     folder = next((path for path in candidates if path.is_dir()), None)
     if folder is None:
-        pytest.skip("testmff.mff is not available")
+        pytest.fail("tests/fixtures/testmff.mff is not in the tree")
     eeg = pop_mffimport(folder, typefield="code")
     assert eeg["data"].shape == (257, 300, 2)
     assert float(np.max(np.abs(eeg["data"]))) == pytest.approx(19.75, rel=0.02)
@@ -946,6 +946,11 @@ def test_real_testmff_matches_eeglab_epochs():
     found_types = {str(event["type"]).lower() for event in eeg["event"]}
     for name in ("stm+", "lrnd", "ulrn", "resp", "fbk+"):
         assert name in found_types
+    stimulus = [event for event in eeg["event"] if str(event["type"]).lower() == "stm+"]
+    assert stimulus
+    assert all(float(event["duration"]) == pytest.approx(1000) for event in stimulus)
+    assert len(eeg["epoch"]) == eeg["trials"] == 2
+    assert all("event" in epoch and "eventlatency" in epoch for epoch in eeg["epoch"])
     assert mne is not None
 
 
@@ -978,7 +983,10 @@ def test_v73_study_with_two_datasets_and_a_design_reloads(tmp_path, monkeypatch)
     second["filename"] = "s02.set"
     study, alleeg = pop_study(None, [first, second], name="Pair")
     study["design"] = [{"name": "Within", "variable": [{"label": "condition", "value": "A"}]}]
-    study["cluster"] = [{"name": "Parent", "sets": [[1, 2]], "comps": [1], "child": []}]
+    study["cluster"] = [
+        {"name": "Parent", "sets": [[1], [2]], "comps": [1], "child": []},
+        {"name": "Wide", "sets": [[1, 2], [3, 4]], "comps": [1, 2]},
+    ]
 
     def too_big(*_args, **_kwargs):
         raise OverflowError("Matrix too large to save with Matlab 5 format")
@@ -988,7 +996,7 @@ def test_v73_study_with_two_datasets_and_a_design_reloads(tmp_path, monkeypatch)
     path = tmp_path / "pair.study"
     header = path.read_bytes()[:128]
     assert header.startswith(b"MATLAB 7.3")
-    assert header[124:128] == b"\x00\x01IM"
+    assert header[124:128] == b"\x00\x02IM"
     with h5py.File(path, "r") as handle:
         assert "struct" in str(handle["STUDY"].attrs["MATLAB_class"])
         assert "#refs#" in handle
@@ -996,6 +1004,9 @@ def test_v73_study_with_two_datasets_and_a_design_reloads(tmp_path, monkeypatch)
     assert reloaded["name"] == "Pair"
     assert len(reloaded["datasetinfo"]) == 2
     assert reloaded["design"][0]["name"] == "Within"
+    by_name = {cluster["name"]: cluster for cluster in reloaded["cluster"]}
+    assert np.asarray(by_name["Parent"]["sets"]).shape == (2, 1)
+    assert np.asarray(by_name["Wide"]["sets"]).shape == (2, 2)
     assert datasets == []
 
 
@@ -1014,8 +1025,15 @@ def test_scripted_power_line_uses_the_eeg_number(tmp_path):
 def test_participantinfo_key_value_history_includes_study():
     from eegprep.plugins.EEG_BIDS.bids_tools import pop_participantinfo
 
-    _eeg, command = pop_participantinfo({"data": []}, participant_id="sub-01")
-    assert command.startswith("[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY, 'participant_id'")
+    eeg, command = pop_participantinfo({"data": []}, participant_id="sub-01")
+    assert command == "[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);"
+    assert eeg["etc"]["bids"]["participant"]["participant_id"] == "sub-01"
+    scripted, scripted_command = pop_participantinfo(
+        {"data": []},
+        rows=[{"participant_id": "sub-02", "Gender": "F"}],
+    )
+    assert scripted_command == "[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);"
+    assert scripted["etc"]["bids"]["participant"]["Gender"] == "F"
 
 
 def test_export_wizard_pages_ten_rows(qapp):
@@ -1044,6 +1062,8 @@ def test_export_wizard_pages_ten_rows(qapp):
     headers = {label.text() for label in dialog.findChildren(QLabel)}
     assert {"Raw dataset filename", "subject", "session", "run", "condition", "group", "task"} <= headers
     assert len([button for button in dialog.findChildren(QPushButton) if button.text() == "..."]) == 10
+    named = {button.objectName(): button for button in dialog.findChildren(QPushButton)}
+    assert named["help"].x() < named["cancel"].x() < named["ok"].x()
     dialog.edits[0]["file"].setText("a.set")
     dialog.shift(1)
     assert dialog.page_label.text() == "Page 2"
