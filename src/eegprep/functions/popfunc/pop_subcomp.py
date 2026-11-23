@@ -56,6 +56,8 @@ def pop_subcomp(
     output, removed = _remove_components(EEG, components, keepcomp)
     if removed and _is_on(plotag):
         _plot_subcomp_confirmation(EEG, output)
+    if gui and renderer is None and removed and not _confirm_subcomp_result():
+        return (EEG, "") if return_com else EEG
     command = _history_command(components if components is not None else [], plotag, keepcomp) if removed else ""
     return (output, command) if return_com else output
 
@@ -87,6 +89,20 @@ def pop_subcomp_dialog_spec(EEG: dict | list[dict]) -> DialogSpec:
 
 
 def _run_gui(EEG: dict | list[dict], renderer: Any | None = None) -> dict[str, Any] | None:
+    if renderer is None and not isinstance(EEG, list) and _flagged_components(EEG):
+        from eegprep.functions.guifunc.questdlg2 import questdlg2
+
+        answer = questdlg2(
+            "pop_subcomp: remove components previously marked for rejection?",
+            "pop_subcomp",
+            "Cancel",
+            "Manual rej.",
+            "Yes",
+        )
+        if answer in {None, "", "Cancel"}:
+            return None
+        if answer == "Yes":
+            return {"components": [], "keepcomp": 0}
     result = inputgui(pop_subcomp_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
@@ -289,13 +305,18 @@ def _unique_preserve_order(values: list[int]) -> list[int]:
     return unique
 
 
+def _confirm_subcomp_result() -> bool:
+    from eegprep.functions.guifunc.questdlg2 import questdlg2
+
+    answer = questdlg2(
+        "pop_subcomp: accept this component removal? Cancel leaves the dataset unchanged.",
+        "pop_subcomp",
+        "Cancel",
+        "Accept",
+    )
+    return answer == "Accept"
+
+
 def _history_command(components: Any, plotag: int | bool, keepcomp: int | bool) -> str:
-    parts = [
-        "EEG = pop_subcomp(EEG, ",
-        format_history_value(_normalize_components(components) or [], cell_for_sequence=None),
-        f", {int(bool(plotag))}",
-    ]
-    if _is_on(keepcomp):
-        parts.append(", 1")
-    parts.append(");")
-    return "".join(parts)
+    listed = format_history_value(_normalize_components(components) or [], cell_for_sequence=None)
+    return f"EEG = pop_subcomp(EEG, {listed}, {int(bool(plotag))}, {int(bool(keepcomp))});"

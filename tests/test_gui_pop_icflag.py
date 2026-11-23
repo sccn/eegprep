@@ -63,8 +63,9 @@ class PopIcflagGuiTests(unittest.TestCase):
         self.assertEqual(
             _console_python_command(com),
             (
-                "EEG = pop_icflag(EEG, thresholds=[[None, None], [0.9, 1], "
-                "[0.9, 1], [None, None], [None, None], [None, None], [None, None]])"
+                "EEG = pop_icflag(EEG, thresholds=[[float('nan'), float('nan')], [0.9, 1], "
+                "[0.9, 1], [float('nan'), float('nan')], [float('nan'), float('nan')], "
+                "[float('nan'), float('nan')], [float('nan'), float('nan')]])"
             ),
         )
 

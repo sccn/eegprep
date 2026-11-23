@@ -38,11 +38,24 @@ def pop_selectcomps(
     if gui is None:
         gui = compnum is None and reject is None
     if gui:
-        result = inputgui(pop_selectcomps_dialog_spec(EEG), renderer=renderer)
-        if result is None:
-            return (EEG, "") if return_com else EEG
-        compnum = result.get("compnum", "")
-        reject = result.get("reject", "")
+        if renderer is not None and hasattr(renderer, "run"):
+            result = inputgui(pop_selectcomps_dialog_spec(EEG), renderer=renderer)
+            if result is None:
+                return (EEG, "") if return_com else EEG
+            compnum = result.get("compnum", "")
+            reject = result.get("reject", "")
+        else:
+            out = copy_eeg(EEG)
+            compnum = one_based_indices(compnum, limit=_component_count(out), default_all=True)
+            flags = _run_component_browser(out, compnum)
+            if flags is None:
+                return (EEG, "") if return_com else EEG
+            if not isinstance(out.get("reject"), dict):
+                out["reject"] = {}
+            out["reject"]["gcompreject"] = flags
+            command = _history_command(compnum, [])
+            command += " [ALLEEG, EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);"
+            return (out, command) if return_com else out
     out = copy_eeg(EEG)
     n_components = _component_count(out)
     if n_components == 0:
@@ -104,6 +117,106 @@ def _component_count(EEG: dict[str, Any]) -> int:
     if winv.ndim == 2 and winv.size:
         return int(winv.shape[1])
     return 0
+
+
+def _run_component_browser(EEG: dict[str, Any], compnum: list[int]) -> np.ndarray | None:
+    """Open one button per component. Ok keeps the toggles; Cancel discards them.
+
+    EEGLAB writes ``gcompreject`` as soon as ACCEPT/REJECT is clicked, so Cancel
+    cannot undo it. EEGPrep applies the flags only when this window's Ok is pressed.
+    """
+    try:
+        from PySide6 import QtCore, QtWidgets
+    except ImportError as exc:
+        raise RuntimeError(
+            "pop_selectcomps: the component map window needs PySide6. Install it with pip install eegprep[gui]."
+        ) from exc
+    from eegprep.functions.popfunc.pop_prop import pop_prop
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    count = _component_count(EEG)
+    flags = component_rejection_flags(EEG, count, create=True).astype(int).copy()
+    dialog = QtWidgets.QDialog()
+    dialog.setObjectName("pop_selectcomps")
+    dialog.setWindowTitle("Reject components by map - pop_selectcomps()")
+    dialog.setWindowModality(QtCore.Qt.ApplicationModal)
+    layout = QtWidgets.QVBoxLayout(dialog)
+    grid = QtWidgets.QGridLayout()
+    shown = compnum[:PLOTS_PER_FIGURE]
+    buttons: dict[int, Any] = {}
+
+    def paint(button: Any, rejected: bool) -> None:
+        button.setStyleSheet("background-color: #f6c1c1;" if rejected else "background-color: #d9ead3;")
+
+    def open_component(component: int) -> None:
+        pop_prop(EEG, 0, component, spec_opt={"freqrange": [1, 50]}, plot="off")
+        chooser = QtWidgets.QDialog(dialog)
+        chooser.setObjectName("pop_prop_reject")
+        chooser.setWindowTitle(f"pop_prop() - component {component}")
+        chooser.setWindowModality(QtCore.Qt.ApplicationModal)
+        row = QtWidgets.QHBoxLayout(chooser)
+        toggle = QtWidgets.QPushButton("REJECT" if flags[component - 1] else "ACCEPT")
+        toggle.setObjectName("accept_reject")
+        toggle.setAutoDefault(False)
+
+        def flip() -> None:
+            flags[component - 1] = 0 if flags[component - 1] else 1
+            toggle.setText("REJECT" if flags[component - 1] else "ACCEPT")
+            paint(buttons[component], bool(flags[component - 1]))
+
+        toggle.clicked.connect(flip)
+        close = QtWidgets.QPushButton("Close")
+        close.setObjectName("close_prop")
+        close.setAutoDefault(False)
+        close.clicked.connect(chooser.accept)
+        row.addWidget(toggle)
+        row.addWidget(close)
+        chooser.exec()
+
+    for index, component in enumerate(shown):
+        button = QtWidgets.QPushButton(str(component))
+        button.setObjectName(f"comp{component}")
+        button.setAutoDefault(False)
+        button.setFixedSize(72, 28)
+        paint(button, bool(flags[component - 1]))
+        button.clicked.connect(lambda _checked=False, component=component: open_component(component))
+        grid.addWidget(button, index // 7, index % 7)
+        buttons[component] = button
+    layout.addLayout(grid)
+    actions = QtWidgets.QHBoxLayout()
+    for label, name, enabled, tip in (
+        ("Cancel", "cancel", True, ""),
+        (
+            "Set thresholds",
+            "set_thresholds",
+            False,
+            "pop_selectcomps: Set thresholds needs pop_icathresh, which is not yet available, "
+            "and EEG.stats.compenta. Mark components here, then use Tools > Remove components.",
+        ),
+        (
+            "See comp. stats",
+            "comp_stats",
+            False,
+            "pop_selectcomps: component statistics need EEG.stats.compenta, which this dataset does not have.",
+        ),
+        ("OK", "ok", True, ""),
+    ):
+        action = QtWidgets.QPushButton(label)
+        action.setObjectName(name)
+        action.setEnabled(enabled)
+        action.setAutoDefault(name == "ok")
+        if tip:
+            action.setToolTip(tip)
+        if name == "cancel":
+            action.clicked.connect(dialog.reject)
+        elif name == "ok":
+            action.clicked.connect(dialog.accept)
+        actions.addWidget(action)
+    layout.addLayout(actions)
+    app.processEvents()
+    if dialog.exec() != QtWidgets.QDialog.Accepted:
+        return None
+    return flags
 
 
 def _flagged_component_text(EEG: dict[str, Any]) -> str:

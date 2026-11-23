@@ -35,12 +35,18 @@ def test_tutorial_event_selection_descriptions(filename):
 
     spec = pop_selectevent_dialog_spec(eeg)
 
-    descriptions = [control.string for control in spec.controls if control.style == "pushbutton"]
-    assert "Event type\nHere, either 'square' or 'rt'" in descriptions
-    assert "Stimulus position\n(Here, either position 1 or 2, both in the left hemifield)." in descriptions
+    buttons = [control for control in spec.controls if control.style == "pushbutton"]
+    labels = [control.string for control in buttons]
+    messages = [control.callback.params.get("message", "") for control in buttons if control.callback is not None]
+    assert "type" in labels
+    assert "position" in labels
+    assert "Event type\nHere, either 'square' or 'rt'" in messages
+    assert "Stimulus position\n(Here, either position 1 or 2, both in the left hemifield)." in messages
     latency_index = next(index for index, control in enumerate(spec.controls) if control.string.startswith("latency ("))
-    assert spec.controls[latency_index + 1].string == "Event latency\nin the continuous data (seconds)."
-    assert not any("array(" in text for text in descriptions)
+    assert spec.controls[latency_index + 1].callback.params["message"] == (
+        "Event latency\nin the continuous data (seconds)."
+    )
+    assert not any("array(" in text for text in messages)
 
 
 def _reference_selection_eeg(eeglab_backend):

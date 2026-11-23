@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
+  keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
+  on the tutorial crop) and rejects a time range that misses the data.
+  ``pop_firpmord`` uses the Herrmann order; Estimate still rounds it even.
+  DIPFIT settings warp an unmatched montage onto the template and enable
+  Co-register. Fine fit reads nested dipole coordinates. Inspect/label
+  components opens ``pop_prop`` and stores rejection flags on OK.
+  MRI head-model creation and eLORETA stay disabled, with a tooltip that
+  names the missing FieldTrip step and the template or autofit alternative.
+  (#675)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search

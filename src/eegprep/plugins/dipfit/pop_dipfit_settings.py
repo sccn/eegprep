@@ -8,8 +8,10 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import numeric_vector
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.plugins.dipfit._utils import (
     STANDARD_TEMPLATES,
+    align_channels_to_template,
     apply_template,
     channel_template_filename,
     coordinate_channel_indices,
@@ -17,6 +19,7 @@ from eegprep.plugins.dipfit._utils import (
     dipfit_history,
     lookupchantemplate,
     one_based_indices,
+    resolved_coord_transform,
     template_by_name,
     template_form_state,
 )
@@ -68,15 +71,15 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     coordformat = str(dipfit.get("coordformat") or template["coordformat"] or "MNI")
     coord_index = {"spherical": 1, "mni": 2}.get(coordformat.lower(), 4)
     stored_transform = dipfit.get("coord_transform")
-    found, looked_up = lookupchantemplate(channel_template_filename(EEG), template)
+    template_states = [_dialog_template_state(EEG, item) for item in STANDARD_TEMPLATES]
     if stored_transform:
-        coord_transform = stored_transform
-    elif found:
-        coord_transform = looked_up
+        coreg_text = " ".join(f"{float(value):g}" for value in numeric_vector(stored_transform, dtype=float))
+        no_coreg = False
     else:
-        coord_transform = template["coord_transform"]
-    coreg_text = " ".join(f"{float(value):g}" for value in coord_transform) if coord_transform else ""
+        coreg_text = template_states[selected_model - 1]["coord_transform"]
+        no_coreg = bool(template_states[selected_model - 1]["no_coreg"])
     browse_enabled = selected_model == len(STANDARD_TEMPLATES)
+    labels = [str(channel.get("labels", "")) for channel in chanlocs_as_list(EEG.get("chanlocs"))]
     return DialogSpec(
         title="Dipole fit settings - pop_dipfit_settings()",
         function_name="pop_dipfit_settings",
@@ -102,10 +105,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
                 value=selected_model,
                 callback=CallbackSpec(
                     "dipfit_template",
-                    params={
-                        "source": "model",
-                        "templates": [template_form_state(item) for item in STANDARD_TEMPLATES],
-                    },
+                    params={"source": "model", "templates": template_states},
                 ),
             ),
             ControlSpec("spacer"),
@@ -136,18 +136,48 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("text", "Matrix to align chan. locs. with head model"),
             ControlSpec("edit", tag="coord_transform", value=coreg_text),
-            ControlSpec("pushbutton", "Co-register", tag="coregister", enabled=False, font_weight="bold"),
-            ControlSpec("checkbox", "No Co-Reg.", tag="no_coreg", value=not bool(coreg_text)),
+            ControlSpec(
+                "pushbutton",
+                "Co-register",
+                tag="coregister",
+                font_weight="bold",
+                callback=CallbackSpec(
+                    "dipfit_coregister",
+                    params={
+                        "target": "coord_transform",
+                        "chanfile": "chanfile",
+                        "hdmfile": "hdmfile",
+                        "no_coreg": "no_coreg",
+                        "chanlocs": chanlocs_as_list(EEG.get("chanlocs")),
+                        "chaninfo": EEG.get("chaninfo") if isinstance(EEG.get("chaninfo"), dict) else {},
+                    },
+                ),
+            ),
+            ControlSpec("checkbox", "No Co-Reg.", tag="no_coreg", value=no_coreg),
             ControlSpec("text", "Channels to omit from dipole fitting"),
             ControlSpec("edit", tag="chanomit", value=""),
-            ControlSpec("pushbutton", "...", tag="chanomit_button", enabled=False),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="chanomit_button",
+                callback=CallbackSpec(
+                    "select_channels",
+                    params={
+                        "button": "chanomit_button",
+                        "target": "chanomit",
+                        "channels": labels,
+                        "return_indices": True,
+                    },
+                ),
+            ),
             ControlSpec("spacer"),
         ),
         known_differences=(
             "EEGPrep keeps the MNI boundary-element model selected when a channel file name contains standard-10-5-cap385, and fills that file's cap385-to-MNI transform. standardBESA fits use the four-shell BESA leadfield.",
-            "Changing the head-model menu fills the file fields for the selected template. Browse is enabled for a custom head model. Co-register stays disabled. Head-model creation from an MRI is not implemented.",
+            "Changing the head-model menu fills the file fields for the selected template. Browse is enabled for a custom head model. When no channel-file keyword matches, EEGPrep fills the montage warp instead of leaving the matrix blank. Head-model creation from an MRI is not implemented.",
         ),
         row_spacing=10,
+        validate=_reject_missing_coregistration,
     )
 
 
@@ -170,10 +200,17 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None = None) -> dict[str, Any]
         "chanfile": str(result.get("chanfile") or "").strip() or state["chanfile"],
         "coordformat": coord_formats[coord_index] if 0 <= coord_index < len(coord_formats) else "",
     }
-    if not result.get("no_coreg", state["no_coreg"]):
+    if result.get("no_coreg", state["no_coreg"]):
+        options["coord_transform"] = []
+    else:
         transform = str(result.get("coord_transform") or "").strip() or state["coord_transform"]
-        if transform:
-            options["coord_transform"] = transform
+        if not str(transform).strip():
+            raise ValueError(
+                "pop_dipfit_settings: INCORRECT SETTINGS. You must co-register your channel locations "
+                "with the head model (press Co-register and use Warp montage). "
+                "To bypass co-registration, check No Co-Reg."
+            )
+        options["coord_transform"] = transform
     if str(result.get("chanomit", "")).strip():
         options["chanomit"] = result["chanomit"]
     return options
@@ -186,15 +223,19 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
     if "model" in options and str(options["model"]).strip():
         template = template_by_name(options["model"])
         apply_template(dipfit, template)
-        found, transform = lookupchantemplate(channel_template_filename(out), template)
-        if found:
-            dipfit["coord_transform"] = transform
+        if "coord_transform" not in options:
+            found, transform = lookupchantemplate(channel_template_filename(out), template)
+            if found:
+                dipfit["coord_transform"] = list(transform)
+            else:
+                _matched, warped = resolved_coord_transform(out, template)
+                dipfit["coord_transform"] = warped
     for key in ("hdmfile", "mrifile", "chanfile", "coordformat"):
         value = options.get(key)
         if value not in (None, ""):
             dipfit[key] = value
     if "coord_transform" in options:
-        dipfit["coord_transform"] = _numeric_list(options["coord_transform"])
+        dipfit["coord_transform"] = _coerce_coord_transform(out, dipfit, options["coord_transform"])
     usable = coordinate_channel_indices(out)
     nbchan = int(out.get("nbchan", len(usable)) or len(usable))
     if "chanomit" in options and str(options.get("chanomit", "")).strip():
@@ -237,6 +278,38 @@ def _template_index(dipfit: dict[str, Any]) -> int:
     if hdmfile:
         return len(STANDARD_TEMPLATES)
     return 2
+
+
+def _dialog_template_state(EEG: dict[str, Any], template: dict[str, Any]) -> dict[str, Any]:
+    state = template_form_state(template)
+    matched, transform = resolved_coord_transform(EEG, template)
+    state["coord_transform"] = " ".join(f"{float(value):g}" for value in transform)
+    state["no_coreg"] = bool(matched and not transform)
+    return state
+
+
+def _reject_missing_coregistration(values: dict[str, Any]) -> None:
+    if values.get("no_coreg"):
+        return
+    if str(values.get("coord_transform") or "").strip():
+        return
+    raise ValueError(
+        "pop_dipfit_settings: INCORRECT SETTINGS. You must co-register your channel locations "
+        "with the head model (press Co-register and use Warp montage). "
+        "To bypass co-registration, check No Co-Reg."
+    )
+
+
+def _coerce_coord_transform(EEG: dict[str, Any], dipfit: dict[str, Any], value: Any) -> list[float]:
+    if isinstance(value, str) and value.strip().lower() in {"warpfiducials", "alignfiducials"}:
+        method = "globalrescale" if value.strip().lower() == "alignfiducials" else "traditional"
+        return align_channels_to_template(
+            EEG,
+            str(dipfit.get("chanfile") or ""),
+            fiducials_only=True,
+            warpmethod=method,
+        )
+    return _numeric_list(value)
 
 
 def _history_command(options: dict[str, Any]) -> str:

@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import re
 from collections.abc import Iterable
+from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -59,7 +61,7 @@ STANDARD_TEMPLATES: tuple[dict[str, Any], ...] = (
         mrifile='standard_BEM/standard_mri.mat',
         chanfile='standard_BEM/elec/standard_1005.elc',
         coordformat='MNI',
-        coord_transform=(0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0),
+        coord_transform=(),
         coord_transforms=_BEM_TRANSFORMS,
     ),
     dict(
@@ -114,11 +116,21 @@ def matlab_plot_options(text: Any) -> dict[str, Any]:
 
 
 def dipfit_history(function_name: str, *args: Any, assignment: bool = True, **kwargs: Any) -> str:
-    """Build a valid Python command for GUI/console history."""
-    pieces = ["EEG", *(python_literal(arg) for arg in args)]
-    pieces.extend(f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _empty_history_value(value))
-    command = f"{function_name}({', '.join(pieces)})"
+    """Build an EEGLAB history command the console can replay."""
+    pieces = ["EEG", *(_history_token(arg) for arg in args)]
+    for key, value in kwargs.items():
+        if _empty_history_value(value):
+            continue
+        pieces.append(python_literal(key))
+        pieces.append(_history_token(value))
+    command = f"{function_name}({', '.join(pieces)});"
     return f"EEG = {command}" if assignment else command
+
+
+def _history_token(value: Any) -> str:
+    if isinstance(value, str) and value.strip().startswith("linspace("):
+        return value.strip()
+    return python_literal(value)
 
 
 def template_by_name(name: Any) -> dict[str, Any]:
@@ -143,6 +155,76 @@ def lookupchantemplate(chanfile: str, template: dict[str, Any]) -> tuple[bool, l
         if keywords and all(keyword.lower() in filename for keyword in keywords):
             return True, list(transform)
     return False, []
+
+
+def packaged_dipfit_file(relative: str) -> str:
+    """Return a packaged DIPFIT path, or ``relative`` when it is already a file."""
+    text = str(relative or "").replace("\\", "/").strip()
+    if not text:
+        return ""
+    path = Path(text)
+    if path.is_file():
+        return str(path)
+    resource = files("eegprep").joinpath("resources", "dipfit", text)
+    if resource.is_file():
+        return str(resource)
+    return text
+
+
+def align_channels_to_template(
+    EEG: dict[str, Any],
+    chanfile: str,
+    *,
+    fiducials_only: bool = False,
+    warpmethod: str = "traditional",
+) -> list[float]:
+    """Warp channel locations onto a template file the way ``coregister(..., 'warp','auto')`` does."""
+    from eegprep.functions.sigprocfunc.coregister import coregister
+
+    path = packaged_dipfit_file(chanfile)
+    chaninfo = EEG.get("chaninfo") if isinstance(EEG.get("chaninfo"), dict) else None
+    if fiducials_only:
+        nodatchans = None if chaninfo is None else chaninfo.get("nodatchans")
+        if _fiducial_count(nodatchans) < 3:
+            raise ValueError(
+                "pop_dipfit_settings: coord_transform 'warpfiducials' needs nasion, LPA, and RPA "
+                "in EEG.chaninfo.nodatchans. Add those fiducials with pop_chanedit, or pass a 9-value transform."
+            )
+        source = nodatchans
+    else:
+        source = EEG.get("chanlocs")
+    fitted = coregister(source, path, chaninfo1=chaninfo, warp="auto", warpmethod=warpmethod)
+    return np.asarray(fitted.transform, dtype=float).reshape(-1).tolist()
+
+
+def resolved_coord_transform(EEG: dict[str, Any], template: dict[str, Any]) -> tuple[bool, list[float]]:
+    """Return ``(keyword matched, transform)``.
+
+    A keyword match is kept even when its transform is empty (BESA cap385).
+    Otherwise the montage is warped onto the template landmarks. EEGLAB leaves
+    that field blank and refuses Ok; EEGPrep fills the warp when it can.
+    """
+    found, transform = lookupchantemplate(channel_template_filename(EEG), template)
+    if found:
+        return True, list(transform)
+    chanfile = str(template.get("chanfile") or "")
+    if not chanfile:
+        return False, []
+    try:
+        return False, align_channels_to_template(EEG, chanfile)
+    except (OSError, ValueError):
+        return False, []
+
+
+def _fiducial_count(nodatchans: Any) -> int:
+    if nodatchans is None:
+        return 0
+    if isinstance(nodatchans, dict):
+        return 1 if nodatchans.get("labels") else 0
+    try:
+        return len(nodatchans)
+    except TypeError:
+        return 0
 
 
 def channel_template_filename(EEG: dict[str, Any]) -> str:

@@ -30,7 +30,7 @@ from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from tests.eeglab_tests import assert_matlab_near, eeglab_test, load_matlab_test_fixture
-from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
+from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg, create_test_eeg_with_ica
 
 
 def _source_epoch_sample(backend, suite_root):
@@ -822,6 +822,59 @@ def test_component_selection_and_viewprops_are_replayable_without_scrolling_brow
     assert _console_python_command(props_com) == (
         "pop_viewprops(EEG, typecomp=0, chanorcomp=[1, 2], spec_opt=[], erp_opt=[], scroll_event=1, classifier_name='')"
     )
+
+
+@pytest.mark.modal_dialogs
+def test_selectcomps_map_click_stores_rejection_on_ok(monkeypatch):
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication, QPushButton
+
+    import eegprep.functions.popfunc.pop_prop as pop_prop_module
+
+    monkeypatch.setattr(pop_prop_module, "pop_prop", lambda *_args, **_kwargs: None)
+    app = QApplication.instance() or QApplication([])
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=2)
+    stage = {"prop": False, "app": app}
+
+    def click_map() -> None:
+        dialog = QApplication.activeModalWidget()
+        button = dialog.findChild(QPushButton, "comp1") if dialog is not None else None
+        if button is None:
+            QTimer.singleShot(20, click_map)
+            return
+        button.click()
+
+    def toggle() -> None:
+        dialog = QApplication.activeModalWidget()
+        if dialog is None or dialog.objectName() != "pop_prop_reject":
+            QTimer.singleShot(20, toggle)
+            return
+        dialog.findChild(QPushButton, "accept_reject").click()
+        stage["prop"] = True
+        dialog.findChild(QPushButton, "close_prop").click()
+
+    def finish() -> None:
+        dialog = QApplication.activeModalWidget()
+        if dialog is None or dialog.objectName() != "pop_selectcomps":
+            QTimer.singleShot(20, finish)
+            return
+        dialog.findChild(QPushButton, "ok").click()
+
+    QTimer.singleShot(20, click_map)
+    QTimer.singleShot(40, toggle)
+    QTimer.singleShot(60, finish)
+    out, command = pop_selectcomps(eeg, return_com=True)
+
+    assert stage["prop"]
+    assert int(out["reject"]["gcompreject"][0]) == 1
+    original_flags = (eeg.get("reject") or {}).get("gcompreject")
+    assert original_flags is None or int(np.asarray(original_flags).ravel()[0]) == 0
+    assert "pop_selectcomps" in command
+    assert "eeg_store" in command
 
 
 def _classified_component_eeg(rows: int = 3) -> dict:

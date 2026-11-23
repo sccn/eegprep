@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on
 from eegprep.functions.popfunc.plot_utils import numeric_vector, show_figures
 from eegprep.plugins.dipfit._mri import dipfit_mri_slices, load_standard_mri_volume
@@ -95,7 +95,20 @@ def pop_dipplot_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Plot dipoles within RV (%) range ([min max])"),
             ControlSpec("edit", tag="rvrange", value=""),
             ControlSpec("text", "Background image"),
-            ControlSpec("pushbutton", "...", tag="mri_button", enabled=False),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="mri_button",
+                callback=CallbackSpec(
+                    "select_file",
+                    params={
+                        "button": "mri_button",
+                        "target": "mri",
+                        "caption": "Background MRI",
+                        "filter": "MRI files (*.mat *.nii *.nii.gz);;All files (*)",
+                    },
+                ),
+            ),
             ControlSpec("edit", tag="mri", value=str(mrifile)),
             ControlSpec("text", "Plot summary mode"),
             ControlSpec("checkbox", tag="summary", value=False),
@@ -122,7 +135,7 @@ def pop_dipplot_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="extra_options", value=""),
         ),
         known_differences=(
-            "EEGPrep plots a standalone 3-D dipole-position view rather than FieldTrip MRI slice overlays.",
+            "EEGPrep draws the packaged MNI MRI slices with every localized dipole. A custom MRI file is refused; use the packaged standard MRI.",
         ),
         row_spacing=4,
     )
@@ -155,9 +168,7 @@ def _validate_components_have_positions(models: list[dict[str, Any]], components
 
 
 def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components: list[int], options: dict[str, Any]):
-    use_mri = (
-        _option_on(options.get("summary")) or _option_on(options.get("projimg")) or _option_on(options.get("cornermri"))
-    )
+    use_mri = True
     if use_mri:
         fig = plt.figure(figsize=(11, 8))
         grid = fig.add_gridspec(2, 3, height_ratios=[1.1, 1.0])

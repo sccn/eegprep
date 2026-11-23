@@ -142,26 +142,24 @@ def _dialog_selected_dipoles(model: dict[str, Any]) -> list[int]:
     return [int(index) for index in indices if int(index) in (1, 2)] or [1]
 
 
-def _format_dialog_triplet(value: Any, row_index: int) -> str:
+def _dipole_coordinate_rows(value: Any) -> np.ndarray:
     try:
-        values = numeric_vector(value, dtype=float)
-    except ValueError:
-        values = np.asarray([], dtype=float)
-    if values.size < 3:
-        return "0 0 0"
-    rows = values.reshape(-1, 3)
-    if row_index >= rows.shape[0]:
+        rows = np.asarray(value, dtype=float).reshape(-1, 3)
+    except (TypeError, ValueError):
+        return np.zeros((0, 3))
+    return rows
+
+
+def _format_dialog_triplet(value: Any, row_index: int) -> str:
+    rows = _dipole_coordinate_rows(value)
+    if rows.size < 3 or row_index >= rows.shape[0]:
         return "0 0 0"
     row = rows[row_index]
     return " ".join(f"{float(item):g}" for item in row)
 
 
 def _format_dialog_rv(model: dict[str, Any]) -> str:
-    try:
-        has_position = numeric_vector(model.get("posxyz", []), dtype=float).size >= 3
-    except ValueError:
-        has_position = False
-    if not has_position:
+    if _dipole_coordinate_rows(model.get("posxyz", [])).size < 3:
         return "not fit"
     try:
         rv = float(np.asarray(model.get("rv", []), dtype=float).ravel()[0])

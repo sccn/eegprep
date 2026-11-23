@@ -45,15 +45,54 @@ selector. Numeric-looking string event types remain strings. When cropping
 introduces a text ``boundary`` event, event consistency can convert all types
 to strings, as in EEGLAB.
 
-Epoch cropping with ``pop_select`` includes both endpoints, as its time and
-point range documentation specifies. EEGLAB ``pop_select.m`` calls ``epoch``
-with an upper-exclusive window and drops the final sample. For the tutorial
-``eeglab_data_epochs_ica.set``, selecting epochs ``[1, 3, 5, 7, 9]`` and time
-``[-0.5, 0.5]`` therefore retains 129 points and 8 events in EEGPrep, with
-``xmax=0.5``. The recorded EEGLAB 8ac485f6 result is 128 points and 8 events,
-with ``xmax=0.4921875``. EEGPrep retains each event only if its position within
-its original epoch is inside the crop, then recalculates its concatenated
-latency using the new epoch length.
+Epoch cropping with ``pop_select`` follows ``epoch.m``: the last sample is
+``round(tmax*srate - 1)`` with MATLAB half-away-from-zero rounding, and an
+event is kept when its latency is inside that half-open window. For the
+tutorial ``eeglab_data_epochs_ica.set``, epochs ``[1, 3, 5, 7, 9]`` and time
+``[-0.5, 0.5]`` keep 128 points, 8 events, ``xmin=-0.5``, and
+``xmax=0.4921875``. A time range that does not overlap the data raises
+``ValueError`` from ``pop_select`` and leaves the caller's dataset unchanged.
+EEGLAB clips that range and continues. A range that only partly overlaps is
+still clipped to the data. A ``point`` or ``samples`` range includes both
+named samples. ``pop_fileio`` samples ``1:384`` on the tutorial epochs file
+therefore keeps all 384 points. Passing those same points through ``epoch.m``
+would drop the last one.
+
+``pop_runica`` lists Extended Infomax, Robust Extended Infomax, AMICA, Infomax
+picard, and FastICA picard. SOBI, JADE, and binica are not in that list.
+
+``pop_mergeset`` prefills the first two loaded dataset indices. EEGLAB
+prefills ``1``. The merged data, ICA, and history are unchanged.
+
+``pop_editeventvals`` shows numbers with five significant digits and jumps to
+the last event when the typed event number, including 999, is past the end.
+Field buttons show the field name; clicking one shows the description. Delete,
+insert, and append edit the event list. Sort stays a command-line action and
+keeps the other edits. EEGLAB's sort-from-the-GUI path discards the edits.
+
+``pop_selectcomps`` opens one button per component. Clicking a button opens
+``pop_prop`` with ACCEPT/REJECT. OK stores ``EEG.reject.gcompreject``; Cancel
+discards the toggles. EEGLAB writes the flag before OK, so its Cancel cannot
+undo a click. The button label is ``Set thresholds``. EEGLAB spells that
+button ``Set threhsolds``. Both that button and ``See comp. stats`` stay
+disabled until ``pop_icathresh`` and ``EEG.stats.compenta`` exist.
+
+``pop_firpmord`` uses the Herrmann Parks-McClellan length and returns
+``ceil(L) - 1``. The ``pop_firpm`` Estimate button rounds that order up to an
+even number, which is where EEGLAB rounds.
+
+``pop_dipfit_settings`` keeps a channel-file keyword transform when one
+matches. Otherwise it fills the montage warp from ``coregister(..., warp='auto')``
+instead of the unscaled ``standard_1005`` matrix. Co-register and the channel
+omit button are enabled. Ok is refused while the matrix is empty unless No
+Co-Reg is checked. EEGLAB leaves an unmatched matrix blank and waits for
+Co-register. ``coord_transform`` ``warpfiducials`` and ``alignfiducials`` warp
+nasion, LPA, and RPA. Creating a head model from an MRI and eLORETA stay
+disabled in the menu: FieldTrip MRI segmentation and ``ft_sourceanalysis``
+eLORETA are not available, and a partial solver would not match EEGLAB.
+Direct calls still raise ``DIPFITUnavailableError`` with the same reason.
+Dipole plots draw the packaged MNI slices with the dipoles. A custom MRI is
+refused.
 
 ``pop_selectevent`` emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can

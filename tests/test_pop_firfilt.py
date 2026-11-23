@@ -261,16 +261,16 @@ def test_pop_eegfilt_legacy_usefft_fails_clearly():
 def test_pop_order_helpers_return_values_and_replayable_history():
     beta, beta_command = pop_kaiserbeta(0.001, return_com=True)
     order_result, order_command = pop_firwsord("kaiser", 500, 2, 0.001, return_dev=True, return_com=True)
-    pm_result, pm_command = pop_firpmord([0, 40, 48, 125], [1, 0], [0.01, 0.001], 250, return_com=True)
+    pm_result, pm_command = pop_firpmord([0.76, 0.84], [1, 0], [0.0057564, 0.01], return_com=True)
 
     assert beta == pytest.approx(5.65326, abs=1e-10)
     assert beta_command == "beta = pop_kaiserbeta(0.001);"
     assert order_result == (908, pytest.approx(0.001))
     assert order_command == "m = pop_firwsord('kaiser', 500, 2, 0.001);"
     order, wtpass, wtstop = pm_result
-    assert order > 0
-    assert wtpass > 0
-    assert wtstop > 0
+    assert order == 53
+    assert wtpass == pytest.approx(0.01 / 0.0057564)
+    assert wtstop == pytest.approx(1.0)
     assert pm_command.startswith("[m, wtpass, wtstop] = pop_firpmord(")
 
 

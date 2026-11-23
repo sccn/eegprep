@@ -1,5 +1,6 @@
 import copy
 import logging
+import math
 import re
 from typing import Any
 
@@ -24,6 +25,37 @@ from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 
 
 logger = logging.getLogger(__name__)
+
+
+def _matlab_round(value: float) -> int:
+    """Round half away from zero, matching MATLAB ``round``."""
+    return math.floor(value + 0.5) if value >= 0 else math.ceil(value - 0.5)
+
+
+def _reject_disjoint_time(mat: np.ndarray, xmin: float, xmax: float) -> None:
+    """Refuse a time window that does not overlap the data.
+
+    EEGLAB clips such a window and continues. EEGPrep leaves the caller's
+    dataset unchanged and names the range that fits.
+    """
+    if mat.size == 0:
+        return
+    for t0, t1 in mat:
+        lo, hi = (float(t0), float(t1)) if t0 <= t1 else (float(t1), float(t0))
+        if hi < xmin or lo > xmax:
+            raise ValueError(
+                f"pop_select: time range [{lo:g} {hi:g}] s does not overlap the data "
+                f"[{xmin:g} {xmax:g}] s. Enter a range inside that interval. The dataset was not changed."
+            )
+
+
+def _clip_time_matrix(mat: np.ndarray, xmin: float, xmax: float) -> np.ndarray:
+    if mat.size == 0:
+        return mat
+    mat = mat.copy()
+    mat[mat > xmax] = xmax
+    mat[mat < xmin] = xmin
+    return mat
 
 
 def _epoch_item(value: Any) -> Any:
@@ -295,17 +327,10 @@ def _pop_select_apply(EEG, **kwargs):
     time_mat = _normalize_range_matrix(g['time'])
     notime_mat = _normalize_range_matrix(g['notime'])
 
-    # constrain ranges to dataset bounds
-    def _clip_time_matrix(mat):
-        if mat.size == 0:
-            return mat
-        mat = mat.copy()
-        mat[mat > xmax] = xmax
-        mat[mat < xmin] = xmin
-        return mat
-
-    time_mat = _clip_time_matrix(time_mat)
-    notime_mat = _clip_time_matrix(notime_mat)
+    _reject_disjoint_time(time_mat, xmin, xmax)
+    _reject_disjoint_time(notime_mat, xmin, xmax)
+    time_mat = _clip_time_matrix(time_mat, xmin, xmax)
+    notime_mat = _clip_time_matrix(notime_mat, xmin, xmax)
 
     # notime → equivalent keep time for epoched only when boundary aligned
     if notime_mat.size:
@@ -387,39 +412,56 @@ def _pop_select_apply(EEG, **kwargs):
             if time_mat.shape[0] != 1:
                 raise ValueError('Epoched data requires a single [tmin tmax] window')
             tmin, tmax = float(time_mat[0, 0]), float(time_mat[0, 1])
-            # convert to points (1-based like EEGLAB)
-            pts, _ = eeg_lat2point([tmin, tmax], [1, 1], srate, [xmin, xmax])
-            a, b = int(pts[0]), int(pts[1])
-            if a < 1:
-                a = 1
-            if b > pnts:
-                b = pnts
-            if b < a:
-                raise ValueError('Invalid time window mapped to points')
-
-            if data.ndim == 3:
-                data = data[:, a - 1 : b, :]  # convert to 0-based
+            # epoch.m with the limits already in samples (pop_select.m:528-529, g.srate = 1).
+            # reallim(2) is round(tmax*srate - 1), so the last requested second is exclusive.
+            time0 = 1.0 - xmin * srate
+            if point_mat.size:
+                # A point range names both samples. epoch.m would drop the named last sample.
+                first = int(round(float(point_mat[0, 0])))
+                last = int(round(float(point_mat[0, 1])))
+                start = first - 1
+                stop = last
+                reallim1 = start - int(math.floor(time0)) + 1
+                reallim2 = stop - int(math.floor(time0))
             else:
-                # rare case: epoched flagged but data is 2D with trials meta
-                data = data[:, a - 1 : b]
+                reallim1 = _matlab_round(tmin * srate)
+                reallim2 = _matlab_round(tmax * srate - 1.0)
+                start = int(math.floor(time0) + reallim1 - 1)
+                stop = int(math.floor(time0) + reallim2)
+            if start < 0 or stop > pnts or stop < start:
+                raise ValueError(
+                    f"pop_select: time range [{tmin:g} {tmax:g}] s maps to samples {start + 1}:{stop} "
+                    f"which is outside this epoch of {pnts} points ({xmin:g} to {xmax:g} s). "
+                    "Enter a range inside that interval."
+                )
+            if data.ndim == 3:
+                data = data[:, start:stop, :]
+            else:
+                data = data[:, start:stop]
             EEG['data'] = data
-            EEG['xmin'] = xmin + (a - 1) / srate
-            EEG['xmax'] = xmin + (b - 1) / srate
+            EEG['xmin'] = reallim1 / srate
+            EEG['xmax'] = reallim2 / srate
             old_pnts = pnts
             EEG['pnts'] = data.shape[1]
             pnts = EEG['pnts']
             if _has_content(EEG.get('icaact')):
-                EEG['icaact'] = EEG['icaact'][:, a - 1 : b, :]
+                EEG['icaact'] = EEG['icaact'][:, start:stop, :]
 
             if _has_content(EEG.get('event')):
+                lim1 = tmin * srate
+                lim2 = tmax * srate
                 newevents = []
                 for ev in EEG['event']:
-                    if 'epoch' in ev and 'latency' in ev:
-                        epoch_offset = int(ev['epoch']) - 1
-                        local_latency = float(ev['latency']) - epoch_offset * old_pnts
-                        if a <= local_latency <= b:
-                            ev['latency'] = local_latency - (a - 1) + epoch_offset * pnts
-                            newevents.append(ev)
+                    if 'epoch' not in ev or 'latency' not in ev:
+                        continue
+                    epoch_index = int(ev['epoch']) - 1
+                    locking = time0 + epoch_index * old_pnts
+                    pos0 = math.floor(locking)
+                    latency = float(ev['latency'])
+                    if latency < pos0 + lim1 or latency >= pos0 + lim2:
+                        continue
+                    ev['latency'] = latency - locking - reallim1 + 1 + pnts * epoch_index
+                    newevents.append(ev)
                 EEG['event'] = newevents
 
             # erase epoch-level event fields

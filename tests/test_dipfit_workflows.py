@@ -32,7 +32,10 @@ from eegprep.plugins.dipfit.pop_dipfit_batch import pop_dipfit_batch
 from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
 from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta
 from eegprep.plugins.dipfit.pop_dipfit_manual import pop_dipfit_manual
-from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
+from eegprep.plugins.dipfit.pop_dipfit_nonlinear import (
+    pop_dipfit_nonlinear,
+    pop_dipfit_nonlinear_dialog_spec,
+)
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings, pop_dipfit_settings_dialog_spec
 from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
 from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield, pop_leadfield_dialog_spec
@@ -142,7 +145,7 @@ def test_pop_dipfit_settings_gui_uses_first_dataset_and_applies_to_all():
     assert inputgui.call_args.args[0].function_name == "pop_dipfit_settings"
     assert [dataset["setname"] for dataset in out] == [first["setname"], "second"]
     assert [dataset["dipfit"]["chansel"] for dataset in out] == [[1, 3, 4], [1, 3, 4]]
-    assert "chanomit=[2]" in com
+    assert "'chanomit', [2]" in com
 
 
 def test_dipfit_native_gridsearch_and_nonlinear_fit_known_spherical_source():
@@ -170,6 +173,21 @@ def test_dipfit_native_gridsearch_and_nonlinear_fit_known_spherical_source():
     assert refined["dipfit"]["model"][0]["rv"] < 0.02
     assert np.linalg.norm(np.asarray(refined["dipfit"]["model"][0]["posxyz"])[0]) < 85.0
     assert _console_python_command(com) == "EEG = pop_dipfit_nonlinear(EEG, component=1, nonlinear='yes')"
+
+
+def test_fine_fit_dialog_reads_nested_autofit_coordinates():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "model": [{"posxyz": [[-6.0, -21.0, 48.0]], "momxyz": [[0.1, 0.2, 0.3]], "rv": 0.026, "component": 1}]
+    }
+
+    spec = pop_dipfit_nonlinear_dialog_spec(eeg)
+    values = {control.tag: control.value for control in spec.controls if control.tag}
+    labels = {control.tag: control.string for control in spec.controls if control.tag}
+
+    assert values["dip1pos"] == "-6 -21 48"
+    assert values["dip1mom"] == "0.1 0.2 0.3"
+    assert labels["relvar"] == "2.6%"
 
 
 def test_mni_nonlinear_fit_uses_the_packaged_bem():
@@ -363,7 +381,8 @@ def test_gui_dipfit_template_choice_updates_files_and_browse(qapp):
         QApplication.processEvents()
         assert "standard_BESA.mat" in widgets["hdmfile"].text()
         assert "avg152t1.mat" in widgets["mrifile"].text()
-        assert widgets["no_coreg"].isChecked() is True
+        assert widgets["no_coreg"].isChecked() is False
+        assert widgets["coregister"].isEnabled()
         assert not widgets["hdmfile_browse"].isEnabled()
         widgets["model"].setCurrentIndex(1)
         QApplication.processEvents()
@@ -376,7 +395,7 @@ def test_gui_dipfit_template_choice_updates_files_and_browse(qapp):
         assert widgets["hdmfile_browse"].isEnabled()
         assert widgets["mrifile_browse"].isEnabled()
         assert widgets["chanfile_browse"].isEnabled()
-        assert not widgets["coregister"].isEnabled()
+        assert widgets["coregister"].isEnabled()
     finally:
         dialog.close()
 
@@ -398,8 +417,10 @@ def test_besa_coarse_fit_and_autofit_keep_linspace_history():
     assert np.asarray(fitted["dipfit"]["model"][0]["posxyz"]).size >= 3
     assert "linspace(-40,40,3)" in command
     translated = _console_python_command(command)
-    assert "xgrid='linspace(-40,40,3)'" in translated
-    namespace = {"EEG": eeg, "pop_dipfit_gridsearch": pop_dipfit_gridsearch}
+    assert "linspace(-40, 40, 3)" in translated
+    from eegprep.functions.miscfunc.linspace import linspace
+
+    namespace = {"EEG": eeg, "pop_dipfit_gridsearch": pop_dipfit_gridsearch, "linspace": linspace}
     exec(translated, namespace)
     assert np.asarray(namespace["EEG"]["dipfit"]["model"][0]["posxyz"]).size >= 3
 
