@@ -139,6 +139,9 @@ is ALS through the import and is turned by 90 degrees here.
 The converter writes no such description today,
 and reading it here is a follow-up if it ever does.
 A store that declares no positions leaves `chanlocs` as labels alone, and has no `locations` record.
+Either way, each `chanlocs` entry also gets `type` from the group's `channel_type`
+when every channel declares one,
+so `pop_select(eeg, chantype=["EEG"])` leaves out an ECG or EOG channel stored in the EEG group.
 `read_window` makes no request for the store root;
 a caller that reads windows itself reads the attributes once per store with
 `read_electrode_attributes` and sets them with `dataclasses.replace(window, electrodes=...)`.

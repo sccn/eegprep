@@ -79,6 +79,12 @@ class GroupMetadata:
         labels = tuple(by_row.get(row, "") for row in rows)
         return labels if all(labels) else None
 
+    def types(self, rows: tuple[int, ...]) -> tuple[str, ...] | None:
+        """Channel types (``EEG``, ``ECG``, ...) for the given rows, or None unless all declare one."""
+        by_row = {channel.row_index: channel.channel_type for channel in self.channels}
+        types = tuple(by_row.get(row, "") for row in rows)
+        return types if all(types) else None
+
     def unit(self, rows: tuple[int, ...]) -> str | None:
         """The unit these rows share, or None when they do not share one.
 

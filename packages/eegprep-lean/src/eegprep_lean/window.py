@@ -74,6 +74,9 @@ class Window:
     labels: tuple[str, ...] | None = None
     """Channel labels in row order, or None when the group did not supply all of them."""
 
+    types: tuple[str, ...] | None = None
+    """The group's ``channel_type`` per row, or None when the group did not supply all of them."""
+
     unit: str | None = None
     """The unit these rows share, or None when they do not share one.
 
@@ -225,6 +228,7 @@ async def read_window(
         group_name=chosen.name,
         physical=physical,
         labels=metadata.labels(wanted),
+        types=metadata.types(wanted),
         # Only when the values are in it. Stored counts are not in the channel's unit,
         # and carrying the unit alongside them would invite exactly that conflation.
         unit=metadata.unit(wanted) if physical else None,

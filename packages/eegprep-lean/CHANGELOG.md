@@ -9,6 +9,7 @@
   Every zero is read as `+0.0` whatever its spelling (`-0`, `-0.0`), so two stores that differ only in a signed zero give the same `chanlocs`.
   `pop_load_frombids` keeps the sign of a zero that a float column of an `electrodes.tsv` spells with a minus sign, so for such a file `Y` and `theta` can differ in sign (`theta` 180 or -180) between the two routes.
   A store whose `electrode_positions` is not an object raises `ElectrodePositionsNotAnObject`, an `IndexError_`, which names the refusal.
+- `read_window` and `load_recording` set `Window.types` from each channel's `channel_type` in the group metadata, and `to_eeg` writes it to `chanlocs[i]["type"]`, so selecting channels by type (for example `pop_select(EEG, chantype=["EEG"])`) leaves out an ECG or EOG channel stored in the EEG group. A group that does not declare a type for every channel gives no types, as with labels.
 - `etc["nemar"]["reader"]` names `recording-v2`, so a record made by a reader that fills locations differs from one made by a reader that never looked for them.
 
 ## 0.5.0

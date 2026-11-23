@@ -66,6 +66,7 @@ ZARR_PATH = "rec.zarr"
 SCALE = [2.0, 10.0, 100.0]
 OFFSET = [1.0, -5.0, 0.0]
 LABELS = ("E1", "E2", "E3")
+TYPES = ("EEG", "EEG", "ECG")
 UNIT = "uV"
 
 
@@ -125,7 +126,7 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
                 {
                     "label": LABELS[i],
                     "unit": UNIT,
-                    "channel_type": "EEG",
+                    "channel_type": TYPES[i],
                     "row_index": i,
                     "original_rate": ORIGINAL_RATE,
                     "target_rate": RATE,
@@ -284,6 +285,7 @@ class TestWhatTheWindowSaysAboutItself:
         window = read(index, store, start_sample=0, n_samples=4)
 
         assert window.labels == LABELS
+        assert window.types == TYPES
         assert window.rate == RATE
         assert window.original_rate == ORIGINAL_RATE
         assert window.was_resampled is True
@@ -325,6 +327,7 @@ class TestChannelSelection:
         assert window.channels == (2, 0)
         assert window.data.tolist() == [[_digital(2, 0), _digital(2, 1)], [_digital(0, 0), _digital(0, 1)]]
         assert window.labels == ("E3", "E1")
+        assert window.types == ("ECG", "EEG")
 
     def test_a_slice_selects_channels_too(self, served) -> None:
         """`channels` takes a sequence, a slice, or None. The slice branch was reachable
