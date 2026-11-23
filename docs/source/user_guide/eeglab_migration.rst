@@ -324,6 +324,28 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        calibration raises the same error, and ``pop_clean_rawdata`` skips
        that burst stage too. EEGLAB's Riemannian call is outside the
        ``try``/``catch`` (lines 267-268).
+       Channel cleaning has already run by then. On the 32-channel,
+       1024-sample crop of ``eeglab_data.set`` starting at sample 1034,
+       with the GUI preset (burst cutoff 20, rejection on, window criterion
+       0.25), both sides keep 26 channels. The calibration section is 28
+       samples, so ``asr_calibrate.m`` line 190 errors. EEGLAB returns that
+       26 by 1024 array. EEGPrep still removes windows and keeps 551
+       samples (#663). This is that early return, not the flat-channel
+       repair (#649) and not a zero fit width (#655).
+   * - Final window removal with a handful of windows
+     - ``clean_windows`` raises ``ValueError`` naming ``clean_windows`` when
+       the narrowest ``round(n * width)`` is 1 or less, and the message says
+       to use a longer recording or set ``WindowCriterion`` to ``'off'``.
+       Eleven windows still fit. EEGLAB's ``fit_eeg_distribution.m`` descends
+       the same grid. At width 1, ``X(1:m,:)`` is a row when the dropout grid
+       has several columns, ``histc`` returns a row, and ``logq(1:end-1,:)``
+       is empty, so line 126 raises
+       ``MATLAB:bsxfun:arrayDimensionsMustMatch``. The nested copy in
+       ``asr_calibrate.m`` transposes a one-row histogram (line 397) and does
+       not hit that ``bsxfun``. Burst rejection on the 1024-sample crop
+       starting at sample 1183 leaves 5 windows, and the final
+       ``clean_windows`` (``clean_artifacts.m`` line 320) is where EEGLAB
+       crashes (#664).
    * - ASR at a low sampling rate
      - ``clean_asr`` raises an error naming the sampling rate when the default
        spectral breakpoints are not monotonic. ``pop_clean_rawdata`` warns and

@@ -2310,3 +2310,118 @@ def test_flat_channel_roundoff_is_not_a_divergence():
 
     written = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(large_flat), load_tolerances())
     assert written.diverged is True
+
+
+_GUI_CLEAN = {
+    "entry": "clean_rawdata",
+    "FlatlineCriterion": 5.0,
+    "Highpass": "off",
+    "ChannelCriterion": 0.8,
+    "LineNoiseCriterion": 4.0,
+    "BurstCriterion": 20.0,
+    "WindowCriterion": 0.25,
+    "BurstRejection": "on",
+    "WindowCriterionTolerances": ("-inf", 7.0),
+    "ChannelCriterionMaxBadTime": 0.5,
+    "Distance": "euclidian",
+}
+
+
+def _gui_clean_case(start: int) -> FuzzCase:
+    return FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(32)), start, 1024, 1, -1, 0, 0),
+        freeze_params(_GUI_CLEAN),
+    )
+
+
+def _bsxfun_fit_error():
+    from tests.matlab_batch_engine import MatlabExecutionError
+
+    return MatlabExecutionError(
+        "Non-singleton dimensions of the two input arrays must match each other.",
+        identifier="MATLAB:bsxfun:arrayDimensionsMustMatch",
+        stack=(
+            "  fit_eeg_distribution>fit_eeg_distribution (line 126)\n"
+            "  clean_windows>clean_windows (line 106)\n"
+            "  clean_artifacts>clean_artifacts (line 320)\n"
+            "  pop_clean_rawdata>pop_clean_rawdata (line 212)\n"
+        ),
+    )
+
+
+def test_channel_cleaned_short_calibration_return_is_not_a_divergence():
+    """Issue 663: EEGLAB returns the 26 by 1024 channel-cleaned recording.
+
+    The calibration section has 28 samples, so asr_calibrate.m line 190
+    errors and clean_artifacts.m lines 270-275 return before window removal.
+    EEGPrep still removes windows.
+    """
+    case = _gui_clean_case(1034)
+    eeg = materialize_eeg(case)
+    from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+
+    options = dict(_GUI_CLEAN)
+    options.pop("entry")
+    stopped = pop_clean_rawdata(eeg, gui=False, **{**options, "BurstCriterion": "off", "WindowCriterion": "off"})
+    pre = np.asarray(stopped["data"], dtype=np.float64)
+    assert pre.shape == (26, 1024)
+
+    def oracle(_case, _dataset):
+        return pre
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(oracle), load_tolerances())
+    assert outcome.diverged is False
+    assert "#663" in outcome.detail
+    assert "28 samples" in outcome.detail
+    assert "clean_artifacts.m lines 270-275" in outcome.detail
+
+    def original(_case, dataset):
+        return np.asarray(dataset["data"], dtype=np.float64)
+
+    missed = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(original), load_tolerances())
+    assert missed.diverged is True
+    assert missed.error_class == "shape"
+
+
+def test_final_window_row_histogram_is_not_a_divergence():
+    """Issue 664: five windows after burst rejection crash EEGLAB at the bsxfun.
+
+    fit_eeg_distribution.m line 126 cannot broadcast histc's one-row result.
+    clean_windows raises ValueError and names the remedy.
+    """
+    case = _gui_clean_case(1183)
+    eeg = materialize_eeg(case)
+
+    def crash(_case, _dataset):
+        raise _bsxfun_fit_error()
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(crash), load_tolerances())
+    assert outcome.diverged is False
+    assert "#664" in outcome.detail
+    assert outcome.oracle_identifier == "MATLAB:bsxfun:arrayDimensionsMustMatch"
+    python = PythonBackend().run(case, eeg)
+    assert not python.ok
+    assert "clean_windows: Too few windows (5)" in (python.error_message or "")
+    assert "WindowCriterion" in (python.error_message or "")
+
+    def other(_case, _dataset):
+        from tests.matlab_batch_engine import MatlabExecutionError
+
+        raise MatlabExecutionError(
+            "Index in position 1 is invalid.",
+            identifier="MATLAB:badsubscript",
+            stack="  fit_eeg_distribution>fit_eeg_distribution (line 115)\n  clean_windows>clean_windows (line 106)\n",
+        )
+
+    indexed = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(other), load_tolerances())
+    assert indexed.diverged is True
+
+    def wrong_count(_case, _dataset):
+        raise ValueError(
+            "clean_windows: Too few windows (99) to fit the EEG distribution: "
+            "round(n * width) is 1 and must be greater than 1."
+        )
+
+    counted = evaluate_case(case, lambda _case: eeg, _Backend(wrong_count), _Backend(crash), load_tolerances())
+    assert counted.diverged is True
