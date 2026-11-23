@@ -40,6 +40,7 @@ PUBLIC_EXTRAS: dict[str, tuple[str, str]] = {
     "pop_iclabel_async": ("eeglab", "engine='octave'"),
     "pop_importbids": ("pybids", "reading a BIDS dataset"),
     "pop_load_frombids": ("pybids", "reading a BIDS dataset"),
+    "pop_mffimport": ("mne", "EGI .mff import"),
     "pop_resample": ("eeglab", "engine='octave'"),
     "pop_runica": ("picard", "icatype='picard'"),
     "resample": ("eeglab", "engine='octave'"),
@@ -52,7 +53,7 @@ EXTRA_SUMMARY: dict[str, str] = {
         "the clean_channels RANSAC octave subroutine, and eeglab_clean_artifacts. Installs oct2py."
     ),
     "mne": (
-        "MNE conversion and the EDF, BDF, GDF, and EGI .mff readers in pop_biosig and pop_fileio. "
+        "MNE conversion and the EDF, BDF, GDF, and EGI .mff readers in pop_biosig, pop_fileio, and pop_mffimport. "
         "BrainVision .vhdr files when a block range is set also use it. "
         "EEGLAB .set, CNT, Neuroscan .EEG, and BrainVision .vhdr without a block range do not. "
         "Installs mne and defusedxml for MFF XML parsing."

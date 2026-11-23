@@ -78,7 +78,7 @@ def pop_loadeeg(
         columns = [np.asarray(rts, dtype=float) * 1000.0, *columns]
         latency_fields = ["RT"]
     table = np.column_stack(columns)
-    eeg = pop_importepoch(
+    imported = pop_importepoch(
         eeg,
         table,
         fields,
@@ -87,6 +87,7 @@ def pop_loadeeg(
         headerlines=0,
         clearevents=1,
     )
+    eeg = imported[0] if isinstance(imported, tuple) else imported
     command = _history(path, ranges)
     history = str(eeg.get("history") or "").strip()
     eeg["history"] = f"{history}\n{command}".lstrip()

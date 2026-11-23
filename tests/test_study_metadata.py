@@ -9,7 +9,7 @@ from scipy.io.matlab._mio5_params import miUINT16, mxCHAR_CLASS
 
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
+from eegprep.functions.studyfunc.pop_loadstudy import _normalize_loaded_study, pop_loadstudy
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.pop_addindepvar import pop_addindepvar
@@ -547,6 +547,23 @@ def test_pop_savestudy_after_a_delete_writes_each_dataset_with_its_own_metadata(
 
     pop_savestudy(study, alleeg, filename="gaps.study", filepath=tmp_path)
     reloaded, _alleeg = pop_loadstudy("gaps.study", filepath=tmp_path, load_datasets="off")
-
     rows = [(info["index"], info["setname"], info["subject"]) for info in reloaded["datasetinfo"]]
     assert rows == [(1, "one", "S01"), (2, "three", "S03")]
+
+
+def test_loaded_cluster_sets_keep_one_column_per_component():
+    study = _normalize_loaded_study(
+        {
+            "cluster": [
+                {
+                    "name": "ParentCluster",
+                    "sets": np.array([[1, 1, 2], [1, 2, 2]]),
+                    "comps": np.array([[3, 4, 5]]),
+                }
+            ]
+        }
+    )
+    sets = np.asarray(study["cluster"][0]["sets"])
+    comps = np.asarray(study["cluster"][0]["comps"]).ravel()
+    assert sets.shape == (2, 3)
+    assert sets.shape[1] == comps.size

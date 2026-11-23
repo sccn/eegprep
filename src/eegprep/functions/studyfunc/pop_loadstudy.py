@@ -154,8 +154,7 @@ def _normalize_loaded_study(study: dict[str, Any]) -> dict[str, Any]:
                 continue
             for field in ("comps", "sets", "child", "parent", "allinds", "setinds"):
                 if isinstance(cluster.get(field), np.ndarray):
-                    array = cluster[field]
-                    cluster[field] = [] if array.size == 0 else array.reshape(-1, order="F").tolist()
+                    cluster[field] = _loaded_cluster_field(cluster[field])
     designs = study.get("design")
     if isinstance(designs, list):
         for design in designs:
@@ -168,6 +167,17 @@ def _normalize_loaded_study(study: dict[str, Any]) -> dict[str, Any]:
             if isinstance(include, np.ndarray) and include.size == 0:
                 design["include"] = []
     return study
+
+
+def _loaded_cluster_field(array: np.ndarray) -> list[Any]:
+    # sets is a matrix with one column per component. Flattening it makes
+    # pop_clust reject the parent cluster because the column count no longer
+    # matches comps.
+    if array.size == 0:
+        return []
+    if array.ndim >= 2 and min(array.shape[:2]) > 1:
+        return array.tolist()
+    return array.reshape(-1, order="F").tolist()
 
 
 def _as_list(value: Any, *, wrap_dict: bool) -> Any:
