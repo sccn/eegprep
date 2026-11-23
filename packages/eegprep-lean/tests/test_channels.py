@@ -117,6 +117,26 @@ class TestLabelsAndUnits:
         assert mixed.unit((0, 1)) is None
         assert mixed.unit((0,)) == "uV"
 
+    @pytest.mark.parametrize("missing", [{}, {"channel_type": ""}, {"channel_type": "  "}, {"channel_type": "n/a"}])
+    def test_a_channel_with_no_type_does_not_drop_the_others(self, missing: dict) -> None:
+        """A group that types the ECG and not its neighbor used to return no types at all,
+        so the ECG was selected with the EEG. The untyped channel is EEG, which is what
+        EEGLAB counts an empty or ``n/a`` type as."""
+        metadata = GroupMetadata.from_attributes(
+            {
+                "modality": "EEG",
+                "channels": [
+                    {"label": "E1", "unit": "uV", "channel_type": "EEG", "row_index": 0},
+                    {"label": "E2", "unit": "uV", "row_index": 1, **missing},
+                    {"label": "E3", "unit": "uV", "channel_type": "ECG", "row_index": 2},
+                ],
+            },
+            name=GROUP_NAME,
+        )
+
+        assert metadata.types((0, 1, 2)) == ("EEG", "EEG", "ECG")
+        assert metadata.types((2, 999)) == ("ECG", "EEG")
+
 
 @pytest.mark.network
 class TestAgainstTheLiveArchive:

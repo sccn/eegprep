@@ -28,6 +28,30 @@ from .index import ChannelGroup, DatasetIndex, IndexError_, Store
 from .transport import Transport, default_transport
 
 
+#: What a channel is when the group names no type for it. EEGLAB counts an empty type,
+#: and the ``n/a`` BIDS writes for that empty cell, with the EEG channels
+#: (``eeg_getchantype``). It does not invent a type from the label. MNE's EEGLAB reader
+#: defaults a missing ``chanlocs.type`` to ``eeg``. ``to_mne_raw`` uses the same stand-in
+#: when a window carries no types at all.
+MISSING_CHANNEL_TYPE = "EEG"
+
+#: Spellings of "this channel was not typed", as opposed to a type the group did declare.
+#: ``n/a`` is the BIDS missing value; ``nan`` is the other token EEGLAB treats as unset.
+_UNTYPED = frozenset({"", "n/a", "nan"})
+
+
+def _channel_type(channel_type: str) -> str:
+    """The declared type, or :data:`MISSING_CHANNEL_TYPE` when the group gave none.
+
+    A type outside the BIDS list is kept as declared. EEGLAB's channel-file writer would
+    rewrite that to ``MISC`` on the way out; what the store said is what ``chanlocs`` gets.
+    """
+    text = channel_type.strip()
+    if text.lower() in _UNTYPED:
+        return MISSING_CHANNEL_TYPE
+    return text
+
+
 @dataclass(frozen=True)
 class Channel:
     """One channel, as the group describes it."""
@@ -79,11 +103,15 @@ class GroupMetadata:
         labels = tuple(by_row.get(row, "") for row in rows)
         return labels if all(labels) else None
 
-    def types(self, rows: tuple[int, ...]) -> tuple[str, ...] | None:
-        """Channel types (``EEG``, ``ECG``, ...) for the given rows, or None unless all declare one."""
+    def types(self, rows: tuple[int, ...]) -> tuple[str, ...]:
+        """Channel type for each row.
+
+        A row whose ``channel_type`` is missing, blank, ``n/a`` or ``nan`` is
+        :data:`MISSING_CHANNEL_TYPE`. The rows that do declare one keep it, so a single
+        untyped channel does not drop the ECG stored beside it.
+        """
         by_row = {channel.row_index: channel.channel_type for channel in self.channels}
-        types = tuple(by_row.get(row, "") for row in rows)
-        return types if all(types) else None
+        return tuple(_channel_type(by_row.get(row, "")) for row in rows)
 
     def unit(self, rows: tuple[int, ...]) -> str | None:
         """The unit these rows share, or None when they do not share one.

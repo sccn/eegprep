@@ -75,7 +75,11 @@ class Window:
     """Channel labels in row order, or None when the group did not supply all of them."""
 
     types: tuple[str, ...] | None = None
-    """The group's ``channel_type`` per row, or None when the group did not supply all of them."""
+    """The group's ``channel_type`` per row.
+
+    A channel that declares none is ``EEG``. None only on a window that was not read
+    from a group.
+    """
 
     unit: str | None = None
     """The unit these rows share, or None when they do not share one.

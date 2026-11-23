@@ -7,6 +7,7 @@ runs where mne is absent.
 
 from __future__ import annotations
 
+import dataclasses
 import sys
 
 import pytest
@@ -70,6 +71,30 @@ class TestWithMne:
     def test_ch_types_can_be_one_string_or_one_per_channel(self) -> None:
         assert to_mne_raw(window(), ch_types="eog").get_channel_types() == ["eog"] * 3
         assert to_mne_raw(window(), ch_types=["eeg", "eog", "eeg"]).get_channel_types() == ["eeg", "eog", "eeg"]
+
+    def test_eog_and_ecg_channels_keep_their_mne_types(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG", "EOG", "ECG"))
+
+        assert to_mne_raw(typed).get_channel_types() == ["eeg", "eog", "ecg"]
+
+    def test_emg_misc_stim_and_an_unknown_type(self) -> None:
+        typed = dataclasses.replace(
+            window(
+                data=[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]],
+                labels=("EMG", "MISC", "STIM", "TEMP"),
+            ),
+            types=("EMG", "MISC", "STIM", "TEMP"),
+        )
+
+        assert to_mne_raw(typed).get_channel_types() == ["emg", "misc", "stim", "misc"]
+
+    def test_a_ch_types_argument_mne_does_not_have_names_to_mne_raw(self) -> None:
+        with pytest.raises(ValueError, match=r"to_mne_raw cannot use channel type 'not-a-type'"):
+            to_mne_raw(window(), ch_types="not-a-type")
+
+    def test_the_wrong_number_of_ch_types_names_to_mne_raw(self) -> None:
+        with pytest.raises(ValueError, match=r"to_mne_raw got 1 ch_types for 3 channels"):
+            to_mne_raw(window(), ch_types=["eeg"])
 
     @pytest.mark.parametrize("unit", ["uV", "\u00b5V", "\u03bcV"], ids=["ascii-u", "micro-sign", "greek-mu"])
     def test_every_spelling_of_microvolts_gives_the_same_volts(self, unit: str) -> None:

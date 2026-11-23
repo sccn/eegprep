@@ -139,9 +139,16 @@ is ALS through the import and is turned by 90 degrees here.
 The converter writes no such description today,
 and reading it here is a follow-up if it ever does.
 A store that declares no positions leaves `chanlocs` as labels alone, and has no `locations` record.
-Either way, each `chanlocs` entry also gets `type` from the group's `channel_type`
-when every channel declares one,
-so `pop_select(eeg, chantype=["EEG"])` leaves out an ECG or EOG channel stored in the EEG group.
+Either way, each `chanlocs` entry gets `type` from the group's `channel_type`.
+A channel with no `channel_type`, or one that is blank, `n/a` or `nan`, is `EEG`:
+EEGLAB counts an empty or `n/a` type with the EEG channels and does not guess a type from the label,
+and MNE's EEGLAB reader defaults a missing type to `eeg`.
+A type the group did declare is kept, so one untyped channel does not drop the ECG beside it,
+and `pop_select(eeg, chantype=["EEG"])` leaves that ECG out.
+`to_mne_raw` maps those types with the set `mne.create_info` accepts
+(`EOG` to `eog`, `ECG` to `ecg`, `EMG` to `emg`, `MISC` to `misc`, `STIM` to `stim`).
+A declared type outside that set, such as `TRIG` or `EKG`, becomes `misc`.
+Passing `ch_types` still overrides this, and a value MNE does not accept raises from `to_mne_raw`.
 `read_window` makes no request for the store root;
 a caller that reads windows itself reads the attributes once per store with
 `read_electrode_attributes` and sets them with `dataclasses.replace(window, electrodes=...)`.
