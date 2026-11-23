@@ -56,6 +56,18 @@ def pop_fileio(
         for key in ('channels', 'samples', 'trials'):
             if result[key].strip():
                 options[key] = parse_numeric_sequence(result[key], dtype=int)
+        chosen = int(result.get("dataformat") or 1)
+        if chosen > 1:
+            options["dataformat"] = (
+                "auto",
+                "eeglab",
+                "brainvision",
+                "biosig",
+                "neuroscan-cnt",
+                "neuroscan-eeg",
+                "egi-mff",
+                "matlab-array",
+            )[chosen - 1]
     history_options = dict(options)
     blockrange = options.pop("blockrange", None)
     channels = options.pop("channels", None)
@@ -251,8 +263,15 @@ def pop_fileio_dialog_spec() -> DialogSpec:
         function_name='pop_fileio',
         help_text='pop_fileio',
         eeglab_source='plugins/fileio/pop_fileio.m',
-        geometry=tuple([[2, 1]] * 3),
+        geometry=tuple([[2, 1]] * 4),
         controls=(
+            ControlSpec('text', 'Data format'),
+            ControlSpec(
+                'popupmenu',
+                'auto|EEGLAB .set|BrainVision|BIOSIG|Neuroscan CNT|Neuroscan EEG|EGI MFF|MATLAB array',
+                tag='dataformat',
+                value=1,
+            ),
             ControlSpec('text', 'Channel list (default all)'),
             ControlSpec('edit', tag='channels'),
             ControlSpec('text', 'Sample range [first last] (default all)'),

@@ -170,7 +170,7 @@ def test_pop_savestudy_resave_uses_existing_study_path(tmp_path):
     assert resaved["filename"] == "saved.study"
     assert Path(resaved["filepath"]) == tmp_path
     assert reloaded["name"] == "Resaved study"
-    assert "savemode='resave'" in command
+    assert "'savemode', 'resave'" in command
 
 
 def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
@@ -188,7 +188,7 @@ def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
     assert alleeg[0]["saved"] == "no"
     assert loaded_alleeg[0]["setname"] == "saved"
     assert reloaded["name"] == "Dataset resave study"
-    assert "resavedatasets='on'" in command
+    assert "'resavedatasets', 'on'" in command
 
 
 class _Latin1CharWriter(VarWriter5):

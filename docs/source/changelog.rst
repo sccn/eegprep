@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
+  ``derivatives/eeglab`` and refuses to resave a raw BIDS file. ``pop_saveset``
+  replaces the ``.set`` and ``.fdt`` only after both temporary files are
+  written. ``pop_savestudy`` writes an EEGLAB MATLAB v6 ``.study`` and still
+  reads JSON. ``pop_chanevent`` evaluates ``X>50`` as numbers, and epoched
+  ``pop_export`` uses column-major order and LF line endings. CNT events copy
+  the reader's 1-based offset and do not set a duration. The BIDS export
+  wizard runs with no dataset loaded. Participant and event editors write one
+  row per subject and the events.json field table. Datasets stay float64;
+  ``option_single`` has no effect. (#673)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search

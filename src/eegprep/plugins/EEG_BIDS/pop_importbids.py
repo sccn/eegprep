@@ -5,11 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from eegprep.extras import import_optional_dependency
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.functions.studyfunc._study_utils import ensure_study
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
@@ -49,11 +53,10 @@ def pop_importbids(
     ``gui=True`` shows the options dialog from ``pop_importbids.m`` lines
     104-164. ``subjects=[1, 2]`` selects 1-based rows of ``participants.tsv``
     (or sorted ``sub-*`` folders when that file is missing), the same indices
-    the dialog records. ``return_study=True`` returns an in-memory STUDY. EEGLAB also
-    copies every dataset into ``derivatives/eeglab`` (``pop_importbids.m``
-    lines 839 and 892). This function does not write that copy. A folder
-    import opened from the dialog records ``[STUDY, ALLEEG] =
-    pop_importbids(...)`` with ``return_study`` on, matching that return.
+    the dialog records. A folder import copies every dataset into
+    ``derivatives/eeglab`` (or ``outputdir``) and writes a ``.study`` file
+    there. The raw BIDS folder is not modified. History is
+    ``[STUDY, ALLEEG] = pop_importbids(...)`` without a ``return_study`` option.
     """
     return_study = _on_off(return_study, "return_study")
     source = Path(path)
@@ -83,16 +86,24 @@ def pop_importbids(
         )
     eegs = [pop_load_frombids(filename, **loader_options) for filename in files]
     study_name = str(dialog_options.get("studyName") or _folded(kwargs, "studyName") or source.name)
-    command = _history_command(source, dialog_options, return_study=return_study)
-    if return_study:
+    output_dir = dialog_options.get("outputdir") or _folded(kwargs, "outputdir")
+    if source.is_dir():
+        eegs = _save_derivatives(eegs, source, output_dir)
+    command = _history_command(source, dialog_options, return_study=return_study or source.is_dir())
+    if source.is_dir() or return_study:
         task_name = str(dialog_options.get("bidstask") or _folded(kwargs, "bidstask") or "")
         study = ensure_study({"name": study_name, "task": task_name})
         study, datasets = std_checkset(study, eegs)
         for dataset in datasets:
             dataset["history"] = command
-        if return_com:
-            return study, datasets, command
-        return study, datasets
+        if source.is_dir():
+            root = Path(output_dir) if output_dir else source / "derivatives" / "eeglab"
+            study = pop_savestudy(study, datasets, filename=root / f"{_study_filename(study_name)}.study")
+        if return_study:
+            if return_com:
+                return study, datasets, command
+            return study, datasets
+        eegs = datasets
     result: dict[str, Any] | list[dict[str, Any]] = eegs[0] if len(eegs) == 1 else eegs
     if isinstance(result, list):
         for eeg in result:
@@ -176,9 +187,10 @@ def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = 
         eeglab_source="plugins/EEG-BIDS/pop_importbids.m",
         geometry=tuple(geometry),
         controls=tuple(controls),
+        help_text="pop_importbids",
         known_differences=(
-            "The output folder is recorded on the command but datasets stay in memory. "
-            "pop_importbids.m lines 839 and 892 also save a derivatives/eeglab copy.",
+            "Imported datasets are saved under derivatives/eeglab (or the chosen output folder). "
+            "The raw BIDS folder is left unchanged.",
         ),
     )
 
@@ -335,10 +347,7 @@ def _event_columns(source: Path) -> tuple[str, ...]:
                 found.append(str(column))
         break
     ordered = [name for name in _TYPE_FIELDS if name in found]
-    ordered.extend(name for name in found if name not in ordered and name not in {"onset", "duration", "sample"})
-    if "value" in ordered:
-        ordered.insert(0, ordered.pop(ordered.index("value")))
-    return tuple(ordered or _TYPE_FIELDS)
+    return tuple(ordered or ("value",))
 
 
 def _loader_options(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, Any]:
@@ -494,6 +503,41 @@ def _on_off(value: Any, name: str) -> bool:
             f"Pass {name}=True to replay a study import, or {name}=False to return datasets only."
         )
     return bool(value)
+
+
+def _save_derivatives(eegs: list[dict[str, Any]], source: Path, output_dir: Any) -> list[dict[str, Any]]:
+    """Copy imported datasets into ``derivatives/eeglab`` and point filename there."""
+    root = Path(output_dir) if output_dir else source / "derivatives" / "eeglab"
+    saved = []
+    for eeg in eegs:
+        subject = _entity_id(_field_text(eeg.get("subject"), "01"))
+        session = _entity_id(_field_text(eeg.get("session"), ""))
+        folder = root / f"sub-{subject}"
+        if session:
+            folder = folder / f"ses-{session}"
+        folder = folder / "eeg"
+        folder.mkdir(parents=True, exist_ok=True)
+        stem = Path(_field_text(eeg.get("filename"), "eeg.set")).stem or "eeg"
+        target = folder / f"{stem}.set"
+        pop_saveset(eeg, str(target))
+        saved.append(eeg)
+    return saved
+
+
+def _field_text(value: Any, default: str) -> str:
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return default
+        value = value.reshape(-1, order="F")[0]
+    if value is None:
+        return default
+    text = str(value).strip()
+    return text or default
+
+
+def _study_filename(name: str) -> str:
+    cleaned = "".join(character if character.isalnum() or character in "-_" else "_" for character in name.strip())
+    return cleaned or "eeglab"
 
 
 def _folded(mapping: dict[str, Any], name: str, default: Any = None) -> Any:

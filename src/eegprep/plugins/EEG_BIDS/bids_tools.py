@@ -11,12 +11,13 @@ from typing import Any
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 
 _TASK_FIELDS = (
-    ("Name", "Dataset name"),
-    ("TaskName", "Task name (no space)"),
+    ("Name", "* Dataset name"),
+    ("TaskName", "* Task name (no space)"),
     ("README", "README"),
     ("TaskDescription", "Participant task description"),
     ("Instructions", "Participant instructions"),
@@ -58,8 +59,26 @@ _EVENT_FIELDS = (
 )
 
 
-def bids_exporter(EEG: dict[str, Any] | list[dict[str, Any]], output_dir: str | Path) -> tuple[str, str]:
-    """Run the EEGPrep BIDS export wizard backend."""
+def bids_exporter(
+    EEG: dict[str, Any] | list[dict[str, Any]] | None = None,
+    output_dir: str | Path | None = None,
+    *,
+    entries: list[dict[str, Any]] | None = None,
+    gui: bool = False,
+    renderer: Any = None,
+) -> tuple[str, str]:
+    """Export datasets, or raw files chosen from the welcome page and file grid.
+
+    With no loaded dataset, ``gui=True`` opens the welcome page and then a
+    file grid. Cancel returns empty strings and writes nothing.
+    """
+    if entries is not None or (EEG is None and (gui or renderer is not None)):
+        return _export_wizard(output_dir, entries, renderer)
+    if EEG is None:
+        raise ValueError(
+            "bids_exporter: no datasets were given. "
+            "Use File > BIDS tools > BIDS export wizard and choose the raw files to export."
+        )
     return pop_exportbids(EEG, output_dir, return_com=True)
 
 
@@ -68,6 +87,7 @@ def pop_taskinfo(
     *,
     gui: bool = False,
     renderer: Any = None,
+    datasets: list[dict[str, Any]] | None = None,
     **metadata: Any,
 ) -> tuple[dict[str, Any], str]:
     """Attach BIDS task metadata to an EEG or STUDY dict.
@@ -80,7 +100,9 @@ def pop_taskinfo(
         if collected is None:
             return target, ""
         metadata = {**metadata, **collected}
-    return _update_bids_metadata(target, "task", metadata, "pop_taskinfo")
+    updated, command = _update_bids_metadata(target, "task", metadata, "pop_taskinfo")
+    _fan_out(datasets, "task", metadata)
+    return updated, command
 
 
 def pop_participantinfo(
@@ -88,9 +110,28 @@ def pop_participantinfo(
     *,
     gui: bool = False,
     renderer: Any = None,
+    datasets: list[dict[str, Any]] | None = None,
+    rows: list[dict[str, Any]] | None = None,
+    column_info: dict[str, dict[str, str]] | None = None,
     **metadata: Any,
 ) -> tuple[dict[str, Any], str]:
-    """Attach BIDS participant metadata to an EEG or STUDY dict."""
+    """Attach BIDS participant metadata to an EEG or STUDY dict.
+
+    ``rows`` is one dict per dataset (participant_id, Gender, Age, Group, and
+    the other participants.tsv columns). ``column_info`` is the column
+    Description/Units table written to participants.json.
+    """
+    if rows is not None or (datasets and gui and renderer is None):
+        if rows is None:
+            edited, dialog_columns = _participant_table(datasets or [])
+            if edited is None:
+                return target, ""
+            column_info = dialog_columns or column_info
+        else:
+            edited = rows
+        _store_participant_rows(datasets or [target], edited, column_info)
+        command = _update_bids_metadata(target, "participant", {"rows": len(edited)}, "pop_participantinfo")[1]
+        return target, command
     if gui or renderer is not None:
         collected = _dialog_metadata(pop_participantinfo_dialog_spec(), renderer, _participant_initial(target))
         if collected is None:
@@ -100,7 +141,9 @@ def pop_participantinfo(
                 "pop_participantinfo: No subject ID found. Fill in Subject code (participant_id), then press Ok."
             )
         metadata = {**metadata, **collected}
-    return _update_bids_metadata(target, "participant", metadata, "pop_participantinfo")
+    updated, command = _update_bids_metadata(target, "participant", metadata, "pop_participantinfo")
+    _fan_out(datasets, "participant", metadata)
+    return updated, command
 
 
 def pop_eventinfo(
@@ -108,15 +151,29 @@ def pop_eventinfo(
     *,
     gui: bool = False,
     renderer: Any = None,
+    datasets: list[dict[str, Any]] | None = None,
+    event_fields: list[dict[str, Any]] | None = None,
     **metadata: Any,
 ) -> tuple[dict[str, Any], str]:
-    """Attach BIDS event metadata to an EEG or STUDY dict."""
-    if gui or renderer is not None:
+    """Attach BIDS event metadata to an EEG or STUDY dict.
+
+    ``event_fields`` is the event table: each row has ``bids_field`` plus
+    EEGLAB Field, Levels, LongName, Description, and Units. Export writes
+    those columns into ``*_events.json``.
+    """
+    if event_fields is not None or (gui and renderer is None and datasets is not None):
+        edited = event_fields if event_fields is not None else _event_table(_section(target, "event"))
+        if edited is None:
+            return target, ""
+        metadata = {**metadata, **_event_field_map(edited)}
+    elif gui or renderer is not None:
         collected = _dialog_metadata(pop_eventinfo_dialog_spec(), renderer, _section(target, "event"))
         if collected is None:
             return target, ""
         metadata = {**metadata, **collected}
-    return _update_bids_metadata(target, "event", metadata, "pop_eventinfo")
+    updated, command = _update_bids_metadata(target, "event", metadata, "pop_eventinfo")
+    _fan_out(datasets, "event", metadata)
+    return updated, command
 
 
 def pop_taskinfo_dialog_spec() -> DialogSpec:
@@ -224,6 +281,7 @@ def validate_bids(root: str | Path) -> dict[str, list[str] | str | None]:
             f"validate_bids: no *_electrodes.tsv file in {path}. "
             "Re-export with pop_exportbids so each recording has an electrodes.tsv file."
         )
+    _check_coordsystem_names(path, errors)
     coordsystems = list(path.rglob("*_coordsystem.json")) + list(path.glob("coordsystem.json"))
     if electrodes and not coordsystems:
         errors.append(
@@ -232,6 +290,283 @@ def validate_bids(root: str | Path) -> dict[str, list[str] | str | None]:
         )
     note = _run_official_validator(path, errors, warnings)
     return {"errors": errors, "warnings": warnings, "note": note}
+
+
+def _check_coordsystem_names(path: Path, errors: list[str]) -> None:
+    """Flag coordinate-system names that BIDS rejects, even without bids-validator."""
+    forbidden = ("_run-", "_task-", "_desc-", "_acq-", "_rec-")
+    for file in path.rglob("*coordsystem.json"):
+        if any(token in file.name for token in forbidden):
+            errors.append(
+                f"validate_bids: {file.name} uses a BIDS entity that coordsystem.json does not allow. "
+                "Remove run-, task-, desc-, acq-, and rec- from that filename, then validate again."
+            )
+
+
+_PARTICIPANT_COLUMNS = (
+    "participant_id",
+    "Gender",
+    "Age",
+    "Group",
+    "HeadCircumference",
+    "SubjectArtefactDescription",
+)
+_EVENT_COLUMNS = ("bids_field", "eeglab_field", "Levels", "LongName", "Description", "Units")
+_WIZARD_ROWS = 4
+
+
+def _export_wizard(
+    output_dir: str | Path | None,
+    entries: list[dict[str, Any]] | None,
+    renderer: Any,
+) -> tuple[str, str]:
+    if entries is None:
+        welcome = inputgui(bids_exporter_welcome_spec(), renderer=renderer)
+        if welcome is None:
+            return "", ""
+        grid = inputgui(bids_exporter_grid_spec(), renderer=renderer)
+        if grid is None:
+            return "", ""
+        output_dir = str(grid.get("output") or output_dir or "").strip()
+        entries = []
+        for index in range(1, _WIZARD_ROWS + 1):
+            filename = str(grid.get(f"file{index}") or "").strip()
+            if not filename:
+                continue
+            entries.append(
+                {
+                    "file": filename,
+                    "subject": str(grid.get(f"subject{index}") or "").strip(),
+                    "session": str(grid.get(f"session{index}") or "").strip(),
+                    "run": str(grid.get(f"run{index}") or "").strip(),
+                    "condition": str(grid.get(f"condition{index}") or "").strip(),
+                    "group": str(grid.get(f"group{index}") or "").strip(),
+                    "task": str(grid.get(f"task{index}") or "").strip(),
+                }
+            )
+    if not entries:
+        raise ValueError(
+            "bids_exporter: no files were entered. Fill at least one raw-file row on the export grid, then press Ok."
+        )
+    if not output_dir:
+        raise ValueError(
+            "bids_exporter: an output folder is required. Enter the output folder on the export grid, then press Ok."
+        )
+    datasets = []
+    task = "eeg"
+    for entry in entries:
+        dataset = pop_loadset(str(entry["file"]))
+        if entry.get("subject"):
+            dataset["subject"] = entry["subject"]
+        for key in ("session", "run", "condition", "group"):
+            if entry.get(key):
+                dataset[key] = entry[key]
+        if entry.get("task"):
+            task = str(entry["task"])
+        datasets.append(dataset)
+    return pop_exportbids(datasets, output_dir, task=task, return_com=True)
+
+
+def bids_exporter_welcome_spec() -> DialogSpec:
+    """Return the BIDS exporter welcome page from ``bids_exporter.m``."""
+    return DialogSpec(
+        title="BIDS export wizard -- bids_exporter()",
+        function_name="bids_exporter",
+        eeglab_source="plugins/EEG-BIDS/bids_exporter.m",
+        geometry=((1,), (1,)),
+        controls=(
+            ControlSpec("text", "Welcome to the EEG-BIDS exporter tool!", font_weight="bold"),
+            ControlSpec(
+                "text",
+                "Continue to choose raw files, subject, session, run, condition, group, and task. "
+                "No dataset needs to be loaded.",
+            ),
+        ),
+    )
+
+
+def bids_exporter_grid_spec() -> DialogSpec:
+    """Return the raw-file grid from ``bids_exporter.m``."""
+    controls = [
+        ControlSpec("text", "Output folder"),
+        ControlSpec("edit", tag="output"),
+    ]
+    geometry: list[tuple[int, ...]] = [(1, 3)]
+    for index in range(1, _WIZARD_ROWS + 1):
+        controls.extend(
+            [
+                ControlSpec("edit", tag=f"file{index}"),
+                ControlSpec("edit", tag=f"subject{index}"),
+                ControlSpec("edit", tag=f"session{index}"),
+                ControlSpec("edit", tag=f"run{index}"),
+                ControlSpec("edit", tag=f"condition{index}"),
+                ControlSpec("edit", tag=f"group{index}"),
+                ControlSpec("edit", tag=f"task{index}"),
+            ]
+        )
+        geometry.append((3, 1, 1, 1, 1, 1, 1))
+    return DialogSpec(
+        title="BIDS export wizard -- bids_exporter()",
+        function_name="bids_exporter",
+        eeglab_source="plugins/EEG-BIDS/bids_exporter.m",
+        geometry=tuple(geometry),
+        controls=tuple(controls),
+        scrollable=True,
+    )
+
+
+def _participant_table(datasets: list[dict[str, Any]]) -> tuple[list[dict[str, str]] | None, dict[str, dict[str, str]]]:
+    rows = []
+    for dataset in datasets:
+        stored = _section(dataset, "participant")
+        row = {column: str(stored.get(column) or "") for column in _PARTICIPANT_COLUMNS}
+        if not row["participant_id"]:
+            row["participant_id"] = _subject_text(dataset.get("subject"))
+        rows.append(row)
+    defaults = {
+        "Gender": "Participant gender",
+        "Age": "Participant age",
+        "Group": "Participant group",
+        "HeadCircumference": "Head circumference",
+        "SubjectArtefactDescription": "Subject artefact description",
+    }
+    column_rows = [{"Field": field, "Description": text, "Units": ""} for field, text in defaults.items()]
+    QDialog, QDialogButtonBox, _table, _item, QVBoxLayout = _qt_widgets("pop_participantinfo")
+    dialog = QDialog()
+    dialog.setWindowTitle("Edit BIDS participant info - pop_participantinfo")
+    participants = _fill_table(dialog, "bids-table", _PARTICIPANT_COLUMNS, rows)
+    columns = _fill_table(dialog, "bids-column-table", ("Field", "Description", "Units"), column_rows)
+    buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    layout = QVBoxLayout(dialog)
+    layout.addWidget(participants)
+    layout.addWidget(columns)
+    layout.addWidget(buttons)
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return None, {}
+    return _read_table(participants, _PARTICIPANT_COLUMNS), {
+        item["Field"]: {key: item[key] for key in ("Description", "Units") if item.get(key)}
+        for item in _read_table(columns, ("Field", "Description", "Units"))
+        if item.get("Field")
+    }
+
+
+def _event_table(stored: dict[str, Any]) -> list[dict[str, str]] | None:
+    rows = []
+    for bids_field, eeglab_field in _EVENT_FIELDS:
+        current = stored.get(bids_field)
+        description = current if isinstance(current, str) else ""
+        if isinstance(current, dict):
+            description = str(current.get("Description") or "")
+        rows.append(
+            {
+                "bids_field": bids_field,
+                "eeglab_field": eeglab_field,
+                "Levels": "",
+                "LongName": "",
+                "Description": description,
+                "Units": "",
+            }
+        )
+    return _qt_table("Edit BIDS event info - pop_eventinfo", _EVENT_COLUMNS, rows)
+
+
+def _qt_table(title: str, columns: tuple[str, ...], rows: list[dict[str, str]]) -> list[dict[str, str]] | None:
+    QDialog, QDialogButtonBox, _table, _item, QVBoxLayout = _qt_widgets("pop_eventinfo")
+    dialog = QDialog()
+    dialog.setWindowTitle(title)
+    table = _fill_table(dialog, "bids-table", columns, rows)
+    buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    layout = QVBoxLayout(dialog)
+    layout.addWidget(table)
+    layout.addWidget(buttons)
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return None
+    return _read_table(table, columns)
+
+
+def _fill_table(parent: Any, name: str, columns: tuple[str, ...], rows: list[dict[str, str]]) -> Any:
+    _dialog, _buttons, QTableWidget, QTableWidgetItem, _layout = _qt_widgets("pop_participantinfo")
+    table = QTableWidget(len(rows), len(columns), parent)
+    table.setObjectName(name)
+    table.setHorizontalHeaderLabels(list(columns))
+    for row_index, row in enumerate(rows):
+        for column_index, key in enumerate(columns):
+            table.setItem(row_index, column_index, QTableWidgetItem(row.get(key, "")))
+    return table
+
+
+def _qt_widgets(function: str) -> tuple[Any, Any, Any, Any, Any]:
+    try:
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QVBoxLayout
+    except ImportError as exc:
+        raise ImportError(
+            f"{function}: the table dialog needs PySide6. "
+            "Install it with `pip install eegprep[gui]`, then open the dialog again."
+        ) from exc
+    return QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QVBoxLayout
+
+
+def _read_table(table: Any, columns: tuple[str, ...]) -> list[dict[str, str]]:
+    collected = []
+    for row_index in range(table.rowCount()):
+        item: dict[str, str] = {}
+        for column_index, key in enumerate(columns):
+            cell = table.item(row_index, column_index)
+            text = cell.text().strip() if cell is not None else ""
+            if text:
+                item[key] = text
+        collected.append(item)
+    return collected
+
+
+def _store_participant_rows(
+    datasets: list[dict[str, Any]],
+    rows: list[dict[str, Any]],
+    column_info: dict[str, dict[str, str]] | None,
+) -> None:
+    if len(rows) != len(datasets):
+        raise ValueError(
+            "pop_participantinfo: the participant table has "
+            f"{len(rows)} rows for {len(datasets)} datasets. "
+            "Enter one row per dataset, then press Ok."
+        )
+    for dataset, row in zip(datasets, rows):
+        if not str(row.get("participant_id") or "").strip():
+            raise ValueError(
+                "pop_participantinfo: No subject ID found. Fill in Subject code (participant_id), then press Ok."
+            )
+        etc = dataset.setdefault("etc", {})
+        bids = etc.setdefault("bids", {})
+        bids["participant"] = {key: value for key, value in row.items() if str(value).strip()}
+        if column_info:
+            bids["participant_columns"] = column_info
+        dataset["saved"] = "no"
+
+
+def _event_field_map(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    mapped = {}
+    for row in rows:
+        name = str(row.get("bids_field") or "").strip()
+        if not name:
+            continue
+        mapped[name] = {
+            key: row[key] for key in ("eeglab_field", "Levels", "LongName", "Description", "Units") if row.get(key)
+        }
+    return mapped
+
+
+def _fan_out(datasets: list[dict[str, Any]] | None, section: str, metadata: dict[str, Any]) -> None:
+    for dataset in datasets or []:
+        if not isinstance(dataset, dict):
+            continue
+        etc = dataset.setdefault("etc", {})
+        bids = etc.setdefault("bids", {})
+        bids.setdefault(section, {}).update(metadata)
+        dataset["saved"] = "no"
 
 
 def _validator_command() -> list[str] | None:

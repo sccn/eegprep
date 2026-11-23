@@ -74,9 +74,11 @@ Build and inspect design variables:
        expanding=True,
    )
 
-Load and save ``.study`` files. EEGPrep writes JSON. ``pop_loadstudy`` also
-reads an EEGLAB MATLAB STUDY, decoding its character arrays as Latin-1, and
-rebases dataset paths when the STUDY directory has moved:
+Load and save ``.study`` files. EEGPrep writes an EEGLAB MATLAB v6 file
+(``save -v6``). Pass ``fileformat='json'`` or a ``.json`` name to write JSON.
+``pop_loadstudy`` reads both, decoding MATLAB character arrays as Latin-1, and
+rebases dataset paths when the STUDY directory has moved. Precomputed measures
+stay in the file so a reloaded STUDY can still be plotted:
 
 .. code-block:: python
 

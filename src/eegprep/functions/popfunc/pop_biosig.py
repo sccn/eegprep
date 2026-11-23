@@ -65,6 +65,10 @@ def pop_biosig(
     import_events = _on_off("importevent", options.pop("importevent", "on"))
     blockrange = options.get("blockrange")
     eeg, _command = pop_fileio(filename, return_com=True, feature="pop_biosig", **options)
+    kind = {".bdf": "BDF file", ".edf": "EDF file", ".gdf": "GDF file"}.get(path.suffix.lower())
+    if kind:
+        eeg["setname"] = kind
+    eeg["comments"] = f"Original file: {path}"
     if not import_annotations or (path.suffix.lower() == '.gdf' and not import_events):
         eeg['event'], eeg['urevent'], eeg['epoch'] = [], [], []
     if path.suffix.lower() == ".bdf":

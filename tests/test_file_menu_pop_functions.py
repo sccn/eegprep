@@ -168,15 +168,16 @@ def test_study_save_load_and_bids_metadata(tmp_path):
     assert saved["filename"] == "demo's.study"
     assert loaded["etc"]["bids"]["task"]["TaskName"] == "odd'ball"
     assert loaded_alleeg == []
-    assert "pop_study" in command
+    assert "std_editset" in command
     assert "'odd''ball'" in task_command
     assert "pop_participantinfo" in participant_command
     assert "pop_eventinfo" in event_command
     assert "pop_savestudy" in save_command
-    assert "demo's.study" in save_command
-    ast.parse(save_command)
-    assert study_file.name in load_command
-    assert "load_datasets=False" in load_command
-    ast.parse(load_command)
-    assert f"filepath={str(study_file.parent)!r}" in load_command
-    ast.parse(load_command)
+    assert "demo''s.study" in save_command
+    from eegprep.functions.adminfunc.console import _console_python_command
+
+    ast.parse(_console_python_command(save_command))
+    assert "demo''s.study" in load_command
+    assert "'load_datasets', 'off'" in load_command
+    assert "'filepath'" in load_command
+    ast.parse(_console_python_command(load_command))

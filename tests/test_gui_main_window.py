@@ -1082,7 +1082,10 @@ class MenuActionDispatcherTests(unittest.TestCase):
         loadbv.assert_called_once_with("/tmp/recording.vhdr", gui=True, return_com=True)
         self.assertEqual(session.EEG["setname"], "brainvision")
         self.assertEqual(session.CURRENTSET, [1])
-        self.assertEqual(session.ALLCOM[-2:], [command, "[ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG, 0);"])
+        self.assertEqual(
+            session.ALLCOM[-2:],
+            [command, "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 0, 'gui', 'off');"],
+        )
 
     def test_preferences_dialog_updates_menu_and_file_dialog_options(self):
         pytest.importorskip("PySide6")

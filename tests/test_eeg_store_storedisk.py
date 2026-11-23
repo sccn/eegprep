@@ -115,4 +115,4 @@ def test_pop_savestudy_resaves_offloaded_study_dataset(tmp_path: Path):
 
     assert saved["saved"] == "yes"
     assert (tmp_path / "storedisk.study").exists()
-    assert command.startswith("STUDY = pop_savestudy(")
+    assert command.startswith("[STUDY ALLEEG] = pop_savestudy(")

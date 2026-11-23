@@ -682,7 +682,7 @@ def test_pop_study_records_sample_dataset_info(sample_eeg):
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command.startswith("STUDY, ALLEEG = pop_study(")
+    assert command.startswith("[STUDY ALLEEG] = std_editset(")
 
 
 def test_pop_studyerp_marks_sample_study_as_erp(sample_eeg):
@@ -691,7 +691,7 @@ def test_pop_studyerp_marks_sample_study_as_erp(sample_eeg):
     assert study["name"] == "Simple ERP STUDY"
     assert study["design"][0]["name"] == "ERP"
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY, ALLEEG = pop_studyerp(ALLEEG)"
+    assert command == "[STUDY ALLEEG] = pop_studyerp(ALLEEG);"
 
 
 def test_pop_savestudy_and_pop_loadstudy_roundtrip_sample_study(tmp_path, sample_eeg):
@@ -729,7 +729,7 @@ def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command.startswith("STUDY, ALLEEG = pop_studywizard(")
+    assert command.startswith("[STUDY ALLEEG] = pop_studywizard(")
 
 
 @eeglab_test("unittesting_popfunc/pop_saveh/popfunc_pop_saveh_wrapperTest.m", "test_test_pop_saveh")

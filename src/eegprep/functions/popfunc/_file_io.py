@@ -277,7 +277,7 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
     if annotations is not None and len(annotations):
         eeg["event"] = [
             {
-                "type": str(annotation["description"]),
+                "type": str(annotation["description"]).strip() or "boundary",
                 "latency": float(annotation["onset"]) * float(raw.info["sfreq"]) + 1,
                 "duration": float(annotation["duration"]) * float(raw.info["sfreq"]),
             }

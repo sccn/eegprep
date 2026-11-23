@@ -963,7 +963,14 @@ def _collection_len(value: Any) -> int:
 
 
 def _size_mb(value: Any) -> str:
-    return str(round(_memory_bytes(value, set()) / 1e6, 1))
+    number = _memory_bytes(value, set()) / 1e6
+    sign = -1 if number < 0 else 1
+    scaled = abs(number) * 10
+    whole = int(scaled)
+    if scaled - whole >= 0.5:
+        whole += 1
+    text = f"{sign * whole / 10:.1f}"
+    return text
 
 
 def _memory_bytes(value: Any, seen: set[int]) -> int:

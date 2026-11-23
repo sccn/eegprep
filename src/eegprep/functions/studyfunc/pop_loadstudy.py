@@ -15,7 +15,7 @@ from eegprep.functions.adminfunc.storage import storedisk_enabled
 from eegprep.functions.popfunc._matlab_fields import convert_matlab
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import build_matlab_call, ensure_study
 from eegprep.functions.studyfunc.std_checkfiles import std_checkfiles
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
@@ -96,8 +96,8 @@ def pop_loadstudy(
     study["saved"] = "yes"
     command_kwargs: dict[str, Any] = {"filename": path.name, "filepath": str(path.parent)}
     if not load_datasets:
-        command_kwargs["load_datasets"] = False
-    command = build_python_call(("STUDY", "ALLEEG"), "pop_loadstudy", **command_kwargs)
+        command_kwargs["load_datasets"] = "off"
+    command = build_matlab_call(("STUDY", "ALLEEG"), "pop_loadstudy", **command_kwargs)
     return (study, alleeg, command) if return_com else (study, alleeg)
 
 
@@ -144,6 +144,18 @@ def _normalize_loaded_study(study: dict[str, Any]) -> dict[str, Any]:
     for field in ("notes", "history", "filename", "filepath", "name", "task", "saved"):
         if field in study:
             study[field] = _text(study[field])
+    for group in study.get("changrp") or []:
+        if isinstance(group, dict) and isinstance(group.get("inds"), (int, float, np.integer, np.floating)):
+            group["inds"] = [int(group["inds"])]
+    clusters = study.get("cluster")
+    if isinstance(clusters, list):
+        for cluster in clusters:
+            if not isinstance(cluster, dict):
+                continue
+            for field in ("comps", "sets", "child", "parent", "allinds", "setinds"):
+                if isinstance(cluster.get(field), np.ndarray):
+                    array = cluster[field]
+                    cluster[field] = [] if array.size == 0 else array.reshape(-1, order="F").tolist()
     designs = study.get("design")
     if isinstance(designs, list):
         for design in designs:

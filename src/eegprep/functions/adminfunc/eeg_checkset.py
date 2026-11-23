@@ -578,6 +578,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
                         field_values = []
                         for idx in event_idx_list:
                             val = tmpevent[idx].get(fname, None)
+                            if val is None:
+                                val = np.array([])
 
                             # Special handling for latency: convert to epoch-relative time in ms
                             if fname == 'latency' and val is not None:

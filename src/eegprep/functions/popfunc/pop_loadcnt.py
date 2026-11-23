@@ -124,10 +124,12 @@ def _eeg_event(event: dict[str, Any], *, keystroke: bool) -> dict[str, Any] | No
         event_type = f"keypad{int(event['keypad_accept'])}"
     else:
         event_type = f"keyboard{int(event['keyboard'])}"
+    # loadcnt() already stores a 1-based sample in offset. pop_loadcnt.m adds 1
+    # because its offset is 0-based. Copying offset here is that same latency.
+    # Duration is left unset so eeg_checkset does not drop a leading boundary.
     result: dict[str, Any] = {
         "type": event_type,
         "latency": float(event["offset"]),
-        "duration": 0.0,
     }
     for key in ("code", "accuracy", "accept", "epochevent"):
         if key in event:

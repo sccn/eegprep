@@ -3,8 +3,8 @@
 The file layout follows ``pop_loadbva.m`` in the EEGLAB bva-io plugin
 (https://github.com/sccn/bva-io/blob/master/pop_loadbva.m, lines 46-139):
 one variable per channel, plus ``Channels``, ``SampleRate``, ``t``,
-``SegmentCount``, and ``Markers``. History stays
-``pop_fileio_brainvision_mat`` because that is the EEGPrep menu command.
+``SegmentCount``, and ``Markers``. The File menu records
+``EEG = pop_loadbva('file');``.
 """
 
 from __future__ import annotations
@@ -59,10 +59,21 @@ def pop_fileio_brainvision_mat(
             "Export a BrainVision Analyzer MATLAB file, or import a .vhdr file with pop_loadbv."
         )
     eeg = _load_brainvision_analyzer_mat(path)
-    command = f"EEG = pop_fileio_brainvision_mat({format_history_value(path)});"
+    command = f"EEG = pop_loadbva({format_history_value(path)});"
     history = str(eeg.get("history") or "").strip()
     eeg["history"] = f"{history}\n{command}".lstrip()
     return (eeg, command) if return_com else eeg
+
+
+def pop_loadbva(
+    filename: str | Path, *, return_com: bool = False, **kwargs: Any
+) -> dict[str, Any] | tuple[dict[str, Any], str]:
+    """Import a BrainVision Analyzer MATLAB export.
+
+    This is the EEGLAB ``pop_loadbva`` name. ``pop_fileio_brainvision_mat``
+    remains available and records the same history command.
+    """
+    return pop_fileio_brainvision_mat(filename, return_com=return_com, **kwargs)
 
 
 def _load_brainvision_analyzer_mat(path: Path) -> dict[str, Any]:

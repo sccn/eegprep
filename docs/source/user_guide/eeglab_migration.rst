@@ -594,6 +594,48 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``test_missing_or_empty_channel_locations_name_the_problem`` locks
        the EEGPrep error.
 
+File menu and data I/O
+=======================
+
+These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
+
+* Datasets stay ``float64``. ``option_single`` is shown in Preferences and has
+  no effect. Applying it would change results that are already checked against
+  EEGLAB.
+* ``pop_chanevent`` accepts comparisons, arithmetic, ``abs``, ``round``,
+  ``bitand``, ``&``, ``|``, and parentheses. It does not evaluate arbitrary
+  MATLAB text.
+* A Neuroscan CNT import keeps the file length. EEGLAB's reader can append
+  three extra samples. Event latency copies the 1-based ``offset`` already
+  stored by the Python reader (EEGLAB adds 1 because its offset is 0-based).
+  The first boundary is kept because its duration is left unset.
+* File-IO names an empty discontinuity annotation ``boundary``. EEGLAB's
+  file-io plugin can leave that type empty.
+* ``pop_saveset`` creates a missing folder. EEGLAB errors when the folder does
+  not exist. A failed save does not leave a partial ``.set`` or ``.fdt``, and
+  it does not replace a file that was already there.
+* BIDS import writes ``derivatives/eeglab`` and does not modify the raw BIDS
+  folder. Resave of a file inside the raw folder is refused. The recorded
+  import command includes ``return_study`` so replaying it returns the STUDY.
+  EEGLAB's command has no such option because it always returns the STUDY.
+* The BIDS export wizard opens from an empty session: a welcome page, then a
+  file grid. Participant info is one row per dataset, and event-field
+  Levels, LongName, Description, and Units are written to ``*_events.json``.
+* BIDS coordinate-system names drop ``task-``, ``desc-``, and ``run-``.
+  EEGLAB's electrode writer drops only ``task-`` and ``desc-`` and can emit a
+  ``run-`` name that the BIDS validator rejects. The ``sample`` column in
+  ``events.tsv`` is the integer sample index.
+* EDF export keeps events as EDF+ annotations and does not pad the recording.
+  EEGLAB can add an event channel and drop annotations.
+* ``pop_studyerp`` fills subject codes ``S01``, ``S02``, ... so the dialog can
+  be accepted immediately. EEGLAB waits until those codes are typed.
+* The task-info dialog scrolls. EEGLAB draws a dialog taller than a laptop
+  screen.
+* ``pop_importerplab`` Cancel returns without changing the dataset. EEGLAB
+  errors on Cancel.
+* The main-window size in MB rounds half away from zero to one decimal.
+  Python object sizes can still differ from MATLAB ``whos``.
+
 Plugin Migration
 ================
 

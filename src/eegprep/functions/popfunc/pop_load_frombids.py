@@ -442,8 +442,8 @@ def pop_load_frombids(
                 try:
                     # opportunistically look for the 'sample' column, which may be present in some files
                     # seen in the wild
-                    ev_lats = events['sample'].to_numpy()
-                    if np.all(np.isnan(ev_lats)):
+                    ev_lats = np.asarray(events['sample'].to_numpy(), dtype=float)
+                    if ev_lats.size == 0 or np.all(np.isnan(ev_lats)):
                         raise ValueError(f"sample column in {fo.filename} is all NaN; falling back to onsets.")
                     ev_lats = ev_lats.astype(int)
                     report['EventTimingSource'] = 'sample'

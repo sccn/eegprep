@@ -1,16 +1,5 @@
-# POP_STUDYERP - Create a simple ERP STUDY
+# Create a simple ERP STUDY
 
-`pop_studyerp` creates a STUDY marked with a simple ERP design from loaded
-datasets.
+`pop_studyerp` asks how many conditions and subjects to include, then shows one dataset box per subject and condition. Fill at least one box and press Ok to build the STUDY. Cancel on either dialog leaves the workspace unchanged.
 
-Usage:
-
-```python
-STUDY, ALLEEG, com = pop_studyerp(ALLEEG, return_com=True)
-```
-
-This helper creates STUDY metadata named `Simple ERP STUDY` and an initial
-`ERP` design. Precomputing or plotting ERP measures is handled by later STUDY
-measure workflows.
-
-See also: POP_STUDY, POP_STUDYDESIGN, POP_CHANPLOT
+Datasets on one line belong to the same subject. Subject codes are filled in as `S01`, `S02`, and so on so the STUDY can be created without typing them first.

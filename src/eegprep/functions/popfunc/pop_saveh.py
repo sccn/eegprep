@@ -37,7 +37,8 @@ def pop_saveh(
             stream.write(text)
             if text and not text.endswith("\n"):
                 stream.write("\n")
-    return f"pop_saveh(ALLCOM, {format_history_value(path.name)}, {format_history_value(path.parent)});"
+    target = "EEG.history" if isinstance(allcoms, str) else "ALLCOM"
+    return f"pop_saveh({target}, {format_history_value(path.name)}, {format_history_value(str(path.parent))});"
 
 
 def _history_commands(allcoms: Any) -> list[str] | None:

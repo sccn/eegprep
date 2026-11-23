@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from copy import deepcopy
 from typing import Any
 
@@ -123,7 +124,7 @@ def _events_from_channel(
     typename: str,
     named_type: bool,
 ) -> list[dict[str, Any]]:
-    values = np.asarray(x)
+    values = np.asarray(x, dtype=np.float64)
     diff = np.diff(np.abs(np.r_[values, values[-1]]))
     leading = _keep_first_of_close(np.flatnonzero(diff > 0) + 1, edgelen)
     trailing = _keep_last_of_close(np.flatnonzero(diff < 0) + 2, edgelen)
@@ -138,7 +139,7 @@ def _events_from_channel(
         value_indices = np.sort(np.r_[leading, trailing - 2])
     events = []
     for latency, value_index in zip(latencies, value_indices):
-        event_type = typename if named_type else values[int(value_index)].item()
+        event_type = typename if named_type else _event_code(values[int(value_index)])
         event = {"type": event_type, "latency": int(latency)}
         if duration:
             falling_boundaries = trailing - 1
@@ -213,14 +214,134 @@ def _is_nan(value: Any) -> bool:
         return False
 
 
+_CHANEVENT_CALLS = {"abs": np.abs, "round": np.round, "bitand": np.bitwise_and}
+
+
+def _event_code(value: Any) -> Any:
+    number = float(value)
+    if number.is_integer():
+        return int(number)
+    return number
+
+
 def _apply_oper(x: np.ndarray, oper: str) -> np.ndarray:
-    if oper.strip() == "X>0":
-        return x > 0
-    if oper.strip().startswith("X>"):
-        return x > float(oper.strip()[2:])
-    if oper.strip().startswith("X<"):
-        return x < float(oper.strip()[2:])
-    raise ValueError("Only simple X>threshold or X<threshold preprocessing expressions are supported")
+    """Evaluate a preprocessing expression on ``X`` without running raw text."""
+    text = _matlab_expression(oper)
+    if not text:
+        return np.asarray(x, dtype=np.float64)
+    try:
+        tree = ast.parse(text, mode="exec")
+    except SyntaxError as exc:
+        raise ValueError(_oper_error(oper)) from exc
+    if len(tree.body) != 1:
+        raise ValueError(_oper_error(oper))
+    statement = tree.body[0]
+    if isinstance(statement, ast.Expr):
+        expression = statement.value
+    elif (
+        isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == "X"
+    ):
+        expression = statement.value
+    else:
+        raise ValueError(_oper_error(oper))
+    try:
+        result = _eval_oper(expression, np.asarray(x, dtype=np.float64))
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(_oper_error(oper)) from exc
+    return np.asarray(result, dtype=np.float64)
+
+
+def _matlab_expression(oper: str) -> str:
+    text = oper.strip().rstrip(";").strip()
+    if not text:
+        return ""
+    text = text.replace("~=", "!=")
+    output: list[str] = []
+    index = 0
+    while index < len(text):
+        character = text[index]
+        if character == "&":
+            output.append(" and ")
+            index += 2 if text.startswith("&&", index) else 1
+            continue
+        if character == "|":
+            output.append(" or ")
+            index += 2 if text.startswith("||", index) else 1
+            continue
+        output.append(character)
+        index += 1
+    return "".join(output)
+
+
+def _eval_oper(node: ast.AST, x: np.ndarray) -> Any:
+    if isinstance(node, ast.Name):
+        if node.id != "X":
+            raise ValueError(_oper_error(node.id))
+        return x
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = _eval_oper(node.operand, x)
+        return value if isinstance(node.op, ast.UAdd) else -value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+        left = _eval_oper(node.left, x)
+        right = _eval_oper(node.right, x)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        return left / right
+    if isinstance(node, ast.Compare) and len(node.ops) == len(node.comparators):
+        current = _eval_oper(node.left, x)
+        result = np.ones(np.shape(x), dtype=bool)
+        for op, comparator in zip(node.ops, node.comparators):
+            other = _eval_oper(comparator, x)
+            result = result & _compare(op, current, other)
+            current = other
+        return result
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, (ast.And, ast.Or)):
+        values = [_eval_oper(item, x) for item in node.values]
+        combined = np.asarray(values[0], dtype=bool)
+        for value in values[1:]:
+            other = np.asarray(value, dtype=bool)
+            combined = combined & other if isinstance(node.op, ast.And) else combined | other
+        return combined
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _CHANEVENT_CALLS:
+        if node.keywords:
+            raise ValueError(_oper_error(node.func.id))
+        args = [_eval_oper(arg, x) for arg in node.args]
+        return _CHANEVENT_CALLS[node.func.id](*args)
+    raise ValueError(_oper_error(ast.dump(node)))
+
+
+def _compare(op: ast.cmpop, left: Any, right: Any) -> Any:
+    if isinstance(op, ast.Gt):
+        return left > right
+    if isinstance(op, ast.Lt):
+        return left < right
+    if isinstance(op, ast.GtE):
+        return left >= right
+    if isinstance(op, ast.LtE):
+        return left <= right
+    if isinstance(op, ast.Eq):
+        return left == right
+    if isinstance(op, ast.NotEq):
+        return left != right
+    raise ValueError(_oper_error(type(op).__name__))
+
+
+def _oper_error(oper: str) -> str:
+    return (
+        f"pop_chanevent: preprocessing {oper!r} is not a safe expression in X. "
+        "Use comparisons, arithmetic, abs, round, bitand, &, |, and parentheses, for example X>50."
+    )
 
 
 def _history_command(channels: list[int], options: dict[str, Any]) -> str:
@@ -236,34 +357,38 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
     """Return the channel-transition options from pop_chanevent.m."""
     controls = [
         ControlSpec('text', 'Event channel(s)'),
-        ControlSpec('edit', tag='chan', value='1'),
+        ControlSpec('edit', tag='chan', value=''),
         ControlSpec('spacer'),
-        ControlSpec('text', 'Preprocessing transform (Ex: X > 0)'),
+        ControlSpec('text', "Preprocessing transform (data='X')"),
         ControlSpec('edit', tag='oper'),
-        ControlSpec('spacer'),
-        ControlSpec('text', 'Transitions to extract'),
+        ControlSpec('text', 'Optional. Ex: X>3'),
+        ControlSpec('text', 'Transitions to extract? (up|down)'),
         ControlSpec(
             'popupmenu',
-            'Up|Both|Down',
+            'up (leading)|both|down (trailing)',
             tag='edge',
-            value=2,
+            value=1,
             callback=CallbackSpec(
                 'toggle_index_enabled', {'source': 'edge', 'targets': ['duration'], 'enabled_index': 1}
             ),
         ),
         ControlSpec('spacer'),
-        ControlSpec('text', 'Transition length (samples)'),
-        ControlSpec('edit', tag='edgelen', value='1'),
+        ControlSpec('text', 'Transition length (1=perfect edges)'),
+        ControlSpec('edit', tag='edgelen', value='0'),
         ControlSpec('spacer'),
     ]
-    for label, tag, default in [
-        ('Assign duration to each event?', 'duration', False),
-        ('Delete event channel(s)?', 'delchan', True),
-        ('Delete old events if any?', 'delevent', True),
-        ('All events of same type?', 'nbtype', False),
+    for label, tag, default, enabled in [
+        ('Assign duration to each events?', 'duration', False, True),
+        ('Delete event channel(s)?', 'delchan', True, True),
+        ('Delete old events if any?', 'delevent', True, True),
+        ('All events of same type?', 'nbtype', False, True),
     ]:
         controls.extend(
-            [ControlSpec('text', label), ControlSpec('checkbox', tag=tag, value=default), ControlSpec('spacer')]
+            [
+                ControlSpec('text', label),
+                ControlSpec('checkbox', tag=tag, value=default, enabled=enabled),
+                ControlSpec('spacer'),
+            ]
         )
     return DialogSpec(
         title='Extract event from channel(s) - pop_chanevent()',
