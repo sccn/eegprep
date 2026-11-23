@@ -52,6 +52,9 @@ RESULT_KEYS = {
     "final_ll",
     "best_ll",
     "best_iter",
+    "numrej",
+    "n_good_samples",
+    "n_rejected_samples",
 }
 E1_MIN_CORRELATION = 0.95
 E1_MEDIAN_CORRELATION = 0.99
@@ -311,6 +314,34 @@ def test_reorder_sorts_components_by_variance_and_off_keeps_pamica_order():
     assert sorted(map(tuple, np.round(kept["icaweights"], 12))) == sorted(
         map(tuple, np.round(sorted_result["icaweights"], 12))
     )
+
+
+def test_the_record_gives_the_rejection_settings_and_the_samples_rejected():
+    eeg = _synthetic_eeg()
+
+    plain = eeg_pamica(eeg, max_iter=10)["etc"]["pamica"]
+    result = eeg_pamica(eeg, max_iter=10, do_reject=True, rejstart=2, rejint=2, maxrej=3, rejsig=2.0)
+
+    assert (plain["do_reject"], plain["numrej"], plain["n_good_samples"], plain["n_rejected_samples"]) == (
+        False,
+        0,
+        3000,
+        0,
+    )
+    record = result["etc"]["pamica"]
+    assert {key: record[key] for key in ("do_reject", "rejsig", "rejstart", "rejint", "maxrej")} == {
+        "do_reject": True,
+        "rejsig": 2.0,
+        "rejstart": 2,
+        "rejint": 2,
+        "maxrej": 3,
+    }
+    model = _replay(eeg, record)
+    assert record["numrej"] == model.model_.numrej > 0
+    assert record["n_good_samples"] == model.model_.good_idx.numel()
+    assert record["n_good_samples"] + record["n_rejected_samples"] == 3000
+    assert record["n_rejected_samples"] > 0
+    assert np.array_equal(model.get_unmixing_matrix(), result["icaweights"])
 
 
 def test_a_fit_that_stops_on_max_iter_has_not_converged():

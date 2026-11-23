@@ -36,6 +36,8 @@ _EEGLAB_DEFAULTS = {
 }
 #: pAMICA's ``fit`` takes these as named arguments; every other setting is a backend keyword.
 _FIT_ARGUMENTS = ('lrate', 'do_mean', 'do_sphere', 'do_newton')
+#: pAMICA's in-fit sample rejection settings, recorded as the backend ran them.
+_REJECTION_SETTINGS = ('do_reject', 'rejsig', 'rejstart', 'rejint', 'maxrej')
 
 
 class PamicaFitError(RuntimeError):
@@ -91,6 +93,10 @@ def eeg_pamica(
     ``icaact`` differs from pAMICA's ``transform`` by one constant per component. ``icasphere`` is
     the identity when ``do_sphere=False``. Components stay in pAMICA's order unless ``sortcomps``
     asks for descending activation variance.
+
+    The record also stores pAMICA's sample rejection settings as it ran them (``do_reject``,
+    ``rejsig``, ``rejstart``, ``rejint``, ``maxrej``) and their outcome: ``numrej`` rejection passes,
+    ``n_good_samples`` kept and ``n_rejected_samples`` dropped, counted over all samples of all trials.
 
     Parameters
     ----------
@@ -172,6 +178,8 @@ def eeg_pamica(
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 
     best_iter = int(np.argmax(history))
+    backend = model.model_
+    n_good_samples = data.shape[1] if backend.good_idx is None else int(backend.good_idx.numel())
     if not isinstance(EEG.get('etc'), dict):
         EEG['etc'] = {}
     EEG['etc']['pamica'] = {
@@ -190,12 +198,16 @@ def eeg_pamica(
         'backend': type(model.model_).__name__,
         'pipeline': f"pamica.AMICA(backend='{model.backend}').fit",
         **settings,
+        **{name: getattr(backend, name) for name in _REJECTION_SETTINGS},
         'iterations': len(history),
         'stop_reason': stop_reason,
         'did_converge': stop_reason != 'max_iter',
         'final_ll': float(model.final_ll_),
         'best_ll': float(history[best_iter]),
         'best_iter': best_iter,
+        'numrej': backend.numrej,
+        'n_good_samples': n_good_samples,
+        'n_rejected_samples': data.shape[1] - n_good_samples,
     }
 
     return finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact)

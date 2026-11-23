@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``EEG["etc"]["pamica"]`` records pAMICA's sample rejection settings and
+  outcome: ``do_reject``, ``rejsig``, ``rejstart``, ``rejint``, ``maxrej``,
+  ``numrej``, ``n_good_samples`` and ``n_rejected_samples``.
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search

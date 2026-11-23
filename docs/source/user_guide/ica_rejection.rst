@@ -66,6 +66,7 @@ Pass ``pcakeep`` to keep fewer components than channels.
 ``pop_runica`` sorts components by variance by default, as it does for the other engines; ``reorder="off"`` keeps pAMICA's order, which ``eeg_pamica`` called directly keeps by default.
 ``EEG["etc"]["pamica"]`` records the pamica and torch versions, the pamica ``backend`` class and ``pipeline`` that produced the decomposition, the device, the seed, the settings used, the rank that ran, the iteration count, the stop reason, and ``did_converge``.
 ``did_converge`` is false when pAMICA used all ``max_iter`` iterations without meeting a convergence check.
+With ``do_reject=True``, pAMICA drops low-likelihood samples during the fit; the record keeps the rejection settings (``do_reject``, ``rejsig``, ``rejstart``, ``rejint``, ``maxrej``), the number of rejection passes in ``numrej``, and the samples kept and dropped in ``n_good_samples`` and ``n_rejected_samples``.
 If pAMICA ends on a non-finite value, ``pop_runica`` raises ``PamicaFitError`` (from ``eegprep.functions.popfunc.eeg_pamica``) and leaves the ICA fields unset.
 The ICA dialog does not list pAMICA yet, so choose it from the command line or the console.
 
