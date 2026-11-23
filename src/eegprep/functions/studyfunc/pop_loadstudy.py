@@ -132,7 +132,9 @@ def _study_from_mat73(path: Path) -> dict[str, Any]:
         if "STUDY" not in handle:
             raise ValueError(f"{path} does not contain a STUDY variable")
         group = handle["STUDY"]
-        study = {key: _read_value(value, key) for key, value in group.items() if not str(key).startswith("#")}
+        study = _read_value(group, "STUDY")
+        if isinstance(study, list):
+            study = study[0] if len(study) == 1 and isinstance(study[0], dict) else {}
     if not isinstance(study, dict):
         raise ValueError(f"{path} does not contain a STUDY structure")
     return _normalize_loaded_study(study)

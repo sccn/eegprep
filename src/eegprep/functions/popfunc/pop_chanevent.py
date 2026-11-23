@@ -220,7 +220,21 @@ def _matlab_round(value: Any) -> np.ndarray:
 
 
 def _matlab_bitand(left: Any, right: Any) -> np.ndarray:
-    return np.bitwise_and(np.asarray(np.trunc(left), dtype=np.int64), np.asarray(np.trunc(right), dtype=np.int64))
+    values = np.asarray(left, dtype=np.float64)
+    other = np.asarray(right, dtype=np.float64)
+    if (
+        np.any(~np.isfinite(values))
+        or np.any(values < 0)
+        or np.any(values != np.trunc(values))
+        or np.any(~np.isfinite(other))
+        or np.any(other < 0)
+        or np.any(other != np.trunc(other))
+    ):
+        raise ValueError(
+            "pop_chanevent: bitand needs non-negative whole numbers. "
+            "Round or take the absolute value of the channel first, for example bitand(round(abs(X)), 1)."
+        )
+    return np.bitwise_and(values.astype(np.int64), other.astype(np.int64))
 
 
 _CHANEVENT_CALLS = {"abs": np.abs, "round": _matlab_round, "bitand": _matlab_bitand}
@@ -406,8 +420,8 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         function_name='pop_chanevent',
         help_text='pop_chanevent',
         eeglab_source='functions/popfunc/pop_chanevent.m',
-        geometry=tuple([[1.5, 1.2, 2.2]] * 8),
+        geometry=tuple([[3.4, 1.2, 2.2]] * 8),
         controls=tuple(controls),
         weighted_columns=True,
-        size=(760, 276),
+        size=(1100, 320),
     )

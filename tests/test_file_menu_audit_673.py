@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ast
 import csv
+import os
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -258,7 +260,7 @@ def test_task_info_reaches_the_exported_description_and_eeg_json(tmp_path):
     description = json.loads((root / "dataset_description.json").read_text(encoding="utf-8"))
     sidecar = json.loads(next(root.rglob("*_eeg.json")).read_text(encoding="utf-8"))
     assert description["Name"] == "Audit set"
-    assert sidecar["PowerLineFrequency"] == "60"
+    assert sidecar["PowerLineFrequency"] == 60
 
 
 def test_participant_rows_and_event_fields_are_written_on_export(tmp_path):
@@ -450,7 +452,7 @@ def test_participant_table_dialog_stores_each_row(qapp):
         timer.stop()
     assert first["etc"]["bids"]["participant"]["Gender"] == "M"
     assert second["etc"]["bids"]["participant"]["Gender"] == "F"
-    assert "pop_participantinfo" in command
+    assert command.startswith("[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY,")
     assert "'rows', 2" not in command
     assert "Gender" in command
     assert "rows" not in first["etc"]["bids"]["participant"]
@@ -567,8 +569,16 @@ def test_chanevent_expression_matches_matlab_round_bitand_and_chaining():
 
     rounded = _apply_oper(np.array([0.5, 1.5, 2.5, -2.5]), "round(X)")
     assert list(rounded) == [1.0, 2.0, 3.0, -3.0]
-    masked = _apply_oper(np.array([1.9, 2.2]), "bitand(X, 1)")
+    masked = _apply_oper(np.array([1.0, 2.0]), "bitand(X, 1)")
     assert list(masked) == [1.0, 0.0]
+    original = np.array([-3.2, -2.6, 0.2, 4.0])
+    for expression in ("round(X)==-3", "round(X)>=-3", "round(X)<=-3", "round(X)~=-3"):
+        compared = np.asarray(_apply_oper(original, expression))
+        assert compared.shape == original.shape
+        assert not np.array_equal(compared, original)
+    with pytest.raises(ValueError, match="pop_chanevent") as bitand_error:
+        _apply_oper(np.array([-1.0, 1.5]), "bitand(X, 1)")
+    assert "round" in str(bitand_error.value).lower() or "absolute" in str(bitand_error.value).lower()
     chained = np.asarray(_apply_oper(np.array([0.0, 2.0, 4.0]), "1<X<3"), dtype=bool)
     assert chained[2]
     inverted = np.asarray(_apply_oper(np.array([0.0, 1.0]), "~(X>0)"), dtype=bool)
@@ -606,7 +616,10 @@ def test_pop_loadeeg_history_is_positional_and_events_follow_latency(tmp_path, m
     assert latencies == sorted(latencies)
     assert "'triallist'" not in command
     assert "'chanlist'" not in command
-    assert command.startswith(f"EEG = pop_loadeeg('{path.name}', '{path.parent}'")
+    folder = str(path.parent)
+    if not folder.endswith(("/", "\\")):
+        folder += os.sep
+    assert command.startswith(f"EEG = pop_loadeeg('{path.name}', '{folder}'")
 
 
 def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
@@ -620,21 +633,54 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     folder = tmp_path / "testmff.mff"
     folder.mkdir()
     (folder / "epochs.xml").write_text(
-        "<epochs><epoch><beginTime>0</beginTime><endTime>1200000</endTime></epoch>"
-        "<epoch><beginTime>1200000</beginTime><endTime>2400000</endTime></epoch></epochs>",
+        "<epochs><epoch><beginTime>0</beginTime><endTime>1200000000</endTime></epoch>"
+        "<epoch><beginTime>1200000000</beginTime><endTime>2400000000</endTime></epoch></epochs>",
         encoding="utf-8",
     )
-    keys = "".join(f"<key><code>{code}</code><data>stim</data></key>" for code in ("1", "2", "3", "4"))
     (folder / "categories.xml").write_text(
         "<categories><cat><name>target</name><segments>"
-        f"<segment><beginTime>0</beginTime><endTime>1200000</endTime>{keys}</segment>"
-        f"<segment><beginTime>1200000</beginTime><endTime>2400000</endTime>{keys}</segment>"
+        "<segment><beginTime>0</beginTime><endTime>1200000000</endTime>"
+        "<eventBegin>202000000</eventBegin></segment>"
+        "<segment><beginTime>1200000000</beginTime><endTime>2400000000</endTime>"
+        "<eventBegin>1402000000</eventBegin></segment>"
         "</segments></cat></categories>",
+        encoding="utf-8",
+    )
+    (folder / "info.xml").write_text(
+        "<fileInfo><recordTime>2016-01-01T00:00:00+00:00</recordTime></fileInfo>", encoding="utf-8"
+    )
+    (folder / "Events_stm+.xml").write_text(
+        "<eventTrack><name>stm+</name><trackType>STIM</trackType>"
+        "<event><beginTime>2016-01-01T00:00:00.203960000+00:00</beginTime>"
+        "<relativeBeginTime>203960000</relativeBeginTime><duration>1000000</duration>"
+        "<code>stm+</code><label>stm+</label><description></description>"
+        "<keys><key><keyCode>cel#</keyCode><data>1</data><dataType>long</dataType></key></keys></event>"
+        "<event><relativeBeginTime>1406000000</relativeBeginTime><duration>1000000</duration>"
+        "<code>resp</code><label>resp</label></event>"
+        "</eventTrack>",
         encoding="utf-8",
     )
     eeg = _epochs_from_categories(raw, folder, "code")
     assert eeg["data"].shape == (257, 300, 2)
-    assert len(eeg["event"]) == 10
+    assert float(np.max(eeg["data"])) == pytest.approx(1e6)
+    assert eeg["xmin"] == pytest.approx(-0.202)
+    assert [event["type"] for event in eeg["event"]] == ["stm+", "resp"]
+    assert eeg["event"][0]["latency"] == pytest.approx(0.20396 * 250)
+    assert eeg["event"][0]["mffkey_cel"] == "1"
+    assert eeg["event"][0]["duration"] == pytest.approx(0.001 * 250)
+    seconds = tmp_path / "seconds.mff"
+    seconds.mkdir()
+    (seconds / "categories.xml").write_text(
+        "<categories><cat><name>target</name><segments>"
+        "<segment><beginTime unit='s'>0</beginTime><endTime unit='s'>1.2</endTime>"
+        "<eventBegin unit='s'>0.202</eventBegin></segment>"
+        "</segments></cat></categories>",
+        encoding="utf-8",
+    )
+    declared = _epochs_from_categories(raw, seconds, "code")
+    assert declared["data"].shape[1] == 300
+    assert declared["xmin"] == pytest.approx(-0.202)
+    assert declared["event"] == []
     broken = tmp_path / "broken.mff"
     broken.mkdir()
     (broken / "categories.xml").write_text("<categories/>", encoding="utf-8")
@@ -688,7 +734,7 @@ def test_pop_savestudy_strips_measures_resaves_json_as_mat_and_falls_back_to_v73
     assert reloaded["name"] == "Audit"
 
 
-def test_study_commands_stay_replayable_and_studyerp_is_condition_major():
+def test_study_commands_stay_replayable_and_studyerp_is_condition_major(tmp_path):
     from eegprep.functions.studyfunc._study_utils import matlab_flat_commands
     from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp, pop_studyerp_grid_dialog_spec
 
@@ -699,16 +745,22 @@ def test_study_commands_stay_replayable_and_studyerp_is_condition_major():
     buttons = [control for control in spec.controls if control.style == "pushbutton"]
     assert len(buttons) == 4
     assert {control.string for control in buttons} == {"..."}
+    copies = []
+    for name in ("a1", "a2", "a3", "a4"):
+        destination = tmp_path / f"{name}.set"
+        shutil.copy(SAMPLE, destination)
+        shutil.copy(SAMPLE.with_suffix(".fdt"), tmp_path / "eeglab_data.fdt")
+        copies.append(destination)
     answers = [
         {"cond": "2", "subjects": "2"},
         {
             "study_name": "ERP",
-            "cond1": "rare",
-            "cond2": "frequent",
-            "set1_1": str(SAMPLE),
-            "set1_2": str(SAMPLE),
-            "set2_1": str(SAMPLE),
-            "set2_2": str(SAMPLE),
+            "cond1": "A",
+            "cond2": "B",
+            "set1_1": str(copies[0]),
+            "set2_1": str(copies[1]),
+            "set1_2": str(copies[2]),
+            "set2_2": str(copies[3]),
         },
     ]
 
@@ -716,11 +768,38 @@ def test_study_commands_stay_replayable_and_studyerp_is_condition_major():
         def run(self, spec, initial_values=None):
             return answers.pop(0)
 
-    _study, _datasets, command = pop_studyerp(gui=True, renderer=Grid(), return_com=True)
+    study, datasets, command = pop_studyerp(gui=True, renderer=Grid(), return_com=True)
     import re
 
     indexes = [int(value) for value in re.findall(r"'index', (\d+)", command)]
     assert indexes == [2, 4, 3, 5]
+    assert len(datasets) == 4
+    identities = [(info["subject"], info["condition"], Path(info["filename"]).name) for info in study["datasetinfo"]]
+    assert identities == [
+        ("S01", "A", "a1.set"),
+        ("S01", "B", "a2.set"),
+        ("S02", "A", "a3.set"),
+        ("S02", "B", "a4.set"),
+    ]
+    with pytest.raises(ValueError, match="Duplicate dataset") as duplicate:
+        pop_studyerp(
+            gui=True,
+            renderer=type(
+                "Same",
+                (),
+                {
+                    "run": staticmethod(
+                        lambda spec, initial_values=None: (
+                            {"cond": "1", "subjects": "2"}
+                            if "cond" in {control.tag for control in spec.controls}
+                            else {"set1_1": str(copies[0]), "set1_2": str(copies[0])}
+                        )
+                    )
+                },
+            )(),
+            return_com=True,
+        )
+    assert "Copy and rename" in str(duplicate.value)
 
 
 def test_coordsystem_acq_entity_is_allowed(tmp_path):
@@ -751,8 +830,9 @@ def test_bids_wizard_keeps_a_task_on_every_file(tmp_path):
     root = Path(output)
     assert (root / "sub-001" / "eeg" / "sub-001_task-rest_eeg.set").is_file()
     assert (root / "sub-002" / "eeg" / "sub-002_task-oddball_eeg.set").is_file()
-    assert (root / "sub-001" / "eeg" / "task-rest_events.json").is_file()
-    assert (root / "sub-002" / "eeg" / "task-oddball_events.json").is_file()
+    assert (root / "task-rest_events.json").is_file()
+    assert (root / "task-oddball_events.json").is_file()
+    assert not (root / "sub-001" / "eeg" / "task-rest_events.json").exists()
     assert not list(root.rglob("sub-*_events.json"))
 
 
@@ -774,7 +854,7 @@ def test_export_uses_channel_type_and_prompts_for_power_line(tmp_path):
     channels = (out / "sub-001" / "eeg" / "sub-001_task-rest_channels.tsv").read_text(encoding="utf-8")
     assert "Cz\tEOG\tuV" in channels
     sidecar = (out / "sub-001" / "eeg" / "sub-001_task-rest_eeg.json").read_text(encoding="utf-8")
-    assert '"PowerLineFrequency": "60"' in sidecar
+    assert '"PowerLineFrequency": 60' in sidecar
 
 
 def test_quit_asks_before_discarding_unsaved_datasets():
@@ -842,6 +922,175 @@ def test_pop_fileio_honours_dataformat_from_the_popup(tmp_path):
     scipy.io.savemat(array, {"data": np.arange(8).reshape(2, 4)})
     imported = pop_fileio(array, dataformat="matlab-array")
     assert imported["data"].shape[0] == 2
+
+
+def test_real_testmff_matches_eeglab_epochs():
+    mne = pytest.importorskip("mne")
+    from eegprep.functions.popfunc.pop_mffimport import pop_mffimport
+
+    candidates = []
+    if os.environ.get("EEGPREP_TESTMFF"):
+        candidates.append(Path(os.environ["EEGPREP_TESTMFF"]))
+    candidates.append(Path(__file__).resolve().parents[1] / "sample_data" / "testmff.mff")
+    folder = next((path for path in candidates if path.is_dir()), None)
+    if folder is None:
+        pytest.skip("testmff.mff is not available")
+    eeg = pop_mffimport(folder, typefield="code")
+    assert eeg["data"].shape == (257, 300, 2)
+    assert float(np.max(np.abs(eeg["data"]))) == pytest.approx(19.75, rel=0.02)
+    assert eeg["xmin"] == pytest.approx(-0.202, abs=1e-3)
+    assert len(eeg["event"]) == 10
+    latencies = [float(event["latency"]) for event in eeg["event"]]
+    for expected in (50.99, 51.5, 242.2, 246.7, 350.7):
+        assert any(abs(found - expected) < 0.05 for found in latencies)
+    found_types = {str(event["type"]).lower() for event in eeg["event"]}
+    for name in ("stm+", "lrnd", "ulrn", "resp", "fbk+"):
+        assert name in found_types
+    assert mne is not None
+
+
+def test_cluster_sets_round_trip_as_a_numeric_matrix(tmp_path):
+    import scipy.io
+
+    eeg = _continuous()
+    eeg["subject"] = "S01"
+    study, alleeg = pop_study(None, [eeg], name="Clusters")
+    study["cluster"] = [
+        {"name": "One", "sets": [[1], [2]], "comps": [1]},
+        {"name": "Two", "sets": [[1, 2], [3, 4]], "comps": [1, 2]},
+    ]
+    pop_savestudy(study, alleeg, filename="clusters.study", filepath=tmp_path)
+    loaded = scipy.io.loadmat(tmp_path / "clusters.study", squeeze_me=False, struct_as_record=False, appendmat=False)
+    clusters = loaded["STUDY"][0, 0].cluster
+    sets = [clusters[0, index].sets for index in range(clusters.shape[1])]
+    assert sets[0].dtype.kind == "f" and sets[0].ndim == 2 and sets[0].shape == (2, 1)
+    assert sets[1].dtype.kind == "f" and sets[1].ndim == 2 and sets[1].shape == (2, 2)
+
+
+def test_v73_study_with_two_datasets_and_a_design_reloads(tmp_path, monkeypatch):
+    import h5py
+
+    first = _continuous()
+    second = _continuous()
+    first["subject"] = "S01"
+    first["filename"] = "s01.set"
+    second["subject"] = "S02"
+    second["filename"] = "s02.set"
+    study, alleeg = pop_study(None, [first, second], name="Pair")
+    study["design"] = [{"name": "Within", "variable": [{"label": "condition", "value": "A"}]}]
+    study["cluster"] = [{"name": "Parent", "sets": [[1, 2]], "comps": [1], "child": []}]
+
+    def too_big(*_args, **_kwargs):
+        raise OverflowError("Matrix too large to save with Matlab 5 format")
+
+    monkeypatch.setattr("eegprep.functions.studyfunc.pop_savestudy.scipy.io.savemat", too_big)
+    pop_savestudy(study, alleeg, filename="pair.study", filepath=tmp_path)
+    path = tmp_path / "pair.study"
+    header = path.read_bytes()[:128]
+    assert header.startswith(b"MATLAB 7.3")
+    assert header[124:128] == b"\x00\x01IM"
+    with h5py.File(path, "r") as handle:
+        assert "struct" in str(handle["STUDY"].attrs["MATLAB_class"])
+        assert "#refs#" in handle
+    reloaded, datasets = pop_loadstudy(path, load_datasets="off")
+    assert reloaded["name"] == "Pair"
+    assert len(reloaded["datasetinfo"]) == 2
+    assert reloaded["design"][0]["name"] == "Within"
+    assert datasets == []
+
+
+def test_scripted_power_line_uses_the_eeg_number(tmp_path):
+    from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
+
+    eeg = _continuous()
+    eeg["subject"] = "001"
+    eeg["etc"] = {"bids": {"task": {"PowerLineFrequency": "50"}}}
+    out = tmp_path / "bids"
+    pop_exportbids(eeg, out, task="rest")
+    sidecar = (out / "sub-001" / "eeg" / "sub-001_task-rest_eeg.json").read_text(encoding="utf-8")
+    assert '"PowerLineFrequency": 50' in sidecar
+
+
+def test_participantinfo_key_value_history_includes_study():
+    from eegprep.plugins.EEG_BIDS.bids_tools import pop_participantinfo
+
+    _eeg, command = pop_participantinfo({"data": []}, participant_id="sub-01")
+    assert command.startswith("[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY, 'participant_id'")
+
+
+def test_export_wizard_pages_ten_rows(qapp):
+    from PySide6.QtWidgets import QLabel, QPushButton
+
+    from eegprep.plugins.EEG_BIDS.bids_tools import _export_grid_dialog, bids_exporter_grid_spec
+
+    spec = bids_exporter_grid_spec()
+    assert (
+        sum(
+            bool(control.tag) and control.tag.startswith("file") and control.tag[4:].isdigit()
+            for control in spec.controls
+        )
+        == 10
+    )
+    assert {control.string for control in spec.controls if control.style == "text"} >= {
+        "Raw dataset filename",
+        "subject",
+        "Page 1",
+    }
+    assert sum(control.string == "..." for control in spec.controls) == 10
+    assert any(control.string == "<" for control in spec.controls)
+    dialog = _export_grid_dialog()
+    dialog.show()
+    qapp.processEvents()
+    headers = {label.text() for label in dialog.findChildren(QLabel)}
+    assert {"Raw dataset filename", "subject", "session", "run", "condition", "group", "task"} <= headers
+    assert len([button for button in dialog.findChildren(QPushButton) if button.text() == "..."]) == 10
+    dialog.edits[0]["file"].setText("a.set")
+    dialog.shift(1)
+    assert dialog.page_label.text() == "Page 2"
+    dialog.edits[0]["file"].setText("b.set")
+    dialog.save_page()
+    assert dialog.state["rows"][0]["file"] == "a.set"
+    assert dialog.state["rows"][10]["file"] == "b.set"
+    dialog.close()
+
+
+def test_chanevent_labels_fit_their_column(qapp):
+    from PySide6.QtWidgets import QLabel
+
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+
+    _app, dialog, _widgets = QtDialogRenderer().build_dialog(pop_chanevent_dialog_spec())
+    dialog.show()
+    qapp.processEvents()
+    expected = {
+        "Preprocessing transform (data='X')",
+        "Transitions to extract? (up|down)",
+        "Transition length (1=perfect edges)",
+        "Assign duration to each events?",
+    }
+    found = {label.text(): label for label in dialog.findChildren(QLabel)}
+    for text in expected:
+        label = found[text]
+        assert label.width() >= label.sizeHint().width()
+    dialog.close()
+
+
+def test_studyerp_grid_sizes_to_its_contents(qapp):
+    from PySide6.QtWidgets import QLabel, QScrollArea
+
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp_grid_dialog_spec
+
+    _app, dialog, _widgets = QtDialogRenderer().build_dialog(pop_studyerp_grid_dialog_spec(2, 2))
+    dialog.show()
+    qapp.processEvents()
+    assert dialog.findChildren(QScrollArea) == []
+    hint = next(
+        label for label in dialog.findChildren(QLabel) if label.text().startswith("When using more than 1 condition")
+    )
+    assert hint.width() >= hint.sizeHint().width()
+    assert dialog.height() >= hint.y() + hint.sizeHint().height()
+    dialog.close()
 
 
 def test_size_mb_rounds_half_up(monkeypatch):

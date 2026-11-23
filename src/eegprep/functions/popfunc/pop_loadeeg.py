@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -174,9 +175,12 @@ def _explicit_ranges(
 
 
 def _history(path: Path, ranges: dict[str, Any]) -> str:
+    folder = str(path.parent)
+    if folder and not folder.endswith(("/", "\\")):
+        folder += os.sep
     parts = [
         format_history_value(path.name),
-        format_history_value(str(path.parent)),
+        format_history_value(folder),
         format_history_value(ranges.get("chanlist", [])),
         format_history_value(ranges.get("triallist", [])),
         format_history_value(ranges.get("typerange", [])),

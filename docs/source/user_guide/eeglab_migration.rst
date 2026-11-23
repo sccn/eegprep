@@ -604,7 +604,12 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   EEGLAB.
 * ``pop_chanevent`` accepts comparisons, arithmetic, ``abs``, ``round``,
   ``bitand``, ``&``, ``|``, and parentheses. It does not evaluate arbitrary
-  MATLAB text.
+  MATLAB text. ``pop_chanevent.m`` line 225 prefixes ``X =`` only when the
+  expression contains no ``=``, so ``round(X) == -3``, ``>=``, ``<=``, and
+  ``~=`` leave the channel unchanged in EEGLAB. EEGPrep evaluates those
+  comparisons. ``bitand`` on a negative or non-integer channel raises an
+  error that names ``pop_chanevent`` and tells you to round or take the
+  absolute value first. EEGLAB errors on those inputs as well.
 * A Neuroscan CNT import keeps the file length. EEGLAB's reader can append
   three extra samples. ``loadcnt`` stores the same 0-based sample offset as
   MATLAB ``loadcnt``, and ``pop_loadcnt`` adds 1, matching ``pop_loadcnt.m``
@@ -623,10 +628,14 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   (``eeglab.m`` line 619) closes the window without asking. Cancel keeps
   EEGPrep open so the datasets can be saved first.
 * The BIDS export wizard opens from an empty session: a welcome page, then a
-  file grid with one task per file. Participant info is one row per dataset,
-  and event-field Levels, LongName, Description, and Units are written to
-  ``task-<task>_events.json``. The export asks for the power-line frequency
-  when that field is still ``n/a``.
+  file grid with one task per file. The grid shows 10 rows per page, column
+  headers, a browse button on each row, and ``<`` ``>`` page buttons.
+  Participant info is one row per dataset, and event-field Levels, LongName,
+  Description, and Units are written to one ``task-<task>_events.json`` at
+  the dataset root. Power-line frequency is stored as a number when the EEG
+  or the prompt supplies 50 or 60, and stays ``n/a`` when a scripted export
+  has no value. The export asks for the frequency when that field is still
+  ``n/a``.
 * BIDS coordinate-system names drop ``task-``, ``desc-``, and ``run-``.
   EEGLAB's electrode writer drops only ``task-`` and ``desc-`` and can emit a
   ``run-`` name that the BIDS validator rejects. The ``sample`` column in

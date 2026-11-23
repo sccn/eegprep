@@ -122,22 +122,35 @@ def _mat5_too_large(exc: BaseException) -> bool:
     return "2gb" in text or "2 gb" in text or "too large" in text or "too big" in text
 
 
+class _Mat73Writer:
+    def __init__(self) -> None:
+        self.count = 0
+
+    def holder(self, root: h5py.File) -> h5py.Group:
+        self.count += 1
+        return root.require_group("#refs#").create_group(f"r{self.count}")
+
+
+def _mat73_header() -> bytes:
+    """128-byte MATLAB v7.3 header: description, subsystem offset, version, endian."""
+    text = b"MATLAB 7.3 MAT-file, Platform: eegprep, Created by pop_savestudy"
+    return text[:116].ljust(116, b" ") + (0).to_bytes(8, "little") + (0x0100).to_bytes(2, "little") + b"IM"
+
+
 def _write_study_v73(path: Path, study: Any) -> None:
     temporary = path.with_name(f".{path.name}.v73.tmp")
     temporary.unlink(missing_ok=True)
+    writer = _Mat73Writer()
     with h5py.File(temporary, "w", userblock_size=512) as handle:
-        _write_mat73_value(handle, "STUDY", study, handle)
-    header = b"MATLAB 7.3 MAT-file, Platform: eegprep, Created by pop_savestudy"
+        _write_mat73_value(handle, "STUDY", study, handle, writer)
     with temporary.open("r+b") as stream:
-        stream.write(header + b" " * (128 - len(header)))
+        stream.write(_mat73_header())
     temporary.replace(path)
 
 
-def _write_mat73_value(parent: h5py.Group, name: str, value: Any, root: h5py.File) -> None:
+def _write_mat73_value(parent: h5py.Group, name: str, value: Any, root: h5py.File, writer: _Mat73Writer) -> None:
     if isinstance(value, dict):
-        group = parent.create_group(name)
-        for key, item in value.items():
-            _write_mat73_value(group, str(key), item, root)
+        _write_mat73_mapping(parent, name, value, root, writer)
         return
     if isinstance(value, str):
         _write_mat73_char(parent, name, value)
@@ -151,10 +164,10 @@ def _write_mat73_value(parent: h5py.Group, name: str, value: Any, root: h5py.Fil
         dataset.attrs["MATLAB_class"] = b"double"
         return
     if isinstance(value, np.ndarray) and value.dtype.names:
-        _write_mat73_struct(parent, name, value, root)
+        _write_mat73_struct(parent, name, value, root, writer)
         return
     if isinstance(value, np.ndarray) and value.dtype == object:
-        _write_mat73_cell(parent, name, value, root)
+        _write_mat73_cell(parent, name, value, root, writer)
         return
     if isinstance(value, np.ndarray):
         if value.size == 0:
@@ -176,32 +189,63 @@ def _write_mat73_char(parent: h5py.Group, name: str, text: str) -> None:
         dataset.attrs["MATLAB_empty"] = np.uint8(1)
 
 
-def _write_mat73_struct(parent: h5py.Group, name: str, array: np.ndarray, root: h5py.File) -> None:
+def _write_mat73_mapping(
+    parent: h5py.Group,
+    name: str,
+    mapping: dict[str, Any],
+    root: h5py.File,
+    writer: _Mat73Writer,
+) -> None:
     group = parent.create_group(name)
+    group.attrs["MATLAB_class"] = b"struct"
+    ref_dtype = h5py.special_dtype(ref=h5py.Reference)
+    for key, item in mapping.items():
+        holder = writer.holder(root)
+        _write_mat73_value(holder, "value", item, root, writer)
+        refs = np.empty((1, 1), dtype=ref_dtype)
+        refs[0, 0] = holder["value"].ref
+        group.create_dataset(str(key), data=refs)
+
+
+def _write_mat73_struct(
+    parent: h5py.Group,
+    name: str,
+    array: np.ndarray,
+    root: h5py.File,
+    writer: _Mat73Writer,
+) -> None:
+    group = parent.create_group(name)
+    group.attrs["MATLAB_class"] = b"struct"
     rows = array.reshape(-1, order="F")
     ref_dtype = h5py.special_dtype(ref=h5py.Reference)
     for field in array.dtype.names or ():
         refs = np.empty((len(rows), 1), dtype=ref_dtype)
         for index, row in enumerate(rows):
-            holder = root.require_group("#refs#").create_group(f"{name}_{field}_{index}_{id(row)}")
-            _write_mat73_value(holder, "value", row[field], root)
+            holder = writer.holder(root)
+            _write_mat73_value(holder, "value", row[field], root, writer)
             refs[index, 0] = holder["value"].ref
         group.create_dataset(field, data=refs)
 
 
-def _write_mat73_cell(parent: h5py.Group, name: str, array: np.ndarray, root: h5py.File) -> None:
+def _write_mat73_cell(
+    parent: h5py.Group,
+    name: str,
+    array: np.ndarray,
+    root: h5py.File,
+    writer: _Mat73Writer,
+) -> None:
     flat = array.reshape(-1, order="F")
     ref_dtype = h5py.special_dtype(ref=h5py.Reference)
     refs = np.empty(array.T.shape, dtype=ref_dtype)
     for index, item in enumerate(flat):
-        holder = root.require_group("#refs#").create_group(f"{name}_cell_{index}_{id(item)}")
-        _write_mat73_value(holder, "value", item, root)
+        holder = writer.holder(root)
+        _write_mat73_value(holder, "value", item, root, writer)
         refs.reshape(-1, order="F")[index] = holder["value"].ref
     dataset = parent.create_dataset(name, data=refs)
     dataset.attrs["MATLAB_class"] = b"cell"
 
 
-def _study_for_mat(value: Any) -> Any:
+def _study_for_mat(value: Any, *, key: str | None = None) -> Any:
     if value is None:
         return np.array([])
     if isinstance(value, (bool, np.bool_)):
@@ -215,10 +259,12 @@ def _study_for_mat(value: Any) -> Any:
         return value
     if isinstance(value, Path):
         return str(value)
+    if key == "sets":
+        return _sets_matrix(value)
     if isinstance(value, dict):
         if not value:
             return np.array([])
-        return {str(key): _study_for_mat(item) for key, item in value.items() if isinstance(key, str)}
+        return {str(name): _study_for_mat(item, key=str(name)) for name, item in value.items() if isinstance(name, str)}
     if isinstance(value, np.ndarray):
         if value.dtype.names:
             return value
@@ -264,8 +310,45 @@ def _struct_rows(rows: list[dict[str, Any]]) -> np.ndarray:
     array = np.empty((1, len(rows)), dtype=[(key, object) for key in keys])
     for index, row in enumerate(rows):
         for key in keys:
-            array[0, index][key] = _study_for_mat(row.get(key, np.array([])))
+            array[0, index][key] = _study_for_mat(row.get(key, np.array([])), key=key)
     return array
+
+
+def _sets_matrix(value: Any) -> np.ndarray:
+    """Return ``cluster.sets`` as a numeric rows-by-components matrix.
+
+    EEGLAB's ``std_checkset`` calls ``max(sets(:))``. A cell of row vectors is
+    rejected there as an invalid data type.
+    """
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return np.zeros((0, 0), dtype=float)
+        array = np.asarray(value, dtype=float)
+        if array.ndim == 1:
+            return array.reshape(-1, 1)
+        return array
+    rows = list(value)
+    if not rows:
+        return np.zeros((0, 0), dtype=float)
+    if all(isinstance(item, (int, float, np.integer, np.floating)) and not isinstance(item, bool) for item in rows):
+        return np.asarray([float(item) for item in rows], dtype=float).reshape(-1, 1)
+    matrix = []
+    for row in rows:
+        if isinstance(row, np.ndarray):
+            row = row.reshape(-1).tolist()
+        if not isinstance(row, (list, tuple)):
+            raise ValueError(
+                "pop_savestudy: cluster.sets must be a numeric matrix (rows x components). "
+                "Pass a 2-D array of dataset indices, then save the study again."
+            )
+        matrix.append([float(item) for item in row])
+    width = len(matrix[0])
+    if any(len(row) != width for row in matrix):
+        raise ValueError(
+            "pop_savestudy: cluster.sets rows have different lengths. "
+            "Use one column per component and the same number of columns in every row, then save again."
+        )
+    return np.asarray(matrix, dtype=float)
 
 
 def _split_filename_arg(args: tuple[Any, ...]) -> tuple[Any, tuple[Any, ...]]:

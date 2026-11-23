@@ -6,7 +6,6 @@ from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.studyfunc._study_utils import MatlabLiteral, build_matlab_call, matlab_command_cell
 from eegprep.functions.studyfunc.std_editset import std_editset
 
@@ -47,7 +46,6 @@ def pop_studywizard(
         raise ValueError(
             "pop_studywizard: no dataset files were selected. Choose one or more .set files, then press Ok."
         )
-    datasets = [pop_loadset(filename) for filename in selected]
     commands = []
     for index, (filename, fields) in enumerate(zip(selected, metadata or [{}] * len(selected)), start=1):
         command = {"index": index, "load": filename, "subject": fields.get("subject") or f"S{index}"}
@@ -55,9 +53,7 @@ def pop_studywizard(
             if fields.get(key):
                 command[key] = fields[key]
         commands.append(command)
-    study, alleeg, _command = std_editset(
-        None, datasets, name=name, commands=commands, updatedat="off", return_com=True
-    )
+    study, alleeg, _command = std_editset(None, [], name=name, commands=commands, updatedat="off", return_com=True)
     command = build_matlab_call(
         ("STUDY", "ALLEEG"),
         "std_editset",

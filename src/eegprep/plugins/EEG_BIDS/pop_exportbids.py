@@ -393,7 +393,6 @@ def _write_recordings(
     for subject_label in exported:
         subject_counts[subject_label] = subject_counts.get(subject_label, 0) + 1
     run_counts: dict[str, int] = {}
-    written_events: set[tuple[Path, str]] = set()
     for eeg, info, subject_label in zip(datasets, infos, exported):
         session = _entity_label(eeg.get("session")) or _entity_label(info.get("session"))
         run = _entity_label(eeg.get("run")) or _entity_label(info.get("run"))
@@ -423,10 +422,8 @@ def _write_recordings(
         pop_saveset(deepcopy(eeg), str(target))
         _write_channels(eeg_dir / f"{prefix}_channels.tsv", eeg)
         _write_events(eeg_dir / f"{prefix}_events.tsv", eeg)
-        events_key = (eeg_dir, file_task)
-        if events_key not in written_events:
-            _write_events_json(eeg_dir / f"task-{file_task}_events.json", eeg)
-            written_events.add(events_key)
+        # bids_export.m writes one task events sidecar at the dataset root.
+        _write_events_json(root / f"task-{file_task}_events.json", eeg)
         file_info = dict(task_info)
         file_info["TaskName"] = file_task
         _write_eeg_json(eeg_dir / f"{prefix}_eeg.json", eeg, file_info)
@@ -505,7 +502,7 @@ def _write_eeg_json(path: Path, eeg: dict[str, Any], task_info: dict[str, Any]) 
         "TaskName": task_info["TaskName"],
         "SamplingFrequency": srate,
         "EEGReference": task_info.get("EEGReference") or "Unknown",
-        "PowerLineFrequency": task_info.get("PowerLineFrequency", "n/a"),
+        "PowerLineFrequency": _power_line_number(task_info.get("PowerLineFrequency", "n/a")),
         "SoftwareFilters": task_info.get("SoftwareFilters", "n/a"),
         "EEGChannelCount": _type_count(eeg, "EEG"),
         "EOGChannelCount": _type_count(eeg, "EOG"),
@@ -594,7 +591,7 @@ def _type_count(eeg: dict[str, Any], kind: str) -> int:
     return count
 
 
-def _power_line_prompt(renderer: Any) -> str | None:
+def _power_line_prompt(renderer: Any) -> int | None:
     spec = DialogSpec(
         title="Power line frequency -- pop_exportbids()",
         function_name="pop_exportbids",
@@ -608,7 +605,28 @@ def _power_line_prompt(renderer: Any) -> str | None:
     result = inputgui(spec, renderer=renderer)
     if result is None:
         return None
-    return "60" if int(result.get("PowerLineFrequency") or 1) == 2 else "50"
+    return 60 if int(result.get("PowerLineFrequency") or 1) == 2 else 50
+
+
+def _power_line_number(value: Any) -> Any:
+    """Store a power-line frequency as a number when one was given.
+
+    EEGLAB writes ``50`` or ``60``. ``n/a`` stays when no EEG or option value
+    was set and the export is not asking the user.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        number = float(value)
+        return int(number) if number.is_integer() else number
+    text = str(value).strip()
+    if text.lower() in {"", "n/a", "nan"}:
+        return "n/a"
+    try:
+        number = float(text)
+    except ValueError:
+        return text
+    return int(number) if number.is_integer() else number
 
 
 def _write_participants_json(path: Path, fields: list[str], datasets: list[dict[str, Any]]) -> None:

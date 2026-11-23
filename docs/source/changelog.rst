@@ -18,8 +18,10 @@ Unreleased
   ``pop_export`` uses column-major order and LF line endings. CNT events copy
   the reader's 1-based offset and do not set a duration. The BIDS export
   wizard runs with no dataset loaded. Participant and event editors write one
-  row per subject and the events.json field table. Datasets stay float64;
-  ``option_single`` has no effect. (#673)
+  row per subject and the events.json field table. Segmented MFF imports
+  are in microvolts, with epoch timing and event-track events. A ``.study``
+  cluster ``sets`` matrix stays numeric, including the MATLAB v7.3 fallback.
+  Datasets stay float64; ``option_single`` has no effect. (#673)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search

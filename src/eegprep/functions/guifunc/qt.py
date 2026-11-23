@@ -194,7 +194,11 @@ class QtDialogRenderer:
                 if control.tag:
                     widgets[control.tag] = widget
                 if spec.weighted_columns:
-                    widget.setSizePolicy(qt_widgets.QSizePolicy.Ignored, widget.sizePolicy().verticalPolicy())
+                    if control.style.lower() == "text":
+                        widget.setMinimumWidth(widget.sizeHint().width())
+                        widget.setSizePolicy(qt_widgets.QSizePolicy.Minimum, widget.sizePolicy().verticalPolicy())
+                    else:
+                        widget.setSizePolicy(qt_widgets.QSizePolicy.Ignored, widget.sizePolicy().verticalPolicy())
                     row_layout.addWidget(widget, _supergui_stretch(weight, sum(weights), most_columns))
                     added_visible_widget = added_visible_widget or control.style.lower() != "spacer"
                     index += 1

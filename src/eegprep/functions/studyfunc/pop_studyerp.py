@@ -6,7 +6,6 @@ from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.studyfunc._study_utils import build_matlab_call, matlab_command_cell
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.std_editset import std_editset
@@ -108,7 +107,7 @@ def pop_studyerp_grid_dialog_spec(n_conditions: int, n_subjects: int) -> DialogS
         eeglab_source="functions/studyfunc/pop_studyerp.m",
         geometry=tuple(geometry),
         controls=tuple(controls),
-        scrollable=True,
+        scrollable=False,
     )
 
 
@@ -139,10 +138,9 @@ def _studyerp_from_dialogs(renderer: Any, *, return_com: bool) -> Any:
     if not commands:
         raise ValueError("pop_studyerp: no dataset files were entered. Fill at least one dataset box, then press Ok.")
     name = str(grid.get("study_name") or "").strip() or "Simple ERP STUDY"
-    datasets = [pop_loadset(str(command["load"])) for command in commands]
     study, datasets, command = std_editset(
         None,
-        datasets,
+        [],
         name=name,
         commands=commands,
         updatedat="off",

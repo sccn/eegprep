@@ -11,7 +11,6 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.studyfunc._study_utils import (
     build_python_call,
     parse_optional_int_text,
-    sync_datasetinfo,
     sync_study_datasets,
 )
 from eegprep.functions.studyfunc.std_checkset import std_checkset
@@ -78,7 +77,10 @@ def _apply_commands(
 ) -> list[dict[str, Any]]:
     flat = _flatten_commands(commands)
     current_index = 1
-    info = list(study.get("datasetinfo") or [])
+    info: list[dict[str, Any] | None] = list(study.get("datasetinfo") or [])
+    while len(info) < len(datasets):
+        info.append({})
+    loaded = [identity for identity in (_recording_identity(eeg) for eeg in datasets) if identity]
     index = 0
     while index < len(flat):
         key = str(flat[index]).lower()
@@ -86,13 +88,15 @@ def _apply_commands(
         if key == "index":
             current_index = int(value)
         elif key == "load":
+            identity = _command_identity(value)
+            if identity in loaded:
+                raise ValueError(
+                    f"Duplicate dataset {value} in STUDY.\n"
+                    "Copy and rename the dataset if you absolutely want to use it twice."
+                )
+            loaded.append(identity)
             eeg = pop_loadset(str(value))
-            current_index = _bounded_insert_index(current_index, len(datasets))
-            if current_index <= len(datasets):
-                datasets[current_index - 1] = eeg
-            else:
-                datasets.append(eeg)
-            study["datasetinfo"] = info = sync_datasetinfo(study, datasets)["datasetinfo"]
+            _place_dataset(datasets, info, current_index, eeg)
         elif key == "remove":
             remove_index = int(value)
             if remove_index < 1 or remove_index > len(datasets):
@@ -101,15 +105,51 @@ def _apply_commands(
             del info[remove_index - 1]
             study["datasetinfo"] = info
         else:
-            if current_index < 1 or current_index > len(info):
+            if current_index < 1 or current_index > len(info) or info[current_index - 1] is None:
                 raise ValueError("command index is outside STUDY.datasetinfo")
             normalized = _metadata_value(key, value)
             info[current_index - 1][key] = normalized
-            if update_datasets and current_index <= len(datasets):
+            if update_datasets and current_index <= len(datasets) and datasets[current_index - 1] is not None:
                 datasets[current_index - 1][key] = normalized
         index += 2
-    study["datasetinfo"] = info
-    return datasets
+    kept_datasets = []
+    kept_info = []
+    for dataset, record in zip(datasets, info):
+        if dataset is None:
+            continue
+        kept_datasets.append(dataset)
+        kept_info.append(record or {})
+    study["datasetinfo"] = kept_info
+    return kept_datasets
+
+
+def _place_dataset(
+    datasets: list[dict[str, Any] | None],
+    info: list[dict[str, Any] | None],
+    index: int,
+    eeg: dict[str, Any],
+) -> None:
+    if index < 1:
+        raise ValueError("dataset index must be 1-based")
+    while len(datasets) < index:
+        datasets.append(None)
+        info.append(None)
+    datasets[index - 1] = eeg
+    info[index - 1] = {}
+
+
+def _recording_identity(eeg: dict[str, Any]) -> str:
+    filename = str(eeg.get("filename") or "").strip()
+    if not filename:
+        return ""
+    return _command_identity(Path(str(eeg.get("filepath") or ".")) / filename)
+
+
+def _command_identity(value: Any) -> str:
+    path = Path(str(value)).expanduser()
+    if path.exists():
+        return str(path.resolve())
+    return str(path)
 
 
 def _flatten_commands(commands: Any) -> list[Any]:
@@ -146,12 +186,6 @@ def _metadata_value(key: str, value: Any) -> Any:
             return []
         return parse_numeric_sequence(value, dtype=int)
     return "" if value is None else value
-
-
-def _bounded_insert_index(index: int, length: int) -> int:
-    if index < 1:
-        raise ValueError("dataset index must be 1-based")
-    return min(index, length + 1)
 
 
 def _history_command(study: dict[str, Any], *, commands: Any) -> str:
