@@ -1518,7 +1518,7 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
     target.setText(value.strip())
 
 
-def _edit_event_structure(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+def _edit_event_structure(button: Any, widgets: dict[str, Any], params: dict[str, Any]) -> None:
     """Insert, append, or delete the event currently shown in pop_editeventvals."""
     _qt_core, qt_widgets = _require_qt()
     displays = params["field_displays"]

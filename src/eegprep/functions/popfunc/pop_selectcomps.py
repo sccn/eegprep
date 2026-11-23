@@ -139,7 +139,7 @@ def _run_component_browser(EEG: dict[str, Any], compnum: list[int]) -> np.ndarra
     dialog = QtWidgets.QDialog()
     dialog.setObjectName("pop_selectcomps")
     dialog.setWindowTitle("Reject components by map - pop_selectcomps()")
-    dialog.setWindowModality(QtCore.Qt.ApplicationModal)
+    dialog.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
     layout = QtWidgets.QVBoxLayout(dialog)
     grid = QtWidgets.QGridLayout()
     shown = compnum[:PLOTS_PER_FIGURE]
@@ -153,7 +153,7 @@ def _run_component_browser(EEG: dict[str, Any], compnum: list[int]) -> np.ndarra
         chooser = QtWidgets.QDialog(dialog)
         chooser.setObjectName("pop_prop_reject")
         chooser.setWindowTitle(f"pop_prop() - component {component}")
-        chooser.setWindowModality(QtCore.Qt.ApplicationModal)
+        chooser.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         row = QtWidgets.QHBoxLayout(chooser)
         toggle = QtWidgets.QPushButton("REJECT" if flags[component - 1] else "ACCEPT")
         toggle.setObjectName("accept_reject")
@@ -214,7 +214,7 @@ def _run_component_browser(EEG: dict[str, Any], compnum: list[int]) -> np.ndarra
         actions.addWidget(action)
     layout.addLayout(actions)
     app.processEvents()
-    if dialog.exec() != QtWidgets.QDialog.Accepted:
+    if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
         return None
     return flags
 
