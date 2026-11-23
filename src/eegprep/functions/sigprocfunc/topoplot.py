@@ -25,10 +25,12 @@ def griddata_v4(x, y, v, xq, yq):
     vq : 2D array
         Interpolated values at query points.
     """
-    # Combine x and y into complex numbers for convenience
-    xy = x + 1j * y
+    # MATLAB griddata averages values at coincident points before calling gdatav4;
+    # otherwise 0*log(0) puts NaN off the diagonal and solve returns NaN weights.
+    xy, inverse = np.unique(x + 1j * y, return_inverse=True)
+    v = np.bincount(inverse, weights=v) / np.bincount(inverse)
 
-    d = np.abs(xy[:, None] - xy[None, :])
+    d =np.abs(xy[:, None] - xy[None, :])
 
     with np.errstate(divide='ignore', invalid='ignore'):
         g = (d**2) * (np.log(d) - 1)  # Green's function
@@ -178,7 +180,7 @@ def topoplot(datavector, chan_locs, **kwargs):
 
     if len(datavector) > 1:
         inds = np.union1d(np.where(np.isnan(datavector))[0], np.where(np.isinf(datavector))[0])
-        plotchans = list(set(plotchans) - set(inds))
+        plotchans = sorted(set(plotchans) - set(inds))
 
     x, y = np.cos(Th) * Rd, np.sin(Th) * Rd
     # Keep the original channel positions. Dropping a channel here would renumber
@@ -192,6 +194,9 @@ def topoplot(datavector, chan_locs, **kwargs):
     allchansind = np.array(allchansind)[plotchans]
     Th, Rd, x, y = Th[plotchans], Rd[plotchans], x[plotchans], y[plotchans]
     labels = np.array(labels)[plotchans]
+    if len(datavector) > 1:
+        datavector = datavector[plotchans]
+        ContourVals = ContourVals[plotchans]
 
     if np.isnan(plotrad):
         plotrad = min(1.0, max(Rd) * 1.02)

@@ -66,6 +66,20 @@ class TestGriddataV4(unittest.TestCase):
 
         assert np.isfinite(interpolated).all()
 
+    def test_coincident_points_average_like_matlab_griddata(self):
+        theta = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+        x, y = np.cos(theta), np.sin(theta)
+        values = np.linspace(-1, 1, 8)
+        query = np.linspace(-1, 1, 11)
+        xq, yq = np.meshgrid(query, query)
+
+        merged = values.copy()
+        merged[0] = 0.5 * (values[0] + 3.0)
+        expected = griddata_v4(x, y, merged, xq, yq)
+        actual = griddata_v4(np.append(x, x[0]), np.append(y, y[0]), np.append(values, 3.0), xq, yq)
+
+        np.testing.assert_allclose(actual, expected)
+
 
 class TestTopoplot(unittest.TestCase):
     """Test the topoplot function."""
@@ -107,6 +121,16 @@ class TestTopoplot(unittest.TestCase):
         if np.any(outside_head):
             outside_values = Zi[outside_head]
             self.assertTrue(np.all(np.isnan(outside_values)))
+
+    def test_nonfinite_value_drops_its_channel_without_shifting_others(self):
+        data = self.datavector.copy()
+        data[2] = np.nan
+        keep = [i for i in range(len(data)) if i != 2]
+
+        _, actual, _, _, _ = topoplot(data, self.chan_locs, noplot='on')
+        _, expected, _, _, _ = topoplot(data[keep], [self.chan_locs[i] for i in keep], noplot='on')
+
+        np.testing.assert_allclose(actual, expected, equal_nan=True)
 
     def test_missing_or_empty_channel_locations_name_the_problem(self):
         message = (
