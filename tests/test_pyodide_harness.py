@@ -425,6 +425,232 @@ def test_base_resolution_reports_declared_known_gaps(monkeypatch):
     assert "no wasm build yet" in result.source
 
 
+def _install_resolution_project(monkeypatch, tmp_path, dependencies, packages):
+    """Point the gate at a tiny project. ``packages`` is (name, version, dependency names)."""
+    dependency_text = ",\n".join(f"  {dependency!r}" for dependency in dependencies)
+    (tmp_path / "pyproject.toml").write_text(f'[project]\nname = "eegprep"\ndependencies = [\n{dependency_text},\n]\n')
+    edges = ",\n".join(f'    {{ name = "{name}", version = "{version}" }}' for name, version, _deps in packages)
+    blocks = [f'[[package]]\nname = "eegprep"\nsource = {{ editable = "." }}\ndependencies = [\n{edges},\n]\n']
+    for name, version, deps in packages:
+        dep_text = ""
+        if deps:
+            inner = ",\n".join(f'    {{ name = "{dep}" }}' for dep in deps)
+            dep_text = f"dependencies = [\n{inner},\n]\n"
+        blocks.append(
+            f'[[package]]\nname = "{name}"\nversion = "{version}"\n'
+            f'source = {{ registry = "https://pypi.org/simple" }}\n{dep_text}'
+        )
+    (tmp_path / "uv.lock").write_text("\n".join(blocks))
+    monkeypatch.setattr(check_pyodide_base_resolution, "PYPROJECT_PATH", tmp_path / "pyproject.toml")
+    monkeypatch.setattr(check_pyodide_base_resolution, "UV_LOCK_PATH", tmp_path / "uv.lock")
+
+
+def _release(*, requires=None, wheels=None):
+    return {
+        "info": {"requires_dist": requires or []},
+        "urls": [{"packagetype": "bdist_wheel", "filename": filename, "yanked": False} for filename in (wheels or [])],
+    }
+
+
+def _fetch_resolution(pyodide_packages, releases, projects=None):
+    projects = projects or {}
+    lock = {
+        "info": {"python": "3.13.2"},
+        "packages": {name: {"version": version} for name, version in pyodide_packages.items()},
+    }
+
+    def fetch(url):
+        if url == check_pyodide_base_resolution.PYODIDE_LOCK_URL:
+            return lock
+        for name, version, payload in releases:
+            expected = check_pyodide_base_resolution.PYPI_JSON_URL.format(name=name, version=version)
+            if url == expected:
+                return payload
+        for name, payload in projects.items():
+            expected = check_pyodide_base_resolution.PYPI_PROJECT_JSON_URL.format(name=name)
+            if url == expected:
+                return payload
+        raise AssertionError(f"unexpected fetch {url}")
+
+    return fetch
+
+
+def _result(monkeypatch, name):
+    results = check_pyodide_base_resolution.check_base_packages()
+    (result,) = [item for item in results if item.name == name]
+    return result
+
+
+def test_compiled_floor_above_the_bundled_version_fails_and_names_pyproject(tmp_path, monkeypatch):
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["scipy>=1.15"],
+        [("scipy", "1.15.3", [])],
+    )
+    compiled = "scipy-1.15.3-cp313-cp313-manylinux_2_17_x86_64.whl"
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"scipy": "1.14.1"},
+            [("scipy", "1.15.3", _release(wheels=[compiled]))],
+            {
+                "scipy": {
+                    "releases": {"1.15.3": [{"packagetype": "bdist_wheel", "filename": compiled, "yanked": False}]}
+                }
+            },
+        ),
+    )
+
+    result = _result(monkeypatch, "scipy")
+
+    assert result.status == "FAIL"
+    assert "scipy" in result.source
+    assert "1.14.1" in result.source
+    assert "scipy>=1.15" in result.source
+    assert "pyproject.toml" in result.source
+    assert "Lower the floor in pyproject.toml to <= 1.14.1" in result.source
+    assert "move to a Pyodide release that ships it" in result.source
+
+
+def test_universal_wheel_overrides_an_older_bundled_build(tmp_path, monkeypatch):
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["threadpoolctl>=3.6.0"],
+        [("threadpoolctl", "3.6.0", [])],
+    )
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"threadpoolctl": "3.5.0"},
+            [("threadpoolctl", "3.6.0", _release(wheels=["threadpoolctl-3.6.0-py3-none-any.whl"]))],
+        ),
+    )
+
+    result = _result(monkeypatch, "threadpoolctl")
+
+    assert result.status == "ok"
+    assert result.source == "pypi wheel, overrides bundled 3.5.0"
+
+
+def test_shipped_version_can_satisfy_a_specifier_the_lock_runs_ahead_of(tmp_path, monkeypatch):
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["scipy>=1.14.1; sys_platform != 'darwin'", "scipy>=1.16.3; sys_platform == 'darwin'"],
+        [("scipy", "1.15.3", [])],
+    )
+    compiled = "scipy-1.15.3-cp313-cp313-manylinux_2_17_x86_64.whl"
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"scipy": "1.14.1"},
+            [("scipy", "1.15.3", _release(requires=["numpy<2.5,>=1.23.5"], wheels=[compiled]))],
+        ),
+    )
+
+    result = _result(monkeypatch, "scipy")
+
+    assert result.version == "1.15.3"
+    assert result.status == "ok"
+    assert result.source == "pyodide-lock 1.14.1"
+
+
+def test_transitive_specifier_the_bundled_version_misses_fails(tmp_path, monkeypatch):
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["scipy>=1.14.1"],
+        [("scipy", "1.15.3", ["numpy"]), ("numpy", "2.2.5", [])],
+    )
+    numpy_wheel = "numpy-2.2.5-cp313-cp313-manylinux_2_17_x86_64.whl"
+    scipy_wheel = "scipy-1.15.3-cp313-cp313-manylinux_2_17_x86_64.whl"
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"scipy": "1.14.1", "numpy": "2.2.5"},
+            [
+                ("scipy", "1.15.3", _release(requires=["numpy>=2.3"], wheels=[scipy_wheel])),
+                ("numpy", "2.2.5", _release(wheels=[numpy_wheel])),
+            ],
+            {
+                "numpy": {
+                    "releases": {
+                        "2.2.5": [{"packagetype": "bdist_wheel", "filename": numpy_wheel, "yanked": False}],
+                        "2.3.0": [
+                            {
+                                "packagetype": "bdist_wheel",
+                                "filename": "numpy-2.3.0-cp313-cp313-manylinux_2_17_x86_64.whl",
+                                "yanked": False,
+                            }
+                        ],
+                    }
+                }
+            },
+        ),
+    )
+
+    result = _result(monkeypatch, "numpy")
+
+    assert result.status == "FAIL"
+    assert "numpy" in result.source
+    assert "2.2.5" in result.source
+    assert "numpy>=2.3" in result.source
+    assert "scipy==1.15.3" in result.source
+    assert "Lower the floor in scipy==1.15.3" in result.source
+
+
+def test_marker_inactive_under_emscripten_is_ignored(tmp_path, monkeypatch):
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["numpy>=2.1.0", "numpy>=9; sys_platform != 'emscripten'"],
+        [("numpy", "2.2.6", [])],
+    )
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"numpy": "2.2.5"},
+            [
+                (
+                    "numpy",
+                    "2.2.6",
+                    _release(requires=['numpy>=9; python_version < "3.9"']),
+                )
+            ],
+        ),
+    )
+
+    result = _result(monkeypatch, "numpy")
+
+    assert result.status == "ok"
+    assert result.source == "pyodide-lock 2.2.5"
+
+
+def test_print_pyodide_packages_matches_the_harness_list(monkeypatch, capsys):
+    fixture = json.loads((REPO_ROOT / "tests" / "data" / "pyodide-lock-0.29.5.json").read_text())
+
+    def fetch(url):
+        assert url == check_pyodide_base_resolution.PYODIDE_LOCK_URL
+        return fixture
+
+    monkeypatch.setattr(check_pyodide_base_resolution, "_fetch_json", fetch)
+
+    assert check_pyodide_base_resolution.main(["--print-pyodide-packages"]) == 0
+
+    printed = capsys.readouterr().out.splitlines()
+    runner = (REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs").read_text()
+    match = re.search(r"const PYODIDE_PACKAGES = \[(.*?)\];", runner, re.S)
+    harness = re.findall(r'"([^"]+)"', match.group(1))
+    assert printed == harness
+
+
 def test_pinned_pyodide_version_agrees_across_the_harness():
     package = json.loads((REPO_ROOT / "tools" / "pyodide" / "package.json").read_text())
     version = package["dependencies"]["pyodide"]
