@@ -31,8 +31,10 @@ from .transport import Transport, default_transport
 _UNTYPED = frozenset({"", "n/a", "nan"})
 
 
-def stored_channel_type(channel_type: str) -> str:
-    """The channel type to store. Blank, ``n/a`` and ``nan`` are ``''``."""
+def stored_channel_type(channel_type: str | None) -> str:
+    """The channel type to store. None, blank, ``n/a`` and ``nan`` are ``''``."""
+    if channel_type is None:
+        return ""
     text = channel_type.strip()
     if text.lower() in _UNTYPED:
         return ""

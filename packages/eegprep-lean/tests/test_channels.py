@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from eegprep_lean.channels import Channel, GroupMetadata, read_group_metadata
+from eegprep_lean.channels import Channel, GroupMetadata, read_group_metadata, stored_channel_type
 from eegprep_lean.index import IndexError_
 
 FIXTURE = Path(__file__).parent / "nm000103_group_v3.json"
@@ -161,6 +161,9 @@ class TestLabelsAndUnits:
         )
 
         assert metadata.types((0, 1, 2, 3, 4, 5)) == ("EEG", "", "ECG", "EOG", "", "")
+
+    def test_stored_channel_type_treats_none_as_empty(self) -> None:
+        assert stored_channel_type(None) == ""
 
 
 @pytest.mark.network

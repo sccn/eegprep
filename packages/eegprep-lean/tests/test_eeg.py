@@ -145,6 +145,13 @@ class TestTheDictionary:
         with pytest.raises(ValueError, match=r"to_eeg found 1 entries in Window.types for 3 channels"):
             to_eeg(typed, **IDS)
 
+    @pytest.mark.parametrize("channel_type", [None, 1])
+    def test_a_non_text_type_names_to_eeg(self, channel_type: object) -> None:
+        typed = dataclasses.replace(window(DATA), types=(channel_type, "EOG", "ECG"))
+
+        with pytest.raises(ValueError, match=rf"to_eeg found channel type {channel_type!r}, which is not text"):
+            to_eeg(typed, **IDS)
+
     def test_located_chanlocs_carry_the_channel_types_too(self) -> None:
         typed = dataclasses.replace(located(stated({"E1": ALS_MM["E1"]})), types=("EEG", "EEG", "ECG"))
 

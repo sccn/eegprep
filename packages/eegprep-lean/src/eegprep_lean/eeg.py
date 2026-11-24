@@ -130,7 +130,7 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
 
     When ``window.types`` is set, each ``chanlocs`` entry gets that channel's stored type.
     A window with ``types`` left unset has no ``type`` field. A count that does not match
-    the channels raises ``ValueError``.
+    the channels, or an entry that is not text, raises ``ValueError``.
     """
     labels = require_physical(window)
     factor = microvolts_per(window.unit)
@@ -159,6 +159,11 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
                 "Set Window.types to one string per channel, or leave types unset."
             )
         for chanloc, channel_type in zip(chanlocs, window.types):
+            if not isinstance(channel_type, str):
+                raise ValueError(
+                    f"to_eeg found channel type {channel_type!r}, which is not text. "
+                    "Set each Window.types entry to a string such as 'EEG', 'EOG', or 'ECG'."
+                )
             chanloc["type"] = stored_channel_type(channel_type)
 
     eeg = _emptyset()
