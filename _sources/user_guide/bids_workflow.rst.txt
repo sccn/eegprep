@@ -94,16 +94,14 @@ the ``subject`` argument. ``createids=True`` replaces the unique subjects
 with ``sub-001``, ``sub-002``, and so on, and ``participants.tsv`` has one
 row per subject. The export dialog records a command you can run again in
 ``eegprep-console``. EEGLAB leaves that history command empty. Importing a
-BIDS folder from the File menu loads the datasets into an in-memory study.
-It does not copy them into ``derivatives/eeglab``. The import field "Import
-only the following participant indices" takes 1-based positions in
+BIDS folder copies each dataset into ``derivatives/eeglab`` and returns
+``(STUDY, ALLEEG)``. A single file still returns that dataset. The import
+field "Import only the following participant indices" takes 1-based positions in
 ``participants.tsv`` (or in the sorted ``sub-*`` folders when that file is
 missing), such as ``2`` or ``1 2``. ``pop_importbids(..., subjects=[1, 2])``
 uses that same list, including when the dialog's history command is run again.
-A folder import from the dialog records ``[STUDY, ALLEEG] = pop_importbids(...)``
-with ``return_study`` on, plus any selected recordings. Running that command
-again rebuilds the same study. A direct call still returns the datasets unless
-``return_study=True``.
+A folder import records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not
+pass ``return_study``. Running that command again rebuilds the same study.
 
 This export is useful for learning EEGPrep's BIDS file handling. It is not a
 replacement for a curated experimental BIDS dataset with full study metadata.

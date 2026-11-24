@@ -706,7 +706,7 @@ and <code class="docutils literal notranslate"><span class="pre">latpoint0</span
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importegimat.html#eegprep.pop_importegimat" title="eegprep.pop_importegimat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importegimat</span></code></a>(filename[, srate, ...])</p></td>
 <td><p>Import a segmented or continuous EGI Net Station MATLAB file.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importepoch.html#eegprep.pop_importepoch" title="eegprep.pop_importepoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importepoch</span></code></a>(EEG[, filename, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importepoch.html#eegprep.pop_importepoch" title="eegprep.pop_importepoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importepoch</span></code></a>(-&gt; dict[str, ...)</p></td>
 <td><p>Import per-epoch metadata and construct its corresponding events.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importevent.html#eegprep.pop_importevent" title="eegprep.pop_importevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importevent</span></code></a>(EEG, *args[, ...])</p></td>
@@ -974,7 +974,7 @@ output layouts are not yet implemented.</p>
 <td><p>Precompute STUDY channel or component measures.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_savestudy.html#eegprep.pop_savestudy" title="eegprep.pop_savestudy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_savestudy</span></code></a>(STUDY[, EEG, ...])</p></td>
-<td><p>Save a STUDY structure as an EEGPrep JSON <code class="docutils literal notranslate"><span class="pre">.study</span></code> file.</p></td>
+<td><p>Save a STUDY structure.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_study.html#eegprep.pop_study" title="eegprep.pop_study"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_study</span></code></a>([STUDY, ALLEEG, name, ...])</p></td>
 <td><p>Create or edit a STUDY structure from loaded EEG datasets.</p></td>
@@ -982,10 +982,10 @@ output layouts are not yet implemented.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_studydesign.html#eegprep.pop_studydesign" title="eegprep.pop_studydesign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studydesign</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
 <td><p>Edit STUDY designs and select the current design.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_studyerp.html#eegprep.pop_studyerp" title="eegprep.pop_studyerp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studyerp</span></code></a>([ALLEEG, return_com])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_studyerp.html#eegprep.pop_studyerp" title="eegprep.pop_studyerp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studyerp</span></code></a>([ALLEEG, gui, ...])</p></td>
 <td><p>Create a STUDY marked as a simple ERP design.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_studywizard.html#eegprep.pop_studywizard" title="eegprep.pop_studywizard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studywizard</span></code></a>(filenames, *[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_studywizard.html#eegprep.pop_studywizard" title="eegprep.pop_studywizard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studywizard</span></code></a>([filenames, name, ...])</p></td>
 <td><p>Load selected datasets and create a STUDY.</p></td>
 </tr>
 </tbody>
@@ -1129,7 +1129,7 @@ output layouts are not yet implemented.</p>
 <td><p>Keep or remove continuous data around event types.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_runscript.html#eegprep.pop_runscript" title="eegprep.pop_runscript"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_runscript</span></code></a>(filename[, namespace])</p></td>
-<td><p>Run a Python history script selected by the user.</p></td>
+<td><p>Run a <code class="docutils literal notranslate"><span class="pre">.py</span></code>, <code class="docutils literal notranslate"><span class="pre">.m</span></code>, or <code class="docutils literal notranslate"><span class="pre">.txt</span></code> history script.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_signalstat.html#eegprep.pop_signalstat" title="eegprep.pop_signalstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_signalstat</span></code></a>([EEG, typeproc, ...])</p></td>
 <td><p>Compute and plot statistics for one channel or component.</p></td>

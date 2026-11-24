@@ -592,15 +592,28 @@ metadata and shapes.</p>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Load and save <code class="docutils literal notranslate"><span class="pre">.study</span></code> files. EEGPrep writes JSON. <code class="docutils literal notranslate"><span class="pre">pop_loadstudy</span></code> also
-reads an EEGLAB MATLAB STUDY, decoding its character arrays as Latin-1, and
-rebases dataset paths when the STUDY directory has moved:</p>
+<p>EEGPrep saves a <code class="docutils literal notranslate"><span class="pre">.study</span></code> file in MATLAB v6 format and falls back to v7.3
+if the study exceeds the v6 size limit. To write JSON, pass
+<code class="docutils literal notranslate"><span class="pre">fileformat='json'</span></code> or use a <code class="docutils literal notranslate"><span class="pre">.json</span></code> filename. Resaving at the existing
+path with <code class="docutils literal notranslate"><span class="pre">savemode='resave'</span></code> writes MATLAB. In both formats,
+<code class="docutils literal notranslate"><span class="pre">std_rmalldatafields</span></code> strips cached measures from the channel groups and
+component clusters on disk. The returned <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> keeps those measures.
+<code class="docutils literal notranslate"><span class="pre">pop_loadstudy</span></code> reads MATLAB and JSON, decodes MATLAB character arrays as
+Latin-1, and rebases dataset paths when the STUDY directory has moved.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadstudy</span><span class="p">,</span> <span class="n">pop_savestudy</span>
 
-<span class="n">STUDY</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_savestudy</span><span class="p">(</span><span class="n">STUDY</span><span class="p">,</span> <span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;analysis.study&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">STUDY</span><span class="p">,</span> <span class="n">ALLEEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_savestudy</span><span class="p">(</span><span class="n">STUDY</span><span class="p">,</span> <span class="n">ALLEEG</span><span class="p">,</span> <span class="s2">&quot;analysis.study&quot;</span><span class="p">)</span>
 <span class="n">STUDY</span><span class="p">,</span> <span class="n">ALLEEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_loadstudy</span><span class="p">(</span><span class="s2">&quot;analysis.study&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>To save edited datasets with the STUDY, pass <code class="docutils literal notranslate"><span class="pre">resavedatasets=&quot;on&quot;</span></code> or choose
+<strong>Yes</strong> when <strong>File &gt; Save current study</strong> asks to resave modified datasets.
+EEGPrep writes only datasets marked <code class="docutils literal notranslate"><span class="pre">saved=&quot;no&quot;</span></code> and marks each one
+<code class="docutils literal notranslate"><span class="pre">&quot;yes&quot;</span></code> in the returned <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> after saving it. Datasets marked
+<code class="docutils literal notranslate"><span class="pre">&quot;yes&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;justloaded&quot;</span></code> are skipped, so you can save edited derivatives
+in a study that also contains raw BIDS recordings.
+EEGLAB resaves a dataset marked <code class="docutils literal notranslate"><span class="pre">&quot;justloaded&quot;</span></code>, but EEGPrep skips it
+because it has not changed since loading.</p>
 <p>Precompute and plot STUDY measures:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_chanplot</span><span class="p">,</span> <span class="n">pop_precomp</span><span class="p">,</span> <span class="n">std_erpplot</span><span class="p">,</span> <span class="n">std_readitc</span>
 
@@ -689,7 +702,7 @@ run <code class="docutils literal notranslate"><span class="pre">pop_precomp(...
 <code class="docutils literal notranslate"><span class="pre">std_uniformsetinds</span></code> to audit loaded dataset consistency and cached measure
 shapes before saving or plotting group-level results. <code class="docutils literal notranslate"><span class="pre">std_savedat</span></code> writes
 explicit EEGPrep-owned JSON or MATLAB-compatible measure sidecars when a
-workflow needs a durable array file outside the <code class="docutils literal notranslate"><span class="pre">.study</span></code> JSON.</p>
+workflow needs a durable array file alongside the <code class="docutils literal notranslate"><span class="pre">.study</span></code> file.</p>
 <p>Select datasets or trials from STUDY metadata:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">std_getindvar</span><span class="p">,</span> <span class="n">std_maketrialinfo</span><span class="p">,</span> <span class="n">std_selectdataset</span>
 

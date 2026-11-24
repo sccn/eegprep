@@ -124,7 +124,7 @@ loaded datasets``).
 
  .. code-block:: none
 
-    history: STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='Tutorial group study')
+    history: [STUDY ALLEEG] = std_editset(STUDY, ALLEEG, 'name', 'Tutorial group study', 'updatedat', 'on');
     subjects: ['S01', 'S02', 'S03', 'S04']
 
 
@@ -291,7 +291,7 @@ Save and reload the ``.study`` file (``File > Save current study as`` and
 
     with TemporaryDirectory() as tmp:
         path = Path(tmp) / "tutorial.study"
-        STUDY, com = pop_savestudy(STUDY, ALLEEG, filename=str(path), return_com=True)
+        STUDY, ALLEEG, com = pop_savestudy(STUDY, ALLEEG, filename=str(path))
         RELOADED, RELOADED_ALLEEG, com = pop_loadstudy(str(path), return_com=True)
         print("reloaded:", RELOADED["name"], "datasets:", len(RELOADED_ALLEEG))
         print("reloaded clusters:", len(RELOADED["cluster"]))
@@ -312,7 +312,7 @@ Save and reload the ``.study`` file (``File > Save current study as`` and
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 4.522 seconds)
+   **Total running time of the script:** (0 minutes 4.210 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_group_analysis_study.py:

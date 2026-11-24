@@ -650,9 +650,10 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_runscript">
 <span class="sig-name descname"><span class="pre">pop_runscript</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_runscript" title="Link to this definition">#</a></dt>
-<dd><p>Run a Python history script selected by the user.</p>
-<p>The selected Python file is executed in-process; MATLAB <code class="docutils literal notranslate"><span class="pre">.m</span></code> scripts are
-not run by EEGPrep.</p>
+<dd><p>Run a <code class="docutils literal notranslate"><span class="pre">.py</span></code>, <code class="docutils literal notranslate"><span class="pre">.m</span></code>, or <code class="docutils literal notranslate"><span class="pre">.txt</span></code> history script.</p>
+<p>Python files are executed as written. MATLAB and text history is translated
+with the same converter the console uses. A line that is still not Python
+after that translation is named in the error.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

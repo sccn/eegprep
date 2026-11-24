@@ -669,6 +669,95 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``test_missing_or_empty_channel_locations_name_the_problem`` locks
        the EEGPrep error.
 
+File menu and data I/O
+=======================
+
+These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
+
+* Datasets stay ``float64``. ``option_single`` is shown in Preferences and has
+  no effect. Applying it would change results that are already checked against
+  EEGLAB.
+* ``pop_chanevent`` accepts comparisons, arithmetic, ``abs``, ``round``,
+  ``bitand``, ``&``, ``|``, and parentheses. It does not evaluate arbitrary
+  MATLAB text. ``pop_chanevent.m`` line 225 prefixes ``X =`` only when the
+  expression contains no ``=``, so ``round(X) == -3``, ``>=``, ``<=``, and
+  ``~=`` leave the channel unchanged in EEGLAB. EEGPrep evaluates those
+  comparisons. ``bitand`` on a negative or non-integer channel raises an
+  error that names ``pop_chanevent`` and tells you to round or take the
+  absolute value first. EEGLAB errors on those inputs as well, and it also
+  rejects ``bitand(abs(round(X)),1)`` when ``EEG.data`` is single precision.
+* ``pop_participantinfo`` records
+  ``[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);``, the line
+  EEGLAB writes (``pop_participantinfo.m``). EEGLAB's function is
+  interactive-only: a ``'rows'`` argument opens the table and does not apply
+  the rows, so a batch MATLAB session hangs. EEGPrep's ``rows`` argument
+  scripts that table. Replay the recorded line in EEGLAB to open the dialog.
+* A Neuroscan CNT import keeps the file length. EEGLAB's reader can append
+  three extra samples. ``loadcnt`` stores the same 0-based sample offset as
+  MATLAB ``loadcnt``, and ``pop_loadcnt`` adds 1, matching ``pop_loadcnt.m``
+  line 152. The first boundary is kept because its duration is left unset.
+* File-IO names an empty discontinuity annotation ``boundary``. EEGLAB's
+  file-io plugin can leave that type empty.
+* ``pop_saveset`` creates a missing folder. EEGLAB errors when the folder does
+  not exist. A failed save does not leave a partial ``.set`` or ``.fdt``, and
+  it does not replace a file that was already there.
+* BIDS import writes the derivative ``.set`` datasets and the ``.study`` file
+  to disk under ``derivatives/eeglab``, next to the data. A read-only location
+  such as a DataLad or OpenNeuro mount fails because those files cannot be
+  written there. Copy the dataset to a writable folder and import that copy.
+  The import does not modify the raw BIDS
+  folder. Resave of a file inside the raw folder is refused. A folder import
+  records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not pass
+  ``return_study``, which EEGLAB rejects. A recording with no ``ses-`` folder
+  is written under ``sub-<label>/eeg``.
+* File > Quit asks before discarding unsaved datasets. EEGLAB's Quit callback
+  (``eeglab.m`` line 619) closes the window without asking. Cancel keeps
+  EEGPrep open so the datasets can be saved first.
+* An MFF clock latency is the exact microsecond difference between the event
+  ``beginTime`` and the recording ``recordTime``, times ``srate``. On the
+  bundled ``testmff`` recording the first ``stm+`` is 203960 microseconds
+  after the record time, which is 50.99 samples at 250 Hz, and the epoch
+  latency is -2.042 ms. EEGLAB reports 50.990568 samples.
+  ``mff_decodetime.m`` uses ``1.15251e-11`` days per microsecond, about 0.42%
+  below ``1e-6/86400`` (``1.157407e-11``). MATLAB's string ``datenum`` then
+  mis-parses the timestamp by 0.16 to 2.44 microseconds. EEGPrep does not
+  copy either error. ``classid`` is ``EVNT`` when the XML omits it, which is
+  ``Event.getClassID()``. ``mffkeys`` is ``char(keylist)`` with a space after
+  each colon: ``[cel#: 1, obs#: 3, ...]``. Category events use the same key
+  text, for example ``[#seg: 15, subj: ...]``, keep ``classid`` empty, and
+  include ``mffkeysbackup``. Category segments keep the ``status`` attribute
+  from ``<seg status="...">``, and track events carry the same field.
+* The BIDS export wizard opens from an empty session: a welcome page, then a
+  file grid with one task per file. The welcome button is ``Continue``. The
+  grid shows 10 numbered rows per page, a ``browse`` column header, a browse
+  button and a ``Clear`` button on each row, and ``<`` ``>`` page buttons.
+  The Clear column has no header. ``pop_studywizard.m`` writes the button as
+  ``CLear``; ``supergui`` displays ``Clear``, and that is the label EEGPrep
+  uses. ``Clear`` empties that row. ``pop_studywizard`` has the same per-row
+  button.
+  Participant info is one row per dataset, and event-field Levels, LongName,
+  Description, and Units are written to one ``task-<task>_events.json`` at
+  the dataset root. Power-line frequency is stored as a number when the EEG
+  or the prompt supplies 50 or 60, and stays ``n/a`` when a scripted export
+  has no value. The export asks for the frequency when that field is still
+  ``n/a``.
+* BIDS coordinate-system names drop ``task-``, ``desc-``, and ``run-``.
+  EEGLAB's electrode writer drops only ``task-`` and ``desc-`` and can emit a
+  ``run-`` name that the BIDS validator rejects. The ``sample`` column in
+  ``events.tsv`` is the integer sample index.
+* EDF export keeps events as EDF+ annotations and does not pad the recording.
+  EEGLAB can add an event channel and drop annotations.
+* ``pop_studyerp`` fills subject codes ``S01``, ``S02``, ... from the subject
+  index. EEGLAB does the same with ``sprintf('S%2.2d', index)`` and does not
+  wait for those codes to be typed. Each dataset cell has a browse button,
+  and the commands are ordered with condition as the outer loop.
+* The task-info dialog scrolls. EEGLAB draws a dialog taller than a laptop
+  screen.
+* ``pop_importerplab`` Cancel returns without changing the dataset. EEGLAB
+  errors on Cancel.
+* The main-window size in MB rounds half away from zero to one decimal.
+  Python object sizes can still differ from MATLAB ``whos``.
+
 Plugin Migration
 ================
 

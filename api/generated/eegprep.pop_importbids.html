@@ -657,11 +657,12 @@ stay UTF-8, and a leading UTF-8 BOM is removed.</p>
 <p><code class="docutils literal notranslate"><span class="pre">gui=True</span></code> shows the options dialog from <code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines
 104-164. <code class="docutils literal notranslate"><span class="pre">subjects=[1,</span> <span class="pre">2]</span></code> selects 1-based rows of <code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code>
 (or sorted <code class="docutils literal notranslate"><span class="pre">sub-*</span></code> folders when that file is missing), the same indices
-the dialog records. <code class="docutils literal notranslate"><span class="pre">return_study=True</span></code> returns an in-memory STUDY. EEGLAB also
-copies every dataset into <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> (<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code>
-lines 839 and 892). This function does not write that copy. A folder
-import opened from the dialog records <code class="docutils literal notranslate"><span class="pre">[STUDY,</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span>
-<span class="pre">pop_importbids(...)</span></code> with <code class="docutils literal notranslate"><span class="pre">return_study</span></code> on, matching that return.</p>
+the dialog records. A folder import copies every dataset into
+<code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> (or <code class="docutils literal notranslate"><span class="pre">outputdir</span></code>) and writes a <code class="docutils literal notranslate"><span class="pre">.study</span></code> file
+there, next to the data. A read-only location such as a DataLad or
+OpenNeuro mount cannot store those files; copy the dataset to a writable
+folder and import that copy. The raw BIDS folder is not modified. History is
+<code class="docutils literal notranslate"><span class="pre">[STUDY,</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code> without a <code class="docutils literal notranslate"><span class="pre">return_study</span></code> option.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

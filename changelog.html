@@ -501,12 +501,30 @@ components opens <code class="docutils literal notranslate"><span class="pre">po
 MRI head-model creation and eLORETA stay disabled, with a tooltip that
 names the missing FieldTrip step and the template or autofit alternative.
 (#675)</p></li>
+<li><p>File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
+<code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> and refuses to resave a raw BIDS file. <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code>
+replaces the <code class="docutils literal notranslate"><span class="pre">.set</span></code> and <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> only after both temporary files are
+written. <code class="docutils literal notranslate"><span class="pre">pop_savestudy</span></code> writes an EEGLAB MATLAB v6 <code class="docutils literal notranslate"><span class="pre">.study</span></code> and still
+reads JSON. <code class="docutils literal notranslate"><span class="pre">pop_chanevent</span></code> evaluates <code class="docutils literal notranslate"><span class="pre">X&gt;50</span></code> as numbers, and epoched
+<code class="docutils literal notranslate"><span class="pre">pop_export</span></code> uses column-major order and LF line endings. CNT events copy
+the reader’s 1-based offset and do not set a duration. The BIDS export
+wizard runs with no dataset loaded. Participant and event editors write one
+row per subject and the events.json field table. Segmented MFF imports
+are in microvolts, with epoch timing and event-track events. A <code class="docutils literal notranslate"><span class="pre">.study</span></code>
+cluster <code class="docutils literal notranslate"><span class="pre">sets</span></code> matrix stays numeric, including the MATLAB v7.3 fallback.
+Datasets stay float64; <code class="docutils literal notranslate"><span class="pre">option_single</span></code> has no effect. Electrode
+coordinates use six digits after the decimal, and a missing coordinate
+stays <code class="docutils literal notranslate"><span class="pre">n/a</span></code>. Save study keeps the resaved datasets in the session.
+Quit and study resave use the same raw-BIDS refusal as <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code>.
+Replacing a mapped <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> leaves an open array view readable; on Windows
+that resave is refused until the view is closed or the dataset is saved
+as a new file. (#673)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;]</span></code> records pAMICA sample rejection with the EEGLAB
 settings: <code class="docutils literal notranslate"><span class="pre">do_reject</span></code> off, <code class="docutils literal notranslate"><span class="pre">maxrej</span></code> 3 (EEGLAB’s <code class="docutils literal notranslate"><span class="pre">numrej</span></code>), <code class="docutils literal notranslate"><span class="pre">rejsig</span></code>
 3.0, <code class="docutils literal notranslate"><span class="pre">rejstart</span></code> 2 and <code class="docutils literal notranslate"><span class="pre">rejint</span></code> 3. The outcome is <code class="docutils literal notranslate"><span class="pre">rejection_passes</span></code>,
 <code class="docutils literal notranslate"><span class="pre">n_good_samples</span></code> and <code class="docutils literal notranslate"><span class="pre">n_rejected_samples</span></code>, counts only. With rejection
 on, <code class="docutils literal notranslate"><span class="pre">returned_iter</span></code> is the iterate the weights come from and <code class="docutils literal notranslate"><span class="pre">best_iter</span></code>
-is omitted.</p></li>
+is omitted. (#674)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">topoplot</span></code> averages sensors that MATLAB <code class="docutils literal notranslate"><span class="pre">griddata</span></code> treats as the same
 point. A separation equal to the axis tolerance stays separate, matching
 <code class="docutils literal notranslate"><span class="pre">mergesimpts</span></code> strict <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>. <code class="docutils literal notranslate"><span class="pre">plotchans</span></code> selects 1-based channel indices,
@@ -979,12 +997,11 @@ remain findings. Baseline processing and stored tolerances are unchanged.</p></l
 <code class="docutils literal notranslate"><span class="pre">pop_select</span></code>’s 0-based indices (#543). Duplicate-channel draws use the
 cropped channel count. Python out-of-range errors name <code class="docutils literal notranslate"><span class="pre">pop_select</span></code>, the
 invalid indices, <code class="docutils literal notranslate"><span class="pre">nbchan</span></code>, and the valid Python and EEGLAB/GUI ranges.</p></li>
-<li><p>Replaying a folder import records <code class="docutils literal notranslate"><span class="pre">[STUDY,</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code>
-with <code class="docutils literal notranslate"><span class="pre">return_study</span></code> on, so the console rebuilds the same study.
-<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> always returns <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> and <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>. The direct
-call still returns the datasets unless <code class="docutils literal notranslate"><span class="pre">return_study=True</span></code>. The history
-also keeps the dialog’s <code class="docutils literal notranslate"><span class="pre">recordings</span></code> selection, along with task, session,
-run, and subject.</p></li>
+<li><p>A folder import returns <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> and <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> and records
+<code class="docutils literal notranslate"><span class="pre">[STUDY</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code>. It does not pass <code class="docutils literal notranslate"><span class="pre">return_study</span></code>,
+which EEGLAB rejects. A single file still returns that dataset. The history also
+keeps the dialog’s <code class="docutils literal notranslate"><span class="pre">recordings</span></code> selection, along with task, session, run,
+and subject.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_importbids(...,</span> <span class="pre">subjects=[1,</span> <span class="pre">2])</span></code> uses the same 1-based participant
 indices as the import dialog (<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 163 and 281).
 Replaying the recorded <code class="docutils literal notranslate"><span class="pre">'subjects',</span> <span class="pre">[1</span> <span class="pre">2]</span></code> command selects those
@@ -1140,9 +1157,9 @@ An empty subject code raises an error from <code class="docutils literal notrans
 <li><p>Importing a BIDS dataset replaces a missing <code class="docutils literal notranslate"><span class="pre">chaninfo.plotrad</span></code> or
 <code class="docutils literal notranslate"><span class="pre">chaninfo.shrink</span></code> with an empty array, so File &gt; Save no longer fails while
 <code class="docutils literal notranslate"><span class="pre">savemat</span></code> is writing those fields. The import dialog matches
-<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 104-164 and loads an in-memory study. It does not
-copy datasets into <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> (<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 839 and
-892 do).</p></li>
+<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 104-164, copies each dataset into
+<code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code>, and returns the in-memory study with those datasets
+(<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 839 and 892).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_writeeeg</span></code> keeps every EDF and BDF sample and every event annotation.
 EEGLAB <code class="docutils literal notranslate"><span class="pre">writeeeg.m</span></code> line 139 shortens a block longer than 1000 samples to
 one second (<code class="docutils literal notranslate"><span class="pre">round(srate)</span></code> samples per record). Biosig then pads the file

@@ -319,7 +319,7 @@ dataset through ``pop_chanedit``.
 
 BIDS: export a dataset to a BIDS folder and import it back.
 
-.. GENERATED FROM PYTHON SOURCE LINES 163-172
+.. GENERATED FROM PYTHON SOURCE LINES 163-178
 
 .. code-block:: Python
 
@@ -328,9 +328,15 @@ BIDS: export a dataset to a BIDS folder and import it back.
     eegprep.pop_exportbids(continuous, bids_root, subject="01", task="tutorial")
     print("bids files:", sorted(p.relative_to(bids_root).as_posix() for p in bids_root.rglob("*") if p.is_file())[:6])
 
-    reimported = eegprep.pop_importbids(bids_root)
-    datasets = reimported if isinstance(reimported, list) else [reimported]
-    print("imported from BIDS:", len(datasets), "dataset(s);", datasets[0]["nbchan"], "channels")
+    study, datasets = eegprep.pop_importbids(bids_root)
+    print(
+        "imported from BIDS:",
+        study["name"],
+        len(datasets),
+        "dataset(s);",
+        datasets[0]["nbchan"],
+        "channels",
+    )
 
 
 
@@ -340,17 +346,17 @@ BIDS: export a dataset to a BIDS folder and import it back.
 
  .. code-block:: none
 
-    bids files: ['README', 'dataset_description.json', 'participants.tsv', 'sub-01/eeg/sub-01_run-01_coordsystem.json', 'sub-01/eeg/sub-01_run-01_electrodes.tsv', 'sub-01/eeg/sub-01_task-tutorial_run-01_channels.tsv']
-    imported from BIDS: 1 dataset(s); 32 channels
+    bids files: ['README', 'dataset_description.json', 'participants.json', 'participants.tsv', 'sub-01/eeg/sub-01_coordsystem.json', 'sub-01/eeg/sub-01_electrodes.tsv']
+    imported from BIDS: bids 1 dataset(s); 32 channels
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 173-174
+.. GENERATED FROM PYTHON SOURCE LINES 179-180
 
 Clean up the temporary directory used by this example.
 
-.. GENERATED FROM PYTHON SOURCE LINES 174-176
+.. GENERATED FROM PYTHON SOURCE LINES 180-182
 
 .. code-block:: Python
 
@@ -366,7 +372,7 @@ Clean up the temporary directory used by this example.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.118 seconds)
+   **Total running time of the script:** (0 minutes 2.190 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_import_data.py:

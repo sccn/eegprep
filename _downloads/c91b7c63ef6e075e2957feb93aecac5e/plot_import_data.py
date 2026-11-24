@@ -165,9 +165,15 @@ bids_root = tmpdir / "bids"
 eegprep.pop_exportbids(continuous, bids_root, subject="01", task="tutorial")
 print("bids files:", sorted(p.relative_to(bids_root).as_posix() for p in bids_root.rglob("*") if p.is_file())[:6])
 
-reimported = eegprep.pop_importbids(bids_root)
-datasets = reimported if isinstance(reimported, list) else [reimported]
-print("imported from BIDS:", len(datasets), "dataset(s);", datasets[0]["nbchan"], "channels")
+study, datasets = eegprep.pop_importbids(bids_root)
+print(
+    "imported from BIDS:",
+    study["name"],
+    len(datasets),
+    "dataset(s);",
+    datasets[0]["nbchan"],
+    "channels",
+)
 
 # %%
 # Clean up the temporary directory used by this example.

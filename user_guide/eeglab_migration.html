@@ -1264,6 +1264,95 @@ the EEGPrep error.</p></td>
 </table>
 </div>
 </section>
+<section id="file-menu-and-data-i-o">
+<h2>File menu and data I/O<a class="headerlink" href="#file-menu-and-data-i-o" title="Link to this heading">#</a></h2>
+<p>These choices differ from the EEGLAB pin <code class="docutils literal notranslate"><span class="pre">8ac485f6</span></code> on purpose.</p>
+<ul class="simple">
+<li><p>Datasets stay <code class="docutils literal notranslate"><span class="pre">float64</span></code>. <code class="docutils literal notranslate"><span class="pre">option_single</span></code> is shown in Preferences and has
+no effect. Applying it would change results that are already checked against
+EEGLAB.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_chanevent</span></code> accepts comparisons, arithmetic, <code class="docutils literal notranslate"><span class="pre">abs</span></code>, <code class="docutils literal notranslate"><span class="pre">round</span></code>,
+<code class="docutils literal notranslate"><span class="pre">bitand</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;</span></code>, <code class="docutils literal notranslate"><span class="pre">|</span></code>, and parentheses. It does not evaluate arbitrary
+MATLAB text. <code class="docutils literal notranslate"><span class="pre">pop_chanevent.m</span></code> line 225 prefixes <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">=</span></code> only when the
+expression contains no <code class="docutils literal notranslate"><span class="pre">=</span></code>, so <code class="docutils literal notranslate"><span class="pre">round(X)</span> <span class="pre">==</span> <span class="pre">-3</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">~=</span></code> leave the channel unchanged in EEGLAB. EEGPrep evaluates those
+comparisons. <code class="docutils literal notranslate"><span class="pre">bitand</span></code> on a negative or non-integer channel raises an
+error that names <code class="docutils literal notranslate"><span class="pre">pop_chanevent</span></code> and tells you to round or take the
+absolute value first. EEGLAB errors on those inputs as well, and it also
+rejects <code class="docutils literal notranslate"><span class="pre">bitand(abs(round(X)),1)</span></code> when <code class="docutils literal notranslate"><span class="pre">EEG.data</span></code> is single precision.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_participantinfo</span></code> records
+<code class="docutils literal notranslate"><span class="pre">[EEG,</span> <span class="pre">STUDY,</span> <span class="pre">command]</span> <span class="pre">=</span> <span class="pre">pop_participantinfo(EEG,</span> <span class="pre">STUDY);</span></code>, the line
+EEGLAB writes (<code class="docutils literal notranslate"><span class="pre">pop_participantinfo.m</span></code>). EEGLAB’s function is
+interactive-only: a <code class="docutils literal notranslate"><span class="pre">'rows'</span></code> argument opens the table and does not apply
+the rows, so a batch MATLAB session hangs. EEGPrep’s <code class="docutils literal notranslate"><span class="pre">rows</span></code> argument
+scripts that table. Replay the recorded line in EEGLAB to open the dialog.</p></li>
+<li><p>A Neuroscan CNT import keeps the file length. EEGLAB’s reader can append
+three extra samples. <code class="docutils literal notranslate"><span class="pre">loadcnt</span></code> stores the same 0-based sample offset as
+MATLAB <code class="docutils literal notranslate"><span class="pre">loadcnt</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_loadcnt</span></code> adds 1, matching <code class="docutils literal notranslate"><span class="pre">pop_loadcnt.m</span></code>
+line 152. The first boundary is kept because its duration is left unset.</p></li>
+<li><p>File-IO names an empty discontinuity annotation <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. EEGLAB’s
+file-io plugin can leave that type empty.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> creates a missing folder. EEGLAB errors when the folder does
+not exist. A failed save does not leave a partial <code class="docutils literal notranslate"><span class="pre">.set</span></code> or <code class="docutils literal notranslate"><span class="pre">.fdt</span></code>, and
+it does not replace a file that was already there.</p></li>
+<li><p>BIDS import writes the derivative <code class="docutils literal notranslate"><span class="pre">.set</span></code> datasets and the <code class="docutils literal notranslate"><span class="pre">.study</span></code> file
+to disk under <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code>, next to the data. A read-only location
+such as a DataLad or OpenNeuro mount fails because those files cannot be
+written there. Copy the dataset to a writable folder and import that copy.
+The import does not modify the raw BIDS
+folder. Resave of a file inside the raw folder is refused. A folder import
+records <code class="docutils literal notranslate"><span class="pre">[STUDY</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code> and does not pass
+<code class="docutils literal notranslate"><span class="pre">return_study</span></code>, which EEGLAB rejects. A recording with no <code class="docutils literal notranslate"><span class="pre">ses-</span></code> folder
+is written under <code class="docutils literal notranslate"><span class="pre">sub-&lt;label&gt;/eeg</span></code>.</p></li>
+<li><p>File &gt; Quit asks before discarding unsaved datasets. EEGLAB’s Quit callback
+(<code class="docutils literal notranslate"><span class="pre">eeglab.m</span></code> line 619) closes the window without asking. Cancel keeps
+EEGPrep open so the datasets can be saved first.</p></li>
+<li><p>An MFF clock latency is the exact microsecond difference between the event
+<code class="docutils literal notranslate"><span class="pre">beginTime</span></code> and the recording <code class="docutils literal notranslate"><span class="pre">recordTime</span></code>, times <code class="docutils literal notranslate"><span class="pre">srate</span></code>. On the
+bundled <code class="docutils literal notranslate"><span class="pre">testmff</span></code> recording the first <code class="docutils literal notranslate"><span class="pre">stm+</span></code> is 203960 microseconds
+after the record time, which is 50.99 samples at 250 Hz, and the epoch
+latency is -2.042 ms. EEGLAB reports 50.990568 samples.
+<code class="docutils literal notranslate"><span class="pre">mff_decodetime.m</span></code> uses <code class="docutils literal notranslate"><span class="pre">1.15251e-11</span></code> days per microsecond, about 0.42%
+below <code class="docutils literal notranslate"><span class="pre">1e-6/86400</span></code> (<code class="docutils literal notranslate"><span class="pre">1.157407e-11</span></code>). MATLAB’s string <code class="docutils literal notranslate"><span class="pre">datenum</span></code> then
+mis-parses the timestamp by 0.16 to 2.44 microseconds. EEGPrep does not
+copy either error. <code class="docutils literal notranslate"><span class="pre">classid</span></code> is <code class="docutils literal notranslate"><span class="pre">EVNT</span></code> when the XML omits it, which is
+<code class="docutils literal notranslate"><span class="pre">Event.getClassID()</span></code>. <code class="docutils literal notranslate"><span class="pre">mffkeys</span></code> is <code class="docutils literal notranslate"><span class="pre">char(keylist)</span></code> with a space after
+each colon: <code class="docutils literal notranslate"><span class="pre">[cel#:</span> <span class="pre">1,</span> <span class="pre">obs#:</span> <span class="pre">3,</span> <span class="pre">...]</span></code>. Category events use the same key
+text, for example <code class="docutils literal notranslate"><span class="pre">[#seg:</span> <span class="pre">15,</span> <span class="pre">subj:</span> <span class="pre">...]</span></code>, keep <code class="docutils literal notranslate"><span class="pre">classid</span></code> empty, and
+include <code class="docutils literal notranslate"><span class="pre">mffkeysbackup</span></code>. Category segments keep the <code class="docutils literal notranslate"><span class="pre">status</span></code> attribute
+from <code class="docutils literal notranslate"><span class="pre">&lt;seg</span> <span class="pre">status=&quot;...&quot;&gt;</span></code>, and track events carry the same field.</p></li>
+<li><p>The BIDS export wizard opens from an empty session: a welcome page, then a
+file grid with one task per file. The welcome button is <code class="docutils literal notranslate"><span class="pre">Continue</span></code>. The
+grid shows 10 numbered rows per page, a <code class="docutils literal notranslate"><span class="pre">browse</span></code> column header, a browse
+button and a <code class="docutils literal notranslate"><span class="pre">Clear</span></code> button on each row, and <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> page buttons.
+The Clear column has no header. <code class="docutils literal notranslate"><span class="pre">pop_studywizard.m</span></code> writes the button as
+<code class="docutils literal notranslate"><span class="pre">CLear</span></code>; <code class="docutils literal notranslate"><span class="pre">supergui</span></code> displays <code class="docutils literal notranslate"><span class="pre">Clear</span></code>, and that is the label EEGPrep
+uses. <code class="docutils literal notranslate"><span class="pre">Clear</span></code> empties that row. <code class="docutils literal notranslate"><span class="pre">pop_studywizard</span></code> has the same per-row
+button.
+Participant info is one row per dataset, and event-field Levels, LongName,
+Description, and Units are written to one <code class="docutils literal notranslate"><span class="pre">task-&lt;task&gt;_events.json</span></code> at
+the dataset root. Power-line frequency is stored as a number when the EEG
+or the prompt supplies 50 or 60, and stays <code class="docutils literal notranslate"><span class="pre">n/a</span></code> when a scripted export
+has no value. The export asks for the frequency when that field is still
+<code class="docutils literal notranslate"><span class="pre">n/a</span></code>.</p></li>
+<li><p>BIDS coordinate-system names drop <code class="docutils literal notranslate"><span class="pre">task-</span></code>, <code class="docutils literal notranslate"><span class="pre">desc-</span></code>, and <code class="docutils literal notranslate"><span class="pre">run-</span></code>.
+EEGLAB’s electrode writer drops only <code class="docutils literal notranslate"><span class="pre">task-</span></code> and <code class="docutils literal notranslate"><span class="pre">desc-</span></code> and can emit a
+<code class="docutils literal notranslate"><span class="pre">run-</span></code> name that the BIDS validator rejects. The <code class="docutils literal notranslate"><span class="pre">sample</span></code> column in
+<code class="docutils literal notranslate"><span class="pre">events.tsv</span></code> is the integer sample index.</p></li>
+<li><p>EDF export keeps events as EDF+ annotations and does not pad the recording.
+EEGLAB can add an event channel and drop annotations.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_studyerp</span></code> fills subject codes <code class="docutils literal notranslate"><span class="pre">S01</span></code>, <code class="docutils literal notranslate"><span class="pre">S02</span></code>, … from the subject
+index. EEGLAB does the same with <code class="docutils literal notranslate"><span class="pre">sprintf('S%2.2d',</span> <span class="pre">index)</span></code> and does not
+wait for those codes to be typed. Each dataset cell has a browse button,
+and the commands are ordered with condition as the outer loop.</p></li>
+<li><p>The task-info dialog scrolls. EEGLAB draws a dialog taller than a laptop
+screen.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_importerplab</span></code> Cancel returns without changing the dataset. EEGLAB
+errors on Cancel.</p></li>
+<li><p>The main-window size in MB rounds half away from zero to one decimal.
+Python object sizes can still differ from MATLAB <code class="docutils literal notranslate"><span class="pre">whos</span></code>.</p></li>
+</ul>
+</section>
 <section id="plugin-migration">
 <h2>Plugin Migration<a class="headerlink" href="#plugin-migration" title="Link to this heading">#</a></h2>
 <p>Bundled plugins are importable from <code class="docutils literal notranslate"><span class="pre">eegprep</span></code>:</p>
@@ -1338,6 +1427,7 @@ behavior.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indexing-boundaries">Indexing Boundaries</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#matlab-structure-transport">MATLAB Structure Transport</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#known-differences-from-eeglab">Known Differences from EEGLAB</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-menu-and-data-i-o">File menu and data I/O</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plugin-migration">Plugin Migration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-to-stay-in-mne-or-matlab">When to Stay in MNE or MATLAB</a></li>
 </ul>

@@ -611,16 +611,14 @@ the <code class="docutils literal notranslate"><span class="pre">subject</span><
 with <code class="docutils literal notranslate"><span class="pre">sub-001</span></code>, <code class="docutils literal notranslate"><span class="pre">sub-002</span></code>, and so on, and <code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code> has one
 row per subject. The export dialog records a command you can run again in
 <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. EEGLAB leaves that history command empty. Importing a
-BIDS folder from the File menu loads the datasets into an in-memory study.
-It does not copy them into <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code>. The import field “Import
-only the following participant indices” takes 1-based positions in
+BIDS folder copies each dataset into <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> and returns
+<code class="docutils literal notranslate"><span class="pre">(STUDY,</span> <span class="pre">ALLEEG)</span></code>. A single file still returns that dataset. The import
+field “Import only the following participant indices” takes 1-based positions in
 <code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code> (or in the sorted <code class="docutils literal notranslate"><span class="pre">sub-*</span></code> folders when that file is
 missing), such as <code class="docutils literal notranslate"><span class="pre">2</span></code> or <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">2</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_importbids(...,</span> <span class="pre">subjects=[1,</span> <span class="pre">2])</span></code>
 uses that same list, including when the dialog’s history command is run again.
-A folder import from the dialog records <code class="docutils literal notranslate"><span class="pre">[STUDY,</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code>
-with <code class="docutils literal notranslate"><span class="pre">return_study</span></code> on, plus any selected recordings. Running that command
-again rebuilds the same study. A direct call still returns the datasets unless
-<code class="docutils literal notranslate"><span class="pre">return_study=True</span></code>.</p>
+A folder import records <code class="docutils literal notranslate"><span class="pre">[STUDY</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code> and does not
+pass <code class="docutils literal notranslate"><span class="pre">return_study</span></code>. Running that command again rebuilds the same study.</p>
 <p>This export is useful for learning EEGPrep’s BIDS file handling. It is not a
 replacement for a curated experimental BIDS dataset with full study metadata.</p>
 </section>

@@ -115,7 +115,7 @@ print("cluster sizes:", [len(c.get("comps") or []) for c in STUDY["cluster"]])
 
 with TemporaryDirectory() as tmp:
     path = Path(tmp) / "tutorial.study"
-    STUDY, com = pop_savestudy(STUDY, ALLEEG, filename=str(path), return_com=True)
+    STUDY, ALLEEG, com = pop_savestudy(STUDY, ALLEEG, filename=str(path))
     RELOADED, RELOADED_ALLEEG, com = pop_loadstudy(str(path), return_com=True)
     print("reloaded:", RELOADED["name"], "datasets:", len(RELOADED_ALLEEG))
     print("reloaded clusters:", len(RELOADED["cluster"]))
