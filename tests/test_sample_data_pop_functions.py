@@ -698,7 +698,7 @@ def test_pop_studyerp_marks_sample_study_as_erp(sample_eeg):
 def test_pop_savestudy_and_pop_loadstudy_roundtrip_sample_study(tmp_path, sample_eeg):
     study, _alleeg = pop_study(None, [sample_eeg], name="Sample study")
 
-    saved, _datasets, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study", return_com=True)
+    saved, _datasets, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study")
     loaded, loaded_alleeg, load_command = pop_loadstudy(tmp_path / "sample.study", return_com=True)
 
     assert saved["filename"] == "sample.study"

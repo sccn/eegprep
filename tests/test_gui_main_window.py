@@ -1190,9 +1190,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         ):
             dispatcher.dispatch("pop_savestudy")
 
-        pop_savestudy.assert_called_once_with(
-            mock.ANY, session.ALLEEG, "/tmp/study.study", savemode=None, return_com=True
-        )
+        pop_savestudy.assert_called_once_with(mock.ANY, session.ALLEEG, "/tmp/study.study", savemode=None)
         self.assertEqual(session.STUDY["saved"], "yes")
         self.assertEqual(session.ALLCOM[-1], "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');")
 

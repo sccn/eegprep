@@ -14,6 +14,8 @@ import pytest
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions_dialog_spec
+from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
@@ -149,14 +151,14 @@ def test_pop_savestudy_writes_matlab_v6_and_still_reads_json(tmp_path):
     eeg = _continuous()
     eeg["subject"] = "S01"
     study, alleeg = pop_study(None, [eeg], name="Audit")
-    saved, _datasets, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path, return_com=True)
+    saved, _datasets, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path)
     path = tmp_path / "audit.study"
     assert path.read_bytes().startswith(b"MATLAB 5.0 MAT-file")
     assert command.startswith("[STUDY ALLEEG] = pop_savestudy(")
     loaded, _alleeg = pop_loadstudy(path, load_datasets="off")
     assert loaded["name"] == "Audit"
     json_study, _json_datasets, _json_command = pop_savestudy(
-        study, alleeg, filename="audit.json", filepath=tmp_path, fileformat="json", return_com=True
+        study, alleeg, filename="audit.json", filepath=tmp_path, fileformat="json"
     )
     assert json_study["filename"].endswith(".json")
     reloaded, _ignored = pop_loadstudy(tmp_path / "audit.json", load_datasets="off")
@@ -628,7 +630,7 @@ def test_pop_savestudy_replay_keeps_alleeg_as_datasets(tmp_path):
     eeg = _continuous()
     eeg["subject"] = "S01"
     study, alleeg = pop_study(None, [eeg], name="Audit")
-    _saved, datasets, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path, return_com=True)
+    _saved, datasets, command = pop_savestudy(study, alleeg, filename="audit.study", filepath=tmp_path)
     session = EEGPrepSession()
     session.set_study(study, datasets)
     workspace = EEGPrepConsoleWorkspace(session)
@@ -1238,28 +1240,60 @@ def test_quit_yes_leaves_a_raw_bids_dataset_unchanged(tmp_path):
     assert closed == []
 
 
-def test_pop_savestudy_refuses_to_resave_a_raw_bids_dataset(tmp_path):
-    root = tmp_path / "bids"
-    eeg_dir = root / "sub-01" / "eeg"
-    eeg_dir.mkdir(parents=True)
-    (root / "dataset_description.json").write_text(
-        '{"Name": "raw", "BIDSVersion": "1.8.0", "DatasetType": "raw"}\n',
-        encoding="utf-8",
-    )
-    set_path = eeg_dir / "sub-01_task-rest_eeg.set"
+@pytest.fixture
+def raw_bids_set(tmp_path):
     eeg = _continuous()
-    pop_saveset(eeg, set_path)
+    eeg.update(setname="Raw recording", subject="01")
+    root = Path(pop_exportbids([eeg], tmp_path / "bids", task="rest"))
+    return next(root.rglob("*_eeg.set"))
+
+
+@pytest.mark.parametrize("entry_point", ["script", "menu"])
+@pytest.mark.parametrize("raw_saved", ["yes", "justloaded"])
+def test_save_study_resaves_only_the_modified_derivative(tmp_path, raw_bids_set, raw_saved, entry_point, monkeypatch):
+    raw = pop_loadset(raw_bids_set)
+    raw["saved"] = raw_saved
+    before = raw_bids_set.read_bytes()
+    modified = raw_bids_set.stat().st_mtime_ns
+    derivative_path = tmp_path / "bids" / "derivatives" / "eeglab" / "edited.set"
+    derivative = _continuous()
+    pop_saveset(derivative, derivative_path)
+    derivative.update(comments="edited derivative", saved="no")
+    study, alleeg = pop_study(None, [raw, derivative], name="Mixed study")
+    study_path = tmp_path / "mixed.study"
+
+    if entry_point == "menu":
+        box = pytest.importorskip("PySide6.QtWidgets").QMessageBox
+        monkeypatch.setattr(box, "question", lambda *_args: box.Yes)
+        study.update(filename=study_path.name, filepath=str(tmp_path))
+        session = EEGPrepSession(STUDY=study, ALLEEG=alleeg, CURRENTSTUDY=1)
+        MenuActionDispatcher(session).dispatch("pop_savestudy:resave", parent=object())
+        datasets = session.ALLEEG
+    else:
+        _, datasets, _ = pop_savestudy(study, alleeg, filename=study_path, resavedatasets="on")
+
+    assert study_path.is_file()
+    assert pop_loadset(derivative_path)["comments"] == "edited derivative"
+    assert raw_bids_set.read_bytes() == before
+    assert raw_bids_set.stat().st_mtime_ns == modified
+    assert [eeg["saved"] for eeg in datasets] == [raw_saved, "yes"]
+
+
+def test_pop_savestudy_refuses_to_resave_a_raw_bids_dataset(tmp_path, raw_bids_set):
+    eeg = pop_loadset(raw_bids_set)
     eeg["saved"] = "no"
-    before = set_path.read_bytes()
+    before = raw_bids_set.read_bytes()
+    modified = raw_bids_set.stat().st_mtime_ns
     study, alleeg = pop_study(None, [eeg], name="Raw")
-    with pytest.raises(ValueError, match="refusing to overwrite raw BIDS"):
+    with pytest.raises(ValueError, match="pop_saveset: refusing to overwrite raw BIDS"):
         pop_savestudy(
             study,
             alleeg,
             filename=tmp_path / "saved.study",
             resavedatasets="on",
         )
-    assert set_path.read_bytes() == before
+    assert raw_bids_set.read_bytes() == before
+    assert raw_bids_set.stat().st_mtime_ns == modified
 
 
 def test_resave_keeps_a_live_memmap_view(tmp_path):

@@ -161,7 +161,7 @@ def test_study_save_load_and_bids_metadata(tmp_path):
     study, participant_command = pop_participantinfo(study, participant_id="sub-01")
     study, event_command = pop_eventinfo(study, trial_type="stimulus")
     study_file = tmp_path / "demo's.study"
-    saved, _datasets, save_command = pop_savestudy(study, filename=study_file, return_com=True)
+    saved, _datasets, save_command = pop_savestudy(study, filename=study_file)
     loaded, loaded_alleeg, load_command = pop_loadstudy(study_file, load_datasets=False, return_com=True)
 
     assert alleeg[0]["setname"] == "demo"
