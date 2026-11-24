@@ -313,17 +313,18 @@ These are measured agreement results on one frozen set, not an accuracy claim.
 A class is verified for the browser int8 network only when that set has at least
 20 of its components and int8 top-1 and default keep-or-reject agreement with
 the full-precision network are both at least 0.95. Only Other (193) is verified.
+On those Other components the largest absolute probability difference is 0.01123.
 Brain (18), Eye (5), Muscle (1), Heart (0), Line Noise (0), and Channel Noise (0)
-are unverified because there are too few reproducible open examples of each in
-the evaluation evidence. A separate measurement of 89 other CC0 recordings is in
+are unverified because each has fewer than 20 examples in the evaluation
+evidence. A separate measurement of 89 other CC0 recordings is in
 ``tools/iclabel/class_coverage_measurement.json``. It is not part of this gate:
 Heart, Channel Noise, and Muscle stayed under 20 components, and the Line Noise
 components were not produced by a committed script with pinned dataset versions
 and a seed. The browser keeps the int8 network. Native runs keep the
 full-precision network. Native results follow releases up to 0.5.0, which
 classified with PyTorch, to about 1e-6; results from the browser's 8-bit file
-can differ from them by up to about 0.0135 (the largest difference measured on
-this set).
+can differ from them by up to 0.01346, the set-wide maximum on this set. That
+maximum is on a Brain component, not on Other.
 
 Developers who change ``netICL.mat`` or the quantization rebuild the packaged
 networks with the ``torch`` extra; the procedure is in :ref:`releasing`.
