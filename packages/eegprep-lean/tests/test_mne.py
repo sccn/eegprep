@@ -103,12 +103,31 @@ class TestWithMne:
         typed = dataclasses.replace(
             window(
                 data=[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]],
-                labels=("EMG", "MISC", "STIM", "TEMP"),
+                labels=("EMG", "MISC", "STIM", "EKG"),
             ),
-            types=("EMG", "MISC", "STIM", "TEMP"),
+            types=("EMG", "MISC", "STIM", "EKG"),
         )
 
         assert to_mne_raw(typed).get_channel_types() == ["emg", "misc", "stim", "misc"]
+
+    @pytest.mark.parametrize(
+        ("declared", "mne_type"),
+        [
+            ("HEOG", "eog"),
+            ("VEOG", "eog"),
+            ("TRIG", "stim"),
+            ("TEMP", "temperature"),
+            ("NIRS", "fnirs_cw_amplitude"),
+            ("NIRSCWAMPLITUDE", "fnirs_cw_amplitude"),
+            ("NIRSCWOPTICALDENSITY", "fnirs_od"),
+            ("NIRSCWHBO", "hbo"),
+            ("NIRSCWHBR", "hbr"),
+        ],
+    )
+    def test_bids_names_that_are_not_mne_types(self, declared: str, mne_type: str) -> None:
+        typed = dataclasses.replace(window(data=[[1.0, 2.0, 3.0, 4.0]], labels=(declared,)), types=(declared,))
+
+        assert to_mne_raw(typed).get_channel_types() == [mne_type]
 
     def test_a_ch_types_argument_mne_does_not_have_names_to_mne_raw(self) -> None:
         with pytest.raises(ValueError, match=r"to_mne_raw cannot use channel type 'not-a-type'"):

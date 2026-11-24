@@ -18,17 +18,33 @@ from .window import Window
 if TYPE_CHECKING:
     import mne
 
+# BIDS channels.tsv names whose MNE type is not the lowercased name.
+# mne_bids.utils._get_ch_type_mapping(fro="bids", to="mne").
+_BIDS_MNE_TYPES = {
+    "heog": "eog",
+    "veog": "eog",
+    "trig": "stim",
+    "temp": "temperature",
+    "nirs": "fnirs_cw_amplitude",
+    "nirscwamplitude": "fnirs_cw_amplitude",
+    "nirscwopticaldensity": "fnirs_od",
+    "nirscwhbo": "hbo",
+    "nirscwhbr": "hbr",
+}
+
 
 def to_mne_raw(window: Window, *, ch_types: str | Sequence[str] | None = None) -> "mne.io.RawArray":
     """Turn a window into an ``mne.io.RawArray`` in volts, named by the window's labels.
 
     Channel types come from ``window.types`` when ``ch_types`` is left unset. Each value
     is matched, ignoring case, against the types ``mne.create_info`` accepts
-    (:func:`mne.io.get_channel_type_constants`), which is MNE's own set rather than a
-    second table. ``EOG`` is ``eog``, ``ECG`` is ``ecg``, ``EMG`` is ``emg``, ``MISC`` is
-    ``misc`` and ``STIM`` is ``stim``. A declared type outside that set
-    (``TRIG``, ``EKG``, ``HEOG``) becomes ``misc``, so a later EEG pick leaves it out.
-    MNE's EEGLAB reader instead warns and marks that channel as EEG. A blank type,
+    (:func:`mne.io.get_channel_type_constants`). ``EOG`` is ``eog``, ``ECG`` is ``ecg``,
+    ``EMG`` is ``emg``, ``MISC`` is ``misc`` and ``STIM`` is ``stim``. BIDS names that
+    are not themselves MNE types follow MNE-BIDS: ``HEOG`` and ``VEOG`` are ``eog``,
+    ``TRIG`` is ``stim``, ``TEMP`` is ``temperature``, and the NIRS names map to
+    ``fnirs_cw_amplitude``, ``fnirs_od``, ``hbo`` and ``hbr``. A declared type still
+    outside that set, such as ``EKG``, becomes ``misc``, so a later EEG pick leaves it
+    out. MNE's EEGLAB reader instead warns and marks that channel as EEG. A blank type,
     ``n/a`` or ``nan`` is ``eeg``, as is a window that carries no types at all.
 
     ``ch_types`` overrides that: one MNE type for every channel, or one per channel. A
@@ -110,7 +126,7 @@ def _mne_channel_type(channel_type: object, accepted: frozenset[str]) -> str:
     stored = stored_channel_type(channel_type)
     if not stored:
         return "eeg"
-    candidate = stored.lower()
+    candidate = _BIDS_MNE_TYPES.get(stored.lower(), stored.lower())
     if candidate in accepted:
         return candidate
     return "misc"
