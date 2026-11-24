@@ -565,7 +565,12 @@ for an interpolated map. A blank map with an empty list draws the head.</p>
 <ul class="simple">
 <li><p>noplot : str or tuple, default ‘off’</p></li>
 <li><p>plotgrid : str, default ‘off’</p></li>
-<li><p>plotchans : list, default []</p></li>
+<li><p>plotchans : sequence of int, default []
+1-based channel indices to include, from 1 through the channel
+count. Empty draws every channel that has <code class="docutils literal notranslate"><span class="pre">theta</span></code>. A single
+index is applied the same way. One remaining location raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code> from <code class="docutils literal notranslate"><span class="pre">griddata_v4</span></code>. EEGLAB <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> follows
+MATLAB <code class="docutils literal notranslate"><span class="pre">griddata</span></code> and returns a non-finite map instead.</p></li>
 <li><p>ELECTRODES : str, default ‘on’</p></li>
 <li><p>intrad : float, default nan</p></li>
 <li><p>plotrad : float, default nan</p></li>
