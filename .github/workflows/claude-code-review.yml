@@ -20,7 +20,8 @@ jobs:
           github.event.pull_request.author_association == 'OWNER' ||
           github.event.pull_request.author_association == 'MEMBER' ||
           github.event.pull_request.author_association == 'COLLABORATOR' ||
-          (github.event.action == 'ready_for_review' && (github.actor == 'cursor[bot]' || github.event.pull_request.user.login == 'claude[bot]'))
+          (github.actor == 'cursor[bot]' && github.event.action == 'ready_for_review') ||
+          (github.event.pull_request.user.login == 'claude[bot]' && (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review'))
         )
       ) ||
       (
@@ -46,6 +47,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || (github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number)) || '' }}
           fetch-depth: 1
+
+      - name: Use review skill from develop
+        run: |
+          git fetch --depth=1 origin develop
+          git checkout FETCH_HEAD -- .agents/skills
 
       - name: Run Claude Review
         uses: anthropics/claude-code-action@v1
