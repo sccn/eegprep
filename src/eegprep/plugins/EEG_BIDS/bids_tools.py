@@ -387,6 +387,7 @@ def bids_exporter_welcome_spec() -> DialogSpec:
         geometry=((1,), (1,)),
         geomvert=(1, 3),
         ok_label="Continue",
+        button_size=(110, 20),
         controls=(
             ControlSpec("text", "Welcome to the EEG-BIDS exporter tool!", font_weight="bold"),
             ControlSpec(
@@ -567,6 +568,7 @@ def _export_grid_dialog() -> _ExportGrid:
         "rows": [{field: "" for field in _WIZARD_FIELDS} for _ in range(_WIZARD_PAGE_ROWS)],
     }
     edits: list[dict[str, Any]] = []
+    row_numbers: list[Any] = []
     grid = QGridLayout()
     for column, header in enumerate(_WIZARD_HEADERS):
         label = QLabel(header)
@@ -578,6 +580,7 @@ def _export_grid_dialog() -> _ExportGrid:
         widgets: dict[str, Any] = {}
         number = QLabel(str(row))
         number.setObjectName(f"row{row}")
+        row_numbers.append(number)
         grid.addWidget(number, row, 0)
         file_edit = QLineEdit()
         file_edit.setObjectName(f"file{row}")
@@ -639,6 +642,7 @@ def _export_grid_dialog() -> _ExportGrid:
         for offset, widgets in enumerate(edits):
             for field, widget in widgets.items():
                 widget.setText(state["rows"][start + offset][field])
+            row_numbers[offset].setText(str(start + offset + 1))
         page_label.setText(f"Page {state['page'] + 1}")
 
     def shift(delta: int) -> None:

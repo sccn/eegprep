@@ -55,7 +55,9 @@ def pop_importbids(
     (or sorted ``sub-*`` folders when that file is missing), the same indices
     the dialog records. A folder import copies every dataset into
     ``derivatives/eeglab`` (or ``outputdir``) and writes a ``.study`` file
-    there. The raw BIDS folder is not modified. History is
+    there, next to the data. A read-only location such as a DataLad or
+    OpenNeuro mount cannot store those files; copy the dataset to a writable
+    folder and import that copy. The raw BIDS folder is not modified. History is
     ``[STUDY, ALLEEG] = pop_importbids(...)`` without a ``return_study`` option.
     """
     return_study = _on_off(return_study, "return_study")
@@ -98,8 +100,9 @@ def pop_importbids(
             dataset["history"] = command
         if source.is_dir():
             root = Path(output_dir) if output_dir else source / "derivatives" / "eeglab"
-            study, _datasets, _command = pop_savestudy(
-                study, datasets, filename=root / f"{_study_filename(study_name)}.study"
+            study_path = root / f"{_study_filename(study_name)}.study"
+            study, _datasets, _command = _write_import_output(
+                root, lambda: pop_savestudy(study, datasets, filename=study_path)
             )
         if return_com:
             return study, datasets, command
@@ -515,12 +518,35 @@ def _save_derivatives(eegs: list[dict[str, Any]], source: Path, output_dir: Any)
         if session and f"/ses-{session}/" in f"/{source_path}/":
             folder = folder / f"ses-{session}"
         folder = folder / "eeg"
-        folder.mkdir(parents=True, exist_ok=True)
-        stem = Path(_field_text(eeg.get("filename"), "eeg.set")).stem or "eeg"
-        target = folder / f"{stem}.set"
-        pop_saveset(eeg, str(target))
+        _write_import_output(root, lambda folder=folder, eeg=eeg: _write_derivative_dataset(folder, eeg))
         saved.append(eeg)
     return saved
+
+
+def _write_derivative_dataset(folder: Path, eeg: dict[str, Any]) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    stem = Path(_field_text(eeg.get("filename"), "eeg.set")).stem or "eeg"
+    pop_saveset(eeg, str(folder / f"{stem}.set"))
+
+
+def _write_import_output(destination: Path, action: Any) -> Any:
+    try:
+        return action()
+    except OSError as exc:
+        raise OSError(_import_write_error(destination)) from exc
+    except ValueError as exc:
+        if "could not write" not in str(exc):
+            raise
+        raise OSError(_import_write_error(destination)) from exc
+
+
+def _import_write_error(destination: Path) -> str:
+    return (
+        f"pop_importbids: could not write {destination}. "
+        "A read-only location such as a DataLad or OpenNeuro mount cannot store "
+        "the derivative files next to the data. Copy the BIDS dataset to a writable folder, "
+        "then import that copy."
+    )
 
 
 def _field_text(value: Any, default: str) -> str:

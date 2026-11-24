@@ -406,10 +406,18 @@ def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
     assert "Clear" not in study_labels
     assert study_widgets["clear1"].text() == "Clear"
     assert study_widgets["file1"].text() == "kept.set"
+    _assert_clear_buttons_are_visible(study_dialog, study_widgets)
     study_widgets["clear1"].click()
     qapp.processEvents()
     assert study_widgets["file1"].text() == ""
     study_dialog.close()
+
+    files = [f"dataset_{index}.set" for index in range(1, 11)]
+    _app, wide_dialog, wide_widgets = renderer.build_dialog(pop_studywizard_dialog_spec(files, "Study"))
+    wide_dialog.show()
+    qapp.processEvents()
+    _assert_clear_buttons_are_visible(wide_dialog, wide_widgets)
+    wide_dialog.close()
 
     _app, grid_dialog, grid_widgets = renderer.build_dialog(bids_exporter_grid_spec())
     grid_dialog.show()
@@ -431,7 +439,28 @@ def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
     buttons = {button.text() for button in welcome.findChildren(QPushButton)}
     assert "Continue" in buttons
     assert "Ok" not in buttons
+    continue_button = next(button for button in welcome.findChildren(QPushButton) if button.text() == "Continue")
+    assert continue_button.contentsRect().width() >= continue_button.fontMetrics().horizontalAdvance("Continue")
     welcome.close()
+
+
+def _assert_clear_buttons_are_visible(dialog, widgets) -> None:
+    from PySide6.QtWidgets import QScrollArea
+
+    assert dialog.width() >= 1186
+    assert dialog.height() >= 500
+    visible = dialog.rect()
+    for key, widget in widgets.items():
+        if not str(key).startswith("clear"):
+            continue
+        top_left = widget.mapTo(dialog, widget.rect().topLeft())
+        bottom_right = widget.mapTo(dialog, widget.rect().bottomRight())
+        assert visible.contains(top_left)
+        assert visible.contains(bottom_right)
+    scroll = dialog.findChild(QScrollArea)
+    if scroll is not None:
+        assert scroll.horizontalScrollBar().maximum() == 0
+        assert scroll.verticalScrollBar().maximum() == 0
 
 
 def _dialog_row(spec, control):
@@ -697,7 +726,9 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     (folder / "categories.xml").write_text(
         "<categories><cat><name>target</name><segments>"
         "<segment status=\"kept\"><beginTime>0</beginTime><endTime>1200000</endTime>"
-        "<eventBegin>202000</eventBegin><eventEnd>202000</eventEnd></segment>"
+        "<eventBegin>202000</eventBegin><eventEnd>202000</eventEnd>"
+        "<keys><key><keyCode>#seg</keyCode><data>15</data><dataType>long</dataType></key>"
+        "<key><keyCode>subj</keyCode><data>S01</data><dataType>person</dataType></key></keys></segment>"
         "<segment><beginTime>1200000</beginTime><endTime>2400000</endTime>"
         "<eventBegin>1402000</eventBegin><eventEnd>1402000</eventEnd></segment>"
         "</segments></cat></categories>",
@@ -724,10 +755,13 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     assert [event["type"] for event in eeg["event"]] == ["stm+", "target", "resp", "target"]
     assert eeg["event"][0]["latency"] == pytest.approx(0.20396 * 250)
     assert eeg["event"][0]["mffkey_cel"] == "1"
-    assert eeg["event"][0]["mffkeys"] == "[cel#:1]"
+    assert eeg["event"][0]["mffkeys"] == "[cel#: 1]"
     assert eeg["event"][0]["classid"] == "EVNT"
     assert eeg["event"][0]["status"] == ""
     assert eeg["event"][1]["status"] == "kept"
+    assert eeg["event"][1]["classid"] == ""
+    assert eeg["event"][1]["mffkeys"] == "[#seg: 15, subj: S01]"
+    assert eeg["event"][1]["mffkeysbackup"].startswith("struct('code',{'#seg','subj'}")
     assert eeg["event"][0]["duration"] == pytest.approx(1000)
     assert len(eeg["epoch"]) == 2
     seconds = tmp_path / "seconds.mff"
@@ -743,6 +777,8 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     assert declared["data"].shape[1] == 300
     assert declared["event"][0]["latency"] == pytest.approx(0.202 * 250 + 1)
     assert [event["type"] for event in declared["event"]] == ["target"]
+    assert declared["event"][0]["classid"] == ""
+    assert declared["event"][0]["mffkeysbackup"] == "struct([])"
     broken = tmp_path / "broken.mff"
     broken.mkdir()
     (broken / "categories.xml").write_text("<categories/>", encoding="utf-8")
@@ -765,6 +801,13 @@ def test_importbids_history_and_sessionless_derivative_path(tmp_path):
     command = _history_command(tmp_path, {}, return_study=True)
     assert command.startswith("[STUDY ALLEEG] = pop_importbids(")
     assert "return_study" not in command
+    blocked = tmp_path / "readonly-mount"
+    blocked.write_text("x", encoding="utf-8")
+    with pytest.raises(OSError, match="pop_importbids") as caught:
+        _save_derivatives([eeg], tmp_path, blocked)
+    assert "writable folder" in str(caught.value)
+    assert "DataLad" in str(caught.value)
+    assert "OpenNeuro" in str(caught.value)
 
 
 def test_pop_savestudy_strips_measures_resaves_json_as_mat_and_falls_back_to_v73(tmp_path, monkeypatch):
@@ -1017,7 +1060,11 @@ def test_real_testmff_matches_eeglab_epochs():
     assert stimulus[0]["begintime"] == "2015-07-01T16:24:33.845920-07:00"
     assert stimulus[0]["classid"] == "EVNT"
     assert stimulus[0]["relativebegintime"] == 0
-    assert stimulus[0]["mffkeys"] == "[cel#:1, obs#:3, pos#:3, argu:0]"
+    assert stimulus[0]["mffkeys"] == "[cel#: 1, obs#: 3, pos#: 3, argu: 0]"
+    category = next(event for event in eeg["event"] if "begintime" not in event and str(event["type"]) == "LRND")
+    assert category["classid"] == ""
+    assert category["mffkeys"].startswith("[#seg: 15, subj: ")
+    assert category["mffkeysbackup"].startswith("struct('code'")
     assert stimulus[0]["status"] == ""
     assert stimulus[0]["mffkeysbackup"].startswith("struct('code',{'cel#'")
     assert stimulus[0]["urevent"] == 1
@@ -1214,6 +1261,13 @@ def test_export_wizard_pages_ten_rows(qapp):
     dialog.edits[0]["file"].setText("a.set")
     dialog.shift(1)
     assert dialog.page_label.text() == "Page 2"
+    row_labels = {
+        label.objectName(): label.text()
+        for label in dialog.findChildren(QLabel)
+        if label.objectName().startswith("row")
+    }
+    assert row_labels["row1"] == "11"
+    assert row_labels["row10"] == "20"
     dialog.edits[0]["file"].setText("b.set")
     dialog.save_page()
     assert dialog.state["rows"][0]["file"] == "a.set"

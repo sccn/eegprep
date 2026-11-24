@@ -627,7 +627,10 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   not exist. A failed save does not leave a partial ``.set`` or ``.fdt``, and
   it does not replace a file that was already there.
 * BIDS import writes the derivative ``.set`` datasets and the ``.study`` file
-  to disk under ``derivatives/eeglab``. It does not modify the raw BIDS
+  to disk under ``derivatives/eeglab``, next to the data. A read-only location
+  such as a DataLad or OpenNeuro mount fails because those files cannot be
+  written there. Copy the dataset to a writable folder and import that copy.
+  The import does not modify the raw BIDS
   folder. Resave of a file inside the raw folder is refused. A folder import
   records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not pass
   ``return_study``, which EEGLAB rejects. A recording with no ``ses-`` folder
@@ -644,8 +647,10 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   below ``1e-6/86400`` (``1.157407e-11``). MATLAB's string ``datenum`` then
   mis-parses the timestamp by 0.16 to 2.44 microseconds. EEGPrep does not
   copy either error. ``classid`` is ``EVNT`` when the XML omits it, which is
-  ``Event.getClassID()``. ``mffkeys`` is ``char(keylist)``:
-  ``[cel#:1, obs#:3, ...]``. Category segments keep the ``status`` attribute
+  ``Event.getClassID()``. ``mffkeys`` is ``char(keylist)`` with a space after
+  each colon: ``[cel#: 1, obs#: 3, ...]``. Category events use the same key
+  text, for example ``[#seg: 15, subj: ...]``, keep ``classid`` empty, and
+  include ``mffkeysbackup``. Category segments keep the ``status`` attribute
   from ``<seg status="...">``, and track events carry the same field.
 * The BIDS export wizard opens from an empty session: a welcome page, then a
   file grid with one task per file. The welcome button is ``Continue``. The

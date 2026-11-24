@@ -167,7 +167,7 @@ For EGI MFF, select the ``.mff`` folder itself. Install the reader and XML
 support with ``pip install "eegprep[mne]"``. Events that share a latency stay
 in file order. Each track event keeps ``begintime``, ``classid`` (``EVNT``
 when the file omits it), ``relativebegintime``, ``mffkeys`` as
-``[cel#:1, ...]``, ``mffkeysbackup``, ``status``, and ``urevent``. A clock
+``[cel#: 1, ...]``, ``mffkeysbackup``, ``status``, and ``urevent``. A clock
 latency is the exact microsecond difference between the event ``beginTime``
 and ``info.xml`` ``recordTime``, times ``srate``. EEGLAB's ``mff_decodetime``
 path differs; see the migration notes. For ``.eeg`` and ``.EEG`` files,

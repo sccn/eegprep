@@ -461,14 +461,17 @@ def _category_events(
         latency = -xmin * srate + 1 + pnts * (index - 1)
         epoch = int(np.floor((latency + 1e-6) / pnts)) + 1 if pnts else 1
         epoch = min(max(epoch, 1), max(len(segments), 1))
+        keys = segment.get("keys") or []
         event: dict[str, Any] = {
             "type": str(segment.get("name") or "event"),
             "latency": float(latency),
             "duration": float(duration),
             "epoch": epoch,
+            "classid": "",
             "status": str(segment.get("status") or ""),
+            "mffkeysbackup": _mffkeys_backup(keys),
         }
-        _attach_mff_keys(event, segment.get("keys") or [])
+        _attach_mff_keys(event, keys)
         events.append(event)
     return events
 
@@ -492,12 +495,13 @@ def _attach_mff_keys(event: dict[str, Any], keys: list[dict[str, str]]) -> None:
 
 
 def _mffkeys_text(keys: list[dict[str, str]]) -> str:
-    """Format keys the way ``char(keylist)`` prints a Java ``ArrayList``.
+    """Format keys the way EEGLAB prints ``char(keylist)``.
 
-    ``Key.toString`` is ``code + ':' + data``. ``ArrayList.toString`` wraps the
-    items in brackets and separates them with ``', '``.
+    Each key is ``code``, a colon, a space, then ``data`` (character codes
+    35, 58, 32, 49 for ``#: 1``). Items are wrapped in brackets and separated
+    with ``', '``.
     """
-    parts = [f"{key['code']}:{key['data']}" for key in keys if key["code"] or key["data"]]
+    parts = [f"{key['code']}: {key['data']}" for key in keys if key["code"] or key["data"]]
     if not parts:
         return ""
     return "[" + ", ".join(parts) + "]"

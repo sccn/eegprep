@@ -150,7 +150,8 @@ def pop_studywizard_dialog_spec(filenames: list[str], name: str) -> DialogSpec:
         eeglab_source="functions/studyfunc/pop_studywizard.m",
         geometry=tuple(geometry),
         controls=tuple(controls),
-        scrollable=True,
+        size=(1186, 500),
+        scrollable=False,
     )
 
 
