@@ -494,13 +494,7 @@ def _decompose(eeg: dict[str, Any], path: Path, *, ica_method: str, ica_seed: in
         raise ValueError(
             f"find_class_candidates: ICA method {ica_method!r} is not supported. Use 'picard' or 'precomputed'."
         )
-    try:
-        return eeg_picard(eeg, random_state=ica_seed, verbose=False, max_iter=500)
-    except Exception as exc:
-        raise RuntimeError(
-            f"find_class_candidates: picard did not finish on {path} ({exc}). "
-            "Use a recording picard can decompose, or pass --ica-method precomputed when the file already stores ICA."
-        ) from exc
+    return eeg_picard(eeg, random_state=ica_seed, verbose=False, max_iter=500)
 
 
 def _write_feature_checkpoint(

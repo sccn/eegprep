@@ -252,19 +252,64 @@ def _rejection_flags(classifications: np.ndarray, thresholds: np.ndarray) -> np.
     return np.asarray(eeg_icflag(eeg, thresholds)["reject"]["gcompreject"], dtype=bool)
 
 
+def _per_class_outcome(per_class: Mapping[str, Any]) -> tuple[list[str], list[str], list[str]]:
+    """Split classes into evaluated, unverified, and gate failures.
+
+    ``MIN_CLASS_COUNT``, ``MIN_CLASS_TOP1_AGREEMENT``, and ``MIN_CLASS_KEEP_REJECT_AGREEMENT``
+    are the only thresholds. A class below the count is unverified. A class at or above the
+    count is evaluated only when both agreement floors hold; each missed floor is a failure.
+    """
+    missing = [name for name in ICLABEL_CLASSES if name not in per_class]
+    if missing:
+        return (
+            [],
+            [],
+            [
+                f"gate_failures: per_class_agreement is missing {missing}. "
+                "Pass the per_class_agreement dict returned by compare_predictions."
+            ],
+        )
+    evaluated: list[str] = []
+    unverified: list[str] = []
+    failures: list[str] = []
+    for name in ICLABEL_CLASSES:
+        row = per_class[name]
+        count = int(row["count"])
+        if count < MIN_CLASS_COUNT:
+            unverified.append(name)
+            continue
+        top1 = float(row["top1_agreement"])
+        keep = float(row["keep_reject_agreement"])
+        passed = True
+        if not top1 >= MIN_CLASS_TOP1_AGREEMENT:
+            passed = False
+            failures.append(
+                f"gate_failures: {name} has {count} components but top-1 agreement {top1} is below "
+                f"{MIN_CLASS_TOP1_AGREEMENT}. Raise that class's agreement, or change the floor only "
+                "with approval from Suraj or Arno."
+            )
+        if not keep >= MIN_CLASS_KEEP_REJECT_AGREEMENT:
+            passed = False
+            failures.append(
+                f"gate_failures: {name} has {count} components but keep-or-reject agreement {keep} is below "
+                f"{MIN_CLASS_KEEP_REJECT_AGREEMENT}. Raise that class's agreement, or change the floor only "
+                "with approval from Suraj or Arno."
+            )
+        if passed:
+            evaluated.append(name)
+    return evaluated, unverified, failures
+
+
 def compare_predictions(
     teacher: np.ndarray,
     model_probabilities: np.ndarray,
     thresholds: np.ndarray = DEFAULT_ICFLAG_THRESHOLDS,
-    *,
-    min_class_count: int = MIN_CLASS_COUNT,
-    min_class_top1: float = MIN_CLASS_TOP1_AGREEMENT,
-    min_class_keep_reject: float = MIN_CLASS_KEEP_REJECT_AGREEMENT,
 ) -> dict[str, Any]:
     """Compare model probabilities with the teacher's: values, class labels, and keep/reject decisions.
 
     ``evaluated_classes`` met the count and both agreement floors. ``unverified_classes`` had fewer
-    than ``min_class_count`` components.
+    than ``MIN_CLASS_COUNT`` components. A class that misses a floor is in neither list;
+    ``gate_failures`` names it from the same rule.
     """
     teacher = np.asarray(teacher, dtype=float)
     model_probabilities = np.asarray(model_probabilities, dtype=float)
@@ -272,18 +317,12 @@ def compare_predictions(
         raise ValueError("ICLabel predictions must be matching (components, 7) arrays")
     if not np.isfinite(teacher).all() or not np.isfinite(model_probabilities).all():
         raise ValueError("ICLabel predictions must be finite")
-    if min_class_count < 1:
-        raise ValueError(
-            "compare_predictions: min_class_count must be at least 1. Pass the per-class minimum, for example 20."
-        )
 
     teacher_labels = np.argmax(teacher, axis=1)
     model_labels = np.argmax(model_probabilities, axis=1)
     teacher_reject = _rejection_flags(teacher, thresholds)
     model_reject = _rejection_flags(model_probabilities, thresholds)
     per_class: dict[str, dict[str, Any]] = {}
-    evaluated_classes = []
-    unverified_classes = []
     for class_index, class_name in enumerate(ICLABEL_CLASSES):
         selected = teacher_labels == class_index
         count = int(np.sum(selected))
@@ -299,15 +338,7 @@ def compare_predictions(
             "keep_reject_agreement": keep_reject,
             "max_probability_abs_diff": drift,
         }
-        if count < min_class_count:
-            unverified_classes.append(class_name)
-        elif (
-            top1 is not None
-            and keep_reject is not None
-            and top1 >= min_class_top1
-            and keep_reject >= min_class_keep_reject
-        ):
-            evaluated_classes.append(class_name)
+    evaluated_classes, unverified_classes, _ = _per_class_outcome(per_class)
 
     return {
         "sample_count": int(teacher.shape[0]),
@@ -327,20 +358,12 @@ def compare_predictions(
     }
 
 
-def gate_failures(
-    metrics: Mapping[str, Any],
-    *,
-    min_class_count: int | None = None,
-    min_class_top1: float | None = None,
-    min_class_keep_reject: float | None = None,
-) -> list[str]:
+def gate_failures(metrics: Mapping[str, Any]) -> list[str]:
     """Return one message per gate criterion that ``metrics`` fails; empty means it passes.
 
-    With no per-class arguments, only the aggregate criteria are checked. Pass
-    ``min_class_count`` and ``min_class_top1`` to also fail a class that has at least
-    ``min_class_count`` components and misses either agreement floor. A class with fewer
-    components is unverified and is not a failure. ``min_class_keep_reject`` defaults to
-    0.95 when the other per-class arguments are set.
+    The aggregate criteria always apply. A class with fewer than ``MIN_CLASS_COUNT`` components
+    is unverified and is not a failure. A class at or above that count fails when its top-1 or
+    keep-or-reject agreement is below its floor. Those class lists come from ``_per_class_outcome``.
     """
     # Written as ``not (value >= limit)`` so a NaN metric fails instead of passing.
     failures = []
@@ -353,52 +376,13 @@ def gate_failures(
     drift = float(metrics["max_probability_abs_diff"])
     if not drift <= MAX_PROBABILITY_ABS_DIFF:
         failures.append(f"maximum probability difference {drift:.6f} exceeds {MAX_PROBABILITY_ABS_DIFF}")
-    per_class_args = (min_class_count, min_class_top1, min_class_keep_reject)
-    if all(value is None for value in per_class_args):
-        return failures
-    if min_class_count is None or min_class_top1 is None:
-        raise ValueError(
-            "gate_failures: min_class_count and min_class_top1 must be passed together. "
-            "Pass both, for example min_class_count=20 and min_class_top1=0.95."
-        )
-    if min_class_count < 1:
-        raise ValueError(
-            "gate_failures: min_class_count must be at least 1. Pass the per-class minimum, for example 20."
-        )
-    if min_class_keep_reject is None:
-        min_class_keep_reject = MIN_CLASS_KEEP_REJECT_AGREEMENT
     per_class = metrics.get("per_class_agreement")
     if not isinstance(per_class, Mapping):
         failures.append(
             "gate_failures: metrics has no per_class_agreement. Pass the dict returned by compare_predictions."
         )
         return failures
-    missing = [name for name in ICLABEL_CLASSES if name not in per_class]
-    if missing:
-        failures.append(
-            f"gate_failures: per_class_agreement is missing {missing}. "
-            "Pass the per_class_agreement dict returned by compare_predictions."
-        )
-        return failures
-    for name in ICLABEL_CLASSES:
-        row = per_class[name]
-        count = int(row["count"])
-        if count < min_class_count:
-            continue
-        class_top1 = row.get("top1_agreement")
-        class_keep = row.get("keep_reject_agreement")
-        if class_top1 is None or not float(class_top1) >= float(min_class_top1):
-            failures.append(
-                f"gate_failures: {name} is verified (n={count}) but top-1 agreement {class_top1} is below "
-                f"{min_class_top1}. Raise that class's agreement, or change the floor only with approval "
-                "from Suraj or Arno."
-            )
-        if class_keep is None or not float(class_keep) >= float(min_class_keep_reject):
-            failures.append(
-                f"gate_failures: {name} is verified (n={count}) but keep-or-reject agreement {class_keep} "
-                f"is below {min_class_keep_reject}. Raise that class's agreement, or change the floor only "
-                "with approval from Suraj or Arno."
-            )
+    failures.extend(_per_class_outcome(per_class)[2])
     return failures
 
 
@@ -556,20 +540,11 @@ def evaluate_model(
             "size_bytes": Path(float32_model).stat().st_size,
             "sha256": _sha256(float32_model),
         },
-        "gate_pass": not _coverage_gate_failures(metrics),
+        "gate_pass": not gate_failures(metrics),
         "metrics": metrics,
     }
     report["report_sha256"] = _report_sha256(report)
     return report
-
-
-def _coverage_gate_failures(metrics: Mapping[str, Any]) -> list[str]:
-    return gate_failures(
-        metrics,
-        min_class_count=MIN_CLASS_COUNT,
-        min_class_top1=MIN_CLASS_TOP1_AGREEMENT,
-        min_class_keep_reject=MIN_CLASS_KEEP_REJECT_AGREEMENT,
-    )
 
 
 def _attach_class_sources(metrics: dict[str, Any], teacher: np.ndarray, manifest: Mapping[str, Any]) -> None:
@@ -673,7 +648,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     model = quantize_weight_only(args.float32_artifact, args.output)
     report = evaluate_model(model, float32_model=args.float32_artifact)
     print(json.dumps(report, indent=2, sort_keys=True))
-    failures = _coverage_gate_failures(report["metrics"])
+    failures = gate_failures(report["metrics"])
     if failures:
         raise SystemExit(f"ICLabel int8 model {model} failed the frozen gate: {'; '.join(failures)}")
     if args.require_identical_to is not None:

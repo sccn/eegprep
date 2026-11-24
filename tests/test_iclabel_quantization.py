@@ -44,6 +44,23 @@ _METRICS_AT_GATE_BOUNDARY = {
     "top1_agreement": MIN_TOP1_AGREEMENT,
     "keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
     "max_probability_abs_diff": MAX_PROBABILITY_ABS_DIFF,
+    "per_class_agreement": {
+        name: {
+            "count": 0,
+            "top1_agreement": None,
+            "keep_reject_agreement": None,
+            "max_probability_abs_diff": None,
+        }
+        for name in ICLABEL_CLASSES
+    }
+    | {
+        "Other": {
+            "count": MIN_CLASS_COUNT,
+            "top1_agreement": MIN_CLASS_TOP1_AGREEMENT,
+            "keep_reject_agreement": MIN_CLASS_KEEP_REJECT_AGREEMENT,
+            "max_probability_abs_diff": 0.0,
+        }
+    },
 }
 
 
@@ -190,27 +207,18 @@ def _per_class_metrics(**rows: dict) -> dict:
     return {**_METRICS_AT_GATE_BOUNDARY, "per_class_agreement": per_class}
 
 
-def _per_class_gate(metrics: dict) -> list[str]:
-    return gate_failures(
-        metrics,
-        min_class_count=MIN_CLASS_COUNT,
-        min_class_top1=MIN_CLASS_TOP1_AGREEMENT,
-        min_class_keep_reject=MIN_CLASS_KEEP_REJECT_AGREEMENT,
-    )
-
-
 def test_per_class_gate_passes_a_verified_class():
     metrics = _per_class_metrics(
         Other=_class_row(20, 0.95, 0.95),
         Brain=_class_row(19, 0.0, 0.0),
     )
 
-    assert _per_class_gate(metrics) == []
+    assert gate_failures(metrics) == []
 
 
 def test_per_class_gate_fails_a_verified_class_below_the_floor():
-    top1_failures = _per_class_gate(_per_class_metrics(Other=_class_row(20, 0.94, 1.0)))
-    keep_failures = _per_class_gate(_per_class_metrics(Other=_class_row(20, 1.0, 0.94)))
+    top1_failures = gate_failures(_per_class_metrics(Other=_class_row(20, 0.94, 1.0)))
+    keep_failures = gate_failures(_per_class_metrics(Other=_class_row(20, 1.0, 0.94)))
 
     assert len(top1_failures) == 1
     assert "gate_failures" in top1_failures[0]
@@ -232,7 +240,7 @@ def test_per_class_gate_leaves_a_thin_class_unverified():
     model_probabilities = np.vstack([other] * 20 + [heart_model])
 
     metrics = compare_predictions(teacher, model_probabilities)
-    failures = _per_class_gate(metrics)
+    failures = gate_failures(metrics)
 
     assert failures == []
     assert "Heart" in metrics["unverified_classes"]
@@ -247,7 +255,7 @@ def test_shipped_report_passes_the_per_class_gate():
 
     assert report["packaged_model"]["sha256"] == hashlib.sha256(model_bytes).hexdigest()
     assert report["packaged_model"]["size_bytes"] == len(model_bytes)
-    assert _per_class_gate(report["metrics"]) == []
+    assert gate_failures(report["metrics"]) == []
     assert report["metrics"]["evaluated_classes"] == ["Other"]
     assert report["metrics"]["unverified_classes"] == [
         "Brain",
@@ -332,7 +340,7 @@ def test_parity_report_records_the_packaged_model_and_frozen_inputs():
     assert report["evaluation_features"]["sha256"] == manifest["evaluation"]["feature_archive"]["sha256"]
     assert report["teacher_probabilities"]["sha256"] == manifest["evaluation"]["teacher_probabilities"]["sha256"]
     assert report["gate_pass"] is True
-    assert _per_class_gate(report["metrics"]) == []
+    assert gate_failures(report["metrics"]) == []
 
 
 def test_frozen_teacher_came_from_the_recorded_full_precision_network():
@@ -349,15 +357,7 @@ def test_production_runtime_passes_the_frozen_gate():
     probabilities = postprocess_network_output(run_iclabel_net(*prepare_network_inputs(features)))
     metrics = compare_predictions(teacher, probabilities)
 
-    assert (
-        gate_failures(
-            metrics,
-            min_class_count=MIN_CLASS_COUNT,
-            min_class_top1=MIN_CLASS_TOP1_AGREEMENT,
-            min_class_keep_reject=MIN_CLASS_KEEP_REJECT_AGREEMENT,
-        )
-        == []
-    )
+    assert gate_failures(metrics) == []
     assert (
         metrics["teacher_class_distribution"] == manifest["evaluation"]["teacher_probabilities"]["class_distribution"]
     )
@@ -452,7 +452,7 @@ def test_evaluate_model_reproduces_the_committed_report_for_the_packaged_model()
 
     report = evaluate_model(PACKAGED_MODEL)
 
-    assert _per_class_gate(report["metrics"]) == []
+    assert gate_failures(report["metrics"]) == []
     assert report_mismatches(report, committed) == []
     assert {key: value for key, value in report.items() if key != "metrics"} == {
         key: value for key, value in committed.items() if key != "metrics"
