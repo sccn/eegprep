@@ -13,6 +13,11 @@ from eegprep.functions.popfunc.plot_utils import show_figures
 def griddata_v4(x, y, v, xq, yq):
     """Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
 
+    Duplicate sensors are averaged first. The warning names this function and
+    uses MATLAB's ``DuplicateDataPoints`` wording. One unique location has no
+    biharmonic interpolant: MATLAB ``griddata`` returns a non-finite map and
+    warns, and this function raises ``ValueError``.
+
     Parameters
     ----------
     x, y : 1D arrays
@@ -27,12 +32,18 @@ def griddata_v4(x, y, v, xq, yq):
     vq : 2D array
         Interpolated values at query points.
     """
-    x, y, v, merged_count = _merge_coincident_points(x, y, v)
-    if merged_count:
+    n_in = np.asarray(x, dtype=float).size
+    x, y, v, _merged_count = _merge_coincident_points(x, y, v)
+    if x.size < n_in:
         warnings.warn(
-            f"topoplot griddata_v4 merged {merged_count} coincident points by averaging their coordinates and values.",
+            "topoplot griddata_v4: Duplicate x-y data points detected: using average values for duplicate points.",
             UserWarning,
             stacklevel=2,
+        )
+    if x.size < 2:
+        raise ValueError(
+            "topoplot griddata_v4: at least two distinct sensor locations are needed. "
+            "Pass values at two or more electrodes that stay apart after duplicate averaging."
         )
 
     xy = x + 1j * y
@@ -67,18 +78,27 @@ def _merge_coincident_points(x, y, v):
     ``mergepoints2D`` calls ``mergesimpts([y, x, v], [tol_y, tol_x, Inf],
     'average')`` with ``tol = spacing(0.5 * (max - min)) ** (1/3)``. Rows
     are sorted by ``(y, x, v)``. Each unclaimed row is an anchor, and every
-    unclaimed row within tolerance of that anchor on both axes joins it.
-    The group is replaced by the mean of its coordinates and values. A
-    chain does not merge by neighbor transitivity: ``C`` stays separate
-    when it is outside tolerance of anchor ``A``, even if it is within
-    tolerance of ``B``. A row that sorts between ``A`` and ``D`` does not
-    keep ``D`` out when ``D`` is within tolerance of ``A``.
+    unclaimed row strictly inside that anchor's tolerance on both axes joins
+    it. ``mergesimpts`` uses ``<``, so a separation equal to the tolerance
+    stays separate: ``mergesimpts([0; 0.5; 1], 0.5, 'average')`` keeps all
+    three rows. The group is replaced by the mean of its coordinates and
+    values. A chain does not merge by neighbor transitivity: ``C`` stays
+    separate when it is outside tolerance of anchor ``A``, even if it is
+    within tolerance of ``B``. A row that sorts between ``A`` and ``D`` does
+    not keep ``D`` out when ``D`` is within tolerance of ``A``.
     """
     x = np.asarray(x, dtype=float).reshape(-1)
     y = np.asarray(y, dtype=float).reshape(-1)
     v = np.asarray(v, dtype=float).reshape(-1)
     tol_x = float(np.spacing(0.5 * (np.max(x) - np.min(x))) ** (1.0 / 3.0))
     tol_y = float(np.spacing(0.5 * (np.max(y) - np.min(y))) ** (1.0 / 3.0))
+    return _average_similar_points(x, y, v, tol_x, tol_y)
+
+
+def _average_similar_points(x, y, v, tol_x, tol_y):
+    x = np.asarray(x, dtype=float).reshape(-1)
+    y = np.asarray(y, dtype=float).reshape(-1)
+    v = np.asarray(v, dtype=float).reshape(-1)
     order = np.lexsort((v, x, y))
     y_sorted = y[order]
     x_sorted = x[order]
@@ -91,7 +111,7 @@ def _merge_coincident_points(x, y, v):
     for index in range(x.size):
         if claimed[index]:
             continue
-        close = (np.abs(y_sorted - y_sorted[index]) <= tol_y) & (np.abs(x_sorted - x_sorted[index]) <= tol_x)
+        close = (np.abs(y_sorted - y_sorted[index]) < tol_y) & (np.abs(x_sorted - x_sorted[index]) < tol_x)
         close &= ~claimed
         close[index] = True
         claimed[close] = True
@@ -156,7 +176,10 @@ def topoplot(datavector, chan_locs, **kwargs):
         - plotgrid : str, default 'off'
         - plotchans : sequence of int, default []
           0-based channel indices to include. Empty draws every channel that
-          has ``theta``. EEGLAB's ``plotchans`` is 1-based.
+          has ``theta``. A single index is applied the same way. EEGLAB's
+          ``plotchans`` is 1-based. One remaining location raises
+          ``ValueError`` from ``griddata_v4``. EEGLAB ``topoplot`` follows
+          MATLAB ``griddata`` and returns a non-finite map instead.
         - ELECTRODES : str, default 'on'
         - intrad : float, default nan
         - plotrad : float, default nan
@@ -242,13 +265,11 @@ def topoplot(datavector, chan_locs, **kwargs):
     plotchans = _plot_channel_indices(plotchans, indices, len(tmpeloc))
     if len(tmpeloc) == len(datavector) + 1 and plotchans.size and int(plotchans[-1]) == len(tmpeloc) - 1:
         plotchans = plotchans[:-1]
-    if len(datavector) > 1:
+    if len(datavector) > 1 or len(datavector) == len(Th):
         nonfinite = np.flatnonzero(~np.isfinite(datavector))
         plotchans = np.setdiff1d(plotchans, nonfinite)
 
     x, y = np.cos(Th) * Rd, np.sin(Th) * Rd
-    # Keep the original channel positions. Dropping a channel here would renumber
-    # datavector[pltchans] and move later values onto the wrong electrodes.
     if plotchans.size == 0 or not np.any(np.isfinite(Th[plotchans]) & np.isfinite(Rd[plotchans])):
         raise ValueError(
             "topoplot: no channel has a finite theta and radius. "
@@ -258,7 +279,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     allchansind = np.array(allchansind)[plotchans]
     Th, Rd, x, y = Th[plotchans], Rd[plotchans], x[plotchans], y[plotchans]
     labels = np.array(labels)[plotchans]
-    if len(datavector) > 1:
+    if len(datavector) > 1 or len(datavector) == len(Th):
         datavector = datavector[plotchans]
         ContourVals = ContourVals[plotchans]
 
@@ -279,7 +300,8 @@ def topoplot(datavector, chan_locs, **kwargs):
 
     labels = labels[pltchans]
 
-    if datavector is not None and len(datavector) > 1:
+    # topoplot.m:918-923 keeps a one-channel value vector aligned with Th.
+    if datavector is not None and len(datavector) == len(Th):
         intdatavector = datavector[intchans]
         datavector = datavector[pltchans]
         ContourVals = ContourVals[pltchans]

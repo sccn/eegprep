@@ -21,7 +21,13 @@ import pytest
 # Set Agg backend before importing topoplot to avoid display issues
 matplotlib.use('Agg')
 
-from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4, topo_screen_coords
+from eegprep.functions.sigprocfunc.topoplot import (
+    _average_similar_points,
+    _merge_coincident_points,
+    griddata_v4,
+    topo_screen_coords,
+    topoplot,
+)
 from eegprep import pop_loadset, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from tests.eeglab_tests import eeglab_test
@@ -76,9 +82,70 @@ class TestGriddataV4(unittest.TestCase):
         merged = values.copy()
         merged[0] = 0.5 * (values[0] + 3.0)
         expected = griddata_v4(x, y, merged, xq, yq)
-        actual = griddata_v4(np.append(x, x[0]), np.append(y, y[0]), np.append(values, 3.0), xq, yq)
+        with self.assertWarns(UserWarning) as caught:
+            actual = griddata_v4(np.append(x, x[0]), np.append(y, y[0]), np.append(values, 3.0), xq, yq)
 
+        self.assertIn(_DUPLICATE_POINT_WARNING, str(caught.warning))
         np.testing.assert_allclose(actual, expected)
+
+    def test_exact_tolerance_boundary_matches_mergesimpts(self):
+        # mergesimpts([0; 0.5; 1], 0.5, 'average') keeps all three because the
+        # comparison is strict <. nextafter on either side of 0.5 decides the merge.
+        y = np.zeros(3)
+        values = np.array([1.0, 2.0, 3.0])
+        kept = _average_similar_points(np.array([0.0, 0.5, 1.0]), y, values, 0.5, np.inf)
+        self.assertEqual(kept[0].size, 3)
+        np.testing.assert_allclose(kept[0], [0.0, 0.5, 1.0])
+
+        inside = np.nextafter(0.5, -np.inf)
+        merged = _average_similar_points(np.array([0.0, inside, 1.0]), y, values, 0.5, np.inf)
+        self.assertEqual(merged[0].size, 2)
+        np.testing.assert_allclose(merged[0], [inside / 2.0, 1.0])
+
+        # The far point stays more than tol from both neighbors. Putting it at 1
+        # would make |1 - nextafter(0.5, +inf)| itself smaller than 0.5.
+        outside = np.nextafter(0.5, np.inf)
+        separate = _average_similar_points(np.array([0.0, outside, 2.0]), y, values, 0.5, np.inf)
+        self.assertEqual(separate[0].size, 3)
+        np.testing.assert_allclose(separate[0], [0.0, outside, 2.0])
+
+        corners = np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 1.0], [-1.0, 1.0, 2.0], [1.0, 1.0, 3.0]])
+        anchor = np.array([[0.0, 0.0, 4.0]])
+        span = 2.0
+        tol = float(np.spacing(0.5 * span) ** (1.0 / 3.0))
+        for offset, expected_count in (
+            (tol, 6),
+            (np.nextafter(tol, -np.inf), 5),
+            (np.nextafter(tol, np.inf), 6),
+        ):
+            with self.subTest(offset=offset, expected_count=expected_count):
+                extra = np.array([[offset, offset, 5.0]])
+                points = np.vstack((corners, anchor, extra))
+                merged_x, merged_y, _merged_v, merged_count = _merge_coincident_points(
+                    points[:, 0], points[:, 1], points[:, 2]
+                )
+                self.assertEqual(merged_x.size, expected_count)
+                self.assertEqual(merged_y.size, expected_count)
+                self.assertEqual(merged_count > 0, expected_count < points.shape[0])
+
+    def test_one_unique_location_names_the_two_sensor_requirement(self):
+        query = np.linspace(-1, 1, 5)
+        xq, yq = np.meshgrid(query, query)
+        with self.assertWarns(UserWarning) as caught:
+            with self.assertRaisesRegex(ValueError, _TWO_LOCATIONS_ERROR):
+                griddata_v4(
+                    np.array([0.2, 0.2, 0.2]),
+                    np.array([-0.1, -0.1, -0.1]),
+                    np.array([1.0, 3.0, 5.0]),
+                    xq,
+                    yq,
+                )
+        self.assertIn(_DUPLICATE_POINT_WARNING, str(caught.warning))
+        with warnings.catch_warnings(record=True) as caught_single:
+            warnings.simplefilter("always", UserWarning)
+            with self.assertRaisesRegex(ValueError, _TWO_LOCATIONS_ERROR):
+                griddata_v4(np.array([0.2]), np.array([-0.1]), np.array([1.0]), xq, yq)
+        self.assertFalse(any("griddata_v4" in str(item.message) for item in caught_single))
 
     def test_near_duplicate_points_merge_to_the_averaged_sensor(self):
         x, y, values, xq, yq = _circle_samples()
@@ -93,7 +160,7 @@ class TestGriddataV4(unittest.TestCase):
                         xq,
                         yq,
                     )
-                self.assertIn("topoplot griddata_v4 merged 2", str(caught.warning))
+                self.assertIn(_DUPLICATE_POINT_WARNING, str(caught.warning))
                 np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=1e-12)
 
     def test_points_one_millimeter_apart_on_the_unit_circle_stay_separate(self):
@@ -136,9 +203,18 @@ class TestGriddataV4(unittest.TestCase):
                 merged = np.vstack((corners, merged_cluster))
                 with self.assertWarns(UserWarning) as caught:
                     actual = griddata_v4(points[:, 0], points[:, 1], points[:, 2], xq, yq)
-                self.assertIn("topoplot griddata_v4 merged 2", str(caught.warning))
+                self.assertIn(_DUPLICATE_POINT_WARNING, str(caught.warning))
                 expected = griddata_v4(merged[:, 0], merged[:, 1], merged[:, 2], xq, yq)
                 np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=1e-12)
+
+
+_DUPLICATE_POINT_WARNING = (
+    "topoplot griddata_v4: Duplicate x-y data points detected: using average values for duplicate points."
+)
+_TWO_LOCATIONS_ERROR = (
+    r"topoplot griddata_v4: at least two distinct sensor locations are needed\. "
+    r"Pass values at two or more electrodes that stay apart after duplicate averaging\."
+)
 
 
 def _circle_samples():
@@ -230,6 +306,14 @@ class TestTopoplot(unittest.TestCase):
         _, actual, _, _, _ = topoplot(data, locs, noplot="on")
         _, expected, _, _, _ = topoplot(data, locs[:-1], noplot="on")
         np.testing.assert_allclose(actual, expected, equal_nan=True)
+
+    def test_single_plot_channel_asks_for_two_locations(self):
+        for index in (0, 4):
+            with self.subTest(index=index):
+                with self.assertRaisesRegex(ValueError, _TWO_LOCATIONS_ERROR):
+                    topoplot(self.datavector, self.chan_locs, noplot="on", plotchans=[index])
+        with self.assertRaisesRegex(ValueError, _TWO_LOCATIONS_ERROR):
+            topoplot(np.array([self.datavector[0]]), [self.chan_locs[0]], noplot="on")
 
     def test_plotchans_keeps_the_requested_channels(self):
         keep = [0, 5, 8]

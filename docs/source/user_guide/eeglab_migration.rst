@@ -591,7 +591,16 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
      - When there is one more channel location than value, and the last
        location is selected, that location is dropped. ``topoplot.m`` lines
        749-753 do the same. NaN and Inf values are removed from the
-       locations and the values together (lines 760-779).
+       locations and the values together (lines 760-779). A single
+       ``plotchans`` index is kept, including ``[0]`` (``topoplot.m`` lines
+       918-923).
+   * - One ``topoplot`` location
+     - The map needs two distinct sensor locations. One selected channel, or
+       sensors that average to one point, raises ``ValueError`` from
+       ``topoplot griddata_v4``. MATLAB ``griddata`` returns a non-finite map
+       and warns. Duplicate coordinates are averaged when both axis gaps are
+       strictly inside ``spacing(0.5 * span) ** (1/3)``; a gap equal to that
+       tolerance stays separate, as in ``mergesimpts``.
    * - Empty ``topoplot`` locations
      - An interpolated ``topoplot`` raises ``ValueError`` when channel
        locations are ``None`` or empty. The message names ``topoplot`` and
