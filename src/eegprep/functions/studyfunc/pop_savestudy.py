@@ -189,15 +189,13 @@ def _set_matlab_class(node: h5py.Dataset | h5py.Group, class_name: str) -> None:
 def _write_mat73_empty(parent: h5py.Group, name: str, shape: tuple[int, ...], class_name: str) -> None:
     """Write an empty MATLAB array as uint64 dimensions plus ``MATLAB_empty``.
 
-    A 0-by-0 char is ``[0, 0]``. Numeric empties keep the array's own shape,
-    which is the payload MATLAB already accepts for an empty double.
+    A 1-D empty is MATLAB ``[]``, stored as 0-by-0. An empty char has no
+    ``MATLAB_int_decode`` attribute.
     """
-    dims = (0, 0) if class_name == "char" and not shape else shape
+    dims = shape if len(shape) >= 2 else (0, 0)
     dataset = parent.create_dataset(name, data=np.asarray(dims, dtype=np.uint64).reshape(-1))
     _set_matlab_class(dataset, class_name)
     dataset.attrs["MATLAB_empty"] = np.uint8(1)
-    if class_name == "char":
-        dataset.attrs["MATLAB_int_decode"] = np.int32(2)
 
 
 def _write_mat73_char(parent: h5py.Group, name: str, text: str) -> None:

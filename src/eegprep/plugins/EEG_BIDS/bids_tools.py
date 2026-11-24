@@ -322,7 +322,9 @@ _PARTICIPANT_COLUMNS = (
 _EVENT_COLUMNS = ("bids_field", "eeglab_field", "Levels", "LongName", "Description", "Units")
 _WIZARD_PAGE_ROWS = 10
 _WIZARD_FIELDS = ("file", "subject", "session", "run", "condition", "group", "task")
+_WIZARD_ROW = (0.2, 1.05, 0.35, 0.4, 0.35, 0.25, 0.6, 0.4, 0.6, 0.3)
 _WIZARD_HEADERS = (
+    "",
     "Raw dataset filename",
     "browse",
     "subject",
@@ -331,7 +333,7 @@ _WIZARD_HEADERS = (
     "condition",
     "group",
     "task",
-    "CLear",
+    "",
 )
 
 
@@ -383,12 +385,15 @@ def bids_exporter_welcome_spec() -> DialogSpec:
         function_name="bids_exporter",
         eeglab_source="plugins/EEG-BIDS/bids_exporter.m",
         geometry=((1,), (1,)),
+        geomvert=(1, 3),
+        ok_label="Continue",
         controls=(
             ControlSpec("text", "Welcome to the EEG-BIDS exporter tool!", font_weight="bold"),
             ControlSpec(
                 "text",
-                "Continue to choose raw files, subject, session, run, condition, group, and task. "
-                "No dataset needs to be loaded.",
+                "This tool allows you to select binary EEG files\n"
+                "and format them to a BIDS dataset. For more information\n"
+                "see the online help at https://eegbids.org",
             ),
         ),
     )
@@ -414,11 +419,11 @@ def bids_exporter_grid_spec(row_count: int | None = None) -> DialogSpec:
     ]
     geometry: list[tuple[float, ...] | tuple[int, ...]] = [(1, 3), (1,)]
     controls.extend(ControlSpec("text", header) for header in _WIZARD_HEADERS)
-    row_geometry = (3, 0.45, 1, 1, 1, 1, 1, 1, 0.6)
-    geometry.append(row_geometry)
+    geometry.append(_WIZARD_ROW)
     for index in range(1, count + 1):
         controls.extend(
             [
+                ControlSpec("text", str(index)),
                 ControlSpec("edit", tag=f"file{index}"),
                 ControlSpec(
                     "pushbutton",
@@ -441,16 +446,19 @@ def bids_exporter_grid_spec(row_count: int | None = None) -> DialogSpec:
                 ControlSpec("edit", tag=f"task{index}"),
                 ControlSpec(
                     "pushbutton",
-                    "CLear",
+                    "Clear",
                     tag=f"clear{index}",
                     callback=CallbackSpec(
                         "clear_widgets",
-                        {"targets": [f"{field}{index}" for field in _WIZARD_FIELDS]},
+                        {
+                            "button": f"clear{index}",
+                            "targets": [f"{field}{index}" for field in _WIZARD_FIELDS],
+                        },
                     ),
                 ),
             ]
         )
-        geometry.append(row_geometry)
+        geometry.append(_WIZARD_ROW)
     controls.extend(
         [
             ControlSpec("pushbutton", "<", tag="prev_page"),
@@ -561,15 +569,20 @@ def _export_grid_dialog() -> _ExportGrid:
     edits: list[dict[str, Any]] = []
     grid = QGridLayout()
     for column, header in enumerate(_WIZARD_HEADERS):
-        label = QLabel("" if header == "browse" else header)
-        label.setObjectName(f"header-{header}")
+        label = QLabel(header)
+        label.setObjectName(f"header-{column}")
         grid.addWidget(label, 0, column)
+    for column, weight in enumerate(_WIZARD_ROW):
+        grid.setColumnStretch(column, max(1, round(weight * 100)))
     for row in range(1, _WIZARD_PAGE_ROWS + 1):
         widgets: dict[str, Any] = {}
+        number = QLabel(str(row))
+        number.setObjectName(f"row{row}")
+        grid.addWidget(number, row, 0)
         file_edit = QLineEdit()
         file_edit.setObjectName(f"file{row}")
         widgets["file"] = file_edit
-        grid.addWidget(file_edit, row, 0)
+        grid.addWidget(file_edit, row, 1)
         browse = QPushButton("...")
         browse.setObjectName(f"browse{row}")
 
@@ -579,13 +592,13 @@ def _export_grid_dialog() -> _ExportGrid:
                 edit.setText(name)
 
         browse.clicked.connect(choose)
-        grid.addWidget(browse, row, 1)
-        for column, field in enumerate(_WIZARD_FIELDS[1:], start=2):
+        grid.addWidget(browse, row, 2)
+        for column, field in enumerate(_WIZARD_FIELDS[1:], start=3):
             edit = QLineEdit()
             edit.setObjectName(f"{field}{row}")
             widgets[field] = edit
             grid.addWidget(edit, row, column)
-        clear = QPushButton("CLear")
+        clear = QPushButton("Clear")
         clear.setObjectName(f"clear{row}")
 
         def wipe(_checked: bool = False, row_widgets: dict[str, Any] = widgets) -> None:
@@ -593,7 +606,7 @@ def _export_grid_dialog() -> _ExportGrid:
                 edit.setText("")
 
         clear.clicked.connect(wipe)
-        grid.addWidget(clear, row, len(_WIZARD_FIELDS) + 1)
+        grid.addWidget(clear, row, len(_WIZARD_FIELDS) + 2)
         edits.append(widgets)
 
     page_label = QLabel("Page 1")

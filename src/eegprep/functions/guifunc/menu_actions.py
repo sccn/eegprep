@@ -2210,7 +2210,6 @@ def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:
     path = Path(filename)
     eeg["filename"] = path.name
     eeg["filepath"] = str(path.parent)
-    eeg["saved"] = "yes"
 
 
 def _docs_url(path: str = "") -> str:

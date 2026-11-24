@@ -626,7 +626,8 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
 * ``pop_saveset`` creates a missing folder. EEGLAB errors when the folder does
   not exist. A failed save does not leave a partial ``.set`` or ``.fdt``, and
   it does not replace a file that was already there.
-* BIDS import writes ``derivatives/eeglab`` and does not modify the raw BIDS
+* BIDS import writes the derivative ``.set`` datasets and the ``.study`` file
+  to disk under ``derivatives/eeglab``. It does not modify the raw BIDS
   folder. Resave of a file inside the raw folder is refused. A folder import
   records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not pass
   ``return_study``, which EEGLAB rejects. A recording with no ``ses-`` folder
@@ -634,11 +635,26 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
 * File > Quit asks before discarding unsaved datasets. EEGLAB's Quit callback
   (``eeglab.m`` line 619) closes the window without asking. Cancel keeps
   EEGPrep open so the datasets can be saved first.
+* An MFF clock latency is the exact microsecond difference between the event
+  ``beginTime`` and the recording ``recordTime``, times ``srate``. On the
+  bundled ``testmff`` recording the first ``stm+`` is 203960 microseconds
+  after the record time, which is 50.99 samples at 250 Hz, and the epoch
+  latency is -2.042 ms. EEGLAB reports 50.990568 samples.
+  ``mff_decodetime.m`` uses ``1.15251e-11`` days per microsecond, about 0.42%
+  below ``1e-6/86400`` (``1.157407e-11``). MATLAB's string ``datenum`` then
+  mis-parses the timestamp by 0.16 to 2.44 microseconds. EEGPrep does not
+  copy either error. ``classid`` is ``EVNT`` when the XML omits it, which is
+  ``Event.getClassID()``. ``mffkeys`` is ``char(keylist)``:
+  ``[cel#:1, obs#:3, ...]``. Category segments keep the ``status`` attribute
+  from ``<seg status="...">``, and track events carry the same field.
 * The BIDS export wizard opens from an empty session: a welcome page, then a
-  file grid with one task per file. The grid shows 10 rows per page, column
-  headers, a browse button and a ``CLear`` button on each row, and ``<`` ``>``
-  page buttons. ``CLear`` empties that row. ``pop_studywizard`` has the same
-  per-row button.
+  file grid with one task per file. The welcome button is ``Continue``. The
+  grid shows 10 numbered rows per page, a ``browse`` column header, a browse
+  button and a ``Clear`` button on each row, and ``<`` ``>`` page buttons.
+  The Clear column has no header. ``pop_studywizard.m`` writes the button as
+  ``CLear``; ``supergui`` displays ``Clear``, and that is the label EEGPrep
+  uses. ``Clear`` empties that row. ``pop_studywizard`` has the same per-row
+  button.
   Participant info is one row per dataset, and event-field Levels, LongName,
   Description, and Units are written to one ``task-<task>_events.json`` at
   the dataset root. Power-line frequency is stored as a number when the EEG

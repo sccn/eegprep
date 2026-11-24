@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -205,6 +206,7 @@ def _mff_segments(path: Path) -> list[dict[str, Any]]:
                         "event_begin": _first_seconds(segment, ("eventBegin", "evtBegin")),
                         "event_end": _first_seconds(segment, ("eventEnd", "evtEnd")),
                         "keys": _xml_keys(segment),
+                        "status": str(segment.attrib.get("status") or ""),
                     }
                 )
         segments.sort(key=lambda segment: (float(segment["begin"]), float(segment["end"])))
@@ -217,6 +219,7 @@ def _mff_segments(path: Path) -> list[dict[str, Any]]:
                 "event_begin": None,
                 "event_end": None,
                 "keys": [],
+                "status": "",
             }
             for index, (begin, end) in enumerate(bounds, start=1)
         ]
@@ -408,6 +411,7 @@ def _track_event(
         "tracktype": track_type,
         "type": _event_type(code, label, keys, typefield),
         "mffkeysbackup": _mffkeys_backup(keys),
+        "status": _child_text(node, "status"),
     }
     _attach_mff_keys(event, keys)
     return event
@@ -462,6 +466,7 @@ def _category_events(
             "latency": float(latency),
             "duration": float(duration),
             "epoch": epoch,
+            "status": str(segment.get("status") or ""),
         }
         _attach_mff_keys(event, segment.get("keys") or [])
         events.append(event)
@@ -487,7 +492,15 @@ def _attach_mff_keys(event: dict[str, Any], keys: list[dict[str, str]]) -> None:
 
 
 def _mffkeys_text(keys: list[dict[str, str]]) -> str:
-    return ";".join(f"{key['code']}={key['data']}" for key in keys if key["code"] or key["data"])
+    """Format keys the way ``char(keylist)`` prints a Java ``ArrayList``.
+
+    ``Key.toString`` is ``code + ':' + data``. ``ArrayList.toString`` wraps the
+    items in brackets and separates them with ``', '``.
+    """
+    parts = [f"{key['code']}:{key['data']}" for key in keys if key["code"] or key["data"]]
+    if not parts:
+        return ""
+    return "[" + ", ".join(parts) + "]"
 
 
 def _correct_epoch_gap(latency: float, sample_beg: list[float], sample_len: list[float]) -> float:
@@ -522,7 +535,8 @@ def _class_id(node: ET.Element) -> str:
         text = _child_text(node, name)
         if text:
             return text
-    return ""
+    # Event.getClassID() is the constant "EVNT" when the XML omits classID.
+    return "EVNT"
 
 
 def _raw_number(node: ET.Element, names: tuple[str, ...]) -> int | float:
@@ -553,51 +567,30 @@ def _matlab_quote(text: str) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-_DATENUM_MONTH_START = np.array([306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275], dtype=np.float64)
-# One microsecond in MATLAB datenum days, from mff_decodetime.m.
-_DATENUM_MICROSECOND = np.float64("1.1525116860866546630859375e-11")
-
-
 def _latency_from_clock(begin_text: str, record_text: str, srate: float) -> float:
-    """Samples from ``(mff_decodetime(begin) - mff_decodetime(record)) * 86400 * srate``."""
-    delta = _mff_datenum(begin_text) - _mff_datenum(record_text)
-    return float(delta * np.float64(24 * 60 * 60) * np.float64(srate))
+    """Return ``(begin - record)`` in samples, counted in exact microseconds."""
+    delta = _mff_datetime(begin_text) - _mff_datetime(record_text)
+    microseconds = delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds
+    return microseconds * float(srate) / 1_000_000
 
 
-def _mff_datenum(text: str) -> np.float64:
-    """Decode one EGI timestamp the way ``mff_decodetime.m`` calls ``datenum``.
-
-    The first character becomes ``0`` so the day count stays in the precise
-    range of a double. The first 23 characters are the datenum, and characters
-    24:26 are the remaining microseconds.
-    """
-    stamped = "0" + _pad_mff_timezone(text)[1:]
-    if len(stamped) < 26 or stamped[10] != "T":
+def _mff_datetime(text: str) -> datetime:
+    value = _pad_mff_timezone(text)
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    try:
+        moment = datetime.fromisoformat(value)
+    except ValueError as exc:
         raise ValueError(
             f"pop_mffimport: MFF time {text!r} is not an EGI timestamp. "
             "Fix beginTime or info.xml recordTime, then import again."
+        ) from exc
+    if moment.tzinfo is None:
+        raise ValueError(
+            f"pop_mffimport: MFF time {text!r} has no timezone. "
+            "Fix beginTime or info.xml recordTime, then import again."
         )
-    year = int(stamped[0:4])
-    month = int(stamped[5:7])
-    day = int(stamped[8:10])
-    hour = int(stamped[11:13])
-    minute = int(stamped[14:16])
-    second = np.float64(int(stamped[17:19])) + np.float64(int(stamped[20:23])) / np.float64(1000)
-    extra = np.float64(int(stamped[23:26])) * _DATENUM_MICROSECOND
-    return _matlab_datenum(year, month, day, hour, minute, second) + extra
-
-
-def _matlab_datenum(year: int, month: int, day: int, hour: int, minute: int, second: np.float64) -> np.float64:
-    year_f = np.float64(year) + np.ceil((np.float64(month) - np.float64(14)) / np.float64(12))
-    day_f = np.float64(day) + _DATENUM_MONTH_START[month - 1] + np.float64(60)
-    day_f = (
-        day_f
-        + np.float64(365) * year_f
-        + np.floor(year_f / np.float64(4))
-        - np.floor(year_f / np.float64(100))
-        + np.floor(year_f / np.float64(400))
-    )
-    return day_f + (np.float64(hour) + (np.float64(minute) + second / np.float64(60)) / np.float64(60)) / np.float64(24)
+    return moment
 
 
 def _pad_mff_timezone(text: str) -> str:

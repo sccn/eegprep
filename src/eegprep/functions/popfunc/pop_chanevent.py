@@ -384,6 +384,7 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         ControlSpec('text', 'Event channel(s)'),
         ControlSpec('edit', tag='chan', value=''),
         ControlSpec('spacer'),
+        ControlSpec('spacer'),
         ControlSpec('text', "Preprocessing transform (data='X')"),
         ControlSpec('edit', tag='oper'),
         ControlSpec('text', 'Optional. Ex: X>3'),
@@ -401,25 +402,37 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         ControlSpec('text', 'Transition length (1=perfect edges)'),
         ControlSpec('edit', tag='edgelen', value='0'),
         ControlSpec('spacer'),
+        ControlSpec('text', 'Assign duration to each events?'),
+        ControlSpec('checkbox', tag='duration', value=False),
+        ControlSpec('spacer'),
+        ControlSpec('text', '(set=yes)'),
+        ControlSpec('spacer'),
+        ControlSpec('text', 'Delete event channel(s)?'),
+        ControlSpec('checkbox', tag='delchan', value=True),
+        ControlSpec('text', '        (set = yes)'),
+        ControlSpec('text', 'Delete old events if any?'),
+        ControlSpec('checkbox', tag='delevent', value=True),
+        ControlSpec('spacer'),
+        ControlSpec('text', 'All events of same type?'),
+        ControlSpec('checkbox', tag='nbtype', value=False),
+        ControlSpec('spacer'),
     ]
-    for label, tag, default in [
-        ('Assign duration to each events?', 'duration', False),
-        ('Delete event channel(s)?', 'delchan', True),
-        ('Delete old events if any?', 'delevent', True),
-        ('All events of same type?', 'nbtype', False),
-    ]:
-        controls.extend(
-            [
-                ControlSpec('text', label),
-                ControlSpec('checkbox', tag=tag, value=default),
-                ControlSpec('text', '(set=yes)') if tag == 'duration' else ControlSpec('spacer'),
-            ]
-        )
     return DialogSpec(
         title='Extract event from channel(s) - pop_chanevent()',
         function_name='pop_chanevent',
         help_text='pop_chanevent',
         eeglab_source='functions/popfunc/pop_chanevent.m',
-        geometry=tuple([[2.6, 1.2, 1.4]] * 8),
+        geometry=(
+            (1.5, 1, 1),
+            (1,),
+            (1.5, 1, 1),
+            (1.5, 1, 1),
+            (1.5, 1, 1),
+            (1.5, 0.2, 0.36, 0.84),
+            (1,),
+            (1.5, 0.21, 1),
+            (1.5, 0.21, 1),
+            (1.5, 0.21, 1),
+        ),
         controls=tuple(controls),
     )

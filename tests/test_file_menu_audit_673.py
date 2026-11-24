@@ -389,6 +389,62 @@ def test_studywizard_cancel_changes_nothing_and_ok_applies_condition():
     assert "'left'" in command
 
 
+def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
+    from PySide6.QtWidgets import QLabel, QPushButton
+
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard_dialog_spec
+    from eegprep.plugins.EEG_BIDS.bids_tools import bids_exporter_grid_spec, bids_exporter_welcome_spec
+
+    renderer = QtDialogRenderer()
+    _app, study_dialog, study_widgets = renderer.build_dialog(pop_studywizard_dialog_spec(["kept.set"], "Study"))
+    study_dialog.show()
+    qapp.processEvents()
+    study_labels = {label.text() for label in study_dialog.findChildren(QLabel)}
+    assert "browse" in study_labels
+    assert "1" in study_labels
+    assert "Clear" not in study_labels
+    assert study_widgets["clear1"].text() == "Clear"
+    assert study_widgets["file1"].text() == "kept.set"
+    study_widgets["clear1"].click()
+    qapp.processEvents()
+    assert study_widgets["file1"].text() == ""
+    study_dialog.close()
+
+    _app, grid_dialog, grid_widgets = renderer.build_dialog(bids_exporter_grid_spec())
+    grid_dialog.show()
+    qapp.processEvents()
+    grid_labels = {label.text() for label in grid_dialog.findChildren(QLabel)}
+    assert "browse" in grid_labels
+    assert {str(index) for index in range(1, 11)} <= grid_labels
+    assert "Clear" not in grid_labels
+    assert grid_widgets["clear1"].text() == "Clear"
+    grid_widgets["file1"].setText("a.set")
+    grid_widgets["clear1"].click()
+    qapp.processEvents()
+    assert grid_widgets["file1"].text() == ""
+    grid_dialog.close()
+
+    _app, welcome, _widgets = renderer.build_dialog(bids_exporter_welcome_spec())
+    welcome.show()
+    qapp.processEvents()
+    buttons = {button.text() for button in welcome.findChildren(QPushButton)}
+    assert "Continue" in buttons
+    assert "Ok" not in buttons
+    welcome.close()
+
+
+def _dialog_row(spec, control):
+    index = spec.controls.index(control)
+    cursor = 0
+    for row in spec.geometry:
+        width = len(row)
+        if cursor <= index < cursor + width:
+            return row
+        cursor += width
+    raise AssertionError(control.string)
+
+
 def test_dataset_history_dialog_starts_in_the_dataset_folder(tmp_path):
     from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
     from eegprep.functions.guifunc.session import EEGPrepSession
@@ -586,8 +642,11 @@ def test_chanevent_expression_matches_matlab_round_bitand_and_chaining():
     assert "ast." not in str(caught.value)
     spec = pop_chanevent_dialog_spec()
     hint = next(control for control in spec.controls if control.string == "Optional. Ex: X>3")
-    row = spec.geometry[spec.controls.index(hint) // 3]
-    assert row[2] > 1
+    assert _dialog_row(spec, hint) == (1.5, 1, 1)
+    delete = next(control for control in spec.controls if control.string == "Delete event channel(s)?")
+    assert _dialog_row(spec, delete) == (1.5, 0.21, 1)
+    assert spec.controls[spec.controls.index(delete) + 2].string.strip() == "(set = yes)"
+    assert sum(len(row) == 1 for row in spec.geometry) == 2
 
 
 def test_pop_loadeeg_history_is_positional_and_events_follow_latency(tmp_path, monkeypatch):
@@ -637,7 +696,7 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     )
     (folder / "categories.xml").write_text(
         "<categories><cat><name>target</name><segments>"
-        "<segment><beginTime>0</beginTime><endTime>1200000</endTime>"
+        "<segment status=\"kept\"><beginTime>0</beginTime><endTime>1200000</endTime>"
         "<eventBegin>202000</eventBegin><eventEnd>202000</eventEnd></segment>"
         "<segment><beginTime>1200000</beginTime><endTime>2400000</endTime>"
         "<eventBegin>1402000</eventBegin><eventEnd>1402000</eventEnd></segment>"
@@ -665,6 +724,10 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     assert [event["type"] for event in eeg["event"]] == ["stm+", "target", "resp", "target"]
     assert eeg["event"][0]["latency"] == pytest.approx(0.20396 * 250)
     assert eeg["event"][0]["mffkey_cel"] == "1"
+    assert eeg["event"][0]["mffkeys"] == "[cel#:1]"
+    assert eeg["event"][0]["classid"] == "EVNT"
+    assert eeg["event"][0]["status"] == ""
+    assert eeg["event"][1]["status"] == "kept"
     assert eeg["event"][0]["duration"] == pytest.approx(1000)
     assert len(eeg["epoch"]) == 2
     seconds = tmp_path / "seconds.mff"
@@ -949,10 +1012,13 @@ def test_real_testmff_matches_eeglab_epochs():
         assert name in found_types
     stimulus = [event for event in eeg["event"] if str(event["type"]).lower() == "stm+"]
     assert stimulus
-    assert stimulus[0]["latency"] == pytest.approx(50.99003756186, abs=1e-8)
+    latency = stimulus[0]["latency"]
+    assert latency == 50.99, f"exact microseconds, not EEGLAB mff_decodetime 50.990568 (got {latency})"
     assert stimulus[0]["begintime"] == "2015-07-01T16:24:33.845920-07:00"
-    assert stimulus[0]["classid"] == ""
+    assert stimulus[0]["classid"] == "EVNT"
     assert stimulus[0]["relativebegintime"] == 0
+    assert stimulus[0]["mffkeys"] == "[cel#:1, obs#:3, pos#:3, argu:0]"
+    assert stimulus[0]["status"] == ""
     assert stimulus[0]["mffkeysbackup"].startswith("struct('code',{'cel#'")
     assert stimulus[0]["urevent"] == 1
     assert all(float(event["duration"]) == pytest.approx(1000) for event in stimulus)
@@ -960,7 +1026,7 @@ def test_real_testmff_matches_eeglab_epochs():
     assert all("event" in epoch and "eventlatency" in epoch for epoch in eeg["epoch"])
     first_latency = eeg["epoch"][0]["eventlatency"]
     first_value = float(np.asarray(first_latency).reshape(-1)[0])
-    assert first_value == pytest.approx(-2.04184976, abs=1e-5)
+    assert first_value == -2.042
     assert mne is not None
 
 
@@ -1031,6 +1097,7 @@ def test_v73_char_and_empty_arrays_match_matlab_hdf5(tmp_path):
         _write_mat73_value(handle, "hello", "hello", handle, writer)
         _write_mat73_value(handle, "blank", "", handle, writer)
         _write_mat73_value(handle, "nodouble", np.zeros((0, 0)), handle, writer)
+        _write_mat73_value(handle, "onedim", np.array([]), handle, writer)
         _write_mat73_value(handle, "nocell", np.empty((0, 0), dtype=object), handle, writer)
         _write_mat73_value(handle, "flag", True, handle, writer)
         _write_mat73_value(handle, "box", {"a": 1.0}, handle, writer)
@@ -1047,12 +1114,17 @@ def test_v73_char_and_empty_arrays_match_matlab_hdf5(tmp_path):
         assert blank[()].reshape(-1).tolist() == [0, 0]
         assert int(blank.attrs["MATLAB_empty"]) == 1
         assert blank.attrs["MATLAB_empty"].dtype == np.dtype("uint8")
-        assert int(blank.attrs["MATLAB_int_decode"]) == 2
+        assert "MATLAB_int_decode" not in blank.attrs
         nodouble = handle["nodouble"]
         _assert_fixed_matlab_class(nodouble, "double")
         assert nodouble.dtype == np.dtype("uint64")
         assert nodouble[()].reshape(-1).tolist() == [0, 0]
         assert int(nodouble.attrs["MATLAB_empty"]) == 1
+        onedim = handle["onedim"]
+        _assert_fixed_matlab_class(onedim, "double")
+        assert onedim[()].reshape(-1).tolist() == [0, 0]
+        assert int(onedim.attrs["MATLAB_empty"]) == 1
+        assert "MATLAB_int_decode" not in onedim.attrs
         nocell = handle["nocell"]
         _assert_fixed_matlab_class(nocell, "cell")
         assert nocell.dtype == np.dtype("uint64")
@@ -1115,21 +1187,22 @@ def test_export_wizard_pages_ten_rows(qapp):
         )
         == 10
     )
-    assert {control.string for control in spec.controls if control.style == "text"} >= {
-        "Raw dataset filename",
-        "subject",
-        "Page 1",
-    }
+    headers = {control.string for control in spec.controls if control.style == "text"}
+    assert {"Raw dataset filename", "browse", "subject", "Page 1"} <= headers
+    assert {str(index) for index in range(1, 11)} <= headers
+    assert "Clear" not in headers
     assert sum(control.string == "..." for control in spec.controls) == 10
-    assert sum(control.style == "pushbutton" and control.string == "CLear" for control in spec.controls) == 10
+    assert sum(control.style == "pushbutton" and control.string == "Clear" for control in spec.controls) == 10
     assert any(control.string == "<" for control in spec.controls)
     dialog = _export_grid_dialog()
     dialog.show()
     qapp.processEvents()
     headers = {label.text() for label in dialog.findChildren(QLabel)}
-    assert {"Raw dataset filename", "subject", "session", "run", "condition", "group", "task"} <= headers
+    assert {"Raw dataset filename", "browse", "subject", "session", "run", "condition", "group", "task"} <= headers
+    assert {str(index) for index in range(1, 11)} <= headers
+    assert "Clear" not in headers
     assert len([button for button in dialog.findChildren(QPushButton) if button.text() == "..."]) == 10
-    assert len([button for button in dialog.findChildren(QPushButton) if button.text() == "CLear"]) == 10
+    assert len([button for button in dialog.findChildren(QPushButton) if button.text() == "Clear"]) == 10
     dialog.edits[0]["file"].setText("a.set")
     dialog.edits[0]["subject"].setText("S01")
     clear = next(button for button in dialog.findChildren(QPushButton) if button.objectName() == "clear1")
@@ -1168,6 +1241,7 @@ def test_chanevent_labels_fit_their_column(qapp):
         assert label.width() >= label.sizeHint().width()
     assert found["(click to select)"].text() == "(click to select)"
     assert found["(set=yes)"].text() == "(set=yes)"
+    assert found["        (set = yes)"].text() == "        (set = yes)"
     layout = dialog.layout()
     assert dialog.height() <= layout.sizeHint().height() + 4
     dialog.close()

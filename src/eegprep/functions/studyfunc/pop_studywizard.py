@@ -67,18 +67,53 @@ def pop_studywizard(
     return (study, alleeg, command) if return_com else (study, alleeg)
 
 
+_ROW_GEOMETRY = (0.2, 1.05, 0.35, 0.4, 0.35, 0.25, 0.6, 0.4, 0.6, 0.3)
+_ROW_HEADERS = (
+    "",
+    "Raw dataset filename",
+    "browse",
+    "subject",
+    "session",
+    "run",
+    "condition",
+    "group",
+    "task",
+    "",
+)
+
+
 def pop_studywizard_dialog_spec(filenames: list[str], name: str) -> DialogSpec:
-    """Return the browse-for-datasets grid from ``pop_studywizard.m``."""
+    """Return the browse-for-datasets grid from ``pop_studywizard.m``.
+
+    ``supergui`` displays the source button ``CLear`` as ``Clear``. The header
+    row names ``browse`` and leaves the Clear column unlabeled.
+    """
     controls = [
         ControlSpec("text", "Create a STUDY set", font_weight="bold"),
         ControlSpec("text", "STUDY name"),
         ControlSpec("edit", tag="name", value=name),
     ]
-    geometry: list[tuple[int, ...]] = [(1,), (1, 3)]
+    geometry: list[tuple[float, ...] | tuple[int, ...]] = [(1,), (1, 3)]
+    controls.extend(ControlSpec("text", header) for header in _ROW_HEADERS)
+    geometry.append(_ROW_GEOMETRY)
     for index, filename in enumerate(filenames, start=1):
         controls.extend(
             [
+                ControlSpec("text", str(index)),
                 ControlSpec("edit", tag=f"file{index}", value=filename),
+                ControlSpec(
+                    "pushbutton",
+                    "...",
+                    tag=f"browse{index}",
+                    callback=CallbackSpec(
+                        "select_file",
+                        {
+                            "button": f"browse{index}",
+                            "target": f"file{index}",
+                            "caption": "Choose dataset to add -- pop_studywizard()",
+                        },
+                    ),
+                ),
                 ControlSpec("edit", tag=f"subject{index}", value=f"S{index}"),
                 ControlSpec("edit", tag=f"session{index}"),
                 ControlSpec("edit", tag=f"run{index}"),
@@ -87,11 +122,12 @@ def pop_studywizard_dialog_spec(filenames: list[str], name: str) -> DialogSpec:
                 ControlSpec("edit", tag=f"task{index}"),
                 ControlSpec(
                     "pushbutton",
-                    "CLear",
+                    "Clear",
                     tag=f"clear{index}",
                     callback=CallbackSpec(
                         "clear_widgets",
                         {
+                            "button": f"clear{index}",
                             "targets": [
                                 f"file{index}",
                                 f"subject{index}",
@@ -100,13 +136,13 @@ def pop_studywizard_dialog_spec(filenames: list[str], name: str) -> DialogSpec:
                                 f"condition{index}",
                                 f"group{index}",
                                 f"task{index}",
-                            ]
+                            ],
                         },
                     ),
                 ),
             ]
         )
-        geometry.append((3, 1, 1, 1, 1, 1, 1, 0.6))
+        geometry.append(_ROW_GEOMETRY)
     return DialogSpec(
         title="Create STUDY set -- pop_studywizard()",
         function_name="pop_studywizard",
