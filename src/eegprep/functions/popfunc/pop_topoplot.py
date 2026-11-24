@@ -503,6 +503,10 @@ def _parse_numeric_sequence(value: Any) -> np.ndarray:
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
+class _MatlabCell(list):
+    """A ``{...}`` value. MATLAB cannot concatenate one into ``[]``."""
+
+
 def _parse_options_text(text: str) -> dict[str, Any]:
     source = str(text).strip()
     if not source:
@@ -523,8 +527,7 @@ def _options_error(text: str) -> ValueError:
     return ValueError(
         "pop_topoplot: additional topoplot() options could not be parsed. "
         f"Got {text!r}. "
-        "Write comma-separated pairs such as 'electrodes', 'off', 'plotchans', [1 2 3], "
-        "'emarker', {'.', 5, 'k'}."
+        "Write comma-separated pairs such as 'electrodes', 'off', 'plotchans', [1 2 3]."
     )
 
 
@@ -552,6 +555,8 @@ class _OptionCursor:
                     return self._finish(rows)
                 raise _options_error(self.source)
             char = self.text[self.i]
+            if char == "%":
+                raise _options_error(self.source)
             if closing is not None and char == closing:
                 if need_value and seen:
                     raise _options_error(self.source)
@@ -559,16 +564,22 @@ class _OptionCursor:
                 return self._finish(rows)
             if closing is None and char in "]}":
                 raise _options_error(self.source)
-            if char in ",;" and not (closing is None and char == ";"):
+            if char == ",":
                 if need_value:
                     raise _options_error(self.source)
-                if char == ";":
-                    rows.append([])
+                self.i += 1
+                self._skip_ws()
+                at_end = self.i >= self.n or (closing is not None and self.text[self.i] == closing)
+                if not at_end:
+                    need_value = True
+                continue
+            if char == ";":
+                if closing is None or need_value:
+                    raise _options_error(self.source)
+                rows.append([])
                 self.i += 1
                 need_value = True
                 continue
-            if closing is None and char == ";":
-                raise _options_error(self.source)
             value = self._parse_value()
             self._store(rows[-1], value, concatenate)
             need_value = False
@@ -586,7 +597,9 @@ class _OptionCursor:
             return self._read_sequence("]", concatenate=True)
         if char == "{":
             self.i += 1
-            return self._read_sequence("}", concatenate=False)
+            return _MatlabCell(self._read_sequence("}", concatenate=False))
+        if char == "%":
+            raise _options_error(self.source)
         return self._parse_atom()
 
     def _parse_string(self, quote: str) -> str:
@@ -626,6 +639,10 @@ class _OptionCursor:
         raise _options_error(self.source)
 
     def _store(self, row: list[Any], value: Any, concatenate: bool) -> None:
+        if isinstance(value, _MatlabCell):
+            if concatenate:
+                raise _options_error(self.source)
+            value = list(value)
         if concatenate and isinstance(value, list):
             if not value:
                 return

@@ -159,6 +159,15 @@ def _require_channel_locations(chan_locs) -> None:
         )
 
 
+def _reject_unsupported_marker_options(kwargs: dict) -> None:
+    present = {str(key).lower() for key in kwargs}
+    for name in ("emarker", "emarker2"):
+        if name in present:
+            raise ValueError(
+                f"topoplot: '{name}' is not supported yet in eegprep (EEGLAB topoplot.m supports it)."
+            )
+
+
 def topoplot(datavector, chan_locs, **kwargs):
     """Plot a 2D topographic map of EEG data.
 
@@ -192,6 +201,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     handle : matplotlib.figure.Figure or None
         Figure handle if plotted, None otherwise.
     """
+    _reject_unsupported_marker_options(kwargs)
     if chan_locs is None:
         _require_channel_locations(chan_locs)
     # Set default values

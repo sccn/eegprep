@@ -275,6 +275,30 @@ def test_parse_options_text_reads_matlab_literals():
     }
 
 
+def test_parse_options_text_matches_matlab_eval_edges():
+    assert _parse_options_text("'electrodes', 'off',") == {"electrodes": "off"}
+    assert _parse_options_text("'plotchans', [1, 2, 3,]")["plotchans"] == [1.0, 2.0, 3.0]
+    assert _parse_options_text("'emarker', {'.', 5,},")["emarker"] == [".", 5.0]
+    assert _parse_options_text("'title', '100% done'")["title"] == "100% done"
+    for bad in ("'plotchans', [1 2 {3 4}]", "'electrodes', 'off' % hide"):
+        with pytest.raises(ValueError, match=r"pop_topoplot:.*'electrodes', 'off'") as caught:
+            _parse_options_text(bad)
+        assert bad in str(caught.value)
+
+
+def test_pop_topoplot_option_text_rejects_unsupported_markers():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=8, n_trials=1)
+    cases = (
+        ("'emarker', {'.', 5, 'k'}", "emarker"),
+        ("'emarker2', {[1 2 3], 'o', 'r', 10, 1}", "emarker2"),
+    )
+    for text, name in cases:
+        with pytest.raises(ValueError, match=rf"topoplot: '{name}' is not supported yet in eegprep") as caught:
+            pop_topoplot(eeg, typeplot=1, items=[0], plot="off", **_parse_options_text(text))
+        message = str(caught.value)
+        assert "EEGLAB topoplot.m supports it" in message
+
+
 def test_parse_options_text_names_unparsed_text():
     for bad in ("'emarker', {'.'", "'emarker2', {[1 2 3], 'o', 'r', 10, 1", "'plotchans', ???"):
         with pytest.raises(ValueError, match=r"pop_topoplot:.*'electrodes', 'off'") as caught:

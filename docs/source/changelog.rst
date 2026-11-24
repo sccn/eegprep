@@ -24,8 +24,11 @@ Unreleased
   reference and is left off the map. One distinct location raises
   ``ValueError``; MATLAB ``griddata`` returns a non-finite map.
   ``pop_topoplot`` option text follows MATLAB ``eval(['{ ' options ' }'])``:
-  cells, nested brackets, commas, semicolons, and doubled quotes. Text that
-  cannot be parsed raises ``ValueError`` naming ``pop_topoplot`` and the text.
+  cells, nested brackets, commas, semicolons, doubled quotes, and a trailing
+  comma. A cell inside ``[]`` or a ``%`` comment raises ``ValueError`` naming
+  ``pop_topoplot`` and the text. ``emarker`` and ``emarker2`` raise
+  ``ValueError`` from ``topoplot``; EEGLAB draws those markers and EEGPrep
+  does not yet.
   (#670)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's

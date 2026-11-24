@@ -655,5 +655,13 @@ def test_reference_near_duplicate_and_nan_channel(eeglab_backend):
     )
 
 
+def test_topoplot_rejects_unsupported_emarker_options():
+    locs = [{"labels": "Cz", "theta": 0.0, "radius": 0.0}]
+    for name in ("emarker", "emarker2"):
+        with pytest.raises(ValueError, match=rf"topoplot: '{name}' is not supported yet in eegprep") as caught:
+            topoplot([0.0], locs, noplot="on", **{name: "."})
+        assert "EEGLAB topoplot.m supports it" in str(caught.value)
+
+
 if __name__ == '__main__':
     unittest.main()
