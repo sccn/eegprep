@@ -26,6 +26,20 @@ Unreleased
   ``n_good_samples`` and ``n_rejected_samples``, counts only. With rejection
   on, ``returned_iter`` is the iterate the weights come from and ``best_iter``
   is omitted.
+- ``topoplot`` averages sensors that MATLAB ``griddata`` treats as the same
+  point. A separation equal to the axis tolerance stays separate, matching
+  ``mergesimpts`` strict ``<``. ``plotchans`` selects 1-based channel indices,
+  including a single index. A non-finite value drops that channel from the
+  locations and the values together. One extra channel location is the common
+  reference and is left off the map. One distinct location raises
+  ``ValueError``; MATLAB ``griddata`` returns a non-finite map.
+  ``pop_topoplot`` option text follows MATLAB ``eval(['{ ' options ' }'])``:
+  cells, nested brackets, commas, semicolons, doubled quotes, and a trailing
+  comma. A cell inside ``[]`` or a ``%`` comment raises ``ValueError`` naming
+  ``pop_topoplot`` and the text. ``emarker`` and ``emarker2`` raise
+  ``ValueError`` from ``topoplot``; EEGLAB draws those markers and EEGPrep
+  does not yet.
+  (#670)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search

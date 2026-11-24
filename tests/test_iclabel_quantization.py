@@ -2,6 +2,7 @@ import hashlib
 import http.server
 import io
 import json
+import re
 import threading
 from pathlib import Path
 from urllib.error import HTTPError
@@ -11,6 +12,7 @@ import pytest
 
 from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
 from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
+from eegprep.plugins.ICLabel.pop_icflag import ICLABEL_CLASSES
 from tools.iclabel.freeze_iclabel_evaluation import _download_recording, _feature_archive_is_valid, _verify_recording
 from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_EVALUATION_FEATURES,
@@ -18,6 +20,9 @@ from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_REPORT,
     DEFAULT_TEACHER_PROBABILITIES,
     MAX_PROBABILITY_ABS_DIFF,
+    MIN_CLASS_COUNT,
+    MIN_CLASS_KEEP_REJECT_AGREEMENT,
+    MIN_CLASS_TOP1_AGREEMENT,
     MIN_KEEP_REJECT_AGREEMENT,
     MIN_TOP1_AGREEMENT,
     PACKAGED_FLOAT32_MODEL,
@@ -40,6 +45,23 @@ _METRICS_AT_GATE_BOUNDARY = {
     "top1_agreement": MIN_TOP1_AGREEMENT,
     "keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
     "max_probability_abs_diff": MAX_PROBABILITY_ABS_DIFF,
+    "per_class_agreement": {
+        name: {
+            "count": 0,
+            "top1_agreement": None,
+            "keep_reject_agreement": None,
+            "max_probability_abs_diff": None,
+        }
+        for name in ICLABEL_CLASSES
+    }
+    | {
+        "Other": {
+            "count": MIN_CLASS_COUNT,
+            "top1_agreement": MIN_CLASS_TOP1_AGREEMENT,
+            "keep_reject_agreement": MIN_CLASS_KEEP_REJECT_AGREEMENT,
+            "max_probability_abs_diff": 0.0,
+        }
+    },
 }
 
 
@@ -104,9 +126,9 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
     assert metrics["max_probability_abs_diff"] == pytest.approx(0.50)
     assert metrics["mean_probability_abs_diff"] == pytest.approx(0.8 / 28)
     assert metrics["per_class_agreement"]["Brain"]["count"] == 1
-    assert metrics["per_class_agreement"]["Brain"]["agreement"] == pytest.approx(1.0)
+    assert metrics["per_class_agreement"]["Brain"]["top1_agreement"] == pytest.approx(1.0)
     assert metrics["per_class_agreement"]["Other"]["count"] == 1
-    assert metrics["per_class_agreement"]["Other"]["agreement"] == pytest.approx(0.0)
+    assert metrics["per_class_agreement"]["Other"]["top1_agreement"] == pytest.approx(0.0)
 
 
 def test_compare_predictions_exposes_rejection_threshold_boundaries():
@@ -162,6 +184,140 @@ def test_each_gate_criterion_fails_on_its_own(metric, value, message):
 
     assert len(failures) == 1
     assert message in failures[0]
+
+
+def _class_row(count: int, top1: float | None, keep: float | None = 1.0) -> dict:
+    if count == 0:
+        return {
+            "count": 0,
+            "top1_agreement": None,
+            "keep_reject_agreement": None,
+            "max_probability_abs_diff": None,
+        }
+    return {
+        "count": count,
+        "top1_agreement": top1,
+        "keep_reject_agreement": keep,
+        "max_probability_abs_diff": 0.0,
+    }
+
+
+def _per_class_metrics(**rows: dict) -> dict:
+    per_class = {name: _class_row(0, None) for name in ICLABEL_CLASSES}
+    per_class.update(rows)
+    return {**_METRICS_AT_GATE_BOUNDARY, "per_class_agreement": per_class}
+
+
+def test_per_class_gate_passes_a_verified_class():
+    metrics = _per_class_metrics(
+        Other=_class_row(20, 0.95, 0.95),
+        Brain=_class_row(19, 0.0, 0.0),
+    )
+
+    assert gate_failures(metrics) == []
+
+
+def test_per_class_gate_fails_a_verified_class_below_the_floor():
+    top1_failures = gate_failures(_per_class_metrics(Other=_class_row(20, 0.94, 1.0)))
+    keep_failures = gate_failures(_per_class_metrics(Other=_class_row(20, 1.0, 0.94)))
+
+    assert len(top1_failures) == 1
+    assert "gate_failures" in top1_failures[0]
+    assert "Other" in top1_failures[0]
+    assert "0.95" in top1_failures[0]
+    assert "top-1" in top1_failures[0]
+    assert len(keep_failures) == 1
+    assert "keep-or-reject" in keep_failures[0]
+    assert "0.95" in keep_failures[0]
+    for message in (top1_failures[0], keep_failures[0]):
+        assert "quantization" in message
+        assert "reviewed human pull request" in message
+
+
+def test_per_class_gate_leaves_a_thin_class_unverified():
+    other = np.array([0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.88])
+    heart = np.array([0.39, 0.02, 0.02, 0.40, 0.02, 0.02, 0.13])
+    heart_model = heart.copy()
+    heart_model[0] += 0.01
+    heart_model[3] -= 0.01
+    teacher = np.vstack([other] * 20 + [heart])
+    model_probabilities = np.vstack([other] * 20 + [heart_model])
+
+    metrics = compare_predictions(teacher, model_probabilities)
+    failures = gate_failures(metrics)
+
+    assert failures == []
+    assert "Heart" in metrics["unverified_classes"]
+    assert "Other" in metrics["evaluated_classes"]
+    assert metrics["per_class_agreement"]["Heart"]["count"] == 1
+    assert metrics["per_class_agreement"]["Heart"]["top1_agreement"] == pytest.approx(0.0)
+
+
+def test_shipped_report_passes_the_per_class_gate():
+    report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    model_bytes = PACKAGED_MODEL.read_bytes()
+
+    assert report["packaged_model"]["sha256"] == hashlib.sha256(model_bytes).hexdigest()
+    assert report["packaged_model"]["size_bytes"] == len(model_bytes)
+    assert gate_failures(report["metrics"]) == []
+    assert report["metrics"]["evaluated_classes"] == ["Other"]
+    assert report["metrics"]["unverified_classes"] == [
+        "Brain",
+        "Muscle",
+        "Eye",
+        "Heart",
+        "Line Noise",
+        "Channel Noise",
+    ]
+    brain = report["metrics"]["per_class_agreement"]["Brain"]
+    heart = report["metrics"]["per_class_agreement"]["Heart"]
+    assert brain["count"] == 18
+    assert brain["datasets"] == ["ds002680"]
+    assert brain["subjects"]
+    assert heart["count"] == 0
+    assert heart["subjects"] == []
+    assert heart["datasets"] == []
+    assert heart["top1_agreement"] is None
+
+
+_COVERAGE_DOCS = (
+    Path("docs/source/user_guide/ica_rejection.rst"),
+    Path("src/eegprep/resources/help/pop_iclabel.md"),
+    Path("src/eegprep/resources/help/pop_iclabel_async.md"),
+)
+
+
+def test_documented_int8_figures_match_the_parity_report():
+    report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    metrics = report["metrics"]
+    per_class = metrics["per_class_agreement"]
+    evaluated = metrics["evaluated_classes"]
+    other_diff = f"{per_class['Other']['max_probability_abs_diff']:.5f}"
+    set_diff = f"{metrics['max_probability_abs_diff']:.5f}"
+    widest = max(
+        (name for name, row in per_class.items() if row["max_probability_abs_diff"] is not None),
+        key=lambda name: float(per_class[name]["max_probability_abs_diff"]),
+    )
+    number = re.compile(rf"(?<![\d.]){re.escape(set_diff)}(?![\d])")
+    repo = Path(__file__).parents[1]
+
+    assert len(evaluated) == 1
+    assert f"{per_class[widest]['max_probability_abs_diff']:.5f}" == set_diff
+    for relative in _COVERAGE_DOCS:
+        text = (repo / relative).read_text(encoding="utf-8")
+        name = evaluated[0]
+        assert re.search(rf"Only {re.escape(name)} \({per_class[name]['count']}(?: components)?\)", text)
+        assert f"the largest absolute probability difference is {other_diff}" in text
+        assert number.search(text)
+        for class_name in metrics["unverified_classes"]:
+            count = per_class[class_name]["count"]
+            if count > 0:
+                assert re.search(rf"{re.escape(class_name)} \({count}\)", text)
+    guide = (repo / _COVERAGE_DOCS[0]).read_text(encoding="utf-8")
+    for class_name in metrics["unverified_classes"]:
+        assert re.search(rf"{re.escape(class_name)} \({per_class[class_name]['count']}\)", guide)
+    assert f"up to {set_diff}, the set-wide maximum" in guide
+    assert f"maximum is on a {widest} component" in guide
 
 
 def test_frozen_feature_archive_hash_is_verified(tmp_path):
@@ -393,6 +549,18 @@ def test_quantize_reports_the_float32_artifact_it_quantized(tmp_path):
     assert recorded["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
     assert recorded["sha256"] != hashlib.sha256(PACKAGED_FLOAT32_MODEL.read_bytes()).hexdigest()
     assert recorded["size_bytes"] == artifact.stat().st_size
+
+
+@pytest.mark.parametrize("edit", [{"gate_pass": False}, {"report_sha256": "0" * 64}])
+def test_report_mismatches_rejects_a_stale_reference_digest(edit):
+    committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    reference = {**committed, **edit}
+
+    (message,) = report_mismatches(committed, reference)
+
+    assert "report_mismatches" in message
+    assert "report_sha256" in message
+    assert "restore" in message.lower()
 
 
 def test_report_mismatches_allow_only_cross_cpu_drift_noise():

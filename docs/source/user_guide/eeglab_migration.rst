@@ -634,6 +634,28 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_editset`` evaluates it. EEGPrep has no caller workspace.
        ``test_reference_importevent_original_named_workspace_variables``
        passes the same arrays and checks the latencies ``1`` and ``50``.
+   * - ``topoplot`` ``plotchans``
+     - 1-based indices from ``1`` through ``len(chan_locs)``. Empty draws
+       every channel that has ``theta``. This matches EEGLAB ``topoplot.m``
+       lines 605-608 and 703-716, including the intersection with located
+       channels, and it matches ``envtopo`` and ``headplot``. A value
+       outside ``1 .. n`` raises ``ValueError`` naming ``topoplot``, the
+       bad values, and that range. ``'plotchans', [1 2 3]`` in
+       ``pop_topoplot`` option text selects those channels.
+   * - ``topoplot`` common reference
+     - When there is one more channel location than value, and the last
+       location is selected, that location is dropped. ``topoplot.m`` lines
+       749-753 do the same. NaN and Inf values are removed from the
+       locations and the values together (lines 760-779). A single
+       ``plotchans`` index is kept, including ``[1]`` (``topoplot.m`` lines
+       918-923).
+   * - One ``topoplot`` location
+     - The map needs two distinct sensor locations. One selected channel, or
+       sensors that average to one point, raises ``ValueError`` from
+       ``topoplot griddata_v4``. MATLAB ``griddata`` returns a non-finite map
+       and warns. Duplicate coordinates are averaged when both axis gaps are
+       strictly inside ``spacing(0.5 * span) ** (1/3)``; a gap equal to that
+       tolerance stays separate, as in ``mergesimpts``.
    * - Empty ``topoplot`` locations
      - An interpolated ``topoplot`` raises ``ValueError`` when channel
        locations are ``None`` or empty. The message names ``topoplot`` and
