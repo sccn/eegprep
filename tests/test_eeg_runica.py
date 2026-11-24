@@ -76,8 +76,9 @@ def test_named_sobi_option_text_names_the_positional_form():
 def test_seeded_pop_runica_on_eeglab_data_matches_pythoncompat(eeglab_backend):
     """Seeded pop_runica matches EEGLAB when MATLAB runica has pythoncompat on.
 
-    Both sides receive the same loaded dataset and extended=1. EEGLAB then
+    Both sides load sample_data/eeglab_data.set and use extended=1. EEGLAB then
     passes lrate 0.001, which eeg_runica supplies when the caller does not.
+    The MATLAB dataset comes from pop_loadset so the batch transport keeps a struct.
     """
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
     from eegprep.functions.popfunc.pop_runica import pop_runica
@@ -85,10 +86,11 @@ def test_seeded_pop_runica_on_eeglab_data_matches_pythoncompat(eeglab_backend):
 
     dataset = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
     eeg = pop_loadset(str(dataset))
+    matlab_eeg = eeglab_backend("pop_loadset", str(dataset))
     python_out, command = pop_runica(eeg, icatype="runica", extended=1, gui=False, return_com=True)
     matlab_out = eeglab_backend(
         "pop_runica",
-        eeg,
+        matlab_eeg,
         "icatype",
         "runica",
         "extended",
