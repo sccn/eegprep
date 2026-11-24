@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,9 +18,9 @@ from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 _SYNTHETIC_CHANNELS = {"stm+", "resp", "fbk+", "lrnd", "stim"}
 _TYPE_FIELDS = ("code", "label", "mffkeys")
-# epochs.xml and categories.xml on EEGLAB's testmff.mff store microseconds with
-# no unit attribute. mff_import.m divides those Java times by 1e6. A unit or
-# units attribute still selects nanoseconds, milliseconds, or seconds.
+# epochs.xml and categories.xml omit a unit attribute when the value is
+# microseconds. mff_import.m divides those Java times by 1e6. A unit or units
+# attribute still selects nanoseconds, milliseconds, or seconds.
 _TIME_DIVISOR = {
     "ns": 1e9,
     "nanosecond": 1e9,
@@ -149,15 +148,14 @@ def _epochs_from_categories(raw: Any, path: Path, typefield: str) -> dict[str, A
         )
     data = np.stack(pieces, axis=2)
     pnts = int(data.shape[1])
-    # The earliest epoch in time, not the first <cat> in the file. On testmff
-    # the first category is epoch 2, and pairing it with epoch 1's begin is -1.402.
+    # xmin uses the earliest epoch in time, not the first category in the file.
     first = min(segments, key=lambda segment: float(segment["begin"]))
     xmin = 0.0
     if first.get("event_begin") is not None:
         xmin = -(float(first["event_begin"]) - float(first["begin"]))
     events = _track_events(path, srate, segments, pnts, typefield)
     events.extend(_category_events(segments, xmin, srate, pnts))
-    events.sort(key=lambda event: (float(event["latency"]), int(event["epoch"]), str(event["type"])))
+    _sort_events(events)
     times = np.arange(pnts) / srate + xmin
     names = list(raw.ch_names)
     eeg = eeg_emptyset()
@@ -178,8 +176,7 @@ def _epochs_from_categories(raw: Any, path: Path, typefield: str) -> dict[str, A
             "event": events,
         }
     )
-    checked = eeg_checkset(eeg)
-    return checked if isinstance(checked, dict) else eeg
+    return eeg_checkset(eeg)
 
 
 def _mff_segments(path: Path) -> list[dict[str, Any]]:
@@ -307,10 +304,17 @@ def _xml_keys(node: ET.Element) -> list[dict[str, str]]:
 
 
 def _key_record(item: ET.Element) -> dict[str, str]:
+    datatype = _child_text(item, "dataType") or _child_text(item, "datatype")
+    data = ""
+    for child in list(item):
+        if _xml_name(child.tag) != "data":
+            continue
+        data = str(child.text or "").strip()
+        datatype = datatype or str(child.attrib.get("dataType") or child.attrib.get("datatype") or "")
     return {
         "code": _child_text(item, "keyCode") or _child_text(item, "code"),
-        "data": _child_text(item, "data"),
-        "datatype": _child_text(item, "dataType") or _child_text(item, "datatype"),
+        "data": data or _child_text(item, "data"),
+        "datatype": datatype,
         "description": _child_text(item, "description"),
     }
 
@@ -351,7 +355,6 @@ def _track_events(
                     source=track.name,
                 )
             )
-    events.sort(key=lambda event: (float(event["latency"]), int(event["epoch"]), str(event["type"])))
     return events
 
 
@@ -359,7 +362,7 @@ def _track_event(
     node: ET.Element,
     *,
     srate: float,
-    record_time: datetime | None,
+    record_time: str,
     sample_beg: list[float],
     sample_len: list[float],
     pnts: int,
@@ -373,36 +376,38 @@ def _track_event(
     label = _child_text(node, "label")
     keys = _xml_keys(node)
     relative = _first_seconds(node, ("relativeBeginTime", "relativebegintime"))
-    begin_text = _child_text(node, "beginTime")
+    begin_text = _pad_mff_timezone(_child_text(node, "beginTime"))
     if relative is not None and relative > 0:
-        # mff_importevents.m: relativebegintime/1e6*srate. The XML value is
-        # already in seconds here.
         latency = relative * srate
     elif begin_text and "T" not in begin_text:
         numeric = _first_seconds(node, ("beginTime",))
         latency = 0.0 if numeric is None else numeric * srate
     else:
-        if record_time is None:
+        if not record_time:
             raise ValueError(
                 f"pop_mffimport: {source} event {code or label or 'without a code'} has no relativeBeginTime, "
                 "and info.xml has no recordTime. Add recordTime, then import again."
             )
-        latency = (_parse_mff_time(begin_text) - record_time).total_seconds() * srate
+        latency = _latency_from_clock(begin_text, record_time, srate)
     latency = _correct_epoch_gap(latency, sample_beg, sample_len)
     duration = _duration_samples(node, srate)
     epoch = int(np.floor((latency + 1e-6) / pnts)) + 1 if pnts else 1
     epoch = min(max(epoch, 1), max(trials, 1))
     event: dict[str, Any] = {
+        "begintime": begin_text,
+        "classid": _class_id(node),
         "code": code,
         "label": label,
         "description": _child_text(node, "description"),
         "duration": float(duration),
         "latency": float(latency),
+        "relativebegintime": _raw_number(node, ("relativeBeginTime", "relativebegintime")),
         "epoch": epoch,
         "sourcedevice": _child_text(node, "sourceDevice"),
         "name": track_name,
         "tracktype": track_type,
         "type": _event_type(code, label, keys, typefield),
+        "mffkeysbackup": _mffkeys_backup(keys),
     }
     _attach_mff_keys(event, keys)
     return event
@@ -411,8 +416,8 @@ def _track_event(
 def _duration_samples(node: ET.Element, srate: float) -> float:
     """Return an event duration in samples.
 
-    EEGLAB stores ``getDuration()`` unchanged. On testmff.mff that value is
-    1000 samples. A ``unit`` attribute is a time, converted with the sampling rate.
+    EEGLAB stores ``getDuration()`` unchanged. A ``unit`` attribute is a time,
+    converted with the sampling rate.
     """
     for child in list(node):
         if _xml_name(child.tag) != "duration":
@@ -495,36 +500,114 @@ def _correct_epoch_gap(latency: float, sample_beg: list[float], sample_len: list
     return latency - correction
 
 
-def _record_time(folder: Path) -> datetime | None:
+def _record_time(folder: Path) -> str:
     info = _first_xml(folder, ("info.xml", "Info.xml"))
     if info is None:
-        return None
-    text = ""
+        return ""
     for node in info.iter():
         if _xml_name(node.tag) == "recordTime":
-            text = str(node.text or "").strip()
-            break
-    if not text:
-        return None
-    return _parse_mff_time(text)
+            return str(node.text or "").strip()
+    return ""
 
 
-def _parse_mff_time(text: str) -> datetime:
-    value = text.strip()
-    if value.endswith("Z"):
-        value = value[:-1] + "+00:00"
-    # A one-digit timezone offset (-8) is not ISO. Pad it the way mff_importevents.m does.
-    if len(value) >= 2 and value[-2] == "-" and value[-1].isdigit():
-        value = f"{value[:-1]}0{value[-1]}:00"
-    elif len(value) >= 3 and value[-3] == "-" and value[-2:].isdigit():
-        value = f"{value[:-2]}{value[-1]}:00"
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError as exc:
+def _sort_events(events: list[dict[str, Any]]) -> None:
+    """Keep file order when two events share a latency, then number urevents."""
+    events.sort(key=lambda event: float(event["latency"]))
+    for index, event in enumerate(events, start=1):
+        event["urevent"] = index
+
+
+def _class_id(node: ET.Element) -> str:
+    for name in ("classID", "classid", "ClassID"):
+        text = _child_text(node, name)
+        if text:
+            return text
+    return ""
+
+
+def _raw_number(node: ET.Element, names: tuple[str, ...]) -> int | float:
+    for name in names:
+        text = _child_text(node, name)
+        if not text:
+            continue
+        number = float(text)
+        if number.is_integer():
+            return int(number)
+        return number
+    return 0
+
+
+def _mffkeys_backup(keys: list[dict[str, str]]) -> str:
+    """Format keys the way ``vararg2str`` writes the ``mff_importkeys`` struct."""
+    if not keys:
+        return "struct([])"
+    fields = ("code", "data", "datatype", "description")
+    parts = []
+    for field in fields:
+        values = ",".join(_matlab_quote(key.get(field, "")) for key in keys)
+        parts.append(f"'{field}',{{{values}}}")
+    return "struct(" + ",".join(parts) + ")"
+
+
+def _matlab_quote(text: str) -> str:
+    return "'" + text.replace("'", "''") + "'"
+
+
+_DATENUM_MONTH_START = np.array([306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275], dtype=np.float64)
+# One microsecond in MATLAB datenum days, from mff_decodetime.m.
+_DATENUM_MICROSECOND = np.float64("1.1525116860866546630859375e-11")
+
+
+def _latency_from_clock(begin_text: str, record_text: str, srate: float) -> float:
+    """Samples from ``(mff_decodetime(begin) - mff_decodetime(record)) * 86400 * srate``."""
+    delta = _mff_datenum(begin_text) - _mff_datenum(record_text)
+    return float(delta * np.float64(24 * 60 * 60) * np.float64(srate))
+
+
+def _mff_datenum(text: str) -> np.float64:
+    """Decode one EGI timestamp the way ``mff_decodetime.m`` calls ``datenum``.
+
+    The first character becomes ``0`` so the day count stays in the precise
+    range of a double. The first 23 characters are the datenum, and characters
+    24:26 are the remaining microseconds.
+    """
+    stamped = "0" + _pad_mff_timezone(text)[1:]
+    if len(stamped) < 26 or stamped[10] != "T":
         raise ValueError(
-            f"pop_mffimport: MFF time {text!r} is not an ISO date. "
+            f"pop_mffimport: MFF time {text!r} is not an EGI timestamp. "
             "Fix beginTime or info.xml recordTime, then import again."
-        ) from exc
+        )
+    year = int(stamped[0:4])
+    month = int(stamped[5:7])
+    day = int(stamped[8:10])
+    hour = int(stamped[11:13])
+    minute = int(stamped[14:16])
+    second = np.float64(int(stamped[17:19])) + np.float64(int(stamped[20:23])) / np.float64(1000)
+    extra = np.float64(int(stamped[23:26])) * _DATENUM_MICROSECOND
+    return _matlab_datenum(year, month, day, hour, minute, second) + extra
+
+
+def _matlab_datenum(year: int, month: int, day: int, hour: int, minute: int, second: np.float64) -> np.float64:
+    year_f = np.float64(year) + np.ceil((np.float64(month) - np.float64(14)) / np.float64(12))
+    day_f = np.float64(day) + _DATENUM_MONTH_START[month - 1] + np.float64(60)
+    day_f = (
+        day_f
+        + np.float64(365) * year_f
+        + np.floor(year_f / np.float64(4))
+        - np.floor(year_f / np.float64(100))
+        + np.floor(year_f / np.float64(400))
+    )
+    return day_f + (np.float64(hour) + (np.float64(minute) + second / np.float64(60)) / np.float64(60)) / np.float64(24)
+
+
+def _pad_mff_timezone(text: str) -> str:
+    """Pad a one-digit timezone the way ``mff_importevents.m`` does before decoding."""
+    value = text.strip()
+    if len(value) >= 2 and value[-2] == "-" and value[-1].isdigit():
+        return f"{value[:-1]}0{value[-1]}:00"
+    if len(value) >= 3 and value[-3] == "-" and value[-2:].isdigit():
+        return f"{value[:-2]}{value[-1]}:00"
+    return value
 
 
 def _drop_synthetic_channels(eeg: dict[str, Any]) -> dict[str, Any]:

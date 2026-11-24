@@ -1,10 +1,12 @@
 """EEG data saving and loading utilities."""
 
 import copy
-import gc
 import json
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import scipy.io
@@ -30,6 +32,14 @@ def _same_path(left: Path, right: Path) -> bool:
         return left.resolve() == right.resolve()
     except OSError:
         return left.absolute() == right.absolute()
+
+
+@contextmanager
+def _unlocked_sidecar(data: Any, destination: Path) -> Iterator[None]:
+    """Close a mapping of ``destination`` before the caller replaces that file."""
+    if isinstance(data, MemmapData) and _same_path(data.path, destination):
+        data.close_file()
+    yield
 
 
 def flatten_dict_sub(d, parent_key='', sep='_'):
@@ -591,10 +601,8 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
                 raise
             scipy.io.savemat(set_tmp, eeglab_dict, appendmat=False, long_field_names=True)
         if save_two_files:
-            if isinstance(data_value, MemmapData) and _same_path(data_value.path, fdt_final):
-                data_value.close_file()
-                gc.collect()
-            os.replace(fdt_tmp, fdt_final)
+            with _unlocked_sidecar(data_value, fdt_final):
+                os.replace(fdt_tmp, fdt_final)
         os.replace(set_tmp, file_name)
     except Exception as exc:
         for temporary in (set_tmp, fdt_tmp):

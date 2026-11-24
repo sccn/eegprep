@@ -384,10 +384,10 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         ControlSpec('text', 'Event channel(s)'),
         ControlSpec('edit', tag='chan', value=''),
         ControlSpec('spacer'),
-        ControlSpec('text', "Preprocessing transform (data='X')", wrap=True),
+        ControlSpec('text', "Preprocessing transform (data='X')"),
         ControlSpec('edit', tag='oper'),
         ControlSpec('text', 'Optional. Ex: X>3'),
-        ControlSpec('text', 'Transitions to extract? (up|down)', wrap=True),
+        ControlSpec('text', 'Transitions to extract? (up|down)'),
         ControlSpec(
             'popupmenu',
             'up (leading)|both|down (trailing)',
@@ -397,8 +397,8 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
                 'toggle_index_enabled', {'source': 'edge', 'targets': ['duration'], 'enabled_index': 1}
             ),
         ),
-        ControlSpec('spacer'),
-        ControlSpec('text', 'Transition length (1=perfect edges)', wrap=True),
+        ControlSpec('text', '(click to select)'),
+        ControlSpec('text', 'Transition length (1=perfect edges)'),
         ControlSpec('edit', tag='edgelen', value='0'),
         ControlSpec('spacer'),
     ]
@@ -410,9 +410,9 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
     ]:
         controls.extend(
             [
-                ControlSpec('text', label, wrap=label.startswith('Assign duration')),
+                ControlSpec('text', label),
                 ControlSpec('checkbox', tag=tag, value=default),
-                ControlSpec('spacer'),
+                ControlSpec('text', '(set=yes)') if tag == 'duration' else ControlSpec('spacer'),
             ]
         )
     return DialogSpec(
@@ -422,6 +422,4 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         eeglab_source='functions/popfunc/pop_chanevent.m',
         geometry=tuple([[2.6, 1.2, 1.4]] * 8),
         controls=tuple(controls),
-        weighted_columns=True,
-        size=(720, 360),
     )

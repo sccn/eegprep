@@ -156,36 +156,58 @@ def _write_mat73_value(parent: h5py.Group, name: str, value: Any, root: h5py.Fil
         return
     if isinstance(value, (bool, np.bool_)):
         dataset = parent.create_dataset(name, data=np.uint8([[1 if value else 0]]))
-        dataset.attrs["MATLAB_class"] = b"logical"
+        _set_matlab_class(dataset, "logical")
         return
     if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool):
         dataset = parent.create_dataset(name, data=np.array([[float(value)]], dtype=np.float64))
-        dataset.attrs["MATLAB_class"] = b"double"
+        _set_matlab_class(dataset, "double")
         return
     if isinstance(value, np.ndarray) and value.dtype.names:
         _write_mat73_struct(parent, name, value, root, writer)
         return
     if isinstance(value, np.ndarray) and value.dtype == object:
+        if value.size == 0:
+            _write_mat73_empty(parent, name, value.shape, "cell")
+            return
         _write_mat73_cell(parent, name, value, root, writer)
         return
     if isinstance(value, np.ndarray):
         if value.size == 0:
-            dataset = parent.create_dataset(name, data=np.asarray(value.shape, dtype=np.uint64))
-            dataset.attrs["MATLAB_class"] = b"double"
-            dataset.attrs["MATLAB_empty"] = np.uint8(1)
+            _write_mat73_empty(parent, name, value.shape, "double")
             return
         dataset = parent.create_dataset(name, data=np.asarray(value, dtype=np.float64).T)
-        dataset.attrs["MATLAB_class"] = b"double"
+        _set_matlab_class(dataset, "double")
         return
     _write_mat73_char(parent, name, str(value))
 
 
+def _set_matlab_class(node: h5py.Dataset | h5py.Group, class_name: str) -> None:
+    """Store ``MATLAB_class`` as a fixed-length ASCII scalar, not a vlen string."""
+    node.attrs["MATLAB_class"] = np.bytes_(class_name)
+
+
+def _write_mat73_empty(parent: h5py.Group, name: str, shape: tuple[int, ...], class_name: str) -> None:
+    """Write an empty MATLAB array as uint64 dimensions plus ``MATLAB_empty``.
+
+    A 0-by-0 char is ``[0, 0]``. Numeric empties keep the array's own shape,
+    which is the payload MATLAB already accepts for an empty double.
+    """
+    dims = (0, 0) if class_name == "char" and not shape else shape
+    dataset = parent.create_dataset(name, data=np.asarray(dims, dtype=np.uint64).reshape(-1))
+    _set_matlab_class(dataset, class_name)
+    dataset.attrs["MATLAB_empty"] = np.uint8(1)
+    if class_name == "char":
+        dataset.attrs["MATLAB_int_decode"] = np.int32(2)
+
+
 def _write_mat73_char(parent: h5py.Group, name: str, text: str) -> None:
+    if not text:
+        _write_mat73_empty(parent, name, (0, 0), "char")
+        return
     codes = np.frombuffer(text.encode("utf-16-le"), dtype="<u2").reshape(-1, 1)
-    dataset = parent.create_dataset(name, data=codes if codes.size else np.zeros((0, 1), dtype="<u2"))
-    dataset.attrs["MATLAB_class"] = b"char"
-    if codes.size == 0:
-        dataset.attrs["MATLAB_empty"] = np.uint8(1)
+    dataset = parent.create_dataset(name, data=codes)
+    _set_matlab_class(dataset, "char")
+    dataset.attrs["MATLAB_int_decode"] = np.int32(2)
 
 
 def _referenced(root: h5py.File, writer: _Mat73Writer, value: Any) -> h5py.Reference:
@@ -209,7 +231,7 @@ def _write_mat73_mapping(
     writer: _Mat73Writer,
 ) -> None:
     group = parent.create_group(name)
-    group.attrs["MATLAB_class"] = np.bytes_("struct")
+    _set_matlab_class(group, "struct")
     for key, item in mapping.items():
         _write_mat73_value(group, str(key), item, root, writer)
 
@@ -222,7 +244,7 @@ def _write_mat73_struct(
     writer: _Mat73Writer,
 ) -> None:
     group = parent.create_group(name)
-    group.attrs["MATLAB_class"] = np.bytes_("struct")
+    _set_matlab_class(group, "struct")
     rows = array.reshape(-1, order="F")
     ref_dtype = h5py.ref_dtype
     for field in array.dtype.names or ():
@@ -243,7 +265,7 @@ def _write_mat73_cell(
     for index, item in enumerate(flat):
         refs.reshape(-1, order="F")[index] = _referenced(root, writer, item)
     dataset = parent.create_dataset(name, data=refs)
-    dataset.attrs["MATLAB_class"] = np.bytes_("cell")
+    _set_matlab_class(dataset, "cell")
 
 
 def _study_for_mat(value: Any, *, key: str | None = None) -> Any:

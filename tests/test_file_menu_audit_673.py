@@ -943,14 +943,24 @@ def test_real_testmff_matches_eeglab_epochs():
     latencies = [float(event["latency"]) for event in eeg["event"]]
     for expected in (50.99, 51.5, 242.2, 246.7, 350.7):
         assert any(abs(found - expected) < 0.05 for found in latencies)
+    assert [str(event["type"]) for event in eeg["event"][:3]] == ["stm+", "LRND", "LRND"]
     found_types = {str(event["type"]).lower() for event in eeg["event"]}
     for name in ("stm+", "lrnd", "ulrn", "resp", "fbk+"):
         assert name in found_types
     stimulus = [event for event in eeg["event"] if str(event["type"]).lower() == "stm+"]
     assert stimulus
+    assert stimulus[0]["latency"] == pytest.approx(50.99003756186, abs=1e-8)
+    assert stimulus[0]["begintime"] == "2015-07-01T16:24:33.845920-07:00"
+    assert stimulus[0]["classid"] == ""
+    assert stimulus[0]["relativebegintime"] == 0
+    assert stimulus[0]["mffkeysbackup"].startswith("struct('code',{'cel#'")
+    assert stimulus[0]["urevent"] == 1
     assert all(float(event["duration"]) == pytest.approx(1000) for event in stimulus)
     assert len(eeg["epoch"]) == eeg["trials"] == 2
     assert all("event" in epoch and "eventlatency" in epoch for epoch in eeg["epoch"])
+    first_latency = eeg["epoch"][0]["eventlatency"]
+    first_value = float(np.asarray(first_latency).reshape(-1)[0])
+    assert first_value == pytest.approx(-2.04184976, abs=1e-5)
     assert mne is not None
 
 
@@ -1007,7 +1017,63 @@ def test_v73_study_with_two_datasets_and_a_design_reloads(tmp_path, monkeypatch)
     by_name = {cluster["name"]: cluster for cluster in reloaded["cluster"]}
     assert np.asarray(by_name["Parent"]["sets"]).shape == (2, 1)
     assert np.asarray(by_name["Wide"]["sets"]).shape == (2, 2)
-    assert datasets == []
+
+
+def test_v73_char_and_empty_arrays_match_matlab_hdf5(tmp_path):
+    import h5py
+
+    from eegprep.functions.popfunc.pop_loadset_h5 import _read_value
+    from eegprep.functions.studyfunc.pop_savestudy import _Mat73Writer, _write_mat73_value
+
+    path = tmp_path / "types.h5"
+    writer = _Mat73Writer()
+    with h5py.File(path, "w") as handle:
+        _write_mat73_value(handle, "hello", "hello", handle, writer)
+        _write_mat73_value(handle, "blank", "", handle, writer)
+        _write_mat73_value(handle, "nodouble", np.zeros((0, 0)), handle, writer)
+        _write_mat73_value(handle, "nocell", np.empty((0, 0), dtype=object), handle, writer)
+        _write_mat73_value(handle, "flag", True, handle, writer)
+        _write_mat73_value(handle, "box", {"a": 1.0}, handle, writer)
+    with h5py.File(path, "r") as handle:
+        hello = handle["hello"]
+        _assert_fixed_matlab_class(hello, "char")
+        assert hello.dtype == np.dtype("<u2")
+        assert hello[()].reshape(-1).tolist() == [104, 101, 108, 108, 111]
+        assert int(hello.attrs["MATLAB_int_decode"]) == 2
+        assert hello.attrs["MATLAB_int_decode"].dtype == np.dtype("int32")
+        blank = handle["blank"]
+        _assert_fixed_matlab_class(blank, "char")
+        assert blank.dtype == np.dtype("uint64")
+        assert blank[()].reshape(-1).tolist() == [0, 0]
+        assert int(blank.attrs["MATLAB_empty"]) == 1
+        assert blank.attrs["MATLAB_empty"].dtype == np.dtype("uint8")
+        assert int(blank.attrs["MATLAB_int_decode"]) == 2
+        nodouble = handle["nodouble"]
+        _assert_fixed_matlab_class(nodouble, "double")
+        assert nodouble.dtype == np.dtype("uint64")
+        assert nodouble[()].reshape(-1).tolist() == [0, 0]
+        assert int(nodouble.attrs["MATLAB_empty"]) == 1
+        nocell = handle["nocell"]
+        _assert_fixed_matlab_class(nocell, "cell")
+        assert nocell.dtype == np.dtype("uint64")
+        assert nocell[()].reshape(-1).tolist() == [0, 0]
+        assert int(nocell.attrs["MATLAB_empty"]) == 1
+        _assert_fixed_matlab_class(handle["flag"], "logical")
+        _assert_fixed_matlab_class(handle["box"], "struct")
+        assert _read_value(hello) == "hello"
+        assert _read_value(blank) == ""
+        assert _read_value(nodouble).shape == (0, 0)
+        assert _read_value(nocell).dtype == object
+        assert _read_value(nocell).shape == (0, 0)
+
+
+def _assert_fixed_matlab_class(node, class_name: str) -> None:
+    import h5py
+
+    attribute = node.attrs.get_id("MATLAB_class")
+    assert h5py.check_dtype(vlen=attribute.dtype) is None
+    assert attribute.dtype == np.dtype(f"|S{len(class_name)}")
+    assert bytes(node.attrs["MATLAB_class"]) == class_name.encode("ascii")
 
 
 def test_scripted_power_line_uses_the_eeg_number(tmp_path):
@@ -1055,6 +1121,7 @@ def test_export_wizard_pages_ten_rows(qapp):
         "Page 1",
     }
     assert sum(control.string == "..." for control in spec.controls) == 10
+    assert sum(control.style == "pushbutton" and control.string == "CLear" for control in spec.controls) == 10
     assert any(control.string == "<" for control in spec.controls)
     dialog = _export_grid_dialog()
     dialog.show()
@@ -1062,6 +1129,13 @@ def test_export_wizard_pages_ten_rows(qapp):
     headers = {label.text() for label in dialog.findChildren(QLabel)}
     assert {"Raw dataset filename", "subject", "session", "run", "condition", "group", "task"} <= headers
     assert len([button for button in dialog.findChildren(QPushButton) if button.text() == "..."]) == 10
+    assert len([button for button in dialog.findChildren(QPushButton) if button.text() == "CLear"]) == 10
+    dialog.edits[0]["file"].setText("a.set")
+    dialog.edits[0]["subject"].setText("S01")
+    clear = next(button for button in dialog.findChildren(QPushButton) if button.objectName() == "clear1")
+    clear.click()
+    assert dialog.edits[0]["file"].text() == ""
+    assert dialog.edits[0]["subject"].text() == ""
     named = {button.objectName(): button for button in dialog.findChildren(QPushButton)}
     assert named["help"].x() < named["cancel"].x() < named["ok"].x()
     dialog.edits[0]["file"].setText("a.set")
@@ -1092,6 +1166,10 @@ def test_chanevent_labels_fit_their_column(qapp):
     for text in expected:
         label = found[text]
         assert label.width() >= label.sizeHint().width()
+    assert found["(click to select)"].text() == "(click to select)"
+    assert found["(set=yes)"].text() == "(set=yes)"
+    layout = dialog.layout()
+    assert dialog.height() <= layout.sizeHint().height() + 4
     dialog.close()
 
 

@@ -139,7 +139,7 @@ def pop_participantinfo(
         else:
             edited = rows
         _store_participant_rows(datasets or [target], edited, column_info)
-        return target, _participant_history(target, edited, column_info)
+        return target, _participant_history()
     if gui or renderer is not None:
         collected = _dialog_metadata(pop_participantinfo_dialog_spec(), renderer, _participant_initial(target))
         if collected is None:
@@ -331,6 +331,7 @@ _WIZARD_HEADERS = (
     "condition",
     "group",
     "task",
+    "CLear",
 )
 
 
@@ -413,7 +414,7 @@ def bids_exporter_grid_spec(row_count: int | None = None) -> DialogSpec:
     ]
     geometry: list[tuple[float, ...] | tuple[int, ...]] = [(1, 3), (1,)]
     controls.extend(ControlSpec("text", header) for header in _WIZARD_HEADERS)
-    row_geometry = (3, 0.45, 1, 1, 1, 1, 1, 1)
+    row_geometry = (3, 0.45, 1, 1, 1, 1, 1, 1, 0.6)
     geometry.append(row_geometry)
     for index in range(1, count + 1):
         controls.extend(
@@ -438,6 +439,15 @@ def bids_exporter_grid_spec(row_count: int | None = None) -> DialogSpec:
                 ControlSpec("edit", tag=f"condition{index}"),
                 ControlSpec("edit", tag=f"group{index}"),
                 ControlSpec("edit", tag=f"task{index}"),
+                ControlSpec(
+                    "pushbutton",
+                    "CLear",
+                    tag=f"clear{index}",
+                    callback=CallbackSpec(
+                        "clear_widgets",
+                        {"targets": [f"{field}{index}" for field in _WIZARD_FIELDS]},
+                    ),
+                ),
             ]
         )
         geometry.append(row_geometry)
@@ -575,6 +585,15 @@ def _export_grid_dialog() -> _ExportGrid:
             edit.setObjectName(f"{field}{row}")
             widgets[field] = edit
             grid.addWidget(edit, row, column)
+        clear = QPushButton("CLear")
+        clear.setObjectName(f"clear{row}")
+
+        def wipe(_checked: bool = False, row_widgets: dict[str, Any] = widgets) -> None:
+            for edit in row_widgets.values():
+                edit.setText("")
+
+        clear.clicked.connect(wipe)
+        grid.addWidget(clear, row, len(_WIZARD_FIELDS) + 1)
         edits.append(widgets)
 
     page_label = QLabel("Page 1")
@@ -657,18 +676,13 @@ def _wizard_row_indexes(grid: dict[str, Any]) -> list[int]:
     return sorted(indexes)
 
 
-def _participant_history(
-    target: dict[str, Any],
-    rows: list[dict[str, Any]],
-    column_info: dict[str, dict[str, str]] | None,
-) -> str:
+def _participant_history() -> str:
     """Return the history line EEGLAB records for this dialog.
 
-    ``rows`` and ``column_info`` are applied in EEGPrep. EEGLAB's
-    ``pop_participantinfo`` is interactive-only, so they are not written into
-    the command: replaying ``'rows'`` opens the table and never applies it.
+    EEGLAB's ``pop_participantinfo`` is interactive-only. EEGPrep applies
+    ``rows`` in Python, and the recorded command stays the line EEGLAB writes.
+    Replaying ``'rows'`` would open the table and never apply it.
     """
-    del target, rows, column_info
     return "[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);"
 
 

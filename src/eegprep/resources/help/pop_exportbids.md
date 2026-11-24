@@ -27,6 +27,8 @@ checkbox) assigns `sub-001`, `sub-002`, and so on, one id per subject, and
 the dataset when they are set. A task name cannot contain a space or an
 underscore.
 
+The export wizard shows 10 files per page. Each row has a browse button and a `CLear` button that empties that row.
+
 The dialog records a command that includes the dataset list, task, license,
 changes, and createids, so running it in `eegprep-console` repeats the export.
 EEGLAB leaves this command empty (`pop_exportbids.m` lines 247-252).

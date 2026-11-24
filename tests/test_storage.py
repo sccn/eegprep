@@ -101,7 +101,9 @@ def test_memmap_resave_to_same_sidecar_preserves_data(tmp_path: Path):
 
     loaded["data"][2, 3] = -12.5
     loaded["data"].flush()
+    mapped = loaded["data"]
     pop_saveset(loaded, savemode="resave")
+    assert mapped._array is None
     reloaded = pop_loadset(set_file)
 
     expected = data.copy()

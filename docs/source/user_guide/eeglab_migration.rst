@@ -636,7 +636,9 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   EEGPrep open so the datasets can be saved first.
 * The BIDS export wizard opens from an empty session: a welcome page, then a
   file grid with one task per file. The grid shows 10 rows per page, column
-  headers, a browse button on each row, and ``<`` ``>`` page buttons.
+  headers, a browse button and a ``CLear`` button on each row, and ``<`` ``>``
+  page buttons. ``CLear`` empties that row. ``pop_studywizard`` has the same
+  per-row button.
   Participant info is one row per dataset, and event-field Levels, LongName,
   Description, and Units are written to one ``task-<task>_events.json`` at
   the dataset root. Power-line frequency is stored as a number when the EEG

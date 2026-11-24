@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.studyfunc._study_utils import MatlabLiteral, build_matlab_call, matlab_command_cell
 from eegprep.functions.studyfunc.std_editset import std_editset
 
@@ -85,9 +85,28 @@ def pop_studywizard_dialog_spec(filenames: list[str], name: str) -> DialogSpec:
                 ControlSpec("edit", tag=f"condition{index}"),
                 ControlSpec("edit", tag=f"group{index}"),
                 ControlSpec("edit", tag=f"task{index}"),
+                ControlSpec(
+                    "pushbutton",
+                    "CLear",
+                    tag=f"clear{index}",
+                    callback=CallbackSpec(
+                        "clear_widgets",
+                        {
+                            "targets": [
+                                f"file{index}",
+                                f"subject{index}",
+                                f"session{index}",
+                                f"run{index}",
+                                f"condition{index}",
+                                f"group{index}",
+                                f"task{index}",
+                            ]
+                        },
+                    ),
+                ),
             ]
         )
-        geometry.append((3, 1, 1, 1, 1, 1, 1))
+        geometry.append((3, 1, 1, 1, 1, 1, 1, 0.6))
     return DialogSpec(
         title="Create STUDY set -- pop_studywizard()",
         function_name="pop_studywizard",
