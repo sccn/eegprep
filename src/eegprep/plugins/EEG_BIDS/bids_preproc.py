@@ -101,7 +101,7 @@ def _write_events_tsv(EEG: dict, fpath: str) -> None:
     have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
     columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
     srate = EEG['srate']
-    with open(fpath, 'w') as fp:
+    with open(fpath, 'w', newline='\n') as fp:
         print('\t'.join(columns), file=fp)
         for e in EEG['event']:
             ev_type = e['type']
@@ -1032,7 +1032,7 @@ def bids_preproc(
 
                 # rewrite the channels file
                 fpath_channels = gen_derived_fpath(fn, outputdir=OutputDir, suffix='channels', extension='.tsv')
-                with open(fpath_channels, 'w') as fp:
+                with open(fpath_channels, 'w', newline='\n') as fp:
                     print('name\ttype\tunits', file=fp)
                     for ch in EEG['chanlocs']:
                         ch_type = ch.get('type', 'EEG')
@@ -1041,7 +1041,7 @@ def bids_preproc(
 
                 # rewrite the electrodes file
                 fpath_elecs = gen_derived_fpath(fn, outputdir=OutputDir, suffix='electrodes', extension='.tsv')
-                with open(fpath_elecs, 'w') as fp:
+                with open(fpath_elecs, 'w', newline='\n') as fp:
                     print('name\tx\ty\tz', file=fp)
                     for ch in EEG['chanlocs']:
                         if chanloc_has_coords(ch):
@@ -1057,7 +1057,7 @@ def bids_preproc(
                         "EEGCoordinateSystemDescription": "ALS | +x is front, +y is left, +z is up",
                     }
                 )
-                with open(fpath_coordsystem, 'w') as fp:
+                with open(fpath_coordsystem, 'w', newline='\n') as fp:
                     json.dump(coordsystem, fp, indent=4)
 
                 # rewrite/update the _eeg.json file
@@ -1143,7 +1143,7 @@ def bids_preproc(
                         return [_json_safe(v) for v in obj]
                     return obj
 
-                with open(fpath_eeg, 'w') as fp:
+                with open(fpath_eeg, 'w', newline='\n') as fp:
                     json.dump(_json_safe(content), fp, indent=4)
 
             return EEG if ReturnData else None
@@ -1175,7 +1175,7 @@ def bids_preproc(
                 logger.info(f"Writing report to {fpath_report}")
                 try:
                     os.makedirs(os.path.dirname(fpath_report), exist_ok=True)
-                    with open(fpath_report, 'w') as f:
+                    with open(fpath_report, 'w', newline='\n') as f:
                         json.dump(report, f, indent=4)
                 except OSError as e:
                     logger.error(f"Failed to write report file {fpath_report}: {e}")
@@ -1253,7 +1253,7 @@ def bids_preproc(
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None
         fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=OutputDir, keyword='', extension='.json')
-        with open(fpath_dataset_desc, 'w') as f:
+        with open(fpath_dataset_desc, 'w', newline='\n') as f:
             json.dump(desc, f, indent=4)
 
         with multiprocessing.Manager() as manager:

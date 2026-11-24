@@ -81,7 +81,7 @@ def pop_exportbids(
     _write_description(root / "dataset_description.json", task_info, license_name)
     _write_readme(root / "README", task_info)
     if changes_text:
-        (root / "CHANGES").write_text(changes_text.rstrip() + "\n", encoding="utf-8")
+        (root / "CHANGES").write_text(changes_text.rstrip() + "\n", encoding="utf-8", newline="\n")
     labels, used_subject = _subject_labels(datasets, study, subject=subject)
     exported_labels = _write_recordings(
         root,
@@ -257,7 +257,7 @@ def _write_description(path: Path, task_info: dict[str, Any], license_name: str)
 def _write_readme(path: Path, task_info: dict[str, Any]) -> None:
     name = str(task_info.get("Name") or "EEGPrep export")
     intro = str(task_info.get("README") or "EEG dataset exported by EEGPrep.").strip()
-    path.write_text(f"# {name}\n\n{intro}\n", encoding="utf-8")
+    path.write_text(f"# {name}\n\n{intro}\n", encoding="utf-8", newline="\n")
 
 
 def _createids_flag(value: bool | str) -> bool:
@@ -734,7 +734,7 @@ def _write_electrodes(path: Path, eeg: dict[str, Any]) -> None:
         chanlocs = []
     labels = channel_labels(eeg)
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream, delimiter="\t")
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         writer.writerow(["name", "x", "y", "z"])
         for index, label in enumerate(labels):
             loc = chanlocs[index] if index < len(chanlocs) and isinstance(chanlocs[index], dict) else {}

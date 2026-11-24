@@ -1078,11 +1078,19 @@ def test_electrode_coordinates_use_six_decimals_including_negative_zero(tmp_path
         {"labels": "EOG1", "X": np.empty((1, 0)), "Y": np.empty((1, 0)), "Z": np.empty((1, 0))},
     ]
     root = Path(pop_exportbids(eeg, tmp_path / "bids", task="rest"))
-    lines = (root / "sub-01" / "eeg" / "sub-01_electrodes.tsv").read_text(encoding="utf-8").splitlines()
-    assert lines[0] == "name\tx\ty\tz"
-    assert lines[1] == "Cz\t-0.000000\t1.500000\t-2.250000"
-    assert lines[2] == "Pz\t84.981234\t0.000000\t-1.786039"
-    assert lines[3] == "EOG1\tn/a\tn/a\tn/a"
+    eeg_dir = root / "sub-01" / "eeg"
+    assert (eeg_dir / "sub-01_electrodes.tsv").read_bytes() == (
+        b"name\tx\ty\tz\nCz\t-0.000000\t1.500000\t-2.250000\nPz\t84.981234\t0.000000\t-1.786039\nEOG1\tn/a\tn/a\tn/a\n"
+    )
+    assert (eeg_dir / "sub-01_task-rest_channels.tsv").read_bytes() == (
+        b"name\ttype\tunits\nCz\tEEG\tuV\nPz\tEEG\tuV\nEOG1\tEOG\tuV\n"
+    )
+    assert (eeg_dir / "sub-01_task-rest_events.tsv").read_bytes() == b"onset\tduration\tsample\tvalue\n"
+    assert (root / "participants.tsv").read_bytes() == b"participant_id\nsub-01\n"
+    text_files = [path for path in root.rglob("*") if path.suffix in {".tsv", ".json"} or path.name == "README"]
+    assert text_files
+    for path in text_files:
+        assert b"\r" not in path.read_bytes()
 
 
 def test_quit_asks_before_discarding_unsaved_datasets():
