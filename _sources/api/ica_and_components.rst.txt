@@ -16,7 +16,11 @@ the help at lines 48-50 says the default has been ``'off'`` since 2015.
 EEGPrep follows the help text: an omitted ``rndreset`` is off and uses
 ``RandomState(5489)``, the same MT19937 stream as ``rng(5489, 'twister')``
 (``pythoncompat``, line 814), rather than the legacy ``rand('state', 0)``
-stream at line 819. ``varsort`` and ``zica`` return
+stream at line 819. A seeded ``pop_runica`` therefore matches EEGLAB
+``pop_runica`` with ``pythoncompat`` on. ``pop_runica`` and ``eeg_runica``
+pass ``lrate`` 0.001 unless the caller supplies one (``pop_runica.m`` lines
+503 and 523). The history command records that value only when the caller
+supplied it. ``varsort`` and ``zica`` return
 zero-based component and sample indices.
 
 .. autosummary::

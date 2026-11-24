@@ -654,6 +654,10 @@
 <p>When <code class="docutils literal notranslate"><span class="pre">icatype</span></code> is <code class="docutils literal notranslate"><span class="pre">runica</span></code> and <code class="docutils literal notranslate"><span class="pre">pca</span></code> is omitted, a data rank below
 the selected channel count is passed as <code class="docutils literal notranslate"><span class="pre">pca</span></code> and recorded in the history
 command. An explicit <code class="docutils literal notranslate"><span class="pre">pca</span></code> value is left unchanged.</p>
+<p>SOBI and Jade options are positional counts. EEGLAB accepts <code class="docutils literal notranslate"><span class="pre">{'p',</span> <span class="pre">100}</span></code>
+because <code class="docutils literal notranslate"><span class="pre">sobi.m</span></code> ignores <code class="docutils literal notranslate"><span class="pre">n</span></code> and reads <code class="docutils literal notranslate"><span class="pre">p</span></code> as the lag count. EEGPrep
+rejects that named form in text, lists, and tuples. Pass <code class="docutils literal notranslate"><span class="pre">{32</span> <span class="pre">100}</span></code> or
+<code class="docutils literal notranslate"><span class="pre">p=100</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

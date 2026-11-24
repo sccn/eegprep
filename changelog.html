@@ -491,6 +491,16 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Edit and Tools follow the November 23 GUI audit. Epoched <code class="docutils literal notranslate"><span class="pre">pop_select</span></code>
+keeps the <code class="docutils literal notranslate"><span class="pre">epoch.m</span></code> half-open window (128 points and <code class="docutils literal notranslate"><span class="pre">xmax=0.4921875</span></code>
+on the tutorial crop) and rejects a time range that misses the data.
+<code class="docutils literal notranslate"><span class="pre">pop_firpmord</span></code> uses the Herrmann order; Estimate still rounds it even.
+DIPFIT settings warp an unmatched montage onto the template and enable
+Co-register. Fine fit reads nested dipole coordinates. Inspect/label
+components opens <code class="docutils literal notranslate"><span class="pre">pop_prop</span></code> and stores rejection flags on OK.
+MRI head-model creation and eLORETA stay disabled, with a tooltip that
+names the missing FieldTrip step and the template or autofit alternative.
+(#675)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;]</span></code> records pAMICA sample rejection with the EEGLAB
 settings: <code class="docutils literal notranslate"><span class="pre">do_reject</span></code> off, <code class="docutils literal notranslate"><span class="pre">maxrej</span></code> 3 (EEGLAB’s <code class="docutils literal notranslate"><span class="pre">numrej</span></code>), <code class="docutils literal notranslate"><span class="pre">rejsig</span></code>
 3.0, <code class="docutils literal notranslate"><span class="pre">rejstart</span></code> 2 and <code class="docutils literal notranslate"><span class="pre">rejint</span></code> 3. The outcome is <code class="docutils literal notranslate"><span class="pre">rejection_passes</span></code>,

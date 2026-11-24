@@ -702,13 +702,13 @@ ICLabel, Tools &gt; Remove components from data.</p>
 scalp-map figures: 1
 EEG = pop_iclabel(EEG, &#39;default&#39;);
 dominant class counts: {&#39;Brain&#39;: 21, &#39;Muscle&#39;: 0, &#39;Eye&#39;: 2, &#39;Heart&#39;: 0, &#39;Line Noise&#39;: 6, &#39;Channel Noise&#39;: 0, &#39;Other&#39;: 3}
-EEG = pop_icflag(EEG, thresholds=[0 0; 0.8 1; 0.8 1; 0 0; 0 0; 0 0; 0 0]);
+EEG = pop_icflag(EEG, [0 0;0.8 1;0.8 1;0 0;0 0;0 0;0 0]);
 components to remove (1-based): [3, 11]
-EEG = pop_subcomp(EEG, [3 11], 0);
+EEG = pop_subcomp(EEG, [3 11], 0, 0);
 components remaining: 30
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 6.337 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 3.838 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-reject-artifacts-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/f9ca11ccf09f2a2e8305410fa5edf859/plot_reject_artifacts.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_reject_artifacts.ipynb</span></code></a></p>

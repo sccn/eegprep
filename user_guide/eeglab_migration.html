@@ -580,15 +580,62 @@ records numeric criteria, avoiding EEGLAB’s silent mismatch with a string cell
 selector. Numeric-looking string event types remain strings. When cropping
 introduces a text <code class="docutils literal notranslate"><span class="pre">boundary</span></code> event, event consistency can convert all types
 to strings, as in EEGLAB.</p>
-<p>Epoch cropping with <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> includes both endpoints, as its time and
-point range documentation specifies. EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_select.m</span></code> calls <code class="docutils literal notranslate"><span class="pre">epoch</span></code>
-with an upper-exclusive window and drops the final sample. For the tutorial
-<code class="docutils literal notranslate"><span class="pre">eeglab_data_epochs_ica.set</span></code>, selecting epochs <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">3,</span> <span class="pre">5,</span> <span class="pre">7,</span> <span class="pre">9]</span></code> and time
-<code class="docutils literal notranslate"><span class="pre">[-0.5,</span> <span class="pre">0.5]</span></code> therefore retains 129 points and 8 events in EEGPrep, with
-<code class="docutils literal notranslate"><span class="pre">xmax=0.5</span></code>. The recorded EEGLAB 8ac485f6 result is 128 points and 8 events,
-with <code class="docutils literal notranslate"><span class="pre">xmax=0.4921875</span></code>. EEGPrep retains each event only if its position within
-its original epoch is inside the crop, then recalculates its concatenated
-latency using the new epoch length.</p>
+<p>Epoch cropping with <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> follows <code class="docutils literal notranslate"><span class="pre">epoch.m</span></code>: the last sample is
+<code class="docutils literal notranslate"><span class="pre">round(tmax*srate</span> <span class="pre">-</span> <span class="pre">1)</span></code> with MATLAB half-away-from-zero rounding, and an
+event is kept when its latency is inside that half-open window. For the
+tutorial <code class="docutils literal notranslate"><span class="pre">eeglab_data_epochs_ica.set</span></code>, epochs <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">3,</span> <span class="pre">5,</span> <span class="pre">7,</span> <span class="pre">9]</span></code> and time
+<code class="docutils literal notranslate"><span class="pre">[-0.5,</span> <span class="pre">0.5]</span></code> keep 128 points, 8 events, <code class="docutils literal notranslate"><span class="pre">xmin=-0.5</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">xmax=0.4921875</span></code>. A time range that does not overlap the data raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code> from <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> and leaves the caller’s dataset unchanged.
+EEGLAB clips that range and continues. A range that only partly overlaps is
+still clipped to the data. A <code class="docutils literal notranslate"><span class="pre">point</span></code> or <code class="docutils literal notranslate"><span class="pre">samples</span></code> range includes both
+named samples. <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> samples <code class="docutils literal notranslate"><span class="pre">1:384</span></code> on the tutorial epochs file
+therefore keeps all 384 points. Passing those same points through <code class="docutils literal notranslate"><span class="pre">epoch.m</span></code>
+would drop the last one.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> lists Extended Infomax, Robust Extended Infomax, AMICA, Infomax
+picard, FastICA picard, SOBI, and Jade. binica is not in that list. The SOBI
+and Jade options boxes start empty. An empty SOBI run records
+<code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">pop_runica(EEG,</span> <span class="pre">'icatype',</span> <span class="pre">'sobi');</span></code>, which EEGLAB can replay.
+Typed counts are stored as <code class="docutils literal notranslate"><span class="pre">'options',</span> <span class="pre">{n</span> <span class="pre">p}</span></code>. Named SOBI text such as
+<code class="docutils literal notranslate"><span class="pre">'p',</span> <span class="pre">100</span></code> and the list <code class="docutils literal notranslate"><span class="pre">['p',</span> <span class="pre">100]</span></code> are rejected. Pass <code class="docutils literal notranslate"><span class="pre">{32</span> <span class="pre">100}</span></code> or
+<code class="docutils literal notranslate"><span class="pre">p=100</span></code>. EEGLAB runs <code class="docutils literal notranslate"><span class="pre">{'p',</span> <span class="pre">100}</span></code> because <code class="docutils literal notranslate"><span class="pre">sobi.m</span></code> never reads <code class="docutils literal notranslate"><span class="pre">n</span></code>,
+so the string is ignored and <code class="docutils literal notranslate"><span class="pre">100</span></code> is the lag count. EEGPrep does not copy
+that quirk.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_mergeset</span></code> prefills the first two loaded dataset indices. EEGLAB
+prefills <code class="docutils literal notranslate"><span class="pre">1</span></code>. The merged data, ICA, and history are unchanged.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_editeventvals</span></code> shows numbers with five significant digits and jumps to
+the last event when the typed event number, including 999, is past the end.
+Field buttons show the field name; clicking one shows the description. Delete,
+insert, and append edit the event list. Sort stays a command-line action and
+keeps the other edits. EEGLAB’s sort-from-the-GUI path discards the edits.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_selectcomps</span></code> asks which components to plot, then opens a scalp map and a
+button for each one, 35 per window. Clicking a button opens <code class="docutils literal notranslate"><span class="pre">pop_prop</span></code> with
+ACCEPT/REJECT on that window. OK stores <code class="docutils literal notranslate"><span class="pre">EEG.reject.gcompreject</span></code>; Cancel
+discards the toggles. The button label is <code class="docutils literal notranslate"><span class="pre">Set</span> <span class="pre">thresholds</span></code>. EEGLAB spells that
+button <code class="docutils literal notranslate"><span class="pre">Set</span> <span class="pre">threhsolds</span></code>. Both that button and <code class="docutils literal notranslate"><span class="pre">See</span> <span class="pre">comp.</span> <span class="pre">stats</span></code> stay
+disabled until <code class="docutils literal notranslate"><span class="pre">pop_icathresh</span></code> and <code class="docutils literal notranslate"><span class="pre">EEG.stats.compenta</span></code> exist.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_firpmord</span></code> follows MATLAB <code class="docutils literal notranslate"><span class="pre">firpmord</span></code>: relative deviations, the Herrmann
+length, <code class="docutils literal notranslate"><span class="pre">ceil(L)</span> <span class="pre">-</span> <span class="pre">1</span></code>, and one extra tap when the last band passes and that
+order is odd. The <code class="docutils literal notranslate"><span class="pre">pop_firpm</span></code> Estimate button then rounds the order up to an
+even number.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_dipfit_settings</span></code> keeps a channel-file keyword transform when one
+matches. Otherwise it fills the montage warp from <code class="docutils literal notranslate"><span class="pre">coregister(...,</span> <span class="pre">warp='auto')</span></code>
+instead of the unscaled <code class="docutils literal notranslate"><span class="pre">standard_1005</span></code> matrix. Co-register and the channel
+omit button are enabled. Ok is refused while the matrix is empty unless No
+Co-Reg is checked. EEGLAB leaves an unmatched matrix blank and waits for
+Co-register. <code class="docutils literal notranslate"><span class="pre">coord_transform</span></code> <code class="docutils literal notranslate"><span class="pre">warpfiducials</span></code> and <code class="docutils literal notranslate"><span class="pre">alignfiducials</span></code> warp
+nasion, LPA, and RPA. Creating a head model from an MRI and eLORETA stay
+disabled in the menu: FieldTrip MRI segmentation and <code class="docutils literal notranslate"><span class="pre">ft_sourceanalysis</span></code>
+eLORETA are not available, and a partial solver would not match EEGLAB.
+Direct calls still raise <code class="docutils literal notranslate"><span class="pre">DIPFITUnavailableError</span></code> with the same reason.
+Dipole plots draw the packaged avg152t1 volume for spherical BESA models and
+the packaged standard_mri volume for MNI models. Slice extents use the voxel
+size, so a 2 mm avg152t1 voxel stays 2 mm in the image. A custom MRI is
+refused. Fine-fit Plot map titles the figure <code class="docutils literal notranslate"><span class="pre">IC</span> <span class="pre">n</span></code>. OK stores the dipole on
+screen, including a flipped moment, and records those coordinates so history
+replays them without another fit. Plot dipole
+draws only the dipoles whose fit checkbox is selected. EEGLAB draws a second
+dipole whenever its position is nonzero, including when that checkbox is clear.</p>
 <p><code class="docutils literal notranslate"><span class="pre">pop_selectevent</span></code> emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can
 still be returned with no events (or only retained boundary events). EEGLAB

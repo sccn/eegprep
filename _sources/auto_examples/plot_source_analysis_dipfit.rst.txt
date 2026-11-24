@@ -45,15 +45,15 @@ boundary-element volume.
  .. code-block:: none
 
     channels=32 trials=80 components=32
-    EEG = pop_dipfit_settings(EEG, model='standardBESA')
+    EEG = pop_dipfit_settings(EEG, 'model', 'standardBESA');
     coordformat=Spherical hdmfile=standard_BESA/standard_BESA.mat
     EEG = pop_dipfit_gridsearch(EEG, [1, 2, 3], [-85, -77.6086956521739, -70.21739130434783, -62.826
-    EEG = pop_dipfit_nonlinear(EEG, component=1, nonlinear='yes')
-    EEG = pop_multifit(EEG, [1, 2, 3], threshold=40, rmout='off', dipoles=1, dipplot='off')
+    EEG = pop_dipfit_nonlinear(EEG, 'component', 1, 'nonlinear', 'yes');
+    EEG = pop_multifit(EEG, [1, 2, 3], 'threshold', 40, 'rmout', 'off', 'dipoles', 1, 'dipplot', 'off');
     IC1: posxyz=(  42.6,   -0.8,   -6.2) rv=2.6%
     IC2: posxyz=( -13.3,  -44.4,    2.1) rv=4.3%
     IC3: posxyz=(  68.6,    1.4,  -38.1) rv=0.4%
-    pop_dipplot(EEG, [1, 2, 3], cornermri='on')
+    pop_dipplot(EEG, [1, 2, 3], 'cornermri', 'on');
 
 
 
@@ -112,14 +112,14 @@ boundary-element volume.
         coords = "; ".join(f"({x:6.1f}, {y:6.1f}, {z:6.1f})" for x, y, z in pos)
         print(f"IC{index}: posxyz={coords} rv={100 * rv:.1f}%")
 
-    # 5. Dipole plot over the packaged MNI MRI slices (Component dipole plot).
+    # 5. Dipole plot over the packaged avg152t1 slices for this spherical model.
     _, com = pop_dipplot(EEG, [1, 2, 3], gui=False, cornermri="on", return_com=True)
     print(com)
 
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 3.355 seconds)
+   **Total running time of the script:** (0 minutes 2.234 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_source_analysis_dipfit.py:

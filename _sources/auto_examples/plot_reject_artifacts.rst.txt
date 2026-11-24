@@ -296,9 +296,9 @@ ICLabel, Tools > Remove components from data.
     scalp-map figures: 1
     EEG = pop_iclabel(EEG, 'default');
     dominant class counts: {'Brain': 21, 'Muscle': 0, 'Eye': 2, 'Heart': 0, 'Line Noise': 6, 'Channel Noise': 0, 'Other': 3}
-    EEG = pop_icflag(EEG, thresholds=[0 0; 0.8 1; 0.8 1; 0 0; 0 0; 0 0; 0 0]);
+    EEG = pop_icflag(EEG, [0 0;0.8 1;0.8 1;0 0;0 0;0 0;0 0]);
     components to remove (1-based): [3, 11]
-    EEG = pop_subcomp(EEG, [3 11], 0);
+    EEG = pop_subcomp(EEG, [3 11], 0, 0);
     components remaining: 30
 
 
@@ -307,7 +307,7 @@ ICLabel, Tools > Remove components from data.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 6.337 seconds)
+   **Total running time of the script:** (0 minutes 3.838 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_reject_artifacts.py:

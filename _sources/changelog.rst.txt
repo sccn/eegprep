@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
+  keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
+  on the tutorial crop) and rejects a time range that misses the data.
+  ``pop_firpmord`` uses the Herrmann order; Estimate still rounds it even.
+  DIPFIT settings warp an unmatched montage onto the template and enable
+  Co-register. Fine fit reads nested dipole coordinates. Inspect/label
+  components opens ``pop_prop`` and stores rejection flags on OK.
+  MRI head-model creation and eLORETA stay disabled, with a tooltip that
+  names the missing FieldTrip step and the template or autofit alternative.
+  (#675)
 - ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
   settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
   3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,

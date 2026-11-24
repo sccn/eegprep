@@ -572,7 +572,10 @@ mixing column has RMS 1, matching EEGLAB <code class="docutils literal notransla
 </dd>
 <dt>sortcomps<span class="classifier">str | bool, optional</span></dt><dd><p>If ‘on’ or True, sort components by descending activation variance. Default is ‘off’.</p>
 </dd>
-<dt>kwargs<span class="classifier">dict</span></dt><dd><p>Additional keyword arguments to pass to the runica algorithm.</p>
+<dt>kwargs<span class="classifier">dict</span></dt><dd><p>Additional keyword arguments to pass to the runica algorithm.
+An omitted <code class="docutils literal notranslate"><span class="pre">lrate</span></code> becomes 0.001, matching <code class="docutils literal notranslate"><span class="pre">pop_runica.m</span></code>.
+A caller-supplied <code class="docutils literal notranslate"><span class="pre">lrate</span></code> is left unchanged. The history command
+records only the caller-supplied value.</p>
 </dd>
 </dl>
 </section>

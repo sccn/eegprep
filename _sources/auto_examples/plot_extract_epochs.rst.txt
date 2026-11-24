@@ -153,7 +153,7 @@ Cut a shorter sub-epoch window, -500 ms to 1000 ms, with ``pop_select``
 
  .. code-block:: none
 
-    sub-epoch: (32, 193, 80) range (ms): -500.0 1000.0
+    sub-epoch: (32, 192, 80) range (ms): -500.0 992.1875
     EEG = pop_select( EEG, 'time', [-0.5 1]);
 
 
@@ -181,7 +181,7 @@ Select epochs by index. Epoch selectors are EEGLAB-facing 1-based indices, so
 
  .. code-block:: none
 
-    first 10 epochs: (32, 193, 10)
+    first 10 epochs: (32, 192, 10)
     EEG = pop_select( EEG, 'trial', [1 2 3 4 5 6 7 8 9 10]);
 
 
@@ -217,7 +217,7 @@ event refers to.
 
  .. code-block:: none
 
-    position 1 epochs: (32, 193, 40) trials: 40
+    position 1 epochs: (32, 192, 40) trials: 40
     EEG = pop_selectevent( EEG, 'type', {'square'}, 'position', 1, 'deleteepochs', 'on', 'deleteevents', 'off');
 
 
@@ -226,7 +226,7 @@ event refers to.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.056 seconds)
+   **Total running time of the script:** (0 minutes 0.045 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_extract_epochs.py:
