@@ -23,7 +23,8 @@ import torch
 from scipy.optimize import linear_sum_assignment
 from threadpoolctl import threadpool_info
 
-from eegprep import pop_loadset
+from eegprep import pop_loadset, pop_saveset
+from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.popfunc import eeg_pamica as pamica_module
 from eegprep.functions.popfunc.eeg_pamica import (
     PamicaFitError,
@@ -52,6 +53,10 @@ RESULT_KEYS = {
     "final_ll",
     "best_ll",
     "best_iter",
+    "rejection_passes",
+    "returned_iter",
+    "n_good_samples",
+    "n_rejected_samples",
 }
 E1_MIN_CORRELATION = 0.95
 E1_MEDIAN_CORRELATION = 0.99
@@ -311,6 +316,151 @@ def test_reorder_sorts_components_by_variance_and_off_keeps_pamica_order():
     assert sorted(map(tuple, np.round(kept["icaweights"], 12))) == sorted(
         map(tuple, np.round(sorted_result["icaweights"], 12))
     )
+
+
+def test_the_record_gives_the_rejection_settings_and_the_samples_rejected():
+    eeg = _synthetic_eeg()
+
+    plain = eeg_pamica(eeg, max_iter=10)["etc"]["pamica"]
+    result = eeg_pamica(eeg, max_iter=10, do_reject=True, rejstart=2, rejint=2, maxrej=3, rejsig=2.0)
+
+    assert (
+        plain["do_reject"],
+        plain["rejection_passes"],
+        plain["n_good_samples"],
+        plain["n_rejected_samples"],
+    ) == (False, 0, 3000, 0)
+    record = result["etc"]["pamica"]
+    assert {key: record[key] for key in ("do_reject", "rejsig", "rejstart", "rejint", "maxrej")} == {
+        "do_reject": True,
+        "rejsig": 2.0,
+        "rejstart": 2,
+        "rejint": 2,
+        "maxrej": 3,
+    }
+    model = _replay(eeg, record)
+    assert record["rejection_passes"] == model.model_.numrej > 0
+    assert record["n_good_samples"] == model.model_.good_idx.numel()
+    assert record["n_good_samples"] + record["n_rejected_samples"] == 3000
+    assert record["n_rejected_samples"] > 0
+    assert np.array_equal(model.get_unmixing_matrix(), result["icaweights"])
+
+
+def test_do_reject_alone_records_the_runamica_rejection_defaults():
+    eeg = _synthetic_eeg()
+
+    record = eeg_pamica(eeg, max_iter=4, do_reject=True)["etc"]["pamica"]
+
+    assert {key: record[key] for key in ("do_reject", "maxrej", "rejsig", "rejstart", "rejint")} == {
+        "do_reject": True,
+        "maxrej": 3,
+        "rejsig": 3.0,
+        "rejstart": 2,
+        "rejint": 3,
+    }
+
+
+def test_numrej_is_the_same_setting_as_maxrej_and_the_two_cannot_disagree():
+    eeg = _synthetic_eeg()
+
+    by_numrej = pop_runica(eeg, icatype="pamica", max_iter=8, do_reject=True, numrej=2, reorder="off")
+    by_maxrej = pop_runica(eeg, icatype="pamica", max_iter=8, do_reject=True, maxrej=2, reorder="off")
+
+    assert by_numrej["etc"]["pamica"]["maxrej"] == by_maxrej["etc"]["pamica"]["maxrej"] == 2
+    assert "numrej" not in by_numrej["etc"]["pamica"]
+    assert by_numrej["etc"]["pamica"]["rejection_passes"] == by_maxrej["etc"]["pamica"]["rejection_passes"]
+    assert np.array_equal(by_numrej["icaweights"], by_maxrej["icaweights"])
+    agreed = eeg_pamica(eeg, max_iter=1, numrej=2, maxrej=2)["etc"]["pamica"]
+    assert agreed["maxrej"] == 2
+    assert "numrej" not in agreed
+    with pytest.raises(ValueError, match="eeg_pamica") as caught:
+        pop_runica(eeg, icatype="pamica", max_iter=1, numrej=2, maxrej=3)
+    assert "only one" in str(caught.value)
+
+
+def test_rejection_passes_wait_for_rejstart_and_stop_at_maxrej():
+    eeg = _synthetic_eeg()
+
+    early = eeg_pamica(eeg, max_iter=1, do_reject=True, rejstart=2, maxrej=3)["etc"]["pamica"]
+    capped = eeg_pamica(eeg, max_iter=10, do_reject=True, rejstart=2, rejint=2, maxrej=2)["etc"]["pamica"]
+
+    assert (early["rejection_passes"], early["n_rejected_samples"], early["n_good_samples"]) == (0, 0, 3000)
+    assert capped["rejection_passes"] == 2
+
+
+def test_epoched_rejection_counts_every_sample_of_every_trial():
+    generator = np.random.RandomState(5)
+    channels, points, trials = 4, 200, 3
+    sources = np.vstack(
+        [
+            generator.laplace(size=points * trials) if index % 2 else generator.uniform(-1, 1, points * trials)
+            for index in range(channels)
+        ]
+    )
+    eeg = create_test_eeg(n_channels=channels, n_samples=points, n_trials=trials)
+    eeg["data"] = (generator.randn(channels, channels) @ sources).reshape(channels, points, trials, order="F")
+
+    record = eeg_pamica(eeg, max_iter=8, do_reject=True)["etc"]["pamica"]
+
+    assert record["n_good_samples"] + record["n_rejected_samples"] == points * trials
+    assert "good_idx" not in record
+
+
+def test_rejection_names_the_iterate_the_weights_come_from_and_not_the_best_likelihood():
+    eeg = _synthetic_eeg()
+
+    result = eeg_pamica(eeg, max_iter=8, do_reject=True, rejstart=2, rejint=2, maxrej=2, rejsig=1.5)
+    record = result["etc"]["pamica"]
+
+    assert "best_iter" not in record
+    assert "best_ll" not in record
+    assert "keep_best" not in record
+    model = _replay(eeg, record)
+    history = np.asarray(model.ll_history_, dtype=np.float64)
+    assert record["returned_iter"] == len(history) - 1 == record["iterations"] - 1
+    assert model.final_ll_ == float(history[record["returned_iter"]])
+    assert np.array_equal(model.get_unmixing_matrix(), result["icaweights"])
+
+
+def test_pop_runica_returns_the_rejection_record_and_its_history_replays():
+    eeg = _synthetic_eeg()
+
+    result, command = pop_runica(eeg, icatype="pamica", do_reject=True, max_iter=6, seed=7, return_com=True)
+
+    record = result["etc"]["pamica"]
+    assert record["maxrej"] == 3
+    assert record["do_reject"] is True
+    assert "rejection_passes" in record
+    namespace = {"EEG": copy.deepcopy(eeg), "pop_runica": pop_runica}
+    exec(_console_python_command(command), namespace)  # noqa: S102
+    assert np.array_equal(namespace["EEG"]["icaweights"], result["icaweights"])
+    assert namespace["EEG"]["etc"]["pamica"]["rejection_passes"] == record["rejection_passes"]
+
+
+def test_a_saved_rejection_record_loads_its_counts_as_scalars(tmp_path):
+    eeg = _synthetic_eeg()
+    result = eeg_pamica(eeg, max_iter=6, do_reject=True, pcakeep=6)
+    names = (
+        "do_reject",
+        "rejsig",
+        "rejstart",
+        "rejint",
+        "maxrej",
+        "rejection_passes",
+        "n_good_samples",
+        "n_rejected_samples",
+        "returned_iter",
+    )
+    path = tmp_path / "pamica.set"
+
+    pop_saveset(result, path)
+    loaded = pop_loadset(str(path))["etc"]["pamica"]
+
+    for name in names:
+        assert not isinstance(loaded[name], np.ndarray)
+        assert np.ndim(loaded[name]) == 0
+        assert loaded[name] == result["etc"]["pamica"][name]
+    assert "good_idx" not in loaded
 
 
 def test_a_fit_that_stops_on_max_iter_has_not_converged():

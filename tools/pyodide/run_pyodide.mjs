@@ -6,8 +6,8 @@ import { pathToFileURL } from "node:url";
 
 const USAGE = `Usage: run_pyodide.mjs --pyodide-module PATH --wheel PATH --script PATH [--sample-data-dir PATH] [--output PATH] [--iclabel-model PATH --onnxruntime-web-module PATH] -- [script args...]`;
 // Dependencies of the EEGPrep base install, and of the picard extra the benchmark needs, that the
-// Pyodide distribution ships prebuilt (the "pyodide-lock" rows printed by
-// tools/check_pyodide_base_resolution.py, plus scikit-learn and joblib for Picard).
+// Pyodide distribution ships prebuilt. `tools/check_pyodide_base_resolution.py --print-pyodide-packages`
+// prints this list, and tests/test_pyodide_harness.py checks the two stay equal.
 // They load in one batch before micropip resolves the wheel, so micropip finds
 // them already installed instead of looking each one up. Compiled packages such
 // as numpy and scipy have no PyPI WebAssembly wheel, so the distribution's build
