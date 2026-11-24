@@ -28,14 +28,22 @@ _PAMICA_NAMES = {
     'rholratefact': 'rholratefact',
     'invsigmin': 'invsigmin',
     'invsigmax': 'invsigmax',
+    'do_reject': 'do_reject',
+    'numrej': 'maxrej',
+    'rejsig': 'rejsig',
+    'rejstart': 'rejstart',
+    'rejint': 'rejint',
 }
-_PAMICA_FLAGS = {'do_newton', 'use_min_dll', 'use_grad_norm', 'do_mean', 'do_sphere'}
+_PAMICA_FLAGS = {'do_newton', 'use_min_dll', 'use_grad_norm', 'do_mean', 'do_sphere', 'do_reject'}
 _EEGLAB_DEFAULTS = {
     _PAMICA_NAMES[name]: bool(_AMICA_DEFAULTS[name]) if _PAMICA_NAMES[name] in _PAMICA_FLAGS else _AMICA_DEFAULTS[name]
     for name in _PAMICA_NAMES
 }
 #: pAMICA's ``fit`` takes these as named arguments; every other setting is a backend keyword.
 _FIT_ARGUMENTS = ('lrate', 'do_mean', 'do_sphere', 'do_newton')
+#: pAMICA's in-fit sample rejection settings, recorded as the backend ran them.
+_REJECTION_SETTINGS = ('do_reject', 'rejsig', 'rejstart', 'rejint', 'maxrej')
+_REJECTION_INTEGERS = frozenset(_REJECTION_SETTINGS) - {'do_reject', 'rejsig'}
 
 
 class PamicaFitError(RuntimeError):
@@ -76,21 +84,36 @@ def eeg_pamica(
 
     A setting not passed takes eegprep's ``runamica15`` default, as ``runamica._AMICA_DEFAULTS``
     states it, for ``lrate``, ``minlrate``, ``rho0``, ``do_newton``, ``newt_start``, ``use_min_dll``,
-    ``use_grad_norm``, ``do_mean``, ``do_sphere``, ``newtrate``, ``rholratefact``, ``invsigmin`` and
-    ``invsigmax``. These follow eegprep's own table, which differs from EEGLAB's ``runamica15.m`` in
-    places. eegprep's ``max_decs`` is pAMICA's ``maxdecs``. pAMICA's own value stands for every other
-    setting: ``lratefact``, ``rholrate``, ``minrho``, ``maxrho`` and ``newt_ramp`` are not mapped because
-    pAMICA's values equal eegprep's, ``numrej`` (pAMICA's ``maxrej``, 1 against 3), ``pcadb`` and
-    ``blk_min``, ``blk_step`` and ``blk_max`` are not mapped and differ, and ``decwindow`` and 26 other
-    names of ``_AMICA_DEFAULTS`` (among them the ``write``, ``update_`` and ``load_`` settings) have no
-    pAMICA argument. ``block_size`` is pAMICA's 131072: the 128 of ``runamica15`` is the Fortran
-    program's block per thread and does not mean the same thing.
+    ``use_grad_norm``, ``do_mean``, ``do_sphere``, ``newtrate``, ``rholratefact``, ``invsigmin``,
+    ``invsigmax``, and the rejection settings ``do_reject``, ``numrej``, ``rejsig``, ``rejstart`` and
+    ``rejint``. These follow eegprep's own table, which differs from EEGLAB's ``runamica15.m`` in
+    places. eegprep's ``max_decs`` is pAMICA's ``maxdecs``, and eegprep's ``numrej`` is pAMICA's
+    ``maxrej`` (3; pAMICA's own default is 1). ``do_reject`` is a flag. pAMICA's own value stands for
+    every other setting: ``lratefact``, ``rholrate``, ``minrho``, ``maxrho`` and ``newt_ramp`` are not
+    mapped because pAMICA's values equal eegprep's, ``pcadb`` and ``blk_min``, ``blk_step`` and
+    ``blk_max`` are not mapped and differ, and ``decwindow`` and 26 other names of ``_AMICA_DEFAULTS``
+    (among them the ``write``, ``update_`` and ``load_`` settings) have no pAMICA argument.
+    ``block_size`` is pAMICA's 131072: the 128 of ``runamica15`` is the Fortran program's block per
+    thread and does not mean the same thing. ``rejstart`` and ``rejint`` count iterations from 1, as
+    Fortran AMICA does: the first pass follows iteration ``rejstart``, then every ``rejint``
+    iterations, and ``maxrej`` is the most passes allowed.
 
     ``icaweights @ icasphere`` is the unmixing pAMICA applies, from the channels to the components.
     pAMICA subtracts the channel mean before sphering and EEGLAB's activations do not, so
     ``icaact`` differs from pAMICA's ``transform`` by one constant per component. ``icasphere`` is
     the identity when ``do_sphere=False``. Components stay in pAMICA's order unless ``sortcomps``
     asks for descending activation variance.
+
+    The record stores the rejection settings that ran (``do_reject``, ``rejsig``, ``rejstart``,
+    ``rejint``, ``maxrej``). EEGLAB's ``numrej`` is ``maxrej`` here, the number of passes allowed,
+    not the number that ran. Pass ``numrej`` or ``maxrej``; if both are passed and they differ, this
+    function raises. The outcome is three counts and no per-sample mask, so every value stays a
+    scalar: ``rejection_passes``, ``n_good_samples`` and ``n_rejected_samples``. Their sum is every
+    sample of every trial. With ``do_reject`` on, pAMICA leaves its best-iterate restore unused,
+    because each pass changes which samples the likelihood is averaged over, and returns the last
+    iterate. The record names that iterate ``returned_iter`` (a 0-based index into the likelihood
+    history, the same indexing ``best_iter`` uses when rejection is off) and omits ``best_iter`` and
+    ``best_ll``, which would otherwise name the maximum of likelihoods that are not comparable.
 
     Parameters
     ----------
@@ -124,6 +147,7 @@ def eeg_pamica(
         ``pcakeep`` and the number of components that ran in ``rank``.
     amica_options : dict
         Further pAMICA settings, which replace the defaults above, for example ``lrate=0.1``.
+        ``numrej`` is EEGLAB's name for ``maxrej``.
 
     Returns
     -------
@@ -136,7 +160,10 @@ def eeg_pamica(
         If ``pamica`` or ``torch`` is not installed.
     PamicaFitError
         If pAMICA stops on a degenerate reason. No ICA field is set.
+    ValueError
+        If ``numrej`` and ``maxrej`` are both passed and they differ. Pass only one of them.
     """
+    amica_options = _apply_numrej_alias(amica_options)
     pamica, torch, degenerate_stops = _import_pamica()
     EEG = copy.deepcopy(EEG)
     data = flatten_ica_data(np.asarray(EEG['data'], dtype=np.float64))
@@ -171,10 +198,13 @@ def eeg_pamica(
     EEG['icaact'] = reshape_ica_activations(finite_matmul(unmixing, data), EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 
-    best_iter = int(np.argmax(history))
+    backend = model.model_
+    n_samples = data.shape[1]
+    n_good_samples = n_samples if backend.good_idx is None else int(backend.good_idx.numel())
+    do_reject = bool(backend.do_reject)
     if not isinstance(EEG.get('etc'), dict):
         EEG['etc'] = {}
-    EEG['etc']['pamica'] = {
+    record = {
         'version': pamica.__version__,
         'torch': torch.__version__,
         'device': str(model.model_.device),
@@ -190,15 +220,46 @@ def eeg_pamica(
         'backend': type(model.model_).__name__,
         'pipeline': f"pamica.AMICA(backend='{model.backend}').fit",
         **settings,
+        **{name: _recorded_rejection_setting(name, getattr(backend, name)) for name in _REJECTION_SETTINGS},
         'iterations': len(history),
         'stop_reason': stop_reason,
         'did_converge': stop_reason != 'max_iter',
         'final_ll': float(model.final_ll_),
-        'best_ll': float(history[best_iter]),
-        'best_iter': best_iter,
+        'rejection_passes': int(backend.numrej),
+        'n_good_samples': n_good_samples,
+        'n_rejected_samples': n_samples - n_good_samples,
     }
+    if do_reject:
+        record['returned_iter'] = len(history) - 1
+    else:
+        best_iter = int(np.argmax(history))
+        record['best_ll'] = float(history[best_iter])
+        record['best_iter'] = best_iter
+    EEG['etc']['pamica'] = record
 
     return finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact)
+
+
+def _apply_numrej_alias(options):
+    if 'numrej' not in options:
+        return options
+    numrej = options['numrej']
+    if 'maxrej' in options and options['maxrej'] != numrej:
+        raise ValueError(
+            f"eeg_pamica received numrej={numrej!r} and maxrej={options['maxrej']!r}, which disagree. "
+            "numrej is EEGLAB's name for maxrej. Pass only one of them."
+        )
+    resolved = {key: value for key, value in options.items() if key != 'numrej'}
+    resolved['maxrej'] = options.get('maxrej', numrej)
+    return resolved
+
+
+def _recorded_rejection_setting(name, value):
+    if name == 'do_reject':
+        return bool(value)
+    if name in _REJECTION_INTEGERS:
+        return int(value)
+    return float(value)
 
 
 def _import_pamica():
