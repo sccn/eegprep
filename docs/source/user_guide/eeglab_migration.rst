@@ -103,7 +103,8 @@ Dipole plots draw the packaged avg152t1 volume for spherical BESA models and
 the packaged standard_mri volume for MNI models. Slice extents use the voxel
 size, so a 2 mm avg152t1 voxel stays 2 mm in the image. A custom MRI is
 refused. Fine-fit Plot map titles the figure ``IC n``. OK stores the dipole on
-screen, including a flipped moment, and does not run another fit. Plot dipole
+screen, including a flipped moment, and records those coordinates so history
+replays them without another fit. Plot dipole
 draws only the dipoles whose fit checkbox is selected. EEGLAB draws a second
 dipole whenever its position is nonzero, including when that checkbox is clear.
 

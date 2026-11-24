@@ -40,7 +40,9 @@ def pop_dipfit_nonlinear(
     Plot map titles the figure ``IC n``. Plot dipole draws the dipoles whose
     fit checkbox is selected. EEGLAB draws a second dipole whenever its
     position is nonzero, even when that checkbox is clear. OK stores the
-    dipole on screen. The command line still runs the nonlinear fit.
+    dipole on screen and records ``posxyz``, ``momxyz``, and ``select`` so
+    the menu and history replay those coordinates. The command line still
+    runs the nonlinear fit unless those coordinates are supplied.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -50,15 +52,21 @@ def pop_dipfit_nonlinear(
         component = options.pop("component")
     nonlinear = options.pop("nonlinear", nonlinear)
     symmetry = options.pop("symmetry", symmetry)
+    manual_model = _manual_model_options(options)
     if gui is None:
-        gui = component is None and not options
+        gui = component is None and not options and manual_model is None
     working = EEG
     if gui:
         result = inputgui(pop_dipfit_nonlinear_dialog_spec(EEG), renderer=renderer)
         if result is None:
             return (EEG, "") if return_com else EEG
-        working, _component = _apply_nonlinear_gui_model(EEG, result)
-        return (working, "") if return_com else working
+        working, component = _apply_nonlinear_gui_model(EEG, result)
+        manual_model = _model_coordinates(working, component)
+    if manual_model is not None:
+        if not gui:
+            working, component = _store_manual_model(EEG, component, manual_model)
+        command = dipfit_history("pop_dipfit_nonlinear", component=component, **manual_model)
+        return (working, command) if return_com else working
     component_index = _single_component(component, working)
     out = run_nonlinear(working, component=component_index, nonlinear=nonlinear, symmetry=symmetry)
     command = dipfit_history(
@@ -186,6 +194,36 @@ def _single_component(value: Any, EEG: dict[str, Any]) -> int:
         current = dipfit_record(EEG).get("current", 1)
         value = current if current else 1
     return one_based_indices([value], limit=component_count(EEG), default_all=False)[0]
+
+
+def _manual_model_options(options: dict[str, Any]) -> dict[str, Any] | None:
+    if "posxyz" not in options and "momxyz" not in options and "select" not in options:
+        return None
+    return {
+        "posxyz": options.pop("posxyz", []),
+        "momxyz": options.pop("momxyz", []),
+        "select": options.pop("select", [1]),
+    }
+
+
+def _model_coordinates(EEG: dict[str, Any], component: int) -> dict[str, Any]:
+    model = normalize_model_list(EEG)[component - 1]
+    return {
+        "posxyz": _dipole_coordinate_rows(model.get("posxyz")).tolist(),
+        "momxyz": _dipole_coordinate_rows(model.get("momxyz")).tolist(),
+        "select": [int(index) for index in _dialog_selected_dipoles(model)],
+    }
+
+
+def _store_manual_model(
+    EEG: dict[str, Any], component: Any, manual_model: dict[str, Any]
+) -> tuple[dict[str, Any], int]:
+    out = copy_eeg(EEG)
+    component_index = _single_component(component, out)
+    models = ensure_model_list(out, component_count(out))
+    models[component_index - 1].update({**manual_model, "component": component_index})
+    out["dipfit"]["current"] = component_index
+    return out, component_index
 
 
 def _apply_nonlinear_gui_model(EEG: dict[str, Any], result: dict[str, Any]) -> tuple[dict[str, Any], int]:

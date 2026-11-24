@@ -762,7 +762,10 @@ def test_nonlinear_ok_keeps_the_flipped_moment(qapp, monkeypatch):
     out, command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
     np.testing.assert_allclose(out["dipfit"]["model"][0]["momxyz"][0], [-1.0, -2.0, -3.0])
     np.testing.assert_allclose(out["dipfit"]["model"][0]["posxyz"][0], [4.0, 5.0, 6.0])
-    assert command == ""
+    assert "'posxyz'" in command and "'momxyz'" in command
+    replayed = _replay_nonlinear_command(eeg, command)
+    np.testing.assert_allclose(replayed["dipfit"]["model"][0]["momxyz"][0], [-1.0, -2.0, -3.0])
+    np.testing.assert_allclose(replayed["dipfit"]["model"][0]["posxyz"][0], [4.0, 5.0, 6.0])
 
 
 def test_nonlinear_ok_keeps_a_moment_only_fit(qapp, monkeypatch):
@@ -802,10 +805,14 @@ def test_nonlinear_ok_keeps_a_moment_only_fit(qapp, monkeypatch):
             finally:
                 dialog.close()
 
-    out, _command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
+    out, command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
     np.testing.assert_allclose(out["dipfit"]["model"][0]["posxyz"][0], [1.0, 2.0, 3.0])
     np.testing.assert_allclose(out["dipfit"]["model"][0]["momxyz"][0], [9.0, 8.0, 7.0])
     assert calls == ["no"]
+    assert "'posxyz'" in command and "'momxyz'" in command
+    replayed = _replay_nonlinear_command(eeg, command)
+    np.testing.assert_allclose(replayed["dipfit"]["model"][0]["posxyz"][0], [1.0, 2.0, 3.0])
+    np.testing.assert_allclose(replayed["dipfit"]["model"][0]["momxyz"][0], [9.0, 8.0, 7.0])
 
 
 def test_nonlinear_ok_keeps_typed_dipole_values(qapp, monkeypatch):
@@ -836,9 +843,58 @@ def test_nonlinear_ok_keeps_typed_dipole_values(qapp, monkeypatch):
             finally:
                 dialog.close()
 
-    out, _command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
+    out, command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
     np.testing.assert_allclose(out["dipfit"]["model"][0]["posxyz"][0], [4.0, 5.0, 6.0])
     np.testing.assert_allclose(out["dipfit"]["model"][0]["momxyz"][0], [7.0, 8.0, 9.0])
+    assert "'posxyz'" in command and "'momxyz'" in command
+    replayed = _replay_nonlinear_command(eeg, command)
+    np.testing.assert_allclose(replayed["dipfit"]["model"][0]["posxyz"][0], [4.0, 5.0, 6.0])
+    np.testing.assert_allclose(replayed["dipfit"]["model"][0]["momxyz"][0], [7.0, 8.0, 9.0])
+
+
+def test_fine_fit_menu_stores_the_flipped_moment(qapp, monkeypatch):
+    from eegprep.functions.guifunc import qt as qt_module
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+    from eegprep.functions.guifunc.session import EEGPrepSession
+    from eegprep.plugins.dipfit import pop_dipfit_nonlinear as nonlinear_module
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "spherical",
+        "hdmfile": "standard_BESA/standard_vol.mat",
+        "model": [{"posxyz": [[1.0, 2.0, 3.0]], "momxyz": [[1.0, 2.0, 3.0]], "rv": 0.2, "component": 1}],
+    }
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    real_inputgui = nonlinear_module.inputgui
+
+    def drive(spec, renderer=None, **_kwargs):
+        class Renderer:
+            def run(self, dialog_spec, initial_values=None):
+                qt_renderer = qt_module.QtDialogRenderer()
+                _app, dialog, widgets = qt_renderer.build_dialog(dialog_spec)
+                try:
+                    widgets["flip1"].click()
+                    dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+                    return {tag: qt_renderer._read_widget(widget) for tag, widget in widgets.items()}
+                finally:
+                    dialog.close()
+
+        return real_inputgui(spec, renderer=Renderer())
+
+    monkeypatch.setattr(nonlinear_module, "inputgui", drive)
+    MenuActionDispatcher(session)._run_dipfit_function("pop_dipfit_nonlinear", None)
+    np.testing.assert_allclose(session.EEG["dipfit"]["model"][0]["momxyz"][0], [-1.0, -2.0, -3.0])
+    assert any("pop_dipfit_nonlinear" in command and "'momxyz'" in command for command in session.ALLCOM)
+
+
+def _replay_nonlinear_command(eeg, command):
+    from eegprep.functions.adminfunc.console import _console_python_command
+    from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
+
+    namespace = {"EEG": copy.deepcopy(eeg), "pop_dipfit_nonlinear": pop_dipfit_nonlinear}
+    exec(_console_python_command(command), namespace)
+    return namespace["EEG"]
 
 
 def test_nonlinear_fit_button_updates_the_displayed_model(qapp, monkeypatch):
