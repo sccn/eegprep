@@ -2,6 +2,7 @@ import hashlib
 import http.server
 import io
 import json
+import re
 import threading
 from pathlib import Path
 from urllib.error import HTTPError
@@ -274,6 +275,46 @@ def test_shipped_report_passes_the_per_class_gate():
     assert heart["subjects"] == []
     assert heart["datasets"] == []
     assert heart["top1_agreement"] is None
+
+
+_COVERAGE_DOCS = (
+    Path("docs/source/user_guide/ica_rejection.rst"),
+    Path("src/eegprep/resources/help/pop_iclabel.md"),
+    Path("src/eegprep/resources/help/pop_iclabel_async.md"),
+)
+
+
+def test_documented_int8_figures_match_the_parity_report():
+    report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    metrics = report["metrics"]
+    per_class = metrics["per_class_agreement"]
+    evaluated = metrics["evaluated_classes"]
+    other_diff = f"{per_class['Other']['max_probability_abs_diff']:.5f}"
+    set_diff = f"{metrics['max_probability_abs_diff']:.5f}"
+    widest = max(
+        (name for name, row in per_class.items() if row["max_probability_abs_diff"] is not None),
+        key=lambda name: float(per_class[name]["max_probability_abs_diff"]),
+    )
+    number = re.compile(rf"(?<![\d.]){re.escape(set_diff)}(?![\d])")
+    repo = Path(__file__).parents[1]
+
+    assert len(evaluated) == 1
+    assert f"{per_class[widest]['max_probability_abs_diff']:.5f}" == set_diff
+    for relative in _COVERAGE_DOCS:
+        text = (repo / relative).read_text(encoding="utf-8")
+        name = evaluated[0]
+        assert re.search(rf"Only {re.escape(name)} \({per_class[name]['count']}(?: components)?\)", text)
+        assert f"the largest absolute probability difference is {other_diff}" in text
+        assert number.search(text)
+        for class_name in metrics["unverified_classes"]:
+            count = per_class[class_name]["count"]
+            if count > 0:
+                assert re.search(rf"{re.escape(class_name)} \({count}\)", text)
+    guide = (repo / _COVERAGE_DOCS[0]).read_text(encoding="utf-8")
+    for class_name in metrics["unverified_classes"]:
+        assert re.search(rf"{re.escape(class_name)} \({per_class[class_name]['count']}\)", guide)
+    assert f"up to {set_diff}, the set-wide maximum" in guide
+    assert f"maximum is on a {widest} component" in guide
 
 
 def test_frozen_feature_archive_hash_is_verified(tmp_path):
