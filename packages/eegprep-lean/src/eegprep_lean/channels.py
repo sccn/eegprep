@@ -28,22 +28,11 @@ from .index import ChannelGroup, DatasetIndex, IndexError_, Store
 from .transport import Transport, default_transport
 
 
-#: Spellings of a channel the group did not type. ``n/a`` is the BIDS missing value;
-#: ``nan`` is the other token EEGLAB treats as unset. Stored as ``''``, which is what
-#: EEGLAB keeps in ``chanlocs.type``. EEGLAB counts an empty type as EEG only where it
-#: counts channels. This package does that stand-in in :func:`eegprep_lean.to_mne_raw`
-#: and nowhere else: writing ``EEG`` into the field would make a missing type look like
-#: one the group declared.
 _UNTYPED = frozenset({"", "n/a", "nan"})
 
 
-def _stored_channel_type(channel_type: str) -> str:
-    """The type to store. Blank, ``n/a`` and ``nan`` are ``''``.
-
-    A type the group did declare is kept, with surrounding whitespace removed. EEGLAB
-    leaves ``chanlocs.type`` empty for an untyped channel and only treats that channel
-    as EEG where it counts channels.
-    """
+def stored_channel_type(channel_type: str) -> str:
+    """The channel type to store. Blank, ``n/a`` and ``nan`` are ``''``."""
     text = channel_type.strip()
     if text.lower() in _UNTYPED:
         return ""
@@ -64,10 +53,11 @@ class Channel:
 
     @classmethod
     def from_entry(cls, entry: dict) -> "Channel":
+        raw_type = entry.get("channel_type", "")
         return cls(
             label=str(entry.get("label", "")),
             unit=str(entry.get("unit", "")),
-            channel_type=str(entry.get("channel_type", "")),
+            channel_type="" if raw_type is None else str(raw_type),
             row_index=int(entry.get("row_index", -1)),
             original_rate=float(entry.get("original_rate") or 0.0),
             target_rate=float(entry.get("target_rate") or 0.0),
@@ -102,15 +92,9 @@ class GroupMetadata:
         return labels if all(labels) else None
 
     def types(self, rows: tuple[int, ...]) -> tuple[str, ...]:
-        """Channel type for each row, as stored.
-
-        A row whose ``channel_type`` is missing, blank, ``n/a`` or ``nan`` is ``''``.
-        The rows that do declare one keep it, so a single untyped channel does not drop
-        the ECG stored beside it. ``''`` is not rewritten to ``EEG``: EEGLAB keeps an
-        untyped ``chanlocs.type`` empty and only counts that channel as EEG.
-        """
+        """Channel type for each row."""
         by_row = {channel.row_index: channel.channel_type for channel in self.channels}
-        return tuple(_stored_channel_type(by_row.get(row, "")) for row in rows)
+        return tuple(stored_channel_type(by_row.get(row, "")) for row in rows)
 
     def unit(self, rows: tuple[int, ...]) -> str | None:
         """The unit these rows share, or None when they do not share one.

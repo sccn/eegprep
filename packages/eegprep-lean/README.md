@@ -140,7 +140,7 @@ The converter writes no such description today,
 and reading it here is a follow-up if it ever does.
 A store that declares no positions leaves `chanlocs` as labels alone, and has no `locations` record.
 Either way, each `chanlocs` entry gets `type` from the group's `channel_type`.
-A channel with no `channel_type`, or one that is blank, `n/a` or `nan`, is `''`:
+A channel with no `channel_type`, or one that is null, blank, `n/a` or `nan`, is `''`:
 EEGLAB keeps an untyped `chanlocs.type` empty and only counts that channel as EEG.
 A type the group did declare is kept, so one untyped channel does not drop the ECG beside it,
 and `pop_select(eeg, chantype=["EEG"])` leaves out that ECG and the untyped channel.

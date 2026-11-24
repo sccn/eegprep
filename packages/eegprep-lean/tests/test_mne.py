@@ -77,6 +77,23 @@ class TestWithMne:
 
         assert to_mne_raw(typed).get_channel_types() == ["eeg", "eog", "ecg"]
 
+    def test_window_types_are_matched_ignoring_case(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG", "Eog", "ecg"))
+
+        assert to_mne_raw(typed).get_channel_types() == ["eeg", "eog", "ecg"]
+
+    def test_ch_types_overrides_window_types(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG", "EOG", "ECG"))
+
+        assert to_mne_raw(typed, ch_types="misc").get_channel_types() == ["misc", "misc", "misc"]
+        assert to_mne_raw(typed, ch_types=["stim", "eeg", "emg"]).get_channel_types() == ["stim", "eeg", "emg"]
+
+    def test_a_types_length_mismatch_names_to_mne_raw(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG",))
+
+        with pytest.raises(ValueError, match=r"to_mne_raw found 1 entries in Window.types for 3 channels"):
+            to_mne_raw(typed)
+
     def test_an_empty_type_is_eeg_only_in_mne(self) -> None:
         typed = dataclasses.replace(window(), types=("", "n/a", "ECG"))
 

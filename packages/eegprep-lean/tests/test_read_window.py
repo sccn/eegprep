@@ -197,12 +197,13 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
             }
         )
 
-    # One channel of this group declares no channel_type. The typed neighbors, including
-    # the ECG, still have to come back typed; the hole stays an empty type.
     mixed_channels = [
         {"label": "E1", "unit": UNIT, "channel_type": "EEG", "row_index": 0},
         {"label": "E2", "unit": UNIT, "row_index": 1},
         {"label": "E3", "unit": UNIT, "channel_type": "ECG", "row_index": 2},
+        {"label": "E4", "unit": UNIT, "channel_type": "EOG", "row_index": 3},
+        {"label": "E5", "unit": UNIT, "channel_type": "n/a", "row_index": 4},
+        {"label": "E6", "unit": UNIT, "channel_type": None, "row_index": 5},
     ]
     mixed = zarr.create_group(store=LocalStore(root / MIXED_ZARR), overwrite=True).create_group(MIXED_GROUP)
     mixed.attrs.update(
@@ -210,7 +211,7 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
             "modality": "EEG",
             "rate": RATE,
             "original_rate": ORIGINAL_RATE,
-            "n_channels": 3,
+            "n_channels": 6,
             "channels": [
                 {
                     **entry,
@@ -222,13 +223,13 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
             ],
         }
     )
-    mixed_array = mixed.create_array("0", shape=(3, 8), dtype="int16", chunks=(3, 4))
-    mixed_array[:] = np.arange(24, dtype=np.int16).reshape(3, 8)
+    mixed_array = mixed.create_array("0", shape=(6, 8), dtype="int16", chunks=(6, 4))
+    mixed_array[:] = np.arange(48, dtype=np.int16).reshape(6, 8)
     mixed_array.attrs.update(
         {
             "physical_formula": "physical = digital * scale + offset",
-            "scale": [1.0, 1.0, 1.0],
-            "offset": [0.0, 0.0, 0.0],
+            "scale": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            "offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "level": 0,
             "rate": RATE,
             "source_rate_hz": ORIGINAL_RATE,
@@ -283,7 +284,7 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
                         name=MIXED_GROUP,
                         modality="EEG",
                         rate=RATE,
-                        n_channels=3,
+                        n_channels=6,
                         n_samples=8,
                         n_view_levels=0,
                     ),
@@ -386,16 +387,14 @@ class TestChannelSelection:
         assert window.types == ("ECG", "EEG")
 
     def test_a_channel_with_no_type_does_not_drop_the_typed_ones(self, served) -> None:
-        """The middle channel of this Zarr group has no ``channel_type``. Its neighbors
-        keep theirs, and the hole stays ``''`` rather than being rewritten to ``EEG``."""
         index, _, _ = served
         store = index.store(MIXED_STORE_PATH)
 
         window = read(index, store, start_sample=0, n_samples=2)
 
-        assert window.types == ("EEG", "", "ECG")
+        assert window.types == ("EEG", "", "ECG", "EOG", "", "")
         eeg = to_eeg(window, dataset_id="xx099999", store=MIXED_STORE_PATH, index_digest="0" * 64)
-        assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "", "ECG"]
+        assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "", "ECG", "EOG", "", ""]
 
     def test_a_slice_selects_channels_too(self, served) -> None:
         """`channels` takes a sequence, a slice, or None. The slice branch was reachable

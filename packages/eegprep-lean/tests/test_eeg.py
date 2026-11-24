@@ -139,6 +139,12 @@ class TestTheDictionary:
 
         assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "EEG", "ECG"]
 
+    def test_a_types_length_mismatch_names_to_eeg(self) -> None:
+        typed = dataclasses.replace(window(DATA), types=("EEG",))
+
+        with pytest.raises(ValueError, match=r"to_eeg found 1 entries in Window.types for 3 channels"):
+            to_eeg(typed, **IDS)
+
     def test_located_chanlocs_carry_the_channel_types_too(self) -> None:
         typed = dataclasses.replace(located(stated({"E1": ALS_MM["E1"]})), types=("EEG", "EEG", "ECG"))
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from .channels import _stored_channel_type
+from .channels import stored_channel_type
 from .eeg import microvolts_per, require_physical
 from .extras import is_missing_extra, missing_extra_error
 from .window import Window
@@ -29,9 +29,7 @@ def to_mne_raw(window: Window, *, ch_types: str | Sequence[str] | None = None) -
     ``misc`` and ``STIM`` is ``stim``. A declared type outside that set
     (``TRIG``, ``EKG``, ``HEOG``) becomes ``misc``, so a later EEG pick leaves it out.
     MNE's EEGLAB reader instead warns and marks that channel as EEG. A blank type,
-    ``n/a`` or ``nan`` is ``eeg``. That is the one place an untyped channel is treated as
-    EEG: the dataset keeps ``''``, and EEGLAB only counts such a channel as EEG. A window
-    that carries no types at all is ``eeg`` for the same reason.
+    ``n/a`` or ``nan`` is ``eeg``, as is a window that carries no types at all.
 
     ``ch_types`` overrides that: one MNE type for every channel, or one per channel. A
     value outside that set, or the wrong count, raises ``ValueError``.
@@ -109,7 +107,7 @@ def _mne_channel_type(channel_type: object, accepted: frozenset[str]) -> str:
             f"to_mne_raw found channel type {channel_type!r}, which is not text. "
             "Set each Window.types entry to a string such as 'EEG', 'EOG', or 'ECG'."
         )
-    stored = _stored_channel_type(channel_type)
+    stored = stored_channel_type(channel_type)
     if not stored:
         return "eeg"
     candidate = stored.lower()
