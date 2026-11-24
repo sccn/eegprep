@@ -491,6 +491,12 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;]</span></code> records pAMICA sample rejection with the EEGLAB
+settings: <code class="docutils literal notranslate"><span class="pre">do_reject</span></code> off, <code class="docutils literal notranslate"><span class="pre">maxrej</span></code> 3 (EEGLAB’s <code class="docutils literal notranslate"><span class="pre">numrej</span></code>), <code class="docutils literal notranslate"><span class="pre">rejsig</span></code>
+3.0, <code class="docutils literal notranslate"><span class="pre">rejstart</span></code> 2 and <code class="docutils literal notranslate"><span class="pre">rejint</span></code> 3. The outcome is <code class="docutils literal notranslate"><span class="pre">rejection_passes</span></code>,
+<code class="docutils literal notranslate"><span class="pre">n_good_samples</span></code> and <code class="docutils literal notranslate"><span class="pre">n_rejected_samples</span></code>, counts only. With rejection
+on, <code class="docutils literal notranslate"><span class="pre">returned_iter</span></code> is the iterate the weights come from and <code class="docutils literal notranslate"><span class="pre">best_iter</span></code>
+is omitted.</p></li>
 <li><p>Equivalent-dipole fits follow FieldTrip <code class="docutils literal notranslate"><span class="pre">fminunc</span></code> settings. The
 forward difference is <code class="docutils literal notranslate"><span class="pre">sqrt(eps)*sign'(x)*max(|x|,</span> <span class="pre">10</span> <span class="pre">mm)</span></code>, FieldTrip’s
 <code class="docutils literal notranslate"><span class="pre">TypicalX</span></code>, and the scaled BFGS update follows MATLAB’s search
