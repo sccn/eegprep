@@ -46,7 +46,7 @@ with one method and one property, and EEGPrep runs the network through it:
 
 In the EEGPrep source repository, `tools/pyodide/iclabel_web_bridge.mjs` (`createIcLabelWebBridge`)
 is the reference implementation: it creates one `onnxruntime-web` session from the bytes of the
-packaged `iclabel_int8.onnx`, the 8-bit network meant for the browser. On the frozen 217-component evaluation set that file's parity evidence covers Brain (18), Eye (5), Muscle (1), and Other (193), and does not cover Heart, Line Noise, or Channel Noise, which that set does not contain. It runs on one thread
+packaged `iclabel_int8.onnx`, the 8-bit network meant for the browser. Only Other (193 components) is verified for that file: a class is verified when the evaluation evidence has at least 20 components and int8 top-1 and default keep-or-reject agreement are both at least 0.95. Brain (18), Eye (5), Muscle (1), Heart, Line Noise, and Channel Noise are unverified because there are too few reproducible open examples of each. It runs on one thread
 unless the host passes `numThreads` in its options argument or has already set
 `ort.env.wasm.numThreads` itself, which the bridge then leaves alone; ONNX Runtime Web reads that
 count once, when its WebAssembly backend starts, so a host that already created another session decides it.

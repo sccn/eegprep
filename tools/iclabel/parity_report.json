@@ -20,15 +20,21 @@
   },
   "gate": {
     "maximum_probability_abs_diff": 0.015,
+    "minimum_class_count": 20,
+    "minimum_class_keep_reject_agreement": 0.95,
+    "minimum_class_top1_agreement": 0.95,
     "minimum_keep_reject_agreement": 0.99,
     "minimum_top1_agreement": 0.95
   },
   "gate_pass": true,
   "manifest": "evaluation_manifest.json",
   "metrics": {
+    "evaluated_classes": [
+      "Other"
+    ],
     "keep_reject_agreement": 1.0,
-    "max_probability_abs_diff": 0.013459265232086182,
-    "mean_probability_abs_diff": 0.0008022966030173169,
+    "max_probability_abs_diff": 0.013459563255310059,
+    "mean_probability_abs_diff": 0.000802294907975456,
     "model_class_distribution": {
       "Brain": 18,
       "Channel Noise": 0,
@@ -40,32 +46,90 @@
     },
     "per_class_agreement": {
       "Brain": {
-        "agreement": 1.0,
-        "count": 18
+        "count": 18,
+        "datasets": [
+          "ds002680"
+        ],
+        "keep_reject_agreement": 1.0,
+        "max_probability_abs_diff": 0.013459563255310059,
+        "subjects": [
+          "sub-002",
+          "sub-004",
+          "sub-005",
+          "sub-007",
+          "sub-008"
+        ],
+        "top1_agreement": 1.0
       },
       "Channel Noise": {
-        "agreement": null,
-        "count": 0
+        "count": 0,
+        "datasets": [],
+        "keep_reject_agreement": null,
+        "max_probability_abs_diff": null,
+        "subjects": [],
+        "top1_agreement": null
       },
       "Eye": {
-        "agreement": 1.0,
-        "count": 5
+        "count": 5,
+        "datasets": [
+          "ds002680"
+        ],
+        "keep_reject_agreement": 1.0,
+        "max_probability_abs_diff": 0.005437493324279785,
+        "subjects": [
+          "sub-002",
+          "sub-004",
+          "sub-005",
+          "sub-006",
+          "sub-007"
+        ],
+        "top1_agreement": 1.0
       },
       "Heart": {
-        "agreement": null,
-        "count": 0
+        "count": 0,
+        "datasets": [],
+        "keep_reject_agreement": null,
+        "max_probability_abs_diff": null,
+        "subjects": [],
+        "top1_agreement": null
       },
       "Line Noise": {
-        "agreement": null,
-        "count": 0
+        "count": 0,
+        "datasets": [],
+        "keep_reject_agreement": null,
+        "max_probability_abs_diff": null,
+        "subjects": [],
+        "top1_agreement": null
       },
       "Muscle": {
-        "agreement": 1.0,
-        "count": 1
+        "count": 1,
+        "datasets": [
+          "ds002680"
+        ],
+        "keep_reject_agreement": 1.0,
+        "max_probability_abs_diff": 0.005007654428482056,
+        "subjects": [
+          "sub-007"
+        ],
+        "top1_agreement": 1.0
       },
       "Other": {
-        "agreement": 1.0,
-        "count": 193
+        "count": 193,
+        "datasets": [
+          "ds002680"
+        ],
+        "keep_reject_agreement": 1.0,
+        "max_probability_abs_diff": 0.01122865080833435,
+        "subjects": [
+          "sub-002",
+          "sub-003",
+          "sub-004",
+          "sub-005",
+          "sub-006",
+          "sub-007",
+          "sub-008"
+        ],
+        "top1_agreement": 1.0
       }
     },
     "sample_count": 217,
@@ -78,7 +142,15 @@
       "Muscle": 1,
       "Other": 193
     },
-    "top1_agreement": 1.0
+    "top1_agreement": 1.0,
+    "unverified_classes": [
+      "Brain",
+      "Muscle",
+      "Eye",
+      "Heart",
+      "Line Noise",
+      "Channel Noise"
+    ]
   },
   "packaged_model": {
     "path": "src/eegprep/plugins/ICLabel/iclabel_int8.onnx",
@@ -86,6 +158,7 @@
     "size_bytes": 2932897
   },
   "quantization": "int8 Conv weights per output channel with a float DequantizeLinear before each Conv; float32 model inputs, outputs, and softmax; feature extraction, augmentation, and output averaging unchanged from iclabel.py",
+  "report_sha256": "b3a082a4029d3cce14d3c2b928cdbfe9f9d6d6509726b181b7f7dbcc814ed6f8",
   "teacher_probabilities": {
     "path": "tools/iclabel/evaluation_teacher_probabilities.npy",
     "sha256": "4378b436bcbf7aaf3752881b53ee60c11f5f9cdfde8f32cc7e9dc4d9ab92be07"

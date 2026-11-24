@@ -11,6 +11,7 @@ import pytest
 
 from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
 from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
+from eegprep.plugins.ICLabel.pop_icflag import ICLABEL_CLASSES
 from tools.iclabel.freeze_iclabel_evaluation import _download_recording, _feature_archive_is_valid, _verify_recording
 from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_EVALUATION_FEATURES,
@@ -18,6 +19,9 @@ from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_REPORT,
     DEFAULT_TEACHER_PROBABILITIES,
     MAX_PROBABILITY_ABS_DIFF,
+    MIN_CLASS_COUNT,
+    MIN_CLASS_KEEP_REJECT_AGREEMENT,
+    MIN_CLASS_TOP1_AGREEMENT,
     MIN_KEEP_REJECT_AGREEMENT,
     MIN_TOP1_AGREEMENT,
     PACKAGED_FLOAT32_MODEL,
@@ -104,9 +108,9 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
     assert metrics["max_probability_abs_diff"] == pytest.approx(0.50)
     assert metrics["mean_probability_abs_diff"] == pytest.approx(0.8 / 28)
     assert metrics["per_class_agreement"]["Brain"]["count"] == 1
-    assert metrics["per_class_agreement"]["Brain"]["agreement"] == pytest.approx(1.0)
+    assert metrics["per_class_agreement"]["Brain"]["top1_agreement"] == pytest.approx(1.0)
     assert metrics["per_class_agreement"]["Other"]["count"] == 1
-    assert metrics["per_class_agreement"]["Other"]["agreement"] == pytest.approx(0.0)
+    assert metrics["per_class_agreement"]["Other"]["top1_agreement"] == pytest.approx(0.0)
 
 
 def test_compare_predictions_exposes_rejection_threshold_boundaries():
@@ -162,6 +166,106 @@ def test_each_gate_criterion_fails_on_its_own(metric, value, message):
 
     assert len(failures) == 1
     assert message in failures[0]
+
+
+def _class_row(count: int, top1: float | None, keep: float | None = 1.0) -> dict:
+    if count == 0:
+        return {
+            "count": 0,
+            "top1_agreement": None,
+            "keep_reject_agreement": None,
+            "max_probability_abs_diff": None,
+        }
+    return {
+        "count": count,
+        "top1_agreement": top1,
+        "keep_reject_agreement": keep,
+        "max_probability_abs_diff": 0.0,
+    }
+
+
+def _per_class_metrics(**rows: dict) -> dict:
+    per_class = {name: _class_row(0, None) for name in ICLABEL_CLASSES}
+    per_class.update(rows)
+    return {**_METRICS_AT_GATE_BOUNDARY, "per_class_agreement": per_class}
+
+
+def _per_class_gate(metrics: dict) -> list[str]:
+    return gate_failures(
+        metrics,
+        min_class_count=MIN_CLASS_COUNT,
+        min_class_top1=MIN_CLASS_TOP1_AGREEMENT,
+        min_class_keep_reject=MIN_CLASS_KEEP_REJECT_AGREEMENT,
+    )
+
+
+def test_per_class_gate_passes_a_verified_class():
+    metrics = _per_class_metrics(
+        Other=_class_row(20, 0.95, 0.95),
+        Brain=_class_row(19, 0.0, 0.0),
+    )
+
+    assert _per_class_gate(metrics) == []
+
+
+def test_per_class_gate_fails_a_verified_class_below_the_floor():
+    top1_failures = _per_class_gate(_per_class_metrics(Other=_class_row(20, 0.94, 1.0)))
+    keep_failures = _per_class_gate(_per_class_metrics(Other=_class_row(20, 1.0, 0.94)))
+
+    assert len(top1_failures) == 1
+    assert "gate_failures" in top1_failures[0]
+    assert "Other" in top1_failures[0]
+    assert "0.95" in top1_failures[0]
+    assert "top-1" in top1_failures[0]
+    assert len(keep_failures) == 1
+    assert "keep-or-reject" in keep_failures[0]
+    assert "0.95" in keep_failures[0]
+
+
+def test_per_class_gate_leaves_a_thin_class_unverified():
+    other = np.array([0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.88])
+    heart = np.array([0.39, 0.02, 0.02, 0.40, 0.02, 0.02, 0.13])
+    heart_model = heart.copy()
+    heart_model[0] += 0.01
+    heart_model[3] -= 0.01
+    teacher = np.vstack([other] * 20 + [heart])
+    model_probabilities = np.vstack([other] * 20 + [heart_model])
+
+    metrics = compare_predictions(teacher, model_probabilities)
+    failures = _per_class_gate(metrics)
+
+    assert failures == []
+    assert "Heart" in metrics["unverified_classes"]
+    assert "Other" in metrics["evaluated_classes"]
+    assert metrics["per_class_agreement"]["Heart"]["count"] == 1
+    assert metrics["per_class_agreement"]["Heart"]["top1_agreement"] == pytest.approx(0.0)
+
+
+def test_shipped_report_passes_the_per_class_gate():
+    report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    model_bytes = PACKAGED_MODEL.read_bytes()
+
+    assert report["packaged_model"]["sha256"] == hashlib.sha256(model_bytes).hexdigest()
+    assert report["packaged_model"]["size_bytes"] == len(model_bytes)
+    assert _per_class_gate(report["metrics"]) == []
+    assert report["metrics"]["evaluated_classes"] == ["Other"]
+    assert report["metrics"]["unverified_classes"] == [
+        "Brain",
+        "Muscle",
+        "Eye",
+        "Heart",
+        "Line Noise",
+        "Channel Noise",
+    ]
+    brain = report["metrics"]["per_class_agreement"]["Brain"]
+    heart = report["metrics"]["per_class_agreement"]["Heart"]
+    assert brain["count"] == 18
+    assert brain["datasets"] == ["ds002680"]
+    assert brain["subjects"]
+    assert heart["count"] == 0
+    assert heart["subjects"] == []
+    assert heart["datasets"] == []
+    assert heart["top1_agreement"] is None
 
 
 def test_frozen_feature_archive_hash_is_verified(tmp_path):
@@ -228,7 +332,7 @@ def test_parity_report_records_the_packaged_model_and_frozen_inputs():
     assert report["evaluation_features"]["sha256"] == manifest["evaluation"]["feature_archive"]["sha256"]
     assert report["teacher_probabilities"]["sha256"] == manifest["evaluation"]["teacher_probabilities"]["sha256"]
     assert report["gate_pass"] is True
-    assert gate_failures(report["metrics"]) == []
+    assert _per_class_gate(report["metrics"]) == []
 
 
 def test_frozen_teacher_came_from_the_recorded_full_precision_network():
@@ -245,7 +349,15 @@ def test_production_runtime_passes_the_frozen_gate():
     probabilities = postprocess_network_output(run_iclabel_net(*prepare_network_inputs(features)))
     metrics = compare_predictions(teacher, probabilities)
 
-    assert gate_failures(metrics) == []
+    assert (
+        gate_failures(
+            metrics,
+            min_class_count=MIN_CLASS_COUNT,
+            min_class_top1=MIN_CLASS_TOP1_AGREEMENT,
+            min_class_keep_reject=MIN_CLASS_KEEP_REJECT_AGREEMENT,
+        )
+        == []
+    )
     assert (
         metrics["teacher_class_distribution"] == manifest["evaluation"]["teacher_probabilities"]["class_distribution"]
     )
@@ -340,7 +452,7 @@ def test_evaluate_model_reproduces_the_committed_report_for_the_packaged_model()
 
     report = evaluate_model(PACKAGED_MODEL)
 
-    assert gate_failures(report["metrics"]) == []
+    assert _per_class_gate(report["metrics"]) == []
     assert report_mismatches(report, committed) == []
     assert {key: value for key, value in report.items() if key != "metrics"} == {
         key: value for key, value in committed.items() if key != "metrics"

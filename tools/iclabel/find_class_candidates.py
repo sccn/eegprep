@@ -13,7 +13,9 @@ SHA-256 (the manifest's feature archive records SHA-256; its recordings record
 MD5), and the ICA method and seed (``preprocessing.ica``).
 
 Recordings from ds002680 / on002680 subjects sub-002 through sub-015 are
-refused so a later evaluation set stays disjoint from the frozen one.
+refused so a later evaluation set stays disjoint from the frozen one. Hits from
+this tool are a measurement, not evaluation evidence, until a committed script
+pins the dataset versions and the ICA seed.
 
 Example::
 

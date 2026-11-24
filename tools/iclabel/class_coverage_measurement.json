@@ -1,0 +1,105 @@
+{
+  "status": "not_in_gate",
+  "reason": "These 89 recordings are not evaluation evidence. No committed script pins their dataset versions and ICA seed, ds004745's electrode order is not in its BIDS files, and ECG and EMG sites were given coordinates from T10 and T9. The frozen 217-component set and iclabel_int8.onnx were not changed.",
+  "teacher": "src/eegprep/plugins/ICLabel/iclabel.onnx",
+  "model": "src/eegprep/plugins/ICLabel/iclabel_int8.onnx",
+  "ica_method": "picard",
+  "ica_seed": 404,
+  "ica_max_iter": 500,
+  "recording_count": 89,
+  "datasets": [
+    {
+      "id": "ds003805",
+      "doi": "10.18112/openneuro.ds003805.v1.0.0",
+      "recordings": 1
+    },
+    {
+      "id": "ds004745",
+      "doi": "10.18112/openneuro.ds004745.v1.0.1",
+      "recordings": 6,
+      "note": "BIDS labels are 1-8 with empty coordinates. The scan used O2, Oz, O1, P6, P2, P1, P5, CPz from Kartsch et al., Sensors 2022, which is not in the BIDS file."
+    },
+    {
+      "id": "ds004840",
+      "doi": "10.18112/openneuro.ds004840.v1.0.1",
+      "recordings": 4,
+      "note": "sub-02, sub-03, and sub-04 kept ECG at T10 and EMG at T9 because standard-10-5-342ch.locs has no ECG or EMG label. That pass added one Line Noise component and no Heart or Muscle component."
+    },
+    {
+      "id": "ds007864",
+      "doi": "10.18112/openneuro.ds007864.v1.0.0",
+      "recordings": 45
+    },
+    {
+      "id": "ds007865",
+      "doi": "10.18112/openneuro.ds007865.v1.0.0",
+      "recordings": 24
+    },
+    {
+      "id": "ds007955",
+      "doi": "10.18112/openneuro.ds007955.v1.0.0",
+      "recordings": 9,
+      "note": "picard on sub-04 stopped at gradient norm 0.7186 instead of 1e-7. The returned decomposition had no target-class top-1."
+    }
+  ],
+  "disjoint_from": "ds002680 and on002680 subjects sub-002 through sub-015",
+  "per_class": {
+    "Heart": {
+      "count": 12,
+      "subjects": 10,
+      "datasets": 3,
+      "top1_agreement": 1.0,
+      "keep_reject_agreement": 1.0,
+      "max_probability_abs_diff": 0.014275848865509033,
+      "teacher_probability_min": 0.391,
+      "teacher_probability_median": 0.673,
+      "teacher_probability_max": 0.947
+    },
+    "Line Noise": {
+      "count": 117,
+      "subjects": 23,
+      "datasets": 4,
+      "top1_agreement": 1.0,
+      "keep_reject_agreement": 1.0,
+      "max_probability_abs_diff": 0.01468193531036377,
+      "teacher_probability_min": 0.381,
+      "teacher_probability_median": 0.809,
+      "teacher_probability_max": 0.998
+    },
+    "Channel Noise": {
+      "count": 8,
+      "subjects": 5,
+      "datasets": 2,
+      "top1_agreement": 1.0,
+      "keep_reject_agreement": 1.0,
+      "max_probability_abs_diff": 0.006416112184524536,
+      "teacher_probability_min": 0.272,
+      "teacher_probability_median": 0.4,
+      "teacher_probability_max": 0.713
+    },
+    "Muscle": {
+      "count": 8,
+      "subjects": 5,
+      "datasets": 2,
+      "top1_agreement": 1.0,
+      "keep_reject_agreement": 1.0,
+      "max_probability_abs_diff": 0.010136902332305908,
+      "teacher_probability_min": 0.425,
+      "teacher_probability_median": 0.567,
+      "teacher_probability_max": 0.812
+    }
+  },
+  "line_noise_dominated_recordings": [
+    "ds007864 sub-NeuroEpo1 15/19",
+    "ds007864 sub-NeuroEpo6 17/19",
+    "ds007864 sub-NeuroEpo12 17/19",
+    "ds007865 sub-subPLAC11 15/19",
+    "ds007865 sub-subPLAC14 15/19"
+  ],
+  "excluding_line_noise_dominated": {
+    "Heart": {"count": 10, "top1_agreement": 1.0, "keep_reject_agreement": 1.0, "max_probability_abs_diff": 0.014275848865509033},
+    "Line Noise": {"count": 38, "top1_agreement": 1.0, "keep_reject_agreement": 1.0, "max_probability_abs_diff": 0.01468193531036377},
+    "Channel Noise": {"count": 8, "top1_agreement": 1.0, "keep_reject_agreement": 1.0, "max_probability_abs_diff": 0.006416112184524536},
+    "Muscle": {"count": 8, "top1_agreement": 1.0, "keep_reject_agreement": 1.0, "max_probability_abs_diff": 0.010136902332305908}
+  }
+}
