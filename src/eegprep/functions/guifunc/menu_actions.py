@@ -945,7 +945,6 @@ class MenuActionDispatcher:
                 filename,
                 savemode=variant or None,
                 **({"resavedatasets": "on"} if resavedatasets == "on" else {}),
-                return_com=True,
             )
             self.session.echo_command(command)
             self.session.set_study(study, _datasets if resavedatasets == "on" else None, command=command)

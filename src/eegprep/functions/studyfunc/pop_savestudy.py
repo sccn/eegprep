@@ -29,17 +29,25 @@ def pop_savestudy(
     savemode: str | None = None,
     resavedatasets: str = "off",
     fileformat: str | None = None,
-    return_com: bool = False,
     **kwargs: Any,
-) -> Any:
+) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
     """Save a STUDY structure.
 
     The default file is an EEGLAB MATLAB v6 ``.study`` (``save -v6``). A file
     larger than the v6 limit is written as MATLAB v7.3, the same fallback as
     ``pop_savestudy.m``. Precomputed measure arrays are removed from the file
-    and kept on the returned STUDY. ``fileformat='json'`` writes JSON;
-    resaving a ``.study`` that currently holds JSON writes MATLAB, which is
-    what EEGLAB can load. The return is always ``(study, datasets, command)``.
+    and kept on the returned STUDY. Use ``fileformat='json'`` or a ``.json``
+    filename to write JSON. Resave mode writes MATLAB at the existing path.
+    The return is always ``(study, datasets, command)``.
+
+    Notes:
+        With ``resavedatasets='on'``, the menu and scripts both write only
+        datasets marked ``saved='no'``. EEGLAB's ``pop_saveset.m`` checks its
+        immediate caller. Inside EEGLAB it skips ``saved='yes'`` entries in
+        the multiple-dataset loop and also skips a single ``saved='yes'``
+        dataset. A user script calling ``pop_saveset`` directly on a single
+        dataset resaves it. Calls through ``pop_savestudy`` and recursive
+        calls from the multiple-dataset loop have an EEGLAB caller.
     """
     if not STUDY:
         raise ValueError("pop_savestudy cannot save an empty STUDY")
@@ -405,6 +413,8 @@ def _resave_datasets(study: dict[str, Any], datasets: list[dict[str, Any]], stud
         raise ValueError("resavedatasets='on' requires loaded ALLEEG datasets")
     infos = study.get("datasetinfo") or []
     for index, eeg in enumerate(datasets):
+        if eeg.get("saved") != "no":
+            continue
         if isinstance(eeg.get("data"), OffloadedData):
             eeg = pop_loadset(str(eeg["data"].set_path))
             datasets[index] = eeg
