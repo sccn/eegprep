@@ -261,17 +261,61 @@ def test_pop_eegfilt_legacy_usefft_fails_clearly():
 def test_pop_order_helpers_return_values_and_replayable_history():
     beta, beta_command = pop_kaiserbeta(0.001, return_com=True)
     order_result, order_command = pop_firwsord("kaiser", 500, 2, 0.001, return_dev=True, return_com=True)
-    pm_result, pm_command = pop_firpmord([0, 40, 48, 125], [1, 0], [0.01, 0.001], 250, return_com=True)
+    pm_result, pm_command = pop_firpmord([0.76, 0.84], [1, 0], [0.0057564, 0.01], return_com=True)
 
     assert beta == pytest.approx(5.65326, abs=1e-10)
     assert beta_command == "beta = pop_kaiserbeta(0.001);"
     assert order_result == (908, pytest.approx(0.001))
     assert order_command == "m = pop_firwsord('kaiser', 500, 2, 0.001);"
     order, wtpass, wtstop = pm_result
-    assert order > 0
-    assert wtpass > 0
-    assert wtstop > 0
+    assert order == 53
+    assert wtpass == pytest.approx(0.01 / 0.0057564)
+    assert wtstop == pytest.approx(1.0)
     assert pm_command.startswith("[m, wtpass, wtstop] = pop_firpmord(")
+
+
+def _decibel_deviation(decibels: float, *, passband: bool) -> float:
+    if passband:
+        return (10 ** (decibels / 20) - 1) / (10 ** (decibels / 20) + 1)
+    return 10 ** (-abs(decibels) / 20)
+
+
+@pytest.mark.parametrize(
+    ("freqs", "amps", "devs", "fs", "matlab_order"),
+    [
+        ([0.76, 0.84], [1, 0], [0.0057564, 0.01], None, 53),
+        ([7, 9], [0, 1], [0.01, 0.0057564], 200, 210),
+        ([100, 118], [0, 1], [0.001, _decibel_deviation(0.05, passband=True)], 1000, 166),
+        ([6, 10, 28, 32], [0, 1, 0], [0.01, _decibel_deviation(0.2, passband=True), 0.01], 200, 95),
+        ([10, 12, 20, 23], [0, 1, 0], [0.01, 0.0057564, 0.01], 200, 211),
+        ([20, 23, 40, 43], [1, 0, 1], [0.0057564, 0.01, 0.0057564], 250, 174),
+        (
+            [40, 47, 80, 87],
+            [1, 0, 1],
+            [
+                _decibel_deviation(0.2, passband=True),
+                _decibel_deviation(50, passband=False),
+                _decibel_deviation(0.2, passband=True),
+            ],
+            500,
+            162,
+        ),
+        (
+            [7, 9, 29, 31],
+            [0, 1, 0],
+            [
+                _decibel_deviation(40, passband=False),
+                _decibel_deviation(0.2, passband=True),
+                _decibel_deviation(40, passband=False),
+            ],
+            200,
+            191,
+        ),
+    ],
+)
+def test_pop_firpmord_matches_matlab_orders(freqs, amps, devs, fs, matlab_order):
+    order = pop_firpmord(freqs, amps, devs, fs)[0] if fs is not None else pop_firpmord(freqs, amps, devs)[0]
+    assert order == matlab_order
 
 
 def test_pop_order_helpers_gui_results():

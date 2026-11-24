@@ -14,6 +14,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import finite_pinv, matlab_mtimes
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_on as _is_on
+from eegprep.functions.popfunc.plot_utils import show_figures
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,8 @@ def pop_subcomp(
     output, removed = _remove_components(EEG, components, keepcomp)
     if removed and _is_on(plotag):
         _plot_subcomp_confirmation(EEG, output)
+    if gui and renderer is None and removed and not _confirm_subcomp_result(EEG, output):
+        return (EEG, "") if return_com else EEG
     command = _history_command(components if components is not None else [], plotag, keepcomp) if removed else ""
     return (output, command) if return_com else output
 
@@ -87,6 +90,27 @@ def pop_subcomp_dialog_spec(EEG: dict | list[dict]) -> DialogSpec:
 
 
 def _run_gui(EEG: dict | list[dict], renderer: Any | None = None) -> dict[str, Any] | None:
+    if renderer is None and not isinstance(EEG, list) and _flagged_components(EEG):
+        from eegprep.functions.guifunc.questdlg2 import questdlg2
+
+        flagged = _flagged_components(EEG)
+        listed = ",".join(str(component) for component in flagged)
+        answer = questdlg2(
+            f"Components [{listed}] flagged for rejection.\n"
+            "Do you want to remove these components?\n\n"
+            "Note: we recommend removing components in STUDY instead "
+            '(in the STUDY channel pre-computing interface, select '
+            '"Remove ICA artifactual components pre-tagged in each dataset")',
+            "Remove components from data",
+            "Cancel",
+            "Manual rej.",
+            "Yes",
+            "Cancel",
+        )
+        if answer in {None, "", "Cancel"}:
+            return None
+        if answer == "Yes":
+            return {"components": [], "keepcomp": 0}
     result = inputgui(pop_subcomp_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
@@ -289,13 +313,58 @@ def _unique_preserve_order(values: list[int]) -> list[int]:
     return unique
 
 
+def _confirm_subcomp_result(original: dict, output: dict) -> bool:
+    from eegprep.functions.guifunc.questdlg2 import questdlg2
+
+    while True:
+        answer = questdlg2(
+            "Please confirm your choice. Are you sure you want to remove the selected components from the data?",
+            "Confirmation",
+            "Cancel",
+            "Plot ERPs",
+            "Plot single trials",
+            "Accept",
+            "Accept",
+        )
+        if answer == "Plot ERPs":
+            _plot_subcomp_erps(original, output)
+            continue
+        if answer == "Plot single trials":
+            _plot_subcomp_confirmation(original, output)
+            continue
+        return answer == "Accept"
+
+
+def _plot_subcomp_erps(original: dict, output: dict) -> None:
+    trials = int(original.get("trials", 1) or 1)
+    if trials <= 1:
+        from PySide6 import QtWidgets
+
+        QtWidgets.QMessageBox.warning(None, "pop_subcomp", "Cannot plot ERPs for continuous data")
+        return
+    indices = _icachansind(original)
+    before = np.asarray(original["data"], dtype=float)[indices].mean(axis=-1)
+    after = np.asarray(output["data"], dtype=float)[indices].mean(axis=-1)
+    import matplotlib.pyplot as plt
+
+    channels = int(before.shape[0])
+    rows = int(np.ceil(channels / 2))
+    figure = plt.figure()
+    times = np.linspace(
+        float(original.get("xmin", 0.0)) * 1000.0,
+        float(original.get("xmax", 0.0)) * 1000.0,
+        before.shape[-1],
+    )
+    for index in range(channels):
+        column = 0 if index < rows else 1
+        row = index if index < rows else index - rows
+        axis = figure.add_subplot(rows, 2, row * 2 + column + 1)
+        axis.plot(times, before[index], color="b", linewidth=0.8)
+        axis.plot(times, after[index], color="r", linewidth=0.8)
+    figure.suptitle("Trial ERPs (blue) with and (red) without these components")
+    show_figures(figure)
+
+
 def _history_command(components: Any, plotag: int | bool, keepcomp: int | bool) -> str:
-    parts = [
-        "EEG = pop_subcomp(EEG, ",
-        format_history_value(_normalize_components(components) or [], cell_for_sequence=None),
-        f", {int(bool(plotag))}",
-    ]
-    if _is_on(keepcomp):
-        parts.append(", 1")
-    parts.append(");")
-    return "".join(parts)
+    listed = format_history_value(_normalize_components(components) or [], cell_for_sequence=None)
+    return f"EEG = pop_subcomp(EEG, {listed}, {int(bool(plotag))}, {int(bool(keepcomp))});"

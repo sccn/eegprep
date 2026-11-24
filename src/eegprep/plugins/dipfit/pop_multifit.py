@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_checkset import _normalise_empty_dipfit_transform
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
@@ -24,6 +25,7 @@ from eegprep.plugins.dipfit._utils import (
 from eegprep.plugins.dipfit.dipfit_gridsearch import dipfit_gridsearch as run_gridsearch, empty_model, ensure_model_list
 from eegprep.plugins.dipfit.dipfit_nonlinear import dipfit_nonlinear as run_nonlinear
 from eegprep.plugins.dipfit.dipfit_reject import dipfit_reject
+from eegprep.plugins.dipfit.eeg_compatlas import eeg_compatlas
 from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
 
 
@@ -80,6 +82,10 @@ def pop_multifit(
             if np.any(np.linalg.norm(positions, axis=1) > 85.0):
                 models[index] = empty_model(index + 1)
     out["dipfit"]["model"] = models
+    record = dipfit_record(out)
+    coordformat = str(record.get("coordformat", "")).lower()
+    if coordformat in {"mni", "spherical"} or np.asarray(record.get("coord_transform", []), dtype=float).size:
+        eeg_compatlas(out)
     command = dipfit_history(
         "pop_multifit",
         components,
@@ -92,6 +98,7 @@ def pop_multifit(
     if str(options.get("dipplot", "off")).lower() == "on":
         plot_options = matlab_plot_options(options.get("plotopt", ""))
         pop_dipplot(out, components, **plot_options)
+    _normalise_empty_dipfit_transform(out)
     return (out, command) if return_com else out
 
 

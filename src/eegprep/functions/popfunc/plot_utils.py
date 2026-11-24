@@ -37,6 +37,26 @@ def show_figures(figures: Any, *, plot: str | bool = "on") -> None:
         return
     for figure in _as_figure_list(figures):
         figure.show()
+        _parent_figure_to_active_dialog(figure)
+
+
+def _parent_figure_to_active_dialog(figure: Any) -> None:
+    """Keep a plot above the dialog that opened it."""
+    try:
+        from PySide6 import QtCore, QtWidgets
+    except ImportError:
+        return
+    app = QtWidgets.QApplication.instance()
+    if not isinstance(app, QtWidgets.QApplication):
+        return
+    parent = app.activeModalWidget()
+    manager = getattr(getattr(figure, "canvas", None), "manager", None)
+    window = getattr(manager, "window", None)
+    if parent is None or window is None or not hasattr(window, "setParent"):
+        return
+    window.setParent(parent, QtCore.Qt.WindowType.Window)
+    window.raise_()
+    window.activateWindow()
 
 
 def as_eeg_list(value: Any) -> list[dict[str, Any]]:

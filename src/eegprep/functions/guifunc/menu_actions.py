@@ -1257,7 +1257,7 @@ class MenuActionDispatcher:
         elif name == "pop_editset":
             from eegprep.functions.popfunc.pop_editset import pop_editset
 
-            out = pop_editset(selection, return_com=True)
+            out = pop_editset(selection, alleeg=self.session.ALLEEG, return_com=True)
         elif name == "pop_editeventfield":
             from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
 

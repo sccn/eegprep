@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import re
 from collections.abc import Iterable
+from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -59,7 +61,7 @@ STANDARD_TEMPLATES: tuple[dict[str, Any], ...] = (
         mrifile='standard_BEM/standard_mri.mat',
         chanfile='standard_BEM/elec/standard_1005.elc',
         coordformat='MNI',
-        coord_transform=(0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0),
+        coord_transform=(),
         coord_transforms=_BEM_TRANSFORMS,
     ),
     dict(
@@ -95,7 +97,7 @@ def dipfit_record(EEG: dict[str, Any]) -> dict[str, Any]:
 def template_form_state(template: dict[str, Any]) -> dict[str, Any]:
     """Return dialog field values for one head-model template."""
     coord_index = {"spherical": 1, "mni": 2}.get(template["coordformat"].lower(), 4)
-    transform = " ".join(f"{float(value):g}" for value in template["coord_transform"])
+    transform = _format_coord_transform(template["coord_transform"])
     return {
         "hdmfile": template["hdmfile"],
         "mrifile": template["mrifile"],
@@ -114,11 +116,29 @@ def matlab_plot_options(text: Any) -> dict[str, Any]:
 
 
 def dipfit_history(function_name: str, *args: Any, assignment: bool = True, **kwargs: Any) -> str:
-    """Build a valid Python command for GUI/console history."""
-    pieces = ["EEG", *(python_literal(arg) for arg in args)]
-    pieces.extend(f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _empty_history_value(value))
-    command = f"{function_name}({', '.join(pieces)})"
+    """Build an EEGLAB history command the console can replay."""
+    pieces = ["EEG", *(_history_token(arg) for arg in args)]
+    for key, value in kwargs.items():
+        if _empty_history_value(value):
+            continue
+        pieces.append(python_literal(key))
+        pieces.append(_history_token(value))
+    command = f"{function_name}({', '.join(pieces)});"
     return f"EEG = {command}" if assignment else command
+
+
+def _format_coord_transform(values: Any) -> str:
+    return " ".join(format(float(value), ".17g") for value in values)
+
+
+def _history_token(value: Any) -> str:
+    if isinstance(value, str):
+        text = value.strip()
+        if text.startswith("linspace("):
+            return text
+        if re.fullmatch(r"'[^']*'(?:\s+'[^']*')+", text):
+            return "{" + text + "}"
+    return python_literal(value)
 
 
 def template_by_name(name: Any) -> dict[str, Any]:
@@ -143,6 +163,73 @@ def lookupchantemplate(chanfile: str, template: dict[str, Any]) -> tuple[bool, l
         if keywords and all(keyword.lower() in filename for keyword in keywords):
             return True, list(transform)
     return False, []
+
+
+def packaged_dipfit_file(relative: str) -> str:
+    """Return a packaged DIPFIT path, or ``relative`` when it is already a file."""
+    text = str(relative or "").replace("\\", "/").strip()
+    if not text:
+        return ""
+    path = Path(text)
+    if path.is_file():
+        return str(path)
+    resource = files("eegprep").joinpath("resources", "dipfit", text)
+    if resource.is_file():
+        return str(resource)
+    return text
+
+
+def align_channels_to_template(
+    EEG: dict[str, Any],
+    chanfile: str,
+    *,
+    fiducials_only: bool = False,
+    warpmethod: str = "traditional",
+) -> list[float]:
+    """Warp channel locations onto a template file the way ``coregister(..., 'warp','auto')`` does."""
+    from eegprep.functions.sigprocfunc.coregister import coregister
+
+    path = packaged_dipfit_file(chanfile)
+    chaninfo = EEG.get("chaninfo") if isinstance(EEG.get("chaninfo"), dict) else None
+    if fiducials_only:
+        nodatchans = None if chaninfo is None else chaninfo.get("nodatchans")
+        if _fiducial_count(nodatchans) < 3:
+            raise ValueError(
+                "pop_dipfit_settings: coord_transform 'warpfiducials' needs nasion, LPA, and RPA "
+                "in EEG.chaninfo.nodatchans. Add those fiducials with pop_chanedit, or pass a 9-value transform."
+            )
+        source = nodatchans
+    else:
+        source = EEG.get("chanlocs")
+    fitted = coregister(source, path, chaninfo1=chaninfo, warp="auto", warpmethod=warpmethod)
+    return np.asarray(fitted.transform, dtype=float).reshape(-1).tolist()
+
+
+def resolved_coord_transform(EEG: dict[str, Any], template: dict[str, Any]) -> tuple[bool, list[float]]:
+    """Return ``(keyword matched, transform)``.
+
+    A keyword match is kept even when its transform is empty (BESA cap385).
+    Otherwise the montage is warped onto the template landmarks. A failed warp
+    is raised; the dialog catches it when it is only filling the text field.
+    """
+    found, transform = lookupchantemplate(channel_template_filename(EEG), template)
+    if found:
+        return True, list(transform)
+    chanfile = str(template.get("chanfile") or "")
+    if not chanfile:
+        return False, []
+    return False, align_channels_to_template(EEG, chanfile)
+
+
+def _fiducial_count(nodatchans: Any) -> int:
+    if nodatchans is None:
+        return 0
+    if isinstance(nodatchans, dict):
+        return 1 if nodatchans.get("labels") else 0
+    try:
+        return len(nodatchans)
+    except TypeError:
+        return 0
 
 
 def channel_template_filename(EEG: dict[str, Any]) -> str:

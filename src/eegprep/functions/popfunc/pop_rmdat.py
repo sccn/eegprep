@@ -71,7 +71,12 @@ def pop_rmdat_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
                 tag="events_button",
                 callback=CallbackSpec(
                     "select_event_types",
-                    params={"button": "events_button", "target": "events", "event_types": event_types},
+                    params={
+                        "button": "events_button",
+                        "target": "events",
+                        "event_types": event_types,
+                        "selectionmode": "multiple",
+                    },
                 ),
             ),
             ControlSpec("text", "Time limits [start, end] in sec."),

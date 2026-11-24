@@ -337,6 +337,7 @@ class EEGPrepMainWindow:
 
     def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str], kept: list[Any]) -> Any:
         menu = self._qt_widgets.QMenu(spec.label, menubar)
+        menu.setToolTipsVisible(True)
         menubar.addMenu(menu)
         kept.append(menu)
         action = menu.menuAction()
@@ -353,6 +354,7 @@ class EEGPrepMainWindow:
             menu.addSeparator()
         if spec.children:
             submenu = self._qt_widgets.QMenu(spec.label, menu)
+            submenu.setToolTipsVisible(True)
             menu.addMenu(submenu)
             kept.append(submenu)
             if spec.tag:
@@ -758,6 +760,9 @@ def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None
     action.setProperty("eegprep_checked", bool(spec.checked))
     if spec.action:
         action.setData(spec.action)
+    if spec.tooltip:
+        action.setToolTip(spec.tooltip)
+        action.setStatusTip(spec.tooltip)
 
 
 def _set_menu_enabled(menu: Any | None, action: Any, enabled: bool) -> None:

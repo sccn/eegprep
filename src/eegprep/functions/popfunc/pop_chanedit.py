@@ -342,8 +342,83 @@ def _run_chanedit_action(tag, state, values, update, *, renderer=None):
     )
 
 
+def _lookup_templates() -> list[tuple[str, str]]:
+    from importlib.resources import files
+
+    root = files("eegprep")
+    templates = [
+        (
+            "use BESA file for 4-shell dipfit spherical model",
+            str(root.joinpath("resources/dipfit/standard_BESA/standard-10-5-cap385.elp")),
+        ),
+        (
+            "use MNI coordinate file for BEM dipfit model",
+            str(root.joinpath("resources/dipfit/standard_BEM/elec/standard_1005.elc")),
+        ),
+        (
+            "use BESA file and look up EOG channels",
+            str(root.joinpath("resources/montages/Standard-10-5-Cap385_witheog.elp")),
+        ),
+    ]
+    montage_dir = root.joinpath("resources/montages")
+    for path in sorted(montage_dir.iterdir(), key=lambda item: item.name.lower()):
+        if (
+            path.name.lower().endswith((".locs", ".elp", ".sfp", ".elc"))
+            and path.name != "Standard-10-5-Cap385_witheog.elp"
+        ):
+            templates.append((f"EEGLAB {path.name}", str(path)))
+    return templates
+
+
 def _prompt_chanedit_action(tag, renderer):
     file_actions = {"load", "lookup", "save", "saveothers"}
+    if tag == "lookup":
+        templates = _lookup_templates()
+        descriptions = "|".join(description for description, _path in templates)
+        paths = [path for _description, path in templates]
+        controls = [
+            ControlSpec("text", "Template"),
+            ControlSpec(
+                "popupmenu",
+                descriptions,
+                tag="template",
+                value=2,
+                callback=CallbackSpec(
+                    "choice_text", params={"source": "template", "target": "filename", "texts": paths}
+                ),
+            ),
+            ControlSpec("text", "Location file"),
+            ControlSpec("edit", tag="filename", value=paths[1]),
+            ControlSpec(
+                "pushbutton",
+                "Browse",
+                tag="browse",
+                callback=CallbackSpec(
+                    "select_file",
+                    params={
+                        "button": "browse",
+                        "target": "filename",
+                        "mode": "open",
+                        "filter": "Channel locations (*.loc *.locs *.ced *.elp *.elc *.sfp *.xyz *.sph);;All files (*)",
+                    },
+                ),
+            ),
+        ]
+        result = inputgui(
+            DialogSpec(
+                title="Channel locations: lookup -- pop_chanedit()",
+                function_name="chanedit_lookup",
+                eeglab_source="functions/popfunc/pop_chanedit.m",
+                controls=tuple(controls),
+                geometry=((1.6, 1), (1.6, 1), (1,)),
+                help_text="pophelp('pop_chanedit')",
+            ),
+            renderer=renderer,
+        )
+        if result is None:
+            return []
+        filename = str(result.get("filename", "")).strip()
+        return [("lookup", filename)] if filename else []
     if tag in file_actions:
         default = (
             str(files("eegprep").joinpath("resources/montages/standard-10-5-342ch.locs")) if tag == "lookup" else ""

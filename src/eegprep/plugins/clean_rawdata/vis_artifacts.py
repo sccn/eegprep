@@ -34,18 +34,50 @@ def vis_artifacts(clean_eeg: dict[str, Any], original_eeg: dict[str, Any] | None
         return diagnostics
 
     source = diagnostics["original_eeg"]
+    overlay = _aligned_clean_overlay(diagnostics)
+    title = f"Rejected data highlighted -- eegplot() -- {source.get('setname', '')}".rstrip()
+    plot_kwargs: dict[str, Any] = {
+        "winrej": diagnostics["winrej"],
+        "wincolor": CLEAN_RAWDATA_REJECT_COLOR,
+        "events": source.get("event", []),
+        "xgrid": "off",
+        "title": title,
+    }
+    if overlay is not None:
+        plot_kwargs["data2"] = overlay
+        plot_kwargs["color"] = ((1.0, 0.0, 0.0),)
+        plot_kwargs["data2_color"] = (0.15, 0.35, 1.0)
+        plot_kwargs["title"] = f"Original (red) and cleaned (blue) -- {source.get('setname', '')}".rstrip(" -")
     try:
-        return eegplot(
-            source,
-            winrej=diagnostics["winrej"],
-            wincolor=CLEAN_RAWDATA_REJECT_COLOR,
-            events=source.get("event", []),
-            xgrid="off",
-            title=f"Rejected data highlighted -- eegplot() -- {source.get('setname', '')}".rstrip(),
-        )
+        return eegplot(source, **plot_kwargs)
     except RuntimeError as exc:
         logger.info("Could not open clean_rawdata rejected-data browser: %s", exc)
         return None
+
+
+def _aligned_clean_overlay(diagnostics: dict[str, Any]) -> np.ndarray | None:
+    """Place cleaned samples back on the original timeline.
+
+    ASR drops windows and channels. The overlay is NaN everywhere those samples
+    were removed, so the browser can draw the original in red and the cleaned
+    data in blue without stretching time.
+    """
+    source = diagnostics["original_eeg"]
+    cleaned = np.asarray(diagnostics["clean_eeg"].get("data"), dtype=float)
+    original = np.asarray(source.get("data"), dtype=float)
+    if original.ndim != 2 or cleaned.ndim != 2:
+        return None
+    sample_mask = np.asarray(diagnostics["sample_mask"], dtype=bool).ravel()
+    channel_mask = np.asarray(diagnostics["channel_mask"], dtype=bool).ravel()
+    if sample_mask.size != original.shape[1] or channel_mask.size != original.shape[0]:
+        return None
+    kept_samples = np.flatnonzero(sample_mask)
+    kept_channels = np.flatnonzero(channel_mask)
+    if cleaned.shape != (kept_channels.size, kept_samples.size):
+        return None
+    overlay = np.full(original.shape, np.nan, dtype=float)
+    overlay[np.ix_(kept_channels, kept_samples)] = cleaned
+    return overlay
 
 
 def vis_artifacts_diagnostics(

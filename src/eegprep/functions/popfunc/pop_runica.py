@@ -6,19 +6,21 @@ import copy
 import logging
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc._ica_utils import flatten_ica_data
+from eegprep.functions.popfunc._ica_utils import flatten_ica_data, scale_ica_to_rms_microvolt
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value, is_on, parse_key_value_args
 from eegprep.functions.popfunc.eeg_amica import eeg_amica
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_pamica import eeg_pamica
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.eeg_runica import _pca_option_key, apply_runica_data_rank, eeg_runica
+from eegprep.functions.sigprocfunc.jader import jader
+from eegprep.functions.sigprocfunc.sobi import sobi
 
 
 _ALGORITHMS = (
@@ -27,6 +29,8 @@ _ALGORITHMS = (
     ("runamica15", "AMICA (slowest; best)", "'maxiter', 2000"),
     ("picard", "Infomax picard.m", "'maxiter', 500, 'mode', 'standard'"),
     ("picard", "FastICA picard.m (fastest)", "'maxiter', 500"),
+    ("sobi", "SOBI (sobi.m function)", ""),
+    ("jader", "Jade (jader.m function)", ""),
 )
 logger = logging.getLogger(__name__)
 
@@ -48,6 +52,11 @@ def pop_runica(
     When ``icatype`` is ``runica`` and ``pca`` is omitted, a data rank below
     the selected channel count is passed as ``pca`` and recorded in the history
     command. An explicit ``pca`` value is left unchanged.
+
+    SOBI and Jade options are positional counts. EEGLAB accepts ``{'p', 100}``
+    because ``sobi.m`` ignores ``n`` and reads ``p`` as the lag count. EEGPrep
+    rejects that named form in text, lists, and tuples. Pass ``{32 100}`` or
+    ``p=100``.
     """
     selectamica = _selectamica_mode(args)
     parsed = _parse_runica_args(args, kwargs)
@@ -97,11 +106,12 @@ def pop_runica(
             dataset=dataset,
             concatenate=concatenate,
             concatcond=concatcond,
+            channel_count=_channel_count(EEG),
         )
         return (output, command) if return_com else output
 
     output, ica_options = _runica_on_dataset(EEG, icatype, ica_options, reorder=reorder, chanind=chanind)
-    command = _history_command(icatype, ica_options, reorder, chanind)
+    command = _history_command(icatype, ica_options, reorder, chanind, channel_count=_channel_count(EEG))
     return (output, command) if return_com else output
 
 
@@ -115,7 +125,16 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
     algorithm_labels = "|".join(description for _name, description, _options in _ALGORITHMS)
     controls = [
         ControlSpec("text", "ICA algorithm to use (click to select)"),
-        ControlSpec("listbox", algorithm_labels, tag="icatype", value=1),
+        ControlSpec(
+            "listbox",
+            algorithm_labels,
+            tag="icatype",
+            value=1,
+            callback=CallbackSpec(
+                "set_algorithm_options",
+                params={"target": "params", "options": tuple(item[2] for item in _ALGORITHMS)},
+            ),
+        ),
         ControlSpec("text", "Commandline options (See help messages)"),
         ControlSpec("edit", tag="params", value=_ALGORITHMS[0][2]),
         ControlSpec(
@@ -196,7 +215,7 @@ def _run_gui(EEG, renderer=None, initial_values=None):
     chan_text = str(result.get("chantype", "") or "").strip()
     return {
         "icatype": _ALGORITHMS[algorithm_index][0],
-        "options": _parse_option_text(str(result.get("params", "") or "")),
+        "options": _parse_algorithm_options(_ALGORITHMS[algorithm_index][0], str(result.get("params", "") or "")),
         "reorder": "on" if result.get("reorder") else "off",
         "chanind": _parse_channel_text(chan_text) if chan_text else None,
         "dataset": result.get("dataset"),
@@ -436,10 +455,43 @@ def _run_ica_backend(EEG, icatype, options, *, reorder):
         return eeg_amica(EEG, sortcomps=reorder, **_amica_options(options))
     if icatype == "pamica":
         return eeg_pamica(EEG, sortcomps=reorder, **_pamica_options(options))
+    if icatype == "sobi":
+        data = _flatten_dataset_data(EEG)
+        mixing = sobi(data, n=_optional_count(options.get("n"), data.shape[0]), p=_optional_count(options.get("p")))
+        return _dataset_from_ica(EEG, np.linalg.pinv(mixing), reorder=reorder)
+    if icatype == "jader":
+        data = _flatten_dataset_data(EEG)
+        weights = jader(data, m=_optional_count(options.get("m")))
+        return _dataset_from_ica(EEG, weights, reorder=reorder)
     raise NotImplementedError(
-        "EEGPrep pop_runica supports runica, picard, runamica15/amica, and pamica. "
+        "EEGPrep pop_runica supports runica, picard, runamica15/amica, pamica, sobi, and jader. "
         f"The '{icatype}' ICA algorithm is not ported yet."
     )
+
+
+def _optional_count(value, default=None):
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def _dataset_from_ica(EEG, weights, *, reorder):
+    output = copy.deepcopy(EEG)
+    unmixing = np.asarray(weights, dtype=float)
+    data = _flatten_dataset_data(output)
+    sphere = np.eye(unmixing.shape[1])
+    if is_on(reorder):
+        mixing = np.linalg.pinv(unmixing @ sphere)
+        activations = unmixing @ sphere @ data
+        variance = np.sum(mixing**2, axis=0) * np.sum(activations.T**2, axis=0)
+        variance /= data.shape[0] * data.shape[1] - 1
+        unmixing = unmixing[np.argsort(variance)[::-1]]
+    output["icaweights"] = unmixing
+    output["icasphere"] = sphere
+    output["icawinv"] = np.linalg.pinv(unmixing @ sphere)
+    output["icaact"] = np.array([])
+    output["icachansind"] = np.arange(data.shape[0])
+    return scale_ica_to_rms_microvolt(output)
 
 
 def _picard_options(options, *, channel_count):
@@ -560,7 +612,11 @@ def _algorithm_index(icatype):
 
 def _normalise_icatype(icatype):
     value = str(icatype).lower()
-    return "runamica15" if value == "amica" else value
+    if value == "amica":
+        return "runamica15"
+    if value == "jade":
+        return "jader"
+    return value
 
 
 def _normalise_ica_options(icatype, options, extra):
@@ -573,10 +629,16 @@ def _normalise_ica_options(icatype, options, extra):
         parsed.update(options)
         return parsed
     if isinstance(options, str):
-        parsed.update(_parse_option_text(options))
+        if icatype in {"sobi", "jader"}:
+            parsed.update(_parse_count_text(icatype, options))
+        else:
+            parsed.update(_parse_option_text(options))
         return parsed
     if isinstance(options, (list, tuple)):
-        parsed.update(_pairs_to_dict(options))
+        if icatype in {"sobi", "jader"}:
+            parsed.update(_counts_from_sequence(icatype, options))
+        else:
+            parsed.update(_pairs_to_dict(options))
         return parsed
     raise TypeError("options must be a string, dict, list, tuple, or None")
 
@@ -589,6 +651,61 @@ def _default_options(icatype):
     if icatype == "runamica15":
         return {"maxiter": 2000}
     return {}
+
+
+def _parse_algorithm_options(icatype, text):
+    if icatype in {"sobi", "jader"}:
+        return _parse_count_text(icatype, text)
+    return _parse_option_text(text)
+
+
+def _parse_count_text(icatype, text):
+    tokens = [part for part in re.split(r"[\s,]+", str(text).strip()) if part]
+    if not tokens:
+        return {}
+    numbers = []
+    for token in tokens:
+        number = _positional_count(token)
+        if number is None:
+            _reject_named_counts(icatype, str(text).strip())
+        numbers.append(number)
+    return _counts_from_sequence(icatype, numbers)
+
+
+def _positional_count(token):
+    cleaned = token.strip().strip("'\"")
+    if _is_int_text(cleaned):
+        return int(cleaned)
+    try:
+        value = float(cleaned)
+    except ValueError:
+        return None
+    if value.is_integer():
+        return int(value)
+    return None
+
+
+def _reject_named_counts(icatype, shown) -> NoReturn:
+    example = "{32 100} or p=100" if icatype == "sobi" else "{32} or m=32"
+    raise ValueError(
+        f"pop_runica: {icatype} options must be positional counts such as {example}. "
+        f"Use that form instead of {shown!r}."
+    )
+
+
+def _counts_from_sequence(icatype, values):
+    try:
+        numbers = [int(value) for value in values]
+    except (TypeError, ValueError):
+        _reject_named_counts(icatype, values)
+    if icatype == "jader":
+        return {"m": numbers[0]} if numbers else {}
+    if not numbers:
+        return {}
+    mapped = {"n": numbers[0]}
+    if len(numbers) > 1:
+        mapped["p"] = numbers[1]
+    return mapped
 
 
 def _parse_option_text(text):
@@ -631,12 +748,56 @@ def _dataset_labels(ALLEEG):
     return tuple(labels)
 
 
-def _history_command(icatype, options, reorder, chanind, *, dataset=None, concatenate="off", concatcond="off"):
+def _channel_count(EEG):
+    dataset = EEG[0] if isinstance(EEG, list) and EEG else EEG
+    if not isinstance(dataset, dict):
+        return 0
+    data = np.asarray(dataset.get("data", []))
+    if data.ndim >= 1 and data.shape:
+        return int(data.shape[0])
+    return int(dataset.get("nbchan", 0) or 0)
+
+
+def _positional_counts(icatype, options, channel_count):
+    if icatype == "jader":
+        value = options.get("m")
+        return [] if value in (None, "") else [int(value)]
+    source_count = options.get("n")
+    lags = options.get("p")
+    if source_count in (None, "") and lags in (None, ""):
+        return []
+    if source_count in (None, ""):
+        if not channel_count:
+            return []
+        source_count = channel_count
+    counts = [int(source_count)]
+    if lags not in (None, ""):
+        counts.append(int(lags))
+    return counts
+
+
+def _history_command(
+    icatype,
+    options,
+    reorder,
+    chanind,
+    *,
+    dataset=None,
+    concatenate="off",
+    concatcond="off",
+    channel_count=None,
+):
     parts = ["'icatype'", _runica_history_value(str(icatype).lower())]
     if dataset is not None:
         parts.extend(["'dataset'", _runica_history_value(dataset)])
-    for key, value in options.items():
-        parts.extend([_runica_history_value(key), _runica_history_value(value)])
+    name = str(icatype).lower()
+    if name in {"sobi", "jader"}:
+        counts = _positional_counts(name, options, channel_count)
+        if counts:
+            parts.extend(["'options'", "{" + " ".join(str(value) for value in counts) + "}"])
+    else:
+        for key, value in options.items():
+            parts.extend([_runica_history_value(key), _runica_history_value(value)])
     if str(reorder).lower() != "on":
         parts.extend(["'reorder'", _runica_history_value(reorder)])
     if chanind is not None:

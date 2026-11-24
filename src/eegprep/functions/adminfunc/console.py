@@ -22,6 +22,7 @@ import numpy as np
 
 import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.matlab_inputs import scalar_index
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
@@ -604,6 +605,7 @@ class EEGPrepConsoleWorkspace:
     def _bind_base_namespace(self) -> None:
         self.namespace.update({"eegprep": self._eegprep_proxy, "session": self.session, "window": self.window})
         self.namespace.update(_CONSOLE_COMMAND_EXPORTS)
+        self.namespace["linspace"] = linspace
         self.namespace["eegh"] = ConsoleEegh(self)
 
     def _bind_exports(self, exports: Mapping[str, Any] | None) -> None:
@@ -890,6 +892,7 @@ def _console_python_command(command: str) -> str:
     text = _matlab_cells_to_python_lists(text)
     text = _matlab_vectors_to_python_lists(text)
     text = _matlab_eeg_index_to_alleeg(text)
+    text = _matlab_alleeg_field_to_python(text)
     text = _pythonize_known_pop_arguments(text)
     text = _keywordize_console_pop_calls(text)
     return _normalise_python_command(text)
@@ -898,6 +901,15 @@ def _console_python_command(command: str) -> str:
 def _is_figure_statement(statement: str) -> bool:
     compact = statement.replace(" ", "")
     return compact in {"figure", "figure()"}
+
+
+def _matlab_alleeg_field_to_python(text: str) -> str:
+    """Translate ``ALLEEG(2).icaweights`` into ``ALLEEG[1]['icaweights']``."""
+
+    def repl(match: re.Match[str]) -> str:
+        return f"ALLEEG[{int(match.group(1)) - 1}]['{match.group(2)}']"
+
+    return re.sub(r"\bALLEEG\((\d+)\)\.([A-Za-z_]\w*)", repl, text)
 
 
 def _matlab_eeg_index_to_alleeg(text: str) -> str:
@@ -1044,8 +1056,7 @@ def _format_matlab_list_content(content: str, original: str) -> str:
             if token.startswith("["):
                 formatted.append(_format_matlab_list_content(token[1:-1], token))
             else:
-                expression = _matlab_colon_range(token)
-                formatted.append(token if expression is None else expression)
+                formatted.append(_pythonize_matlab_number(token).removeprefix("*"))
         return "[" + ", ".join(formatted) + "]"
     if len(rows) == 1 and (expression := _matlab_colon_range(content)) is not None:
         return expression
@@ -1132,12 +1143,22 @@ def _is_matlab_list_row(row: str) -> bool:
     )
 
 
+def _pythonize_matlab_number(token: str) -> str:
+    lowered = token.lower()
+    if lowered == "nan":
+        return 'float("nan")'
+    if lowered in {"inf", "+inf"}:
+        return 'float("inf")'
+    if lowered == "-inf":
+        return 'float("-inf")'
+    expression = _matlab_colon_range(token)
+    if expression is not None:
+        return f"*{expression}"
+    return token
+
+
 def _comma_join_matlab_row(row: str) -> str:
-    values = []
-    for token in row.replace(",", " ").split():
-        expression = _matlab_colon_range(token)
-        values.append(f"*{expression}" if expression is not None else token)
-    return ", ".join(values)
+    return ", ".join(_pythonize_matlab_number(token) for token in row.replace(",", " ").split())
 
 
 def _matlab_colon_range(token: str) -> str | None:
@@ -1338,6 +1359,13 @@ class _ConsoleCommandKeywordizer(ast.NodeTransformer):
         while arg_index < len(node.args) and arg_index < len(positional_parameters):
             arg = node.args[arg_index]
             parameter = positional_parameters[arg_index]
+            option_key = _option_pair_key(arg)
+            if (
+                option_key is not None
+                and arg_index + 1 < len(node.args)
+                and _can_pass_keyword(option_key, keyword_parameters, accepts_var_keywords)
+            ):
+                break
             if (
                 parameter.kind == inspect.Parameter.POSITIONAL_ONLY
                 or parameter.name in existing_keywords

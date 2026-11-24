@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import unittest
 
 import numpy as np
@@ -69,7 +70,10 @@ def test_firpm_estimate_opens_ripple_attenuation_dialog(qt_dialogs, accept):
         edges, amplitudes = _firpm_order_shape([8, 30], 4, "bandpass", 200)
         passdev = (10 ** (0.2 / 20) - 1) / (10 ** (0.2 / 20) + 1)
         expected = pop_firpmord(edges, amplitudes, [0.01, passdev, 0.01], 200)
-        assert [widgets[tag].text() for tag in original] == [f"{value:g}" for value in expected]
+        shown_order = math.ceil(expected[0] / 2) * 2
+        assert [widgets[tag].text() for tag in original] == [
+            f"{value:g}" for value in (shown_order, expected[1], expected[2])
+        ]
     else:
         assert {tag: widgets[tag].text() for tag in original} == original
 
@@ -183,8 +187,8 @@ class PopFirfiltGuiTests(unittest.TestCase):
         self.assertEqual(highpass_amplitudes, [0, 1])
         self.assertEqual(lowpass_edges, [0.0, 28.0, 32.0, 100.0])
         self.assertEqual(lowpass_amplitudes, [1, 0])
-        self.assertGreater(pop_firpmord(highpass_edges, highpass_amplitudes, [0.001, 0.01], 200)[0], 0)
-        self.assertGreater(pop_firpmord(lowpass_edges, lowpass_amplitudes, [0.01, 0.001], 200)[0], 0)
+        self.assertGreater(pop_firpmord(highpass_edges[1:-1], highpass_amplitudes, [0.001, 0.01], 200)[0], 0)
+        self.assertGreater(pop_firpmord(lowpass_edges[1:-1], lowpass_amplitudes, [0.01, 0.001], 200)[0], 0)
 
     def test_firws_gui_result_filters_and_returns_history(self):
         class Renderer:

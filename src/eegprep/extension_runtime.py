@@ -159,6 +159,7 @@ def _menu_item_from_extension_menu(menu: ExtensionMenu, origin: str) -> MenuItem
         checked=menu.checked,
         visibility=menu.visibility,
         origin=origin,
+        tooltip=menu.tooltip,
         children=tuple(_menu_item_from_extension_menu(child, origin) for child in menu.children),
     )
 

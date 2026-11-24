@@ -72,38 +72,33 @@ def test_dispatch_scopes_constructor_override_for_callback_dialogs(
 
 
 def test_callback_driven_select_file_uses_current_global_option(monkeypatch):
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication, QLineEdit
+
+    from eegprep.functions.guifunc.qt import _require_qt
+
+    QApplication.instance() or QApplication([])
+    _qt_core, qt_widgets = _require_qt()
     captured = {}
 
-    class DialogOption:
-        DontUseNativeDialog = 4
+    def get_open_file_name(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return "test_file.txt", ""
 
-    class FileDialog:
-        Option = DialogOption
+    def get_save_file_name(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return "save_file.txt", ""
 
-        @staticmethod
-        def getOpenFileName(*args, **kwargs):
-            captured["args"] = args
-            captured["kwargs"] = kwargs
-            return "test_file.txt", ""
-
-        @staticmethod
-        def getSaveFileName(*args, **kwargs):
-            captured["args"] = args
-            captured["kwargs"] = kwargs
-            return "save_file.txt", ""
-
-    qt_widgets = SimpleNamespace(QFileDialog=FileDialog)
-    monkeypatch.setattr("eegprep.functions.guifunc.qt._require_qt", lambda: (None, qt_widgets))
-
-    class TargetWidget:
-        def __init__(self):
-            self.value = ""
-
-        def setText(self, val):
-            self.value = val
+    monkeypatch.setattr(qt_widgets.QFileDialog, "getOpenFileName", get_open_file_name)
+    monkeypatch.setattr(qt_widgets.QFileDialog, "getSaveFileName", get_save_file_name)
 
     monkeypatch.setitem(EEG_OPTIONS, "option_native_dialogs", 0)
-    target = TargetWidget()
+    target = QLineEdit()
     _select_file(
         None,
         target,
@@ -111,14 +106,14 @@ def test_callback_driven_select_file_uses_current_global_option(monkeypatch):
         {},
     )
 
-    assert target.value == "test_file.txt"
+    assert target.text() == "test_file.txt"
     assert captured["args"][1] == "My Open Dialog"
     assert captured["args"][3] == "Text (*.txt)"
-    assert captured["kwargs"] == {"options": 4}
+    assert captured["kwargs"]["options"] == qt_widgets.QFileDialog.Option.DontUseNativeDialog
 
     monkeypatch.setitem(EEG_OPTIONS, "option_native_dialogs", 1)
     _select_file(None, target, {"caption": "My Save Dialog", "mode": "save"}, {})
 
-    assert target.value == "save_file.txt"
+    assert target.text() == "save_file.txt"
     assert captured["args"][1] == "My Save Dialog"
     assert captured["kwargs"] == {}

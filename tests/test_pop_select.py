@@ -792,17 +792,17 @@ def test_notime_inside_an_epoch_names_the_fix():
         pop_select(eeg, notime=[[-0.02, 0.01]])
 
 
-def test_tutorial_epoch_crop_keeps_inclusive_end_and_all_eight_events():
+def test_tutorial_epoch_crop_matches_epoch_half_open_window():
     eeg = pop_loadset(str(SAMPLE_DATASET_PATH.with_name("eeglab_data_epochs_ica.set")))
 
     out = pop_select(eeg, time=[-0.5, 0.5], trial=[1, 3, 5, 7, 9])
 
-    # F44 recorded EEGLAB 8ac485f6: 128 points, 8 events, xmax=0.4921875.
-    assert out["pnts"] == 128 + 1
+    # epoch.m: reallim = [round(-64), round(64 - 1)] = [-64, 63] at 128 Hz.
+    assert out["pnts"] == 128
     assert len(out["event"]) == 8
-    assert out["xmax"] == 0.4921875 + 1 / 128
+    assert out["xmax"] == 63 / 128
     assert out["xmin"] == -0.5
-    np.testing.assert_array_equal(out["data"], eeg["data"][:, 64:193, [0, 2, 4, 6, 8]])
+    np.testing.assert_array_equal(out["data"], eeg["data"][:, 64:192, [0, 2, 4, 6, 8]])
     assert [event["epoch"] for event in out["event"]] == [1, 2, 2, 3, 4, 4, 5, 5]
     assert [event["type"] for event in out["event"]] == [
         "square",
@@ -815,6 +815,31 @@ def test_tutorial_epoch_crop_keeps_inclusive_end_and_all_eight_events():
         "rt",
     ]
     assert [len(epoch["event"]) for epoch in out["epoch"]] == [1, 2, 1, 2, 2]
+
+
+def test_epoched_point_range_keeps_the_event_on_the_last_sample():
+    eeg = create_test_eeg(n_channels=1, n_samples=128, n_trials=2, srate=128.0)
+    eeg["xmin"] = -0.5
+    eeg["xmax"] = -0.5 + 127 / 128
+    eeg["event"] = [
+        {"type": "end", "latency": 64.0, "epoch": 1},
+        {"type": "past", "latency": 65.0, "epoch": 1},
+    ]
+
+    out = pop_select(eeg, point=[1, 64])
+
+    assert out["pnts"] == 64
+    assert [event["type"] for event in out["event"]] == ["end"]
+
+
+def test_time_range_outside_the_data_raises_and_keeps_the_dataset():
+    eeg = create_test_eeg(n_channels=1, n_samples=20, srate=100.0)
+    original = eeg["data"].copy()
+
+    with pytest.raises(ValueError, match="pop_select: time range \\[60 100\\] s does not overlap"):
+        pop_select(eeg, time=[60, 100])
+
+    np.testing.assert_array_equal(eeg["data"], original)
 
 
 @pytest.mark.parametrize("trials", [[1, 2], [2]])
@@ -837,12 +862,13 @@ def test_epoch_crop_event_endpoints_and_cached_ica(trials):
 
     out = pop_select(eeg, time=[-0.1, 0.1], trial=trials)
 
-    assert out["pnts"] == 3
-    assert [event["type"] for event in out["event"]] == ["left", "right"] * len(trials)
-    assert [event["latency"] for event in out["event"]] == [
-        point + 3 * epoch for epoch in range(len(trials)) for point in [1, 3]
-    ]
-    expected_ica = eeg["icaact"][:, 1:4, np.asarray(trials) - 1]
+    assert out["pnts"] == 2
+    if len(trials) > 1:
+        assert out["xmin"] == -0.1
+        assert out["xmax"] == 0.0
+    assert [event["type"] for event in out["event"]] == ["left"] * len(trials)
+    assert [event["latency"] for event in out["event"]] == [1 + 2 * epoch for epoch in range(len(trials))]
+    expected_ica = eeg["icaact"][:, 1:3, np.asarray(trials) - 1]
     if len(trials) == 1:
         expected_ica = expected_ica[:, :, 0]
     np.testing.assert_array_equal(out["icaact"], expected_ica)

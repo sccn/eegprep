@@ -59,6 +59,8 @@ def pop_selectevent(
         command = _history_command(options)
         return (outputs, command) if return_com else (outputs, indices)
     output, selected = _apply_selectevent_one(EEG, options)
+    if gui and int(EEG.get("trials", 1) or 1) > 1 and not _confirm_epoch_selection(EEG, output):
+        return (EEG, "") if return_com else (EEG, [])
     command = _history_command(options)
     return (output, command) if return_com else (output, selected)
 
@@ -103,7 +105,7 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             controls.extend(
                 [
                     ControlSpec("text", _display_field_label(EEG, field)),
-                    ControlSpec("pushbutton", description, enabled=False),
+                    _field_help_button(field, description),
                     ControlSpec("text", "min"),
                     ControlSpec("edit", tag=f"min_{field}", value=""),
                     ControlSpec("text", "max"),
@@ -116,7 +118,7 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             controls.extend(
                 [
                     ControlSpec("text", "type"),
-                    ControlSpec("pushbutton", description, enabled=False),
+                    _field_help_button("type", description),
                     ControlSpec("edit", tag="type", value=""),
                     ControlSpec(
                         "pushbutton",
@@ -137,7 +139,7 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             controls.extend(
                 [
                     ControlSpec("text", field),
-                    ControlSpec("pushbutton", description, enabled=False),
+                    _field_help_button(field, description),
                     ControlSpec("edit", tag=field, value=""),
                     ControlSpec("spacer"),
                     ControlSpec("spacer"),
@@ -170,7 +172,7 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ),
             ControlSpec("text", "Rename selected event type(s) as type:"),
             ControlSpec("edit", tag="renametype", value=""),
-            ControlSpec("text", "Retain old event type name(s) in field named:"),
+            ControlSpec("text", "Retain old event type name(s) in (new) field named:"),
             ControlSpec("edit", tag="oldtypefield", value=""),
         ]
     )
@@ -210,6 +212,32 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         geometry=tuple(geometry),
         controls=tuple(controls),
     )
+
+
+def _field_help_button(field: str, description: str) -> ControlSpec:
+    return ControlSpec(
+        "pushbutton",
+        field,
+        tag=f"help_{field}",
+        callback=CallbackSpec(
+            "show_message",
+            params={"button": f"help_{field}", "title": field, "message": description or field},
+        ),
+    )
+
+
+def _confirm_epoch_selection(original: dict[str, Any], output: dict[str, Any]) -> bool:
+    from eegprep.functions.guifunc.questdlg2 import questdlg2
+
+    kept = int(output.get("trials", 0) or 0)
+    removed = int(original.get("trials", 0) or 0) - kept
+    answer = questdlg2(
+        f"pop_selectevent: keep {kept} epochs and delete {removed} epochs?",
+        "pop_selectevent",
+        "Cancel",
+        "OK",
+    )
+    return answer == "OK"
 
 
 def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, Any] | None:

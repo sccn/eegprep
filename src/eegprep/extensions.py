@@ -192,6 +192,7 @@ class ExtensionMenu:
     visibility: str = "always"
     insert_after: str = ""
     insert_before: str = ""
+    tooltip: str = ""
     children: tuple["ExtensionMenu", ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
@@ -1074,6 +1075,7 @@ def _extension_menu_from_spec(
         visibility=spec.visibility,
         insert_after=insert_after,
         insert_before=insert_before,
+        tooltip=spec.tooltip or "",
         children=tuple(_extension_menu_from_spec(child) for child in spec.children),
     )
 

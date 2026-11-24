@@ -862,6 +862,8 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
                 if action == "pop_comments":
                     pop_func.assert_called_once_with(mock.ANY, "Comments of dataset: demo", return_com=True)
+                elif action == "pop_editset":
+                    pop_func.assert_called_once_with(mock.ANY, alleeg=mock.ANY, return_com=True)
                 else:
                     pop_func.assert_called_once_with(mock.ANY, return_com=True)
                 self.assertEqual(session.EEG["setname"], setname)

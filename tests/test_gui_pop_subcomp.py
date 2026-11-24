@@ -63,7 +63,9 @@ class PopSubcompGuiTests(unittest.TestCase):
         self.assertEqual(out["specdata"].size, 0)
         self.assertEqual(out["reject"], {})
         self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["classifications"].shape, (1, 7))
-        self.assertEqual(_console_python_command(com), "EEG = pop_subcomp(EEG, components=[1, 3], plotag=0)")
+        self.assertEqual(
+            _console_python_command(com), "EEG = pop_subcomp(EEG, components=[1, 3], plotag=0, keepcomp=0)"
+        )
 
     def test_keep_components_removes_the_complement(self):
         out, com = pop_subcomp(_eeg(), [2], keepcomp=1, return_com=True)

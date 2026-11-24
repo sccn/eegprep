@@ -235,10 +235,17 @@ def _resolve_coregistration_file(value: str | Path) -> Path:
     path = Path(value).expanduser()
     if path.exists():
         return path
-    resource = resources.files("eegprep").joinpath("resources").joinpath("headplot").joinpath(path.name)
-    with resources.as_file(resource) as resolved:
-        if resolved.exists():
-            return Path(resolved)
+    package = resources.files("eegprep").joinpath("resources")
+    relative = Path(value)
+    candidates = (
+        package.joinpath("dipfit").joinpath(*relative.parts),
+        package.joinpath("dipfit").joinpath(relative.name),
+        package.joinpath("headplot").joinpath(relative.name),
+    )
+    for resource in candidates:
+        with resources.as_file(resource) as resolved:
+            if Path(resolved).exists():
+                return Path(resolved)
     raise FileNotFoundError(f"electrode location file not found: {value}")
 
 
