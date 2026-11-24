@@ -15,7 +15,10 @@ probabilities, the outputs of the unquantized network, on the 217 evaluation
 components described in ``evaluation_manifest.json``. It passes when the
 most probable class agrees for at least 95% of components, the keep-or-reject
 decision under the default ``pop_icflag`` thresholds agrees for at least 99%,
-and no class probability moves by more than 0.015.
+and no class probability moves by more than 0.015. A class is verified only
+when it has at least 20 components and both its top-1 agreement and its
+keep-or-reject agreement are at least 0.95. A class with fewer components is
+unverified and is not a failure. A verified class below 0.95 is a failure.
 
 Regenerate the packaged models after changing ``netICL.mat``,
 ``iclabel_net.py``, or this script, from the repository root::
@@ -72,6 +75,9 @@ from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS, ICLABE
 MIN_TOP1_AGREEMENT = 0.95
 MIN_KEEP_REJECT_AGREEMENT = 0.99
 MAX_PROBABILITY_ABS_DIFF = 0.015
+MIN_CLASS_COUNT = 20
+MIN_CLASS_TOP1_AGREEMENT = MIN_TOP1_AGREEMENT
+MIN_CLASS_KEEP_REJECT_AGREEMENT = 0.95
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGED_FLOAT32_MODEL = _REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
 PACKAGED_MODEL = _REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel_int8.onnx"
@@ -246,12 +252,64 @@ def _rejection_flags(classifications: np.ndarray, thresholds: np.ndarray) -> np.
     return np.asarray(eeg_icflag(eeg, thresholds)["reject"]["gcompreject"], dtype=bool)
 
 
+def _per_class_outcome(per_class: Mapping[str, Any]) -> tuple[list[str], list[str], list[str]]:
+    """Split classes into evaluated, unverified, and gate failures.
+
+    ``MIN_CLASS_COUNT``, ``MIN_CLASS_TOP1_AGREEMENT``, and ``MIN_CLASS_KEEP_REJECT_AGREEMENT``
+    are the only thresholds. A class below the count is unverified. A class at or above the
+    count is evaluated only when both agreement floors hold; each missed floor is a failure.
+    """
+    missing = [name for name in ICLABEL_CLASSES if name not in per_class]
+    if missing:
+        return (
+            [],
+            [],
+            [
+                f"gate_failures: per_class_agreement is missing {missing}. "
+                "Pass the per_class_agreement dict returned by compare_predictions."
+            ],
+        )
+    evaluated: list[str] = []
+    unverified: list[str] = []
+    failures: list[str] = []
+    remedy = "Correct the int8 quantization and rerun the gate. Floor changes require a reviewed human pull request."
+    for name in ICLABEL_CLASSES:
+        row = per_class[name]
+        count = int(row["count"])
+        if count < MIN_CLASS_COUNT:
+            unverified.append(name)
+            continue
+        top1 = float(row["top1_agreement"])
+        keep = float(row["keep_reject_agreement"])
+        passed = True
+        if not top1 >= MIN_CLASS_TOP1_AGREEMENT:
+            passed = False
+            failures.append(
+                f"gate_failures: {name} has {count} components but top-1 agreement {top1} is below "
+                f"{MIN_CLASS_TOP1_AGREEMENT}. {remedy}"
+            )
+        if not keep >= MIN_CLASS_KEEP_REJECT_AGREEMENT:
+            passed = False
+            failures.append(
+                f"gate_failures: {name} has {count} components but keep-or-reject agreement {keep} is below "
+                f"{MIN_CLASS_KEEP_REJECT_AGREEMENT}. {remedy}"
+            )
+        if passed:
+            evaluated.append(name)
+    return evaluated, unverified, failures
+
+
 def compare_predictions(
     teacher: np.ndarray,
     model_probabilities: np.ndarray,
     thresholds: np.ndarray = DEFAULT_ICFLAG_THRESHOLDS,
 ) -> dict[str, Any]:
-    """Compare model probabilities with the teacher's: values, class labels, and keep/reject decisions."""
+    """Compare model probabilities with the teacher's: values, class labels, and keep/reject decisions.
+
+    ``evaluated_classes`` met the count and both agreement floors. ``unverified_classes`` had fewer
+    than ``MIN_CLASS_COUNT`` components. A class that misses a floor is in neither list;
+    ``gate_failures`` names it from the same rule.
+    """
     teacher = np.asarray(teacher, dtype=float)
     model_probabilities = np.asarray(model_probabilities, dtype=float)
     if teacher.shape != model_probabilities.shape or teacher.ndim != 2 or teacher.shape[1] != len(ICLABEL_CLASSES):
@@ -267,10 +325,19 @@ def compare_predictions(
     for class_index, class_name in enumerate(ICLABEL_CLASSES):
         selected = teacher_labels == class_index
         count = int(np.sum(selected))
+        if count == 0:
+            top1 = keep_reject = drift = None
+        else:
+            top1 = float(np.mean(model_labels[selected] == class_index))
+            keep_reject = float(np.mean(teacher_reject[selected] == model_reject[selected]))
+            drift = float(np.max(np.abs(teacher[selected] - model_probabilities[selected])))
         per_class[class_name] = {
             "count": count,
-            "agreement": None if count == 0 else float(np.mean(model_labels[selected] == class_index)),
+            "top1_agreement": top1,
+            "keep_reject_agreement": keep_reject,
+            "max_probability_abs_diff": drift,
         }
+    evaluated_classes, unverified_classes, _ = _per_class_outcome(per_class)
 
     return {
         "sample_count": int(teacher.shape[0]),
@@ -285,11 +352,18 @@ def compare_predictions(
             name: int(np.sum(model_labels == index)) for index, name in enumerate(ICLABEL_CLASSES)
         },
         "per_class_agreement": per_class,
+        "evaluated_classes": evaluated_classes,
+        "unverified_classes": unverified_classes,
     }
 
 
 def gate_failures(metrics: Mapping[str, Any]) -> list[str]:
-    """Return one message per frozen gate criterion that ``metrics`` fails; empty means it passes."""
+    """Return one message per gate criterion that ``metrics`` fails; empty means it passes.
+
+    The aggregate criteria always apply. A class with fewer than ``MIN_CLASS_COUNT`` components
+    is unverified and is not a failure. A class at or above that count fails when its top-1 or
+    keep-or-reject agreement is below its floor. Those class lists come from ``_per_class_outcome``.
+    """
     # Written as ``not (value >= limit)`` so a NaN metric fails instead of passing.
     failures = []
     top1 = float(metrics["top1_agreement"])
@@ -301,26 +375,48 @@ def gate_failures(metrics: Mapping[str, Any]) -> list[str]:
     drift = float(metrics["max_probability_abs_diff"])
     if not drift <= MAX_PROBABILITY_ABS_DIFF:
         failures.append(f"maximum probability difference {drift:.6f} exceeds {MAX_PROBABILITY_ABS_DIFF}")
+    per_class = metrics.get("per_class_agreement")
+    if not isinstance(per_class, Mapping):
+        failures.append(
+            "gate_failures: metrics has no per_class_agreement. Pass the dict returned by compare_predictions."
+        )
+        return failures
+    failures.extend(_per_class_outcome(per_class)[2])
     return failures
 
 
-def report_mismatches(report: Mapping[str, Any], reference: Mapping[str, Any]) -> list[str]:
-    """List where the gate or metrics of ``report`` differ from those of ``reference``.
+def _metrics_match(actual: Any, wanted: Any, key: str) -> bool:
+    if key in _DRIFT_METRICS and isinstance(actual, (int, float)) and isinstance(wanted, (int, float)):
+        return abs(float(actual) - float(wanted)) <= _DRIFT_METRIC_TOLERANCE
+    if isinstance(actual, Mapping) and isinstance(wanted, Mapping):
+        if set(actual) != set(wanted):
+            return False
+        return all(_metrics_match(actual[name], wanted[name], str(name)) for name in actual)
+    if isinstance(actual, list) and isinstance(wanted, list):
+        if len(actual) != len(wanted):
+            return False
+        return all(_metrics_match(item, other, key) for item, other in zip(actual, wanted))
+    return bool(actual == wanted)
 
-    The two drift metrics may differ by ``_DRIFT_METRIC_TOLERANCE``; every
-    other gate and metric value must be equal.
+
+def report_mismatches(report: Mapping[str, Any], reference: Mapping[str, Any]) -> list[str]:
+    """Verify the reference report's digest and compare its gate and metrics with the new report.
+
+    Drift metrics, including per-class probability differences, may differ by
+    ``_DRIFT_METRIC_TOLERANCE``. Every other gate and metric value must be equal.
     """
     mismatches = []
+    if reference.get("report_sha256") != _report_sha256(reference):
+        mismatches.append(
+            "report_mismatches: report_sha256 does not match the reference report's contents. "
+            "Restore the reviewed reference report and rerun the parity check."
+        )
     if report["gate"] != reference["gate"]:
         mismatches.append(f"gate: {report['gate']} != {reference['gate']}")
     metrics, expected = report["metrics"], reference["metrics"]
     for key in sorted(metrics.keys() | expected.keys()):
         actual, wanted = metrics.get(key), expected.get(key)
-        if key in _DRIFT_METRICS and actual is not None and wanted is not None:
-            matches = abs(actual - wanted) <= _DRIFT_METRIC_TOLERANCE
-        else:
-            matches = actual == wanted
-        if not matches:
+        if not _metrics_match(actual, wanted, key):
             mismatches.append(f"metrics.{key}: {actual!r} != {wanted!r}")
     return mismatches
 
@@ -409,7 +505,8 @@ def evaluate_model(
     teacher = load_verified_teacher(teacher_probabilities, frozen_manifest)
     thresholds = np.asarray(DEFAULT_ICFLAG_THRESHOLDS, dtype=float)
     metrics = compare_predictions(teacher, predict_features(model, features), thresholds)
-    return {
+    _attach_class_sources(metrics, teacher, frozen_manifest)
+    report = {
         "manifest": Path(manifest).name,
         "evaluation_features": {
             "path": evaluation["feature_archive"]["path"],
@@ -426,6 +523,9 @@ def evaluate_model(
             "minimum_top1_agreement": MIN_TOP1_AGREEMENT,
             "minimum_keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
             "maximum_probability_abs_diff": MAX_PROBABILITY_ABS_DIFF,
+            "minimum_class_count": MIN_CLASS_COUNT,
+            "minimum_class_top1_agreement": MIN_CLASS_TOP1_AGREEMENT,
+            "minimum_class_keep_reject_agreement": MIN_CLASS_KEEP_REJECT_AGREEMENT,
         },
         "quantization": (
             "int8 Conv weights per output channel with a float DequantizeLinear before each Conv; "
@@ -447,6 +547,61 @@ def evaluate_model(
         "gate_pass": not gate_failures(metrics),
         "metrics": metrics,
     }
+    report["report_sha256"] = _report_sha256(report)
+    return report
+
+
+def _attach_class_sources(metrics: dict[str, Any], teacher: np.ndarray, manifest: Mapping[str, Any]) -> None:
+    labels = np.argmax(np.asarray(teacher), axis=1)
+    recordings = manifest["evaluation"]["recordings"]
+    dataset_id = str(manifest["dataset"]["openneuro_source_id"])
+    subjects = {name: [] for name in ICLABEL_CLASSES}
+    offset = 0
+    for recording in recordings:
+        width = len(recording["component_indices"])
+        if offset + width > len(labels):
+            raise ValueError(
+                "evaluate_model: the teacher has fewer rows than evaluation_manifest.json recordings. "
+                "Regenerate the teacher from evaluation_features.npz without reordering recordings."
+            )
+        present = {ICLABEL_CLASSES[int(label)] for label in labels[offset : offset + width]}
+        offset += width
+        subject = str(recording["subject"])
+        for name in present:
+            if subject not in subjects[name]:
+                subjects[name].append(subject)
+    if offset != len(labels):
+        raise ValueError(
+            f"evaluate_model: the teacher has {len(labels)} components but the manifest recordings cover {offset}. "
+            "Regenerate the teacher from evaluation_features.npz without reordering recordings."
+        )
+    for name in ICLABEL_CLASSES:
+        row = metrics["per_class_agreement"][name]
+        row["subjects"] = subjects[name]
+        row["datasets"] = [dataset_id] if row["count"] else []
+        if bool(row["count"]) != bool(subjects[name]):
+            raise ValueError(
+                f"evaluate_model: {name} has {row['count']} components and subjects {subjects[name]}. "
+                "Keep the teacher row order aligned with evaluation_manifest.json recordings."
+            )
+
+
+def _without_drift(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _without_drift(item) for key, item in value.items() if key not in _DRIFT_METRICS}
+    if isinstance(value, list):
+        return [_without_drift(item) for item in value]
+    return value
+
+
+def _report_sha256(report: Mapping[str, Any]) -> str:
+    """SHA-256 of the report with ``report_sha256`` and probability-drift fields removed.
+
+    Those drift fields move by about 1e-6 across CPUs, and the hash cannot include itself.
+    """
+    payload = {key: value for key, value in report.items() if key != "report_sha256"}
+    encoded = json.dumps(_without_drift(payload), indent=2, sort_keys=True, allow_nan=False).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -475,7 +630,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--require-matching-report",
         type=Path,
-        help="fail unless the new report's gate and metrics match this committed report",
+        help="verify the committed report's digest and require its gate and metrics to match the new report",
     )
     args = parser.parse_args(argv)
 

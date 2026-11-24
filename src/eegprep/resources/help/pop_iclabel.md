@@ -36,7 +36,12 @@ Behavior:
   Without it an `ImportError` names the extra. PyTorch is not needed.
 - Native runs load the packaged full-precision network, `iclabel.onnx`, which matches the PyTorch
   network of earlier releases to about 1e-6. The browser loads `iclabel_int8.onnx`, an 8-bit weight-only
-  quantization of it. How closely each file matches is reported in the user guide:
+  quantization of it. Only Other (193 components) is verified for that browser file, and on those
+  components the largest absolute probability difference is 0.01123. A class is verified when the
+  evaluation set has at least 20 components and int8 top-1 and default keep-or-reject agreement are
+  both at least 0.95. Brain (18), Eye (5), Muscle (1), Heart, Line Noise, and Channel Noise are
+  unverified because each has fewer than 20 examples in the evaluation set. The set-wide maximum
+  difference is 0.01346. Both figures are in the user guide:
   https://sccn.github.io/eegprep/user_guide/ica_rejection.html#iclabel-measured-agreement
 - In Pyodide/Emscripten the synchronous `iclabel` and `pop_iclabel` raise `RuntimeError`.
   Use `await iclabel_async(EEG)` or `await pop_iclabel_async(EEG, 'default')`.
