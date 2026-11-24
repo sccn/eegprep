@@ -57,9 +57,15 @@ def test_named_sobi_option_text_names_the_positional_form():
     from eegprep.functions.popfunc.pop_runica import pop_runica
 
     eeg = _continuous_eeg()
-    with pytest.raises(ValueError, match=r"pop_runica:.*32 100") as caught:
+    with pytest.raises(ValueError, match=r"pop_runica:.*\{32 100\}.*p=100") as caught:
         pop_runica(eeg, icatype="sobi", options="'p', 100", gui=False)
     assert "sobi" in str(caught.value)
+    with pytest.raises(ValueError, match=r"pop_runica:.*\{32 100\}.*p=100") as caught:
+        pop_runica(eeg, icatype="sobi", options=["p", 100], gui=False)
+    assert "sobi" in str(caught.value)
+    with pytest.raises(ValueError, match=r"pop_runica:") as caught:
+        pop_runica(eeg, icatype="sobi", options=("p", 100), gui=False)
+    assert "p=100" in str(caught.value)
     _output, command = pop_runica(eeg, icatype="sobi", options="2 1", gui=False, return_com=True)
     assert command == "EEG = pop_runica(EEG, 'icatype', 'sobi', 'options', {2 1});"
 

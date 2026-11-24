@@ -10,7 +10,12 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.console import _console_python_command
-from eegprep.plugins.dipfit._mri import dipfit_mri_slice_indices, dipfit_mri_slices, load_standard_mri_volume
+from eegprep.plugins.dipfit._mri import (
+    dipfit_mri_slice_indices,
+    dipfit_mri_slices,
+    load_besa_mri_volume,
+    load_standard_mri_volume,
+)
 from eegprep.plugins.dipfit._coordinates import (
     electroderealign,
     headcoordinates,
@@ -120,6 +125,46 @@ def test_packaged_standard_mri_volume_supports_dipfit_viewprops_slices():
     assert slices[1]["image"].shape == (181, 181)
     assert slices[2]["image"].shape == (217, 181)
     assert slices[0]["extent"] == (-125.0, 91.0, -72.0, 108.0)
+
+
+def test_standard_mri_slice_extents_match_the_world_bounds():
+    volume = load_standard_mri_volume()
+    _assert_slice_extents_match_world_bounds(volume)
+    _assert_three_voxel_shift_follows_the_millimetre_step(volume)
+
+
+def test_avg152_slice_extents_match_the_world_bounds():
+    volume = load_besa_mri_volume()
+    _assert_slice_extents_match_world_bounds(volume)
+    _assert_three_voxel_shift_follows_the_millimetre_step(volume)
+    axial = dipfit_mri_slices(volume, [[0.0, 0.0, 0.0]])[2]["extent"]
+    assert axial[0] <= 0.0 <= axial[1]
+    assert axial[2] <= 0.0 <= axial[3]
+
+
+def _world_axis_ends(volume) -> list[tuple[float, float]]:
+    ends = []
+    for axis, key in enumerate(("xgrid", "ygrid", "zgrid")):
+        grid = np.asarray(volume[key], dtype=float)
+        world = float(volume["transform"][axis, axis]) * grid + float(volume["transform"][axis, 3])
+        ends.append((float(world[0]), float(world[-1])))
+    return ends
+
+
+def _assert_slice_extents_match_world_bounds(volume) -> None:
+    ends = _world_axis_ends(volume)
+    slices = dipfit_mri_slices(volume, [[0.0, 0.0, 0.0]])
+    for item, (x_axis, y_axis) in zip(slices, ((1, 2), (0, 2), (0, 1)), strict=True):
+        assert item["extent"] == (*ends[x_axis], *ends[y_axis])
+
+
+def _assert_three_voxel_shift_follows_the_millimetre_step(volume) -> None:
+    scale = float(volume["transform"][0, 0])
+    origin = float(volume["transform"][0, 3])
+    world = origin + scale * 40.0
+    before = dipfit_mri_slice_indices(volume, [[world, 0.0, 0.0]])
+    after = dipfit_mri_slice_indices(volume, [[world + 3.0 * scale, 0.0, 0.0]])
+    assert after[0] - before[0] == 3
 
 
 def test_mri_slices_keep_the_component_3_anatomy_upright():
@@ -797,6 +842,28 @@ def test_pop_dipplot_draws_only_the_selected_dipole():
         plt.close(figures[0])
 
 
+def test_plot_dipole_omits_an_unchecked_dipole_even_when_its_position_is_nonzero():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "model": [
+            {
+                "posxyz": [[4.0, 5.0, 6.0], [10.0, 20.0, 30.0]],
+                "momxyz": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                "select": [1],
+                "component": 1,
+            }
+        ],
+    }
+    figures = pop_dipplot(eeg, [1], gui=False, plot=True)
+    try:
+        shown = np.column_stack(figures[0].axes[0].collections[0]._offsets3d)
+        assert shown.shape[0] == 1
+        np.testing.assert_allclose(shown[0], [4.0, 5.0, 6.0])
+    finally:
+        plt.close(figures[0])
+
+
 def test_empty_besa_coord_transform_labels_component_1_superiorfrontal_r():
     from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
     from eegprep.plugins.dipfit.eeg_compatlas import _atlas, eeg_compatlas
@@ -840,7 +907,7 @@ def test_nonlinear_plot_buttons_show_the_dialog_dipole(qapp, monkeypatch):
     calls = {}
 
     def topo(dataset, typeplot, items, title, rowcols, plotdip, **kwargs):
-        calls["topo"] = (typeplot, items, rowcols, plotdip)
+        calls["topo"] = (typeplot, items, title, rowcols, plotdip)
 
     def dipoles(dataset, components, **kwargs):
         model = dataset["dipfit"]["model"][0]
@@ -858,7 +925,7 @@ def test_nonlinear_plot_buttons_show_the_dialog_dipole(qapp, monkeypatch):
         widgets["plotdip"].click()
     finally:
         dialog.close()
-    assert calls["topo"] == (0, 1, [1, 1], 1)
+    assert calls["topo"] == (0, 1, "IC 1", [1, 1], 1)
     np.testing.assert_allclose(calls["dipole"].reshape(-1)[:3], [4.0, 5.0, 6.0])
     assert calls["select"] == [1]
     assert calls["kwargs"]["projlines"] == "on"

@@ -22,8 +22,6 @@ def jader(data, m: int | None = None) -> np.ndarray:
     if n_samples < 2:
         raise ValueError("jader: at least two samples are required.")
     centered = samples - samples.mean(axis=1, keepdims=True)
-    # MATLAB's X*X' is exactly symmetric. Mirror the lower triangle, which is
-    # the one ``eigh`` reads, so a 1-ulp gemm imbalance stays on that path.
     product = (centered @ centered.T) / n_samples
     lower = np.tril(product)
     covariance = lower + np.tril(lower, -1).T

@@ -35,7 +35,12 @@ def pop_dipfit_nonlinear(
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Run standalone nonlinear dipole refinement for one component."""
+    """Run standalone nonlinear dipole refinement for one component.
+
+    Plot map titles the figure ``IC n``. Plot dipole draws the dipoles whose
+    fit checkbox is selected. EEGLAB draws a second dipole whenever its
+    position is nonzero, even when that checkbox is clear.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     ensure_dipfit_settings(EEG)
@@ -235,7 +240,7 @@ def apply_nonlinear_dialog_action(widgets: dict[str, Any], params: dict[str, Any
     if action == "plotmap":
         from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
 
-        pop_topoplot(eeg, 0, component_index, "Component map", [1, 1], 1)
+        pop_topoplot(eeg, 0, component_index, f"IC {component_index}", [1, 1], 1)
         return
     if action == "plotdip":
         from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot

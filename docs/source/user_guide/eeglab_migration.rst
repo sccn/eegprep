@@ -62,7 +62,11 @@ would drop the last one.
 picard, FastICA picard, SOBI, and Jade. binica is not in that list. The SOBI
 and Jade options boxes start empty. An empty SOBI run records
 ``EEG = pop_runica(EEG, 'icatype', 'sobi');``, which EEGLAB can replay.
-Typed counts are stored as ``'options', {n p}``.
+Typed counts are stored as ``'options', {n p}``. Named SOBI text such as
+``'p', 100`` and the list ``['p', 100]`` are rejected. Pass ``{32 100}`` or
+``p=100``. EEGLAB runs ``{'p', 100}`` because ``sobi.m`` never reads ``n``,
+so the string is ignored and ``100`` is the lag count. EEGPrep does not copy
+that quirk.
 
 ``pop_mergeset`` prefills the first two loaded dataset indices. EEGLAB
 prefills ``1``. The merged data, ICA, and history are unchanged.
@@ -96,7 +100,11 @@ disabled in the menu: FieldTrip MRI segmentation and ``ft_sourceanalysis``
 eLORETA are not available, and a partial solver would not match EEGLAB.
 Direct calls still raise ``DIPFITUnavailableError`` with the same reason.
 Dipole plots draw the packaged avg152t1 volume for spherical BESA models and
-the packaged standard_mri volume for MNI models. A custom MRI is refused.
+the packaged standard_mri volume for MNI models. Slice extents use the voxel
+size, so a 2 mm avg152t1 voxel stays 2 mm in the image. A custom MRI is
+refused. Fine-fit Plot map titles the figure ``IC n``. Plot dipole draws only
+the dipoles whose fit checkbox is selected. EEGLAB draws a second dipole
+whenever its position is nonzero, including when that checkbox is clear.
 
 ``pop_selectevent`` emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can

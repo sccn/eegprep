@@ -6,7 +6,7 @@ import copy
 import logging
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import numpy as np
 
@@ -52,6 +52,11 @@ def pop_runica(
     When ``icatype`` is ``runica`` and ``pca`` is omitted, a data rank below
     the selected channel count is passed as ``pca`` and recorded in the history
     command. An explicit ``pca`` value is left unchanged.
+
+    SOBI and Jade options are positional counts. EEGLAB accepts ``{'p', 100}``
+    because ``sobi.m`` ignores ``n`` and reads ``p`` as the lag count. EEGPrep
+    rejects that named form in text, lists, and tuples. Pass ``{32 100}`` or
+    ``p=100``.
     """
     selectamica = _selectamica_mode(args)
     parsed = _parse_runica_args(args, kwargs)
@@ -662,11 +667,7 @@ def _parse_count_text(icatype, text):
     for token in tokens:
         number = _positional_count(token)
         if number is None:
-            example = "32 100" if icatype == "sobi" else "32"
-            raise ValueError(
-                f"pop_runica: {icatype} options must be positional counts such as {example}. "
-                f"Use that form instead of {str(text).strip()!r}."
-            )
+            _reject_named_counts(icatype, str(text).strip())
         numbers.append(number)
     return _counts_from_sequence(icatype, numbers)
 
@@ -684,8 +685,19 @@ def _positional_count(token):
     return None
 
 
+def _reject_named_counts(icatype, shown) -> NoReturn:
+    example = "{32 100} or p=100" if icatype == "sobi" else "{32} or m=32"
+    raise ValueError(
+        f"pop_runica: {icatype} options must be positional counts such as {example}. "
+        f"Use that form instead of {shown!r}."
+    )
+
+
 def _counts_from_sequence(icatype, values):
-    numbers = [int(value) for value in values]
+    try:
+        numbers = [int(value) for value in values]
+    except (TypeError, ValueError):
+        _reject_named_counts(icatype, values)
     if icatype == "jader":
         return {"m": numbers[0]} if numbers else {}
     if not numbers:
