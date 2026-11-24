@@ -417,6 +417,8 @@ def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
     wide_dialog.show()
     qapp.processEvents()
     _assert_clear_buttons_are_visible(wide_dialog, wide_widgets)
+    _assert_clear_column_is_visible(wide_dialog, wide_widgets["clear10"])
+    assert wide_dialog.findChild(QScrollArea).verticalScrollBar().maximum() == 0
     wide_dialog.close()
 
     many = [f"dataset_{index}.set" for index in range(1, 41)]
@@ -825,6 +827,43 @@ def test_importbids_history_and_sessionless_derivative_path(tmp_path):
     assert "writable folder" in str(caught.value)
     assert "DataLad" in str(caught.value)
     assert "OpenNeuro" in str(caught.value)
+
+
+def test_read_only_folder_keeps_the_wrapped_save_messages(tmp_path):
+    from eegprep.plugins.EEG_BIDS.pop_importbids import _save_derivatives
+
+    if os.name == "nt" or getattr(os, "geteuid", lambda: 0)() == 0:
+        pytest.skip("directory mode 0o555 is not enforced here")
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    os.chmod(locked, 0o555)
+    leaf = tmp_path / "bids-out" / "sub-001" / "eeg"
+    leaf.mkdir(parents=True)
+    os.chmod(leaf, 0o555)
+    try:
+        eeg = _continuous()
+        with pytest.raises(ValueError, match="pop_saveset: could not write") as saved:
+            pop_saveset(eeg, str(locked / "x.set"))
+        assert "The original file was left unchanged" in str(saved.value)
+        assert "Choose a writable .set path" in str(saved.value)
+
+        study, alleeg = pop_study(None, [eeg], name="Audit")
+        with pytest.raises(ValueError, match="pop_savestudy: could not write") as studied:
+            pop_savestudy(study, alleeg, filename=str(locked / "audit.study"))
+        assert "Choose a writable .study path" in str(studied.value)
+
+        eeg["subject"] = "001"
+        eeg["filename"] = "sub-001_task-rest_eeg.set"
+        eeg["filepath"] = str(tmp_path / "sub-001" / "eeg")
+        with pytest.raises(OSError, match="pop_importbids") as imported:
+            _save_derivatives([eeg], tmp_path, tmp_path / "bids-out")
+        message = str(imported.value)
+        assert "writable folder" in message
+        assert isinstance(imported.value.__cause__, ValueError)
+        assert isinstance(imported.value.__cause__.__cause__, OSError)
+    finally:
+        os.chmod(locked, 0o755)
+        os.chmod(leaf, 0o755)
 
 
 def test_pop_savestudy_strips_measures_resaves_json_as_mat_and_falls_back_to_v73(tmp_path, monkeypatch):

@@ -851,7 +851,7 @@ def _add_buttons(
     dialog: Any,
     widgets: dict[str, Any],
 ) -> None:
-    if spec.geomvert is None and spec.size is not None:
+    if spec.geomvert is None and spec.size is not None and not spec.scrollable:
         layout.addStretch(1)
     button_container = QtWidgets.QWidget()
     button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)

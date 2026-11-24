@@ -604,11 +604,6 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
             with _unlocked_sidecar(data_value, fdt_final):
                 os.replace(fdt_tmp, fdt_final)
         os.replace(set_tmp, file_name)
-    except OSError:
-        for temporary in (set_tmp, fdt_tmp):
-            if os.path.exists(temporary):
-                os.remove(temporary)
-        raise
     except Exception as exc:
         for temporary in (set_tmp, fdt_tmp):
             if os.path.exists(temporary):
