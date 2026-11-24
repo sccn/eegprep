@@ -1065,6 +1065,26 @@ def test_export_writes_na_for_empty_channel_coordinates(tmp_path):
     assert by_name["FPz"][1:] != ["n/a", "n/a", "n/a"]
 
 
+def test_electrode_coordinates_use_six_decimals_including_negative_zero(tmp_path):
+    from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
+
+    eeg = _continuous()
+    eeg["subject"] = "01"
+    eeg["nbchan"] = 3
+    eeg["data"] = np.zeros((3, eeg["pnts"]))
+    eeg["chanlocs"] = [
+        {"labels": "Cz", "X": -0.0, "Y": 1.5, "Z": -2.25},
+        {"labels": "Pz", "X": 84.98123361344625, "Y": 0.0, "Z": -1.7860385037488253},
+        {"labels": "EOG1", "X": np.empty((1, 0)), "Y": np.empty((1, 0)), "Z": np.empty((1, 0))},
+    ]
+    root = Path(pop_exportbids(eeg, tmp_path / "bids", task="rest"))
+    lines = (root / "sub-01" / "eeg" / "sub-01_electrodes.tsv").read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "name\tx\ty\tz"
+    assert lines[1] == "Cz\t-0.000000\t1.500000\t-2.250000"
+    assert lines[2] == "Pz\t84.981234\t0.000000\t-1.786039"
+    assert lines[3] == "EOG1\tn/a\tn/a\tn/a"
+
+
 def test_quit_asks_before_discarding_unsaved_datasets():
     from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, _require_qt_widgets
     from eegprep.functions.guifunc.session import EEGPrepSession

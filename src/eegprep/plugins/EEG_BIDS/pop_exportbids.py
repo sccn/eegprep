@@ -818,7 +818,7 @@ def _coord(loc: dict[str, Any], *keys: str) -> str:
         except (TypeError, ValueError):
             continue
         if np.isfinite(number):
-            return f"{number:.10g}"
+            return f"{number:2.6f}"
     return "n/a"
 
 
