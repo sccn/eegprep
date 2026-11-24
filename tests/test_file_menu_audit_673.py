@@ -1134,6 +1134,159 @@ def test_quit_asks_before_discarding_unsaved_datasets():
     assert closed == []
 
 
+def test_save_study_keeps_resaved_datasets_in_the_session(tmp_path):
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    eeg = _continuous()
+    pop_saveset(eeg, tmp_path / "one.set")
+    eeg["saved"] = "no"
+    study, alleeg = pop_study(None, [eeg], name="Audit")
+    study, alleeg, _command = pop_savestudy(study, alleeg, filename=tmp_path / "audit.study")
+    alleeg[0]["saved"] = "no"
+    session = EEGPrepSession()
+    session.STUDY = study
+    session.ALLEEG = alleeg
+    session.EEG = alleeg[0]
+    session.CURRENTSET = [1]
+    prompts = []
+
+    class Widgets:
+        class QMessageBox:
+            Yes = 1
+            No = 2
+            Cancel = 3
+
+            @staticmethod
+            def question(*_args, **_kwargs):
+                prompts.append("question")
+                return 1
+
+    dispatcher = MenuActionDispatcher(session)
+    import eegprep.functions.guifunc.menu_actions as menu_actions
+
+    original = menu_actions._require_qt_widgets
+    menu_actions._require_qt_widgets = lambda: Widgets
+    try:
+        dispatcher.dispatch("pop_savestudy:resave", object())
+        saved = session.ALLEEG[0]
+        assert saved["saved"] == "yes"
+        assert saved["filename"] == "one.set"
+        assert Path(saved["filepath"]) == tmp_path
+        dispatcher.dispatch("pop_savestudy:resave", object())
+    finally:
+        menu_actions._require_qt_widgets = original
+    assert prompts == ["question"]
+
+
+def test_quit_yes_leaves_a_raw_bids_dataset_unchanged(tmp_path):
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    root = tmp_path / "bids"
+    eeg_dir = root / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (root / "dataset_description.json").write_text(
+        '{"Name": "raw", "BIDSVersion": "1.8.0", "DatasetType": "raw"}\n',
+        encoding="utf-8",
+    )
+    set_path = eeg_dir / "sub-01_task-rest_eeg.set"
+    eeg = _continuous()
+    pop_saveset(eeg, set_path)
+    eeg["saved"] = "no"
+    before = set_path.read_bytes()
+    modified = set_path.stat().st_mtime_ns
+    session = EEGPrepSession()
+    session.ALLEEG = [eeg]
+    warnings = []
+
+    class Widgets:
+        class QMessageBox:
+            Yes = 1
+            No = 2
+            Cancel = 3
+
+            @staticmethod
+            def question(*_args, **_kwargs):
+                return 1
+
+            @staticmethod
+            def warning(_parent, _title, text):
+                warnings.append(text)
+
+    dispatcher = MenuActionDispatcher(session)
+    import eegprep.functions.guifunc.menu_actions as menu_actions
+
+    original_require = menu_actions._require_qt_widgets
+    original_widgets = menu_actions._qt_widgets
+    menu_actions._require_qt_widgets = lambda: Widgets
+    menu_actions._qt_widgets = lambda: Widgets
+    closed = []
+
+    class Parent:
+        def close(self):
+            closed.append(True)
+
+    try:
+        dispatcher.dispatch("quit", Parent())
+    finally:
+        menu_actions._require_qt_widgets = original_require
+        menu_actions._qt_widgets = original_widgets
+    assert set_path.read_bytes() == before
+    assert set_path.stat().st_mtime_ns == modified
+    assert warnings and "refusing to overwrite raw BIDS" in warnings[0]
+    assert closed == []
+
+
+def test_pop_savestudy_refuses_to_resave_a_raw_bids_dataset(tmp_path):
+    root = tmp_path / "bids"
+    eeg_dir = root / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (root / "dataset_description.json").write_text(
+        '{"Name": "raw", "BIDSVersion": "1.8.0", "DatasetType": "raw"}\n',
+        encoding="utf-8",
+    )
+    set_path = eeg_dir / "sub-01_task-rest_eeg.set"
+    eeg = _continuous()
+    pop_saveset(eeg, set_path)
+    eeg["saved"] = "no"
+    before = set_path.read_bytes()
+    study, alleeg = pop_study(None, [eeg], name="Raw")
+    with pytest.raises(ValueError, match="refusing to overwrite raw BIDS"):
+        pop_savestudy(
+            study,
+            alleeg,
+            filename=tmp_path / "saved.study",
+            resavedatasets="on",
+        )
+    assert set_path.read_bytes() == before
+
+
+def test_resave_keeps_a_live_memmap_view(tmp_path):
+    from eegprep.functions.adminfunc.storage import memmap_fdt
+
+    eeg = _continuous()
+    path = tmp_path / "mapped.set"
+    pop_saveset(eeg, path, savemode="twofiles")
+    eeg["data"] = memmap_fdt(path.with_suffix(".fdt"), eeg)
+    pop_saveset(eeg, path, savemode="twofiles")
+    reloaded = pop_loadset(path)
+    np.testing.assert_array_equal(np.asarray(reloaded["data"]), np.asarray(eeg["data"]))
+    view = np.asarray(eeg["data"])[0]
+    expected = np.array(view, copy=True)
+    if os.name == "nt":
+        with pytest.raises(ValueError, match="plot or the console"):
+            pop_saveset(eeg, path, savemode="twofiles")
+        np.testing.assert_array_equal(view, expected)
+        return
+    pop_saveset(eeg, path, savemode="twofiles")
+    np.testing.assert_array_equal(view, expected)
+    view[0] = expected[0] + 5
+    reloaded = pop_loadset(path)
+    assert float(np.asarray(reloaded["data"])[0, 0]) == float(expected[0])
+    assert float(view[0]) == float(expected[0]) + 5
+
+
 def test_pop_runscript_runs_nothing_when_a_line_is_unsupported(tmp_path):
     script = tmp_path / "history.m"
     script.write_text("EEG = 1;\nthis is not a supported command (\n", encoding="utf-8")

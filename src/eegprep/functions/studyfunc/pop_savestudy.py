@@ -416,7 +416,7 @@ def _resave_datasets(study: dict[str, Any], datasets: list[dict[str, Any]], stud
         path = Path(str(filename))
         if not path.is_absolute():
             path = Path(filepath) / path.name
-        pop_saveset(eeg, path)
+        pop_saveset(eeg, path, savemode="resave")
         eeg["filename"] = path.name
         eeg["filepath"] = str(path.parent)
         eeg["saved"] = "yes"

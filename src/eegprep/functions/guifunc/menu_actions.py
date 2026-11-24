@@ -380,7 +380,11 @@ class MenuActionDispatcher:
                                     "Use File > Save current dataset as, then quit again.",
                                 )
                                 return
-                            pop_saveset(eeg, target)
+                            try:
+                                pop_saveset(eeg, savemode="resave")
+                            except ValueError as exc:
+                                self._warn(parent, str(exc))
+                                return
                 parent.close()
             return
         if base == "clear_study":
@@ -944,7 +948,7 @@ class MenuActionDispatcher:
                 return_com=True,
             )
             self.session.echo_command(command)
-            self.session.set_study(study, command=command)
+            self.session.set_study(study, _datasets if resavedatasets == "on" else None, command=command)
             self._refresh()
             return
         if action == "pop_studydesign":

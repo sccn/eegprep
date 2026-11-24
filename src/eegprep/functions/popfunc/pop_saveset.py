@@ -3,6 +3,7 @@
 import copy
 import json
 import os
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -34,12 +35,39 @@ def _same_path(left: Path, right: Path) -> bool:
         return left.absolute() == right.absolute()
 
 
+class _MappedFileInUse(ValueError):
+    """The ``.fdt`` sidecar is still mapped by a live array view."""
+
+
+# MemmapData._array, the local name, and the temporary getrefcount argument.
+_MEMMAP_OWNER_REFS = 3
+
+
 @contextmanager
 def _unlocked_sidecar(data: Any, destination: Path) -> Iterator[None]:
-    """Close a mapping of ``destination`` before the caller replaces that file."""
+    """Release this process's mapping of ``destination`` before that file is replaced."""
     if isinstance(data, MemmapData) and _same_path(data.path, destination):
-        data.close_file()
+        _release_mapped_sidecar(data)
     yield
+
+
+def _release_mapped_sidecar(data: MemmapData) -> None:
+    if os.name != "nt":
+        data.close()
+        return
+    if _memmap_has_live_view(data):
+        raise _MappedFileInUse(
+            f"pop_saveset: cannot replace {data.path} because a plot or the console still "
+            "holds a view of this file. Close those plots and console references, or Save as "
+            "a new file. The original file was left unchanged."
+        )
+    data.close_file()
+
+
+def _memmap_has_live_view(data: MemmapData) -> bool:
+    data._memmap()
+    array = data._array
+    return array is not None and sys.getrefcount(array) > _MEMMAP_OWNER_REFS
 
 
 def flatten_dict_sub(d, parent_key='', sep='_'):
@@ -604,6 +632,11 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
             with _unlocked_sidecar(data_value, fdt_final):
                 os.replace(fdt_tmp, fdt_final)
         os.replace(set_tmp, file_name)
+    except _MappedFileInUse:
+        for temporary in (set_tmp, fdt_tmp):
+            if os.path.exists(temporary):
+                os.remove(temporary)
+        raise
     except Exception as exc:
         for temporary in (set_tmp, fdt_tmp):
             if os.path.exists(temporary):

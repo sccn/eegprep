@@ -23,7 +23,11 @@ Unreleased
   cluster ``sets`` matrix stays numeric, including the MATLAB v7.3 fallback.
   Datasets stay float64; ``option_single`` has no effect. Electrode
   coordinates use six digits after the decimal, and a missing coordinate
-  stays ``n/a``. (#673)
+  stays ``n/a``. Save study keeps the resaved datasets in the session.
+  Quit and study resave use the same raw-BIDS refusal as ``pop_saveset``.
+  Replacing a mapped ``.fdt`` leaves an open array view readable; on Windows
+  that resave is refused until the view is closed or the dataset is saved
+  as a new file. (#673)
 - ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
   settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
   3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,
