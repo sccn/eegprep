@@ -403,15 +403,14 @@ def test_browser_backend_fails_closed_on_a_model_that_is_not_a_byte_buffer(monke
 
 
 @pytest.mark.parametrize(
-    ("name", "status", "in_lock", "wheel"),
+    ("name", "status", "wheel"),
     [
-        ("numpy", "ok", True, None),
-        ("mne", "ok", False, "mne-1.10.0-py3-none-any.whl"),
-        ("no-wasm-build", "FAIL", False, None),
+        ("mne", "ok", "mne-1.10.0-py3-none-any.whl"),
+        ("no-wasm-build", "FAIL", None),
     ],
 )
-def test_base_resolution_classifies_each_package_once(name, status, in_lock, wheel):
-    result = check_pyodide_base_resolution.classify_package(name, "1.0", in_lock, wheel)
+def test_base_resolution_classifies_each_package_once(name, status, wheel):
+    result = check_pyodide_base_resolution.classify_package(name, "1.0", wheel)
 
     assert result.status == status
 
@@ -419,7 +418,7 @@ def test_base_resolution_classifies_each_package_once(name, status, in_lock, whe
 def test_base_resolution_reports_declared_known_gaps(monkeypatch):
     monkeypatch.setitem(check_pyodide_base_resolution.KNOWN_GAPS, "gap-package", "no wasm build yet")
 
-    result = check_pyodide_base_resolution.classify_package("gap-package", "1.0", False, None)
+    result = check_pyodide_base_resolution.classify_package("gap-package", "1.0", None)
 
     assert result.status == "known-gap"
     assert "no wasm build yet" in result.source
@@ -601,8 +600,8 @@ def test_transitive_specifier_the_bundled_version_misses_fails(tmp_path, monkeyp
     assert "numpy" in result.source
     assert "2.2.5" in result.source
     assert "numpy>=2.3" in result.source
-    assert "scipy==1.15.3" in result.source
-    assert "Lower the floor in scipy==1.15.3" in result.source
+    assert "locked release scipy==1.15.3 Requires-Dist" in result.source
+    assert "Lower the floor in locked release scipy==1.15.3 Requires-Dist to <= 2.2.5" in result.source
 
 
 def test_marker_inactive_under_emscripten_is_ignored(tmp_path, monkeypatch):
@@ -633,8 +632,103 @@ def test_marker_inactive_under_emscripten_is_ignored(tmp_path, monkeypatch):
     assert result.source == "pyodide-lock 2.2.5"
 
 
+def test_requires_dist_drops_extra_markers_and_evaluates_the_pyodide_environment(tmp_path, monkeypatch):
+    active = 'sys_platform == "emscripten" and platform_machine == "wasm32" and python_version >= "3.13"'
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["widget", "numpy>=1.0", "scipy>=1.14.1"],
+        [
+            ("widget", "1.0", ["numpy", "scipy"]),
+            ("numpy", "2.2.5", []),
+            ("scipy", "1.15.3", []),
+        ],
+    )
+    numpy_wheel = "numpy-2.2.5-cp313-cp313-manylinux_2_17_x86_64.whl"
+    scipy_wheel = "scipy-9.0.0-cp313-cp313-manylinux_2_17_x86_64.whl"
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"numpy": "2.2.5", "scipy": "1.14.1"},
+            [
+                (
+                    "widget",
+                    "1.0",
+                    _release(
+                        requires=[
+                            'numpy>=9; extra == "test"',
+                            'numpy>=9; sys_platform != "emscripten"',
+                            'numpy>=9; platform_machine != "wasm32"',
+                            'numpy>=9; python_version < "3.13"',
+                            f"scipy>=9; {active}",
+                        ],
+                        wheels=["widget-1.0-py3-none-any.whl"],
+                    ),
+                ),
+                ("numpy", "2.2.5", _release(wheels=[numpy_wheel])),
+                ("scipy", "1.15.3", _release(wheels=["scipy-1.15.3-cp313-cp313-manylinux_2_17_x86_64.whl"])),
+            ],
+            {
+                "numpy": {
+                    "releases": {"2.2.5": [{"packagetype": "bdist_wheel", "filename": numpy_wheel, "yanked": False}]}
+                },
+                "scipy": {
+                    "releases": {
+                        "9.0.0": [{"packagetype": "bdist_wheel", "filename": scipy_wheel, "yanked": False}],
+                    }
+                },
+            },
+        ),
+    )
+
+    numpy = _result(monkeypatch, "numpy")
+    scipy = _result(monkeypatch, "scipy")
+
+    assert numpy.status == "ok"
+    assert numpy.source == "pyodide-lock 2.2.5"
+    assert scipy.status == "FAIL"
+    assert "scipy>=9" in scipy.source
+    assert "locked release widget==1.0 Requires-Dist" in scipy.source
+
+
+def test_yanked_universal_wheel_does_not_override_the_bundled_build(tmp_path, monkeypatch):
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["threadpoolctl>=3.6.0"],
+        [("threadpoolctl", "3.6.0", [])],
+    )
+    yanked = {
+        "packagetype": "bdist_wheel",
+        "filename": "threadpoolctl-3.6.0-py3-none-any.whl",
+        "yanked": True,
+    }
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"threadpoolctl": "3.5.0"},
+            [("threadpoolctl", "3.6.0", {"info": {"requires_dist": [], "yanked": True}, "urls": [yanked]})],
+            {"threadpoolctl": {"releases": {"3.6.0": [yanked], "3.6.1": [dict(yanked)]}}},
+        ),
+    )
+
+    result = _result(monkeypatch, "threadpoolctl")
+
+    assert result.status == "FAIL"
+    assert "overrides bundled" not in result.source
+
+
 def test_print_pyodide_packages_matches_the_harness_list(monkeypatch, capsys):
-    fixture = json.loads((REPO_ROOT / "tests" / "data" / "pyodide-lock-0.29.5.json").read_text())
+    version = check_pyodide_base_resolution.PYODIDE_VERSION
+    fixture_path = REPO_ROOT / "tests" / "data" / f"pyodide-lock-{version}.json"
+    assert fixture_path.is_file(), (
+        f"tests/data/pyodide-lock-{version}.json is missing. "
+        f"PYODIDE_VERSION is {version}. Record a new lock fixture at that path from "
+        f"{check_pyodide_base_resolution.PYODIDE_LOCK_URL}, keeping info.python and each package version."
+    )
+    fixture = json.loads(fixture_path.read_text())
 
     def fetch(url):
         assert url == check_pyodide_base_resolution.PYODIDE_LOCK_URL

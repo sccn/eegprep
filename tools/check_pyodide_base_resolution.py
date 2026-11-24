@@ -202,7 +202,6 @@ class DeclaredConstraint:
 
 def _applicable_requirement(raw: str, environment: dict[str, str]) -> Requirement | None:
     requirement = Requirement(raw)
-    # Marker.evaluate defaults extra to "" so `extra ==` requirements are not base requirements.
     if requirement.marker is not None and not requirement.marker.evaluate(environment):
         return None
     return requirement
@@ -241,14 +240,19 @@ def _unsatisfied(version: str, constraints: list[DeclaredConstraint]) -> list[De
     return [constraint for constraint in constraints if not constraint.specifier.contains(version, prereleases=True)]
 
 
+def _unyanked_urls(urls: list[dict]) -> list[dict]:
+    return [url for url in urls if not url.get("yanked")]
+
+
 def _satisfying_universal_wheel(
     name: str,
     locked_version: str,
     locked_release: dict,
     constraints: list[DeclaredConstraint],
 ) -> str | None:
-    if _version_meets(locked_version, constraints):
-        wheel = _universal_wheel_filename(locked_release.get("urls") or [])
+    info = locked_release.get("info") or {}
+    if _version_meets(locked_version, constraints) and not info.get("yanked"):
+        wheel = _universal_wheel_filename(_unyanked_urls(locked_release.get("urls") or []))
         if wheel:
             return wheel
     url = PYPI_PROJECT_JSON_URL.format(name=name)
@@ -263,7 +267,7 @@ def _satisfying_universal_wheel(
     for version, files in (project.get("releases") or {}).items():
         if not _version_meets(version, constraints):
             continue
-        wheel = _universal_wheel_filename(files or [])
+        wheel = _universal_wheel_filename(_unyanked_urls(files or []))
         if wheel:
             return wheel
     return None
@@ -292,10 +296,8 @@ class PackageCheck:
     source: str
 
 
-def classify_package(name: str, version: str, in_pyodide_lock: bool, universal_wheel: str | None) -> PackageCheck:
-    """Decide once whether a base package installs under Pyodide and where it comes from."""
-    if in_pyodide_lock:
-        return PackageCheck(name, version, STATUS_OK, "pyodide-lock")
+def classify_package(name: str, version: str, universal_wheel: str | None) -> PackageCheck:
+    """Classify a base package the Pyodide lock does not ship."""
     if universal_wheel:
         return PackageCheck(name, version, STATUS_OK, f"pypi wheel: {universal_wheel}")
     if name in KNOWN_GAPS:
@@ -314,7 +316,7 @@ def check_base_packages() -> list[PackageCheck]:
     constraints = _direct_constraints(environment)
     for name, version in closure.items():
         requires = (releases[name].get("info") or {}).get("requires_dist") or []
-        declared_by = f"{name}=={version} requires-dist"
+        declared_by = f"locked release {name}=={version} Requires-Dist"
         for raw in requires:
             requirement = _applicable_requirement(raw, environment)
             if requirement is None:
@@ -330,7 +332,7 @@ def check_base_packages() -> list[PackageCheck]:
         shipped = shipped_versions.get(canonical)
         if shipped is None:
             wheel = _universal_wheel_filename(releases[name].get("urls") or [])
-            results.append(classify_package(name, version, False, wheel))
+            results.append(classify_package(name, version, wheel))
             continue
         package_constraints = constraints.get(canonical, [])
         missed = _unsatisfied(shipped, package_constraints)
