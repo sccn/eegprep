@@ -16,6 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from . import __version__
+from .channels import stored_channel_type
 from .locations import NOSE_DIRECTION, chanlocs_from_electrodes
 from .window import Window
 
@@ -126,6 +127,10 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
     ``etc["nemar"]["locations"]`` says what the store stated, how many channels were
     located and, when none was, why. Without ``window.electrodes`` the channels keep their
     labels alone and there is no such record.
+
+    When ``window.types`` is set, each ``chanlocs`` entry gets that channel's stored type.
+    A window with ``types`` left unset has no ``type`` field. A count that does not match
+    the channels, or an entry that is not text, raises ``ValueError``.
     """
     labels = require_physical(window)
     factor = microvolts_per(window.unit)
@@ -147,6 +152,19 @@ def to_eeg(window: Window, *, dataset_id: str, store: str, index_digest: str) ->
         chanlocs, nemar["locations"] = chanlocs_from_electrodes(labels, window.electrodes)
         if nemar["locations"]["located"]:
             chaninfo["nosedir"] = NOSE_DIRECTION
+    if window.types is not None:
+        if len(window.types) != len(chanlocs):
+            raise ValueError(
+                f"to_eeg found {len(window.types)} entries in Window.types for {len(chanlocs)} channels. "
+                "Set Window.types to one string per channel, or leave types unset."
+            )
+        for chanloc, channel_type in zip(chanlocs, window.types):
+            if not isinstance(channel_type, str):
+                raise ValueError(
+                    f"to_eeg found channel type {channel_type!r}, which is not text. "
+                    "Set each Window.types entry to a string such as 'EEG', 'EOG', or 'ECG'."
+                )
+            chanloc["type"] = stored_channel_type(channel_type)
 
     eeg = _emptyset()
     eeg.update(
