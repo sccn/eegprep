@@ -102,9 +102,10 @@ Direct calls still raise ``DIPFITUnavailableError`` with the same reason.
 Dipole plots draw the packaged avg152t1 volume for spherical BESA models and
 the packaged standard_mri volume for MNI models. Slice extents use the voxel
 size, so a 2 mm avg152t1 voxel stays 2 mm in the image. A custom MRI is
-refused. Fine-fit Plot map titles the figure ``IC n``. Plot dipole draws only
-the dipoles whose fit checkbox is selected. EEGLAB draws a second dipole
-whenever its position is nonzero, including when that checkbox is clear.
+refused. Fine-fit Plot map titles the figure ``IC n``. OK stores the dipole on
+screen, including a flipped moment, and does not run another fit. Plot dipole
+draws only the dipoles whose fit checkbox is selected. EEGLAB draws a second
+dipole whenever its position is nonzero, including when that checkbox is clear.
 
 ``pop_selectevent`` emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can

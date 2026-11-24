@@ -39,7 +39,8 @@ def pop_dipfit_nonlinear(
 
     Plot map titles the figure ``IC n``. Plot dipole draws the dipoles whose
     fit checkbox is selected. EEGLAB draws a second dipole whenever its
-    position is nonzero, even when that checkbox is clear.
+    position is nonzero, even when that checkbox is clear. OK stores the
+    dipole on screen. The command line still runs the nonlinear fit.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -56,9 +57,8 @@ def pop_dipfit_nonlinear(
         result = inputgui(pop_dipfit_nonlinear_dialog_spec(EEG), renderer=renderer)
         if result is None:
             return (EEG, "") if return_com else EEG
-        working, component = _apply_nonlinear_gui_model(EEG, result)
-        if result.get("dip2sel") and result.get("dip2sym"):
-            symmetry = "x" if str(dipfit_record(EEG).get("coordformat", "")).lower() == "mni" else "y"
+        working, _component = _apply_nonlinear_gui_model(EEG, result)
+        return (working, "") if return_com else working
     component_index = _single_component(component, working)
     out = run_nonlinear(working, component=component_index, nonlinear=nonlinear, symmetry=symmetry)
     command = dipfit_history(

@@ -31,15 +31,17 @@ def _load_mri_volume(resource_path: str) -> dict:
         return {key: data[key] for key in ("anatomy", "transform", "xgrid", "ygrid", "zgrid")}
 
 
-# dipplot.m moves each slice by three grid steps: -x, +y, -z.
-_SLICE_GRID_STEPS = np.array([-3.0, 3.0, -3.0])
+_SLICE_VOXEL_INDEX_OFFSET = np.array([-3.0, 3.0, -3.0])
 
 
 def dipfit_mri_slice_indices(volume: dict, positions) -> tuple[int, int, int]:
     """Return EEGLAB's slice offsets as bounded, zero-based voxel indices."""
     points = np.asarray(positions, dtype=float).reshape(-1, 3)
     voxels = np.column_stack([points, np.ones(len(points))]) @ np.linalg.inv(volume["transform"]).T
-    indices = np.ceil(np.nanmean(voxels[:, :3], axis=0) + _SLICE_GRID_STEPS * _grid_steps(volume)).astype(int) - 1
+    indices = (
+        np.ceil(np.nanmean(voxels[:, :3], axis=0) + _SLICE_VOXEL_INDEX_OFFSET * _voxel_index_steps(volume)).astype(int)
+        - 1
+    )
     return tuple(np.clip(indices, 0, np.asarray(volume["anatomy"].shape) - 1).tolist())
 
 
@@ -62,7 +64,7 @@ def dipfit_mri_slices(volume: dict, positions) -> tuple[dict, ...]:
     return tuple(slices)
 
 
-def _grid_steps(volume: dict) -> np.ndarray:
+def _voxel_index_steps(volume: dict) -> np.ndarray:
     steps = []
     for key in ("xgrid", "ygrid", "zgrid"):
         grid = np.asarray(volume[key], dtype=float)

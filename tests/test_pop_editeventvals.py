@@ -274,6 +274,75 @@ def test_run_gui_rejects_an_event_number_outside_the_list():
     assert eeg["event"][0]["type"] == "e1"
 
 
+def test_insert_then_ok_keeps_the_typed_event_and_earlier_edits():
+    eeg = _continuous_events()
+
+    def edit(_dialog, widgets, _qt):
+        widgets["field_type"].setText("kept")
+        widgets["next1"].click()
+        widgets["insert_button"].click()
+        assert widgets["eventnum"].text() == "2"
+        widgets["field_type"].setText("stim")
+        widgets["field_latency"].setText("0.1")
+
+    out, command = _drive_event_dialog(eeg, edit)
+    stim = next(event for event in out["event"] if event["type"] == "stim")
+    kept = next(event for event in out["event"] if event["type"] == "kept")
+    assert stim["latency"] == pytest.approx(11.0)
+    assert kept["latency"] == pytest.approx(1.0)
+    assert command.index("'insert'") < command.index("'changefield'")
+    assert "'stim'" in command
+    assert "'kept'" in command
+    assert _event_rows(_replay_event_command(eeg, command)) == _event_rows(out)
+
+
+def test_append_on_the_last_event_then_ok_stores_the_typed_values():
+    eeg = _continuous_events()
+
+    def edit(_dialog, widgets, _qt):
+        widgets["eventnum"].setText(str(len(eeg["event"])))
+        widgets["eventnum"].editingFinished.emit()
+        widgets["append_button"].click()
+        assert widgets["eventnum"].text() == str(len(eeg["event"]) + 1)
+        widgets["field_type"].setText("stim")
+        widgets["field_latency"].setText("0.2")
+
+    out, command = _drive_event_dialog(eeg, edit)
+    assert len(out["event"]) == len(eeg["event"]) + 1
+    assert out["event"][-1]["type"] == "stim"
+    assert out["event"][-1]["latency"] == pytest.approx(21.0)
+    assert command.index("'append'") < command.index("'changefield'")
+    assert "'changefield'" in command
+    assert _event_rows(_replay_event_command(eeg, command)) == _event_rows(out)
+
+
+def test_delete_then_ok_keeps_an_edit_on_a_remaining_event():
+    eeg = _continuous_events()
+
+    def edit(_dialog, widgets, _qt):
+        widgets["next1"].click()
+        widgets["field_type"].setText("edited")
+        widgets["back1"].click()
+        widgets["delete_button"].click()
+
+    out, command = _drive_event_dialog(eeg, edit)
+    assert [event["type"] for event in out["event"]] == ["edited", "e3", "e4", "e5"]
+    assert command.index("'delete'") < command.index("'changefield'")
+    assert _event_rows(_replay_event_command(eeg, command)) == _event_rows(out)
+
+
+def _event_rows(eeg):
+    return [(event["type"], event["latency"]) for event in eeg["event"]]
+
+
+def _replay_event_command(eeg, command):
+    from eegprep.functions.adminfunc.console import _console_python_command
+
+    namespace = {"EEG": deepcopy(eeg), "pop_editeventvals": pop_editeventvals}
+    exec(_console_python_command(command), namespace)
+    return namespace["EEG"]
+
+
 def test_event_structure_edits_do_not_mutate_the_dialog_spec():
     eeg = _continuous_events(2)
     spec = pop_editeventvals_dialog_spec(eeg)

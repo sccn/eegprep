@@ -59,6 +59,32 @@ def eeg_compatlas(EEG: dict[str, Any], components: Any = None) -> dict[str, Any]
     return EEG
 
 
+def _coord_transform_values(stored: Any) -> np.ndarray:
+    if stored is None or _empty_transform(stored):
+        return np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+    try:
+        values = np.asarray(stored, dtype=float).reshape(-1)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "eeg_compatlas: coord_transform must be 9 numbers. "
+            "Replace the malformed value with 9 numbers, or leave it empty for the identity transform."
+        ) from exc
+    if values.size == 0:
+        return np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+    if values.size not in {6, 9} or not np.all(np.isfinite(values)):
+        raise ValueError(
+            "eeg_compatlas: coord_transform must be 9 numbers. "
+            "Replace the malformed value with 9 numbers, or leave it empty for the identity transform."
+        )
+    return values
+
+
+def _empty_transform(stored: Any) -> bool:
+    if isinstance(stored, np.ndarray):
+        return stored.size == 0
+    return isinstance(stored, (list, tuple)) and len(stored) == 0
+
+
 def _component_set(components: Any, count: int) -> set[int]:
     if components is None:
         return set(range(1, count + 1))
@@ -68,14 +94,7 @@ def _component_set(components: Any, count: int) -> set[int]:
 
 def _transform(dipfit: dict[str, Any]) -> np.ndarray:
     if "coord_transform" in dipfit:
-        stored = dipfit.get("coord_transform")
-        try:
-            values = np.asarray([] if stored is None else stored, dtype=float).reshape(-1)
-            if values.size == 0:
-                values = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
-            return traditionaldipfit(values)
-        except (TypeError, ValueError):
-            pass
+        return traditionaldipfit(_coord_transform_values(dipfit.get("coord_transform")))
     coordformat = str(dipfit.get("coordformat", "")).lower()
     if coordformat == "mni":
         return traditionaldipfit(_MNI_TRANSFORM)

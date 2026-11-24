@@ -178,28 +178,28 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
     result = inputgui(spec, renderer=renderer)
     if result is None:
         return None
-    try:
-        event_index = int(float(result.get("eventnum") or 1))
-    except (TypeError, ValueError) as exc:
-        raise ValueError(
-            "pop_editeventvals: the event number must be an integer from 1 to "
-            f"{len(events)}. Type an event number in that range and press Enter."
-        ) from exc
-    if event_index < 1 or event_index > len(events):
-        raise ValueError(
-            f"pop_editeventvals: event number {event_index} is outside 1 to {len(events)}. "
-            "Type an event number in that range and press Enter."
-        )
     if "field_displays" in result or "structure_ops" in result:
         displays = result.get("field_displays") or []
         structure_ops = list(result.get("structure_ops") or [])
     else:
         displays = _indexed_field_displays(spec, "navigate_event")
         structure_ops = _structure_operations(spec)
+    limit = len(displays) if displays else len(events)
+    try:
+        event_index = int(float(result.get("eventnum") or 1))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "pop_editeventvals: the event number must be an integer from 1 to "
+            f"{limit}. Type an event number in that range and press Enter."
+        ) from exc
+    if event_index < 1 or event_index > limit:
+        raise ValueError(
+            f"pop_editeventvals: event number {event_index} is outside 1 to {limit}. "
+            "Type an event number in that range and press Enter."
+        )
+    projected = _events_after_structure(events, structure_ops)
     options: list[tuple[str, Any]] = list(structure_ops)
-    if structure_ops:
-        return options
-    for index, event in enumerate(events, start=1):
+    for index, event in enumerate(projected, start=1):
         source = result if index == event_index else _display_row(displays, index)
         if source is None:
             continue
@@ -238,6 +238,23 @@ def _display_row(displays: Any, index: int) -> Mapping[str, Any] | None:
         return None
     row = displays[index - 1]
     return row if isinstance(row, Mapping) else None
+
+
+def _events_after_structure(events: list[dict[str, Any]], structure_ops: list[tuple[str, Any]]) -> list[dict[str, Any]]:
+    projected = [dict(event) for event in events]
+    for key, value in structure_ops:
+        action = str(key).lower()
+        if action == "delete":
+            for event_index in sorted(
+                normalize_one_based_indices(value, len(projected), label="event index"), reverse=True
+            ):
+                projected.pop(event_index)
+        elif action in {"insert", "append", "add"}:
+            event_index, new_event = _insert_args(projected, value)
+            if action == "append":
+                event_index += 1
+            projected.insert(max(0, min(event_index, len(projected))), new_event)
+    return projected
 
 
 def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[str, Any]:

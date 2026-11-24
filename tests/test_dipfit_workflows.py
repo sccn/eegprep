@@ -129,33 +129,20 @@ def test_packaged_standard_mri_volume_supports_dipfit_viewprops_slices():
 
 def test_standard_mri_slice_extents_match_the_world_bounds():
     volume = load_standard_mri_volume()
-    _assert_slice_extents_match_world_bounds(volume)
+    sagittal, coronal, axial = dipfit_mri_slices(volume, [[0.0, 0.0, 0.0]])
+    assert sagittal["extent"] == (-125.0, 91.0, -72.0, 108.0)
+    assert coronal["extent"] == (-90.0, 90.0, -72.0, 108.0)
+    assert axial["extent"] == (-90.0, 90.0, -125.0, 91.0)
     _assert_three_voxel_shift_follows_the_millimetre_step(volume)
 
 
 def test_avg152_slice_extents_match_the_world_bounds():
     volume = load_besa_mri_volume()
-    _assert_slice_extents_match_world_bounds(volume)
+    sagittal, coronal, axial = dipfit_mri_slices(volume, [[0.0, 0.0, 0.0]])
+    assert sagittal["extent"] == (-126.0, 90.0, -72.0, 108.0)
+    assert coronal["extent"] == (-90.0, 90.0, -72.0, 108.0)
+    assert axial["extent"] == (-90.0, 90.0, -126.0, 90.0)
     _assert_three_voxel_shift_follows_the_millimetre_step(volume)
-    axial = dipfit_mri_slices(volume, [[0.0, 0.0, 0.0]])[2]["extent"]
-    assert axial[0] <= 0.0 <= axial[1]
-    assert axial[2] <= 0.0 <= axial[3]
-
-
-def _world_axis_ends(volume) -> list[tuple[float, float]]:
-    ends = []
-    for axis, key in enumerate(("xgrid", "ygrid", "zgrid")):
-        grid = np.asarray(volume[key], dtype=float)
-        world = float(volume["transform"][axis, axis]) * grid + float(volume["transform"][axis, 3])
-        ends.append((float(world[0]), float(world[-1])))
-    return ends
-
-
-def _assert_slice_extents_match_world_bounds(volume) -> None:
-    ends = _world_axis_ends(volume)
-    slices = dipfit_mri_slices(volume, [[0.0, 0.0, 0.0]])
-    for item, (x_axis, y_axis) in zip(slices, ((1, 2), (0, 2), (0, 1)), strict=True):
-        assert item["extent"] == (*ends[x_axis], *ends[y_axis])
 
 
 def _assert_three_voxel_shift_follows_the_millimetre_step(volume) -> None:
@@ -743,6 +730,117 @@ def test_dipole_plot_navigation_moves_between_components():
         plt.close(figures[0])
 
 
+def test_nonlinear_ok_keeps_the_flipped_moment(qapp, monkeypatch):
+    from eegprep.functions.guifunc import qt as qt_module
+    from eegprep.plugins.dipfit import pop_dipfit_nonlinear as nonlinear_module
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "spherical",
+        "hdmfile": "standard_BESA/standard_vol.mat",
+        "model": [{"posxyz": [[1.0, 2.0, 3.0]], "momxyz": [[1.0, 2.0, 3.0]], "rv": 0.2, "component": 1}],
+    }
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("OK must store the dialog dipole without refitting")
+
+    monkeypatch.setattr(nonlinear_module, "run_nonlinear", refuse)
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            renderer = qt_module.QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                widgets["flip1"].click()
+                assert widgets["dip1mom"].text().split() == ["-1", "-2", "-3"]
+                widgets["dip1pos"].setText("4 5 6")
+                dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    out, command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
+    np.testing.assert_allclose(out["dipfit"]["model"][0]["momxyz"][0], [-1.0, -2.0, -3.0])
+    np.testing.assert_allclose(out["dipfit"]["model"][0]["posxyz"][0], [4.0, 5.0, 6.0])
+    assert command == ""
+
+
+def test_nonlinear_ok_keeps_a_moment_only_fit(qapp, monkeypatch):
+    from eegprep.functions.guifunc import qt as qt_module
+    from eegprep.plugins.dipfit import pop_dipfit_nonlinear as nonlinear_module
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "spherical",
+        "hdmfile": "standard_BESA/standard_vol.mat",
+        "model": [{"posxyz": [[1.0, 2.0, 3.0]], "momxyz": [[1.0, 2.0, 3.0]], "rv": 0.2, "component": 1}],
+    }
+    calls = []
+
+    def fitted(dataset, **kwargs):
+        calls.append(kwargs.get("nonlinear"))
+        updated = copy.deepcopy(dataset)
+        model = updated["dipfit"]["model"][0]
+        if str(kwargs.get("nonlinear")).lower() == "no":
+            model["momxyz"] = [[9.0, 8.0, 7.0]]
+        else:
+            model["posxyz"] = [[4.0, 5.0, 6.0]]
+        return updated
+
+    monkeypatch.setattr(nonlinear_module, "run_nonlinear", fitted)
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            renderer = qt_module.QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                widgets["fitmoment"].click()
+                assert widgets["dip1pos"].text().split()[:3] == ["1", "2", "3"]
+                assert widgets["dip1mom"].text().split()[:3] == ["9", "8", "7"]
+                dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    out, _command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
+    np.testing.assert_allclose(out["dipfit"]["model"][0]["posxyz"][0], [1.0, 2.0, 3.0])
+    np.testing.assert_allclose(out["dipfit"]["model"][0]["momxyz"][0], [9.0, 8.0, 7.0])
+    assert calls == ["no"]
+
+
+def test_nonlinear_ok_keeps_typed_dipole_values(qapp, monkeypatch):
+    from eegprep.functions.guifunc import qt as qt_module
+    from eegprep.plugins.dipfit import pop_dipfit_nonlinear as nonlinear_module
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=1)
+    eeg["dipfit"] = {
+        "coordformat": "spherical",
+        "hdmfile": "standard_BESA/standard_vol.mat",
+        "model": [{"posxyz": [[1.0, 2.0, 3.0]], "momxyz": [[1.0, 2.0, 3.0]], "rv": 0.2, "component": 1}],
+    }
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("OK must store the typed dipole without refitting")
+
+    monkeypatch.setattr(nonlinear_module, "run_nonlinear", refuse)
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            renderer = qt_module.QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                widgets["dip1pos"].setText("4 5 6")
+                widgets["dip1mom"].setText("7 8 9")
+                dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    out, _command = pop_dipfit_nonlinear(copy.deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
+    np.testing.assert_allclose(out["dipfit"]["model"][0]["posxyz"][0], [4.0, 5.0, 6.0])
+    np.testing.assert_allclose(out["dipfit"]["model"][0]["momxyz"][0], [7.0, 8.0, 9.0])
+
+
 def test_nonlinear_fit_button_updates_the_displayed_model(qapp, monkeypatch):
     from eegprep.functions.guifunc.qt import QtDialogRenderer
     from eegprep.plugins.dipfit import pop_dipfit_nonlinear as nonlinear_module
@@ -894,6 +992,20 @@ def test_empty_besa_coord_transform_labels_component_1_superiorfrontal_r():
 
     checked = eeg_checkset(copy.deepcopy(eeg))
     assert checked["dipfit"]["coord_transform"] == [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+
+
+def test_malformed_coord_transform_names_the_field():
+    from eegprep.plugins.dipfit.eeg_compatlas import eeg_compatlas
+
+    eeg = {
+        "dipfit": {
+            "coordformat": "spherical",
+            "coord_transform": "not-nine-numbers",
+            "model": [{"posxyz": [[0.0, 0.0, 0.0]], "component": 1}],
+        }
+    }
+    with pytest.raises(ValueError, match=r"eeg_compatlas: coord_transform must be 9 numbers"):
+        eeg_compatlas(eeg, components=[1])
 
 
 def test_nonlinear_plot_buttons_show_the_dialog_dipole(qapp, monkeypatch):
