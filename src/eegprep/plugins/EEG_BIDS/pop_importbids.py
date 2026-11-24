@@ -534,10 +534,6 @@ def _write_import_output(destination: Path, action: Any) -> Any:
         return action()
     except OSError as exc:
         raise OSError(_import_write_error(destination)) from exc
-    except ValueError as exc:
-        if "could not write" not in str(exc):
-            raise
-        raise OSError(_import_write_error(destination)) from exc
 
 
 def _import_write_error(destination: Path) -> str:

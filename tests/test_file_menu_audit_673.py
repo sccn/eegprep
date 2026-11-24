@@ -390,7 +390,7 @@ def test_studywizard_cancel_changes_nothing_and_ok_applies_condition():
 
 
 def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
-    from PySide6.QtWidgets import QLabel, QPushButton
+    from PySide6.QtWidgets import QLabel, QPushButton, QScrollArea
 
     from eegprep.functions.guifunc.qt import QtDialogRenderer
     from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard_dialog_spec
@@ -419,6 +419,23 @@ def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
     _assert_clear_buttons_are_visible(wide_dialog, wide_widgets)
     wide_dialog.close()
 
+    many = [f"dataset_{index}.set" for index in range(1, 41)]
+    _app, tall_dialog, tall_widgets = renderer.build_dialog(pop_studywizard_dialog_spec(many, "Study"))
+    tall_dialog.show()
+    qapp.processEvents()
+    assert tall_dialog.width() <= 1280
+    assert tall_dialog.height() <= 800
+    ok = next(button for button in tall_dialog.findChildren(QPushButton) if button.objectName() == "ok")
+    assert tall_dialog.rect().contains(ok.mapTo(tall_dialog, ok.rect().topLeft()))
+    assert tall_dialog.rect().contains(ok.mapTo(tall_dialog, ok.rect().bottomRight()))
+    _assert_clear_column_is_visible(tall_dialog, tall_widgets["clear1"])
+    scroll = tall_dialog.findChild(QScrollArea)
+    scroll.verticalScrollBar().setValue(scroll.verticalScrollBar().maximum())
+    qapp.processEvents()
+    _assert_clear_column_is_visible(tall_dialog, tall_widgets["clear40"])
+    assert tall_dialog.rect().contains(ok.mapTo(tall_dialog, ok.rect().bottomRight()))
+    tall_dialog.close()
+
     _app, grid_dialog, grid_widgets = renderer.build_dialog(bids_exporter_grid_spec())
     grid_dialog.show()
     qapp.processEvents()
@@ -445,22 +462,22 @@ def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
 
 
 def _assert_clear_buttons_are_visible(dialog, widgets) -> None:
+    assert dialog.width() <= 1280
+    assert dialog.height() <= 800
+    _assert_clear_column_is_visible(dialog, widgets["clear1"])
+
+
+def _assert_clear_column_is_visible(dialog, button) -> None:
     from PySide6.QtWidgets import QScrollArea
 
-    assert dialog.width() >= 1186
-    assert dialog.height() >= 500
-    visible = dialog.rect()
-    for key, widget in widgets.items():
-        if not str(key).startswith("clear"):
-            continue
-        top_left = widget.mapTo(dialog, widget.rect().topLeft())
-        bottom_right = widget.mapTo(dialog, widget.rect().bottomRight())
-        assert visible.contains(top_left)
-        assert visible.contains(bottom_right)
     scroll = dialog.findChild(QScrollArea)
-    if scroll is not None:
-        assert scroll.horizontalScrollBar().maximum() == 0
-        assert scroll.verticalScrollBar().maximum() == 0
+    assert scroll is not None
+    assert scroll.horizontalScrollBar().maximum() == 0
+    viewport = scroll.viewport()
+    top_left = button.mapTo(viewport, button.rect().topLeft())
+    bottom_right = button.mapTo(viewport, button.rect().bottomRight())
+    assert viewport.rect().contains(top_left)
+    assert viewport.rect().contains(bottom_right)
 
 
 def _dialog_row(spec, control):

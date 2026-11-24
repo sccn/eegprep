@@ -151,7 +151,8 @@ def pop_studywizard_dialog_spec(filenames: list[str], name: str) -> DialogSpec:
         geometry=tuple(geometry),
         controls=tuple(controls),
         size=(1186, 500),
-        scrollable=False,
+        scrollable=True,
+        horizontal_scroll=False,
     )
 
 

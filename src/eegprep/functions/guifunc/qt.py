@@ -219,6 +219,8 @@ class QtDialogRenderer:
             scroll_area.setObjectName("content_scroll")
             scroll_area.setWidgetResizable(True)
             scroll_area.setFrameShape(qt_widgets.QFrame.NoFrame)
+            if not spec.horizontal_scroll:
+                scroll_area.setHorizontalScrollBarPolicy(qt_core.Qt.ScrollBarAlwaysOff)
             scroll_area.setWidget(content_widget)
             layout.addWidget(scroll_area, 1)
 

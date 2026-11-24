@@ -495,12 +495,7 @@ def _attach_mff_keys(event: dict[str, Any], keys: list[dict[str, str]]) -> None:
 
 
 def _mffkeys_text(keys: list[dict[str, str]]) -> str:
-    """Format keys the way EEGLAB prints ``char(keylist)``.
-
-    Each key is ``code``, a colon, a space, then ``data`` (character codes
-    35, 58, 32, 49 for ``#: 1``). Items are wrapped in brackets and separated
-    with ``', '``.
-    """
+    """Return ``[code: data, code: data]``."""
     parts = [f"{key['code']}: {key['data']}" for key in keys if key["code"] or key["data"]]
     if not parts:
         return ""

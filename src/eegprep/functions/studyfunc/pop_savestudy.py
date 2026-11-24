@@ -99,6 +99,9 @@ def _write_study(path: Path, study: dict[str, Any], fileformat: str | None, *, s
     try:
         scipy.io.savemat(temporary, {"STUDY": disk}, appendmat=False, format="5", long_field_names=True)
         temporary.replace(path)
+    except OSError:
+        temporary.unlink(missing_ok=True)
+        raise
     except (OverflowError, ValueError) as exc:
         temporary.unlink(missing_ok=True)
         if not _mat5_too_large(exc):
