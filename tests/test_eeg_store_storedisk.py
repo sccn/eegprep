@@ -99,20 +99,20 @@ def test_eeg_store_storedisk_refuses_unsaved_resident_dataset():
         eeg_store(alleeg, _eeg("new"), 0)
 
 
-def test_pop_savestudy_resaves_offloaded_study_dataset(tmp_path: Path):
+def test_pop_savestudy_keeps_an_unmodified_dataset_offloaded(tmp_path: Path):
     EEG_OPTIONS["option_storedisk"] = 1
     alleeg, _current, _current_set = eeg_store([], _saved_loaded_eeg(tmp_path, "one"), 0)
     alleeg, _current, _current_set = eeg_store(alleeg, _saved_loaded_eeg(tmp_path, "two", 10), 0)
     study, alleeg = pop_study(None, alleeg, name="Storedisk study")
 
-    saved, _datasets, command = pop_savestudy(
+    saved, datasets, command = pop_savestudy(
         study,
         alleeg,
         tmp_path / "storedisk.study",
         resavedatasets="on",
-        return_com=True,
     )
 
     assert saved["saved"] == "yes"
+    assert isinstance(datasets[0]["data"], OffloadedData)
     assert (tmp_path / "storedisk.study").exists()
     assert command.startswith("[STUDY ALLEEG] = pop_savestudy(")

@@ -74,18 +74,28 @@ Build and inspect design variables:
        expanding=True,
    )
 
-Load and save ``.study`` files. EEGPrep writes an EEGLAB MATLAB v6 file
-(``save -v6``). Pass ``fileformat='json'`` or a ``.json`` name to write JSON.
-``pop_loadstudy`` reads both, decoding MATLAB character arrays as Latin-1, and
-rebases dataset paths when the STUDY directory has moved. Precomputed measures
-stay in the file so a reloaded STUDY can still be plotted:
+EEGPrep saves a ``.study`` file in MATLAB v6 format and falls back to v7.3
+if the study exceeds the v6 size limit. To write JSON, pass
+``fileformat='json'`` or use a ``.json`` filename. Resaving at the existing
+path with ``savemode='resave'`` writes MATLAB. In both formats,
+``std_rmalldatafields`` strips cached measures from the channel groups and
+component clusters on disk. The returned ``STUDY`` keeps those measures.
+``pop_loadstudy`` reads MATLAB and JSON, decodes MATLAB character arrays as
+Latin-1, and rebases dataset paths when the STUDY directory has moved.
 
 .. code-block:: python
 
    from eegprep import pop_loadstudy, pop_savestudy
 
-   STUDY, ALLEEG, com = pop_savestudy(STUDY, ALLEEG, "analysis.study", return_com=True)
+   STUDY, ALLEEG, com = pop_savestudy(STUDY, ALLEEG, "analysis.study")
    STUDY, ALLEEG, com = pop_loadstudy("analysis.study", return_com=True)
+
+To save edited datasets with the STUDY, pass ``resavedatasets="on"`` or choose
+**Yes** when **File > Save current study** asks to resave modified datasets.
+EEGPrep writes only datasets marked ``saved="no"`` and marks each one
+``"yes"`` in the returned ``ALLEEG`` after saving it. Datasets marked
+``"yes"`` or ``"justloaded"`` are skipped, so you can save edited derivatives
+in a study that also contains raw BIDS recordings.
 
 Precompute and plot STUDY measures:
 
@@ -188,7 +198,7 @@ Use ``std_checkfiles``, ``std_checkdatasession``, ``std_uniformfiles``, and
 ``std_uniformsetinds`` to audit loaded dataset consistency and cached measure
 shapes before saving or plotting group-level results. ``std_savedat`` writes
 explicit EEGPrep-owned JSON or MATLAB-compatible measure sidecars when a
-workflow needs a durable array file outside the ``.study`` JSON.
+workflow needs a durable array file alongside the ``.study`` file.
 
 Select datasets or trials from STUDY metadata:
 
