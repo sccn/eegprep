@@ -48,6 +48,8 @@ def pop_savestudy(
         dataset. A user script calling ``pop_saveset`` directly on a single
         dataset resaves it. Calls through ``pop_savestudy`` and recursive
         calls from the multiple-dataset loop have an EEGLAB caller.
+        EEGLAB resaves a dataset marked ``saved='justloaded'``, but EEGPrep
+        skips it because it has not changed since loading.
     """
     if not STUDY:
         raise ValueError("pop_savestudy cannot save an empty STUDY")

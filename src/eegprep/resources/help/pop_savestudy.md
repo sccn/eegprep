@@ -19,6 +19,8 @@ from the copy written to disk.
 By default, only the study file is written. With `resavedatasets="on"`, EEGPrep
 also writes datasets marked `saved="no"` and marks them `"yes"` in the returned
 `ALLEEG`. Datasets marked `"yes"` or `"justloaded"` keep their flags.
+EEGLAB resaves a dataset marked `"justloaded"`, but EEGPrep skips it because
+it has not changed since loading.
 
 To write JSON, use `fileformat="json"` or a `.json` filename.
 `savemode="resave"` writes MATLAB at the existing study path, including when

@@ -96,6 +96,8 @@ EEGPrep writes only datasets marked ``saved="no"`` and marks each one
 ``"yes"`` in the returned ``ALLEEG`` after saving it. Datasets marked
 ``"yes"`` or ``"justloaded"`` are skipped, so you can save edited derivatives
 in a study that also contains raw BIDS recordings.
+EEGLAB resaves a dataset marked ``"justloaded"``, but EEGPrep skips it
+because it has not changed since loading.
 
 Precompute and plot STUDY measures:
 
