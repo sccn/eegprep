@@ -12,7 +12,7 @@ and uses Pyodide's `emfs:` local-wheel transport.
 The base install resolves under Pyodide with no extra wheel:
 `psutil` and `pyedflib`, which Pyodide cannot build, carry the marker `sys_platform != 'emscripten'` in `pyproject.toml`,
 and CI enforces the rule: `tests/test_browser_dependency_floors.py` checks the markers, and the `pyodide` job's live `micropip.install` of the wheel fails on any base package without a Pyodide build or a pure-Python wheel,
-while `tools/check_pyodide_base_resolution.py` is run by hand, needs network access, and checks that the version Pyodide ships satisfies each declared specifier, direct and transitive, treating a universal wheel as a note when the shipped build does not. It is not part of CI.
+while `tools/check_pyodide_base_resolution.py` is run by hand, needs network access, and checks that the version Pyodide ships satisfies each declared specifier. Direct specifiers come from `pyproject.toml`. Transitive specifiers come from the Requires-Dist of the release micropip installs: the bundled build when that build satisfies its specifier, and the PyPI wheel otherwise. A universal wheel is a note when the shipped build does not satisfy. It is not part of CI.
 MNE, PyBIDS, and the other extras are not part of the base install, so they are not installed.
 The live harness pins `threadpoolctl==3.6.0`, the version in `uv.lock` (Pyodide bundles 3.5.0),
 and installs `python-picard` by name, because the benchmark runs Picard and micropip cannot apply the `picard` extra to a local wheel,

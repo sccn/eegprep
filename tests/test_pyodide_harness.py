@@ -559,7 +559,7 @@ def test_shipped_version_can_satisfy_a_specifier_the_lock_runs_ahead_of(tmp_path
     assert result.source == "pyodide-lock 1.14.1"
 
 
-def test_transitive_specifier_the_bundled_version_misses_fails(tmp_path, monkeypatch):
+def test_bundled_parent_does_not_impose_the_locked_requires_dist(tmp_path, monkeypatch):
     _install_resolution_project(
         monkeypatch,
         tmp_path,
@@ -596,12 +596,48 @@ def test_transitive_specifier_the_bundled_version_misses_fails(tmp_path, monkeyp
 
     result = _result(monkeypatch, "numpy")
 
-    assert result.status == "FAIL"
-    assert "numpy" in result.source
-    assert "2.2.5" in result.source
-    assert "numpy>=2.3" in result.source
-    assert "locked release scipy==1.15.3 Requires-Dist" in result.source
-    assert "Lower the floor in locked release scipy==1.15.3 Requires-Dist to <= 2.2.5" in result.source
+    assert result.status == "ok"
+    assert result.source == "pyodide-lock 2.2.5"
+
+
+def test_pypi_wheel_requires_dist_applies_when_the_bundle_is_overridden(tmp_path, monkeypatch):
+    _install_resolution_project(
+        monkeypatch,
+        tmp_path,
+        ["threadpoolctl>=3.6.0", "numpy>=1.0"],
+        [("threadpoolctl", "3.6.0", ["numpy"]), ("numpy", "2.2.5", [])],
+    )
+    numpy_wheel = "numpy-2.2.5-cp313-cp313-manylinux_2_17_x86_64.whl"
+    monkeypatch.setattr(
+        check_pyodide_base_resolution,
+        "_fetch_json",
+        _fetch_resolution(
+            {"threadpoolctl": "3.5.0", "numpy": "2.2.5"},
+            [
+                (
+                    "threadpoolctl",
+                    "3.6.0",
+                    _release(requires=["numpy>=9"], wheels=["threadpoolctl-3.6.0-py3-none-any.whl"]),
+                ),
+                ("numpy", "2.2.5", _release(wheels=[numpy_wheel])),
+            ],
+            {
+                "numpy": {
+                    "releases": {"2.2.5": [{"packagetype": "bdist_wheel", "filename": numpy_wheel, "yanked": False}]}
+                }
+            },
+        ),
+    )
+
+    results = {item.name: item for item in check_pyodide_base_resolution.check_base_packages()}
+
+    assert results["threadpoolctl"].status == "ok"
+    assert results["threadpoolctl"].source == "pypi wheel, overrides bundled 3.5.0"
+    assert results["numpy"].status == "FAIL"
+    assert "numpy>=9" in results["numpy"].source
+    assert "PyPI wheel threadpoolctl==3.6.0 Requires-Dist" in results["numpy"].source
+    assert "Pin an older release of that package whose Requires-Dist allows <= 2.2.5" in results["numpy"].source
+    assert "Lower the floor in PyPI wheel" not in results["numpy"].source
 
 
 def test_marker_inactive_under_emscripten_is_ignored(tmp_path, monkeypatch):
@@ -689,7 +725,9 @@ def test_requires_dist_drops_extra_markers_and_evaluates_the_pyodide_environment
     assert numpy.source == "pyodide-lock 2.2.5"
     assert scipy.status == "FAIL"
     assert "scipy>=9" in scipy.source
-    assert "locked release widget==1.0 Requires-Dist" in scipy.source
+    assert "PyPI wheel widget==1.0 Requires-Dist" in scipy.source
+    assert "Pin an older release of that package whose Requires-Dist allows <= 1.14.1" in scipy.source
+    assert "Lower the floor in PyPI wheel" not in scipy.source
 
 
 def test_yanked_universal_wheel_does_not_override_the_bundled_build(tmp_path, monkeypatch):

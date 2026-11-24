@@ -2,12 +2,15 @@
 
 The question is whether the version Pyodide ships satisfies each declared specifier.
 Direct specifiers come from ``[project].dependencies``. Transitive specifiers come from
-the ``Requires-Dist`` of every base-closure package at the version pinned in ``uv.lock``.
-Markers are evaluated for the pinned Pyodide release. ``extra ==`` requirements are not
-part of the base install: packaging treats an empty extra as the base install and those
-markers are false. Comparing a shipped version to the version ``uv.lock`` resolved is the
-wrong check. The lock runs ahead of Pyodide on purpose, so that comparison fails packages
-Pyodide can already install.
+the ``Requires-Dist`` of the release micropip actually installs. A parent Pyodide ships,
+whose shipped version satisfies its specifier, installs that bundled build; the Pyodide
+lock already satisfies edges between two bundled packages, so those edges are not
+rechecked. The ``uv.lock`` pin's ``Requires-Dist`` applies only when micropip installs
+that parent from a PyPI wheel. Markers are evaluated for the pinned Pyodide release.
+``extra ==`` requirements are not part of the base install: packaging treats an empty
+extra as the base install and those markers are false. Comparing a shipped version to
+the version ``uv.lock`` resolved is the wrong check. The lock runs ahead of Pyodide on
+purpose, so that comparison fails packages Pyodide can already install.
 
 A shipped version that satisfies every specifier is ``ok`` with source ``pyodide-lock X.Y.Z``.
 When it does not, and some version that satisfies every specifier publishes a universal
@@ -55,6 +58,7 @@ PYODIDE_LOCK_URL = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/py
 PYPI_JSON_URL = "https://pypi.org/pypi/{name}/{version}/json"
 PYPI_PROJECT_JSON_URL = "https://pypi.org/pypi/{name}/json"
 HTTP_TIMEOUT_S = 30
+_FETCH_CACHE: dict[str, dict] = {}
 
 # The harness installs Picard by name on top of the base wheel. Preload the Pyodide
 # builds that extra needs; micropip has no WebAssembly wheel for them.
@@ -64,9 +68,14 @@ KNOWN_GAPS: dict[str, str] = {}
 
 
 def _fetch_json(url: str) -> dict:
+    cached = _FETCH_CACHE.get(url)
+    if cached is not None:
+        return cached
     request = urllib.request.Request(url, headers={"User-Agent": "eegprep-pyodide-resolution-check"})
     with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_S) as response:
-        return json.load(response)
+        payload = json.load(response)
+    _FETCH_CACHE[url] = payload
+    return payload
 
 
 def _pyodide_environment(pyodide_info: dict) -> dict[str, str]:
@@ -249,12 +258,12 @@ def _satisfying_universal_wheel(
     locked_version: str,
     locked_release: dict,
     constraints: list[DeclaredConstraint],
-) -> str | None:
+) -> tuple[str, str] | None:
     info = locked_release.get("info") or {}
     if _version_meets(locked_version, constraints) and not info.get("yanked"):
         wheel = _universal_wheel_filename(_unyanked_urls(locked_release.get("urls") or []))
         if wheel:
-            return wheel
+            return locked_version, wheel
     url = PYPI_PROJECT_JSON_URL.format(name=name)
     try:
         project = _fetch_json(url)
@@ -269,18 +278,41 @@ def _satisfying_universal_wheel(
             continue
         wheel = _universal_wheel_filename(_unyanked_urls(files or []))
         if wheel:
-            return wheel
+            return version, wheel
     return None
 
 
 def _failure_source(package: str, shipped: str, unsatisfied: list[DeclaredConstraint]) -> str:
     details = "; ".join(f"{constraint.text} declared by {constraint.declared_by}" for constraint in unsatisfied)
-    locations = ", ".join(dict.fromkeys(constraint.declared_by for constraint in unsatisfied))
     return (
         f"tools/check_pyodide_base_resolution.py: {package}: Pyodide {PYODIDE_VERSION} ships {shipped}, "
-        f"which does not satisfy {details}. "
-        f"Lower the floor in {locations} to <= {shipped}, or move to a Pyodide release that ships it."
+        f"which does not satisfy {details}. {_fix_advice(shipped, unsatisfied)}"
     )
+
+
+def _fix_advice(shipped: str, unsatisfied: list[DeclaredConstraint]) -> str:
+    parents = list(
+        dict.fromkeys(
+            constraint.declared_by for constraint in unsatisfied if constraint.declared_by != "pyproject.toml"
+        )
+    )
+    owns_floor = any(constraint.declared_by == "pyproject.toml" for constraint in unsatisfied)
+    move = "move to a Pyodide release that ships it"
+    if owns_floor and not parents:
+        return f"Lower the floor in pyproject.toml to <= {shipped}, or {move}."
+    if len(parents) == 1:
+        pin = (
+            f"{parents[0]} is metadata from the release micropip installs. "
+            f"Pin an older release of that package whose Requires-Dist allows <= {shipped}, or {move}."
+        )
+    else:
+        pin = (
+            f"{'; '.join(parents)} are metadata from the releases micropip installs. "
+            f"Pin older releases whose Requires-Dist allows <= {shipped}, or {move}."
+        )
+    if not owns_floor:
+        return pin
+    return f"Lower the floor in pyproject.toml to <= {shipped}. {pin}"
 
 
 STATUS_OK = "ok"
@@ -305,33 +337,107 @@ def classify_package(name: str, version: str, universal_wheel: str | None) -> Pa
     return PackageCheck(name, version, STATUS_FAIL, "NOT FOUND (no Pyodide build, no pure-Python wheel)")
 
 
+def _locked_release(name: str, version: str, cache: dict[tuple[str, str], dict]) -> dict:
+    key = (name, version)
+    if key not in cache:
+        cache[key] = _release_metadata(name, version)
+    return cache[key]
+
+
+def _pypi_release_version(
+    name: str,
+    locked_version: str,
+    shipped: str | None,
+    constraints: dict[str, list[DeclaredConstraint]],
+    cache: dict[tuple[str, str], dict],
+) -> str | None:
+    """Return the PyPI version micropip installs, or None when the bundle is used or install fails."""
+    package_constraints = constraints.get(canonicalize_name(name), [])
+    if shipped is not None and not _unsatisfied(shipped, package_constraints):
+        return None
+    release = _locked_release(name, locked_version, cache)
+    if shipped is None:
+        wheel = _universal_wheel_filename(release.get("urls") or [])
+        return locked_version if wheel else None
+    found = _satisfying_universal_wheel(name, locked_version, release, package_constraints)
+    if found is None:
+        return None
+    version, _wheel = found
+    return version
+
+
+def _constraints_for_installed_releases(
+    closure: dict[str, str],
+    environment: dict[str, str],
+    shipped_versions: dict[str, str],
+    closure_names: set[str],
+    cache: dict[tuple[str, str], dict],
+) -> dict[str, list[DeclaredConstraint]]:
+    """Collect direct floors plus Requires-Dist from parents micropip installs from PyPI.
+
+    A parent whose shipped build satisfies its specifier does not contribute the newer
+    pin's Requires-Dist. Edges between two Pyodide builds are already satisfied by the lock.
+    """
+    constraints = _direct_constraints(environment)
+    plan: tuple[tuple[str, str], ...] | None = None
+    seen: list[tuple[tuple[str, str], ...]] = []
+    for _ in range(len(closure) + 2):
+        installed: dict[str, str] = {}
+        for name, locked_version in closure.items():
+            version = _pypi_release_version(
+                name,
+                locked_version,
+                shipped_versions.get(canonicalize_name(name)),
+                constraints,
+                cache,
+            )
+            if version is not None:
+                installed[name] = version
+        signature = tuple(sorted(installed.items()))
+        if signature == plan:
+            return constraints
+        if signature in seen:
+            raise RuntimeError(
+                "tools/check_pyodide_base_resolution.py could not settle which release micropip installs. "
+                "The dependency constraints cycle between Pyodide builds and PyPI wheels."
+            )
+        seen.append(signature)
+        plan = signature
+        constraints = _direct_constraints(environment)
+        for name, version in installed.items():
+            requires = (_locked_release(name, version, cache).get("info") or {}).get("requires_dist") or []
+            declared_by = f"PyPI wheel {name}=={version} Requires-Dist"
+            for raw in requires:
+                requirement = _applicable_requirement(raw, environment)
+                if requirement is None:
+                    continue
+                constraint = _constraint(requirement, raw, declared_by)
+                if constraint.name not in closure_names:
+                    continue
+                constraints.setdefault(constraint.name, []).append(constraint)
+    raise RuntimeError(
+        "tools/check_pyodide_base_resolution.py could not settle which release micropip installs. "
+        "The dependency constraints cycle between Pyodide builds and PyPI wheels."
+    )
+
+
 def check_base_packages() -> list[PackageCheck]:
     """Classify each base-closure package against the pinned Pyodide release."""
+    _FETCH_CACHE.clear()
     lock = _fetch_json(PYODIDE_LOCK_URL)
     environment = _pyodide_environment(lock["info"])
     shipped_versions = _pyodide_versions(lock)
     closure = _base_closure(environment)
     closure_names = {canonicalize_name(name) for name in closure}
-    releases = {name: _release_metadata(name, version) for name, version in closure.items()}
-    constraints = _direct_constraints(environment)
-    for name, version in closure.items():
-        requires = (releases[name].get("info") or {}).get("requires_dist") or []
-        declared_by = f"locked release {name}=={version} Requires-Dist"
-        for raw in requires:
-            requirement = _applicable_requirement(raw, environment)
-            if requirement is None:
-                continue
-            constraint = _constraint(requirement, raw, declared_by)
-            if constraint.name not in closure_names:
-                continue
-            constraints.setdefault(constraint.name, []).append(constraint)
+    releases: dict[tuple[str, str], dict] = {}
+    constraints = _constraints_for_installed_releases(closure, environment, shipped_versions, closure_names, releases)
 
     results = []
     for name, version in sorted(closure.items()):
         canonical = canonicalize_name(name)
         shipped = shipped_versions.get(canonical)
         if shipped is None:
-            wheel = _universal_wheel_filename(releases[name].get("urls") or [])
+            wheel = _universal_wheel_filename(_locked_release(name, version, releases).get("urls") or [])
             results.append(classify_package(name, version, wheel))
             continue
         package_constraints = constraints.get(canonical, [])
@@ -339,8 +445,10 @@ def check_base_packages() -> list[PackageCheck]:
         if not missed:
             results.append(PackageCheck(name, version, STATUS_OK, f"pyodide-lock {shipped}"))
             continue
-        wheel = _satisfying_universal_wheel(name, version, releases[name], package_constraints)
-        if wheel:
+        found = _satisfying_universal_wheel(
+            name, version, _locked_release(name, version, releases), package_constraints
+        )
+        if found:
             results.append(PackageCheck(name, version, STATUS_OK, f"pypi wheel, overrides bundled {shipped}"))
             continue
         results.append(PackageCheck(name, version, STATUS_FAIL, _failure_source(name, shipped, missed)))
