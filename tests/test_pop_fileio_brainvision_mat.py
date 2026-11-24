@@ -86,7 +86,7 @@ def test_continuous_analyzer_export_keeps_channels_rate_and_skips_blank_markers(
     assert [event["urevent"] for event in events] == [0, 1]
     assert eeg["filename"] == ""
     assert eeg["saved"] == "no"
-    assert "pop_fileio_brainvision_mat" in eeg["history"]
+    assert "pop_loadbva" in eeg["history"]
 
 
 def test_segmented_analyzer_export_is_channels_by_time_by_segments(tmp_path):
@@ -216,7 +216,7 @@ def test_menu_import_uses_the_analyzer_layout(tmp_path):
     assert len(_events(eeg)) == 2
     assert eeg["filename"] == ""
     assert path.is_file()
-    assert any("pop_fileio_brainvision_mat" in command for command in session.ALLCOM)
+    assert any("pop_loadbva" in command for command in session.ALLCOM)
 
 
 def _wrap_degrees(value):

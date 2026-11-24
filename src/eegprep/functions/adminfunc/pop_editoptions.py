@@ -158,7 +158,9 @@ def pop_editoptions_dialog_spec(options: dict[str, Any], path: Path | None = Non
             geometry.append((1,))
         enabled = key in _SUPPORTED_OPTIONS
         tooltip = None
-        if not enabled:
+        if key == "option_single":
+            tooltip = "option_single has no effect in EEGPrep. Datasets stay float64 so existing numeric results do not change."
+        elif not enabled:
             tooltip = (
                 "Requires MATLAB; unavailable in standalone EEGPrep."
                 if key in _MATLAB_ONLY_OPTIONS

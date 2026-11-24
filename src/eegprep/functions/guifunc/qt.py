@@ -263,6 +263,8 @@ class QtDialogRenderer:
             scroll_area.setObjectName("content_scroll")
             scroll_area.setWidgetResizable(True)
             scroll_area.setFrameShape(qt_widgets.QFrame.NoFrame)
+            if not spec.horizontal_scroll:
+                scroll_area.setHorizontalScrollBarPolicy(qt_core.Qt.ScrollBarAlwaysOff)
             scroll_area.setWidget(content_widget)
             layout.addWidget(scroll_area, 1)
 
@@ -279,6 +281,8 @@ class QtDialogRenderer:
         value = initial_values.get(control.tag, control.value)
         if style == "text":
             widget = QtWidgets.QLabel(control.string)
+            if control.wrap:
+                widget.setWordWrap(True)
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
         elif style == "textarea":
@@ -919,7 +923,7 @@ def _add_buttons(
     dialog: Any,
     widgets: dict[str, Any],
 ) -> None:
-    if spec.geomvert is None and spec.size is not None:
+    if spec.geomvert is None and spec.size is not None and not spec.scrollable:
         layout.addStretch(1)
     button_container = QtWidgets.QWidget()
     button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
@@ -927,28 +931,24 @@ def _add_buttons(
     button_layout.setContentsMargins(0, 18, 0, 0)
     button_layout.setSpacing(16)
     if spec.help_text and spec.show_help_button:
-        help_button = QtWidgets.QPushButton(spec.help_label)
+        help_button = QtWidgets.QPushButton(spec.help_label, dialog)
         help_button.setObjectName("help")
         help_button.setAutoDefault(False)
         help_button.setDefault(False)
-        help_button.setFixedWidth(spec.button_size[0] if spec.button_size is not None else 80)
+        _apply_button_size(help_button, spec.button_size)
         help_button.clicked.connect(lambda: _show_help(QtWidgets, dialog, spec))
         button_layout.addWidget(help_button)
     button_layout.addStretch(1)
-    cancel_button = QtWidgets.QPushButton(spec.cancel_label)
-    ok_button = QtWidgets.QPushButton(spec.ok_label)
+    cancel_button = QtWidgets.QPushButton(spec.cancel_label, dialog)
+    ok_button = QtWidgets.QPushButton(spec.ok_label, dialog)
     cancel_button.setObjectName("cancel")
     ok_button.setObjectName("ok")
     cancel_button.setAutoDefault(False)
     cancel_button.setDefault(False)
     ok_button.setAutoDefault(True)
     ok_button.setDefault(True)
-    if spec.button_size is not None:
-        cancel_button.setFixedSize(*spec.button_size)
-        ok_button.setFixedSize(*spec.button_size)
-    else:
-        cancel_button.setFixedWidth(80)
-        ok_button.setFixedWidth(80)
+    _apply_button_size(cancel_button, spec.button_size)
+    _apply_button_size(ok_button, spec.button_size)
     cancel_button.clicked.connect(dialog.reject)
     ok_button.clicked.connect(lambda: _accept_if_valid(dialog, spec, widgets))
     if spec.cancel_first:
@@ -958,6 +958,15 @@ def _add_buttons(
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
     layout.addWidget(button_container)
+
+
+def _apply_button_size(button: Any, requested: tuple[int, int] | None) -> None:
+    if requested is None:
+        button.setFixedWidth(80)
+        return
+    button.ensurePolished()
+    hint = button.sizeHint()
+    button.setFixedSize(max(requested[0], hint.width()), max(requested[1], hint.height()))
 
 
 def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:

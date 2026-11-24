@@ -1,8 +1,13 @@
 """EEG data saving and loading utilities."""
 
 import copy
+import json
 import os
+import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import scipy.io
@@ -21,6 +26,48 @@ from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 
 
 default_empty = np.array([])
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except OSError:
+        return left.absolute() == right.absolute()
+
+
+class _MappedFileInUse(ValueError):
+    """The ``.fdt`` sidecar is still mapped by a live array view."""
+
+
+# MemmapData._array, the local name, and the temporary getrefcount argument.
+_MEMMAP_OWNER_REFS = 3
+
+
+@contextmanager
+def _unlocked_sidecar(data: Any, destination: Path) -> Iterator[None]:
+    """Release this process's mapping of ``destination`` before that file is replaced."""
+    if isinstance(data, MemmapData) and _same_path(data.path, destination):
+        _release_mapped_sidecar(data)
+    yield
+
+
+def _release_mapped_sidecar(data: MemmapData) -> None:
+    if os.name != "nt":
+        data.close()
+        return
+    if _memmap_has_live_view(data):
+        raise _MappedFileInUse(
+            f"pop_saveset: cannot replace {data.path} because a plot or the console still "
+            "holds a view of this file. Close those plots and console references, or Save as "
+            "a new file. The original file was left unchanged."
+        )
+    data.close_file()
+
+
+def _memmap_has_live_view(data: MemmapData) -> bool:
+    data._memmap()
+    array = data._array
+    return array is not None and sys.getrefcount(array) > _MEMMAP_OWNER_REFS
 
 
 def flatten_dict_sub(d, parent_key='', sep='_'):
@@ -61,6 +108,18 @@ def _is_numeric(val):
         except (ValueError, TypeError):
             return False
     return False
+
+
+def _comments_for_disk(value):
+    """Store multi-line comments as a right-padded char matrix, one row per line."""
+    text = _string_field(value).replace("\r\n", "\n").replace("\r", "\n")
+    if "\n" not in text:
+        return text
+    lines = text.split("\n")
+    width = max((len(line) for line in lines), default=0)
+    if width == 0:
+        return np.array(lines, dtype="U1")
+    return np.array([line.ljust(width) for line in lines], dtype=f"U{width}")
 
 
 def _string_field(value):
@@ -118,8 +177,10 @@ def _matlab_double(value):
     would silently misbehave in EEGLAB.  Booleans stay boolean so savemat writes
     MATLAB logical masks (``etc.clean_sample_mask``).  Recurses into dicts, lists,
     and object arrays (MATLAB cells); float, string, and structured arrays pass
-    through.
+    through. ``None`` becomes an empty array, MATLAB ``[]``.
     """
+    if value is None:
+        return default_empty
     if isinstance(value, (bool, np.bool_)):
         return value
     if isinstance(value, (int, np.integer)):
@@ -439,7 +500,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'group': _string_field(EEG.get('group', '')),
         'condition': _string_field(EEG.get('condition', '')),
         'session': EEG.get('session', np.array([])),
-        'comments': _string_field(EEG.get('comments', '')),
+        'comments': _comments_for_disk(EEG.get('comments', '')),
         'nbchan': float(EEG['nbchan']),
         'trials': float(EEG['trials']),
         'pnts': float(EEG['pnts']),
@@ -553,27 +614,39 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     for key in eeglab_dict:
         eeglab_dict[key] = _matlab_double(eeglab_dict[key])
 
+    set_tmp = f"{file_name}.{os.getpid()}.tmp"
+    fdt_final = Path(save_dir) / datfile_name
+    fdt_tmp = Path(save_dir) / f"{datfile_name}.{os.getpid()}.tmp"
     try:
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
         if save_two_files:
-            write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
+            write_fdt(data_value, fdt_tmp, EEG)
         try:
-            scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
-        except ValueError as e:
-            if '31 characters' in str(e):
-                scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
-            else:
-                # the file is likely partial and thus invalid -- delete
-                if os.path.exists(file_name):
-                    os.remove(file_name)
+            scipy.io.savemat(set_tmp, eeglab_dict, appendmat=False)
+        except ValueError as exc:
+            if '31 characters' not in str(exc):
                 raise
-    except OSError as exc:
-        if os.path.isfile(file_name):
-            os.remove(file_name)
+            scipy.io.savemat(set_tmp, eeglab_dict, appendmat=False, long_field_names=True)
+        if save_two_files:
+            with _unlocked_sidecar(data_value, fdt_final):
+                os.replace(fdt_tmp, fdt_final)
+        os.replace(set_tmp, file_name)
+    except _MappedFileInUse:
+        for temporary in (set_tmp, fdt_tmp):
+            if os.path.exists(temporary):
+                os.remove(temporary)
+        raise
+    except Exception as exc:
+        for temporary in (set_tmp, fdt_tmp):
+            if os.path.exists(temporary):
+                os.remove(temporary)
+        detail = _unsupported_field(eeglab_dict)
+        problem = f"{detail}: {exc}" if detail else str(exc)
         raise ValueError(
-            f"pop_saveset could not write {file_name} ({exc}). "
-            "Choose a .set file in a folder you can write to with File > Save current dataset as."
+            f"pop_saveset: could not write {file_name}: {problem}. "
+            "The original file was left unchanged. Choose a writable .set path with "
+            "File > Save current dataset as."
         ) from exc
     if not os.path.isfile(file_name):
         raise ValueError(
@@ -615,13 +688,79 @@ def _save_target(EEG, file_name, args, kwargs):
                 f"(current filename is {shown}). Save it with File > Save current dataset as "
                 "and choose a .set file."
             )
+        _refuse_raw_bids_resave(target)
         return target, savemode
     if filename in {None, ''}:
         raise ValueError("file_name argument is required")
     path = Path(os.fspath(filename))
     if filepath not in {None, ''} and not path.is_absolute():
         path = Path(os.fspath(filepath)) / path.name
-    return _as_set_path(path), savemode
+    target = _as_set_path(path)
+    if savemode == 'resave':
+        _refuse_raw_bids_resave(target)
+    return target, savemode
+
+
+def raw_bids_root(path: Path) -> Path | None:
+    """Return the BIDS root when ``path`` is a raw file outside ``derivatives/``."""
+    try:
+        resolved = path.resolve()
+    except OSError:
+        resolved = path
+    for parent in (resolved.parent, *resolved.parent.parents):
+        if not (parent / "dataset_description.json").is_file():
+            continue
+        relative = resolved.relative_to(parent)
+        if "derivatives" in parent.parts or "derivatives" in relative.parts:
+            return None
+        if _dataset_type(parent) == "derivative":
+            return None
+        return parent
+    return None
+
+
+def _dataset_type(folder: Path) -> str:
+    try:
+        payload = json.loads((folder / "dataset_description.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    return str(payload.get("DatasetType") or "").strip().lower()
+
+
+def _refuse_raw_bids_resave(path: Path) -> None:
+    root = raw_bids_root(path)
+    if root is None:
+        return
+    raise ValueError(
+        f"pop_saveset: refusing to overwrite raw BIDS file {path}. "
+        f"{root} contains dataset_description.json and this path is outside derivatives/. "
+        "Use File > Save current dataset as and choose a folder under derivatives/ or another folder."
+    )
+
+
+def _unsupported_field(value, path: str = "EEG") -> str:
+    if value is None:
+        return f"field {path} holds an unsupported value (None)"
+    if isinstance(value, dict):
+        for key, item in value.items():
+            found = _unsupported_field(item, f"{path}.{key}")
+            if found:
+                return found
+        return ""
+    if isinstance(value, list):
+        for index, item in enumerate(value, start=1):
+            found = _unsupported_field(item, f"{path}({index})")
+            if found:
+                return found
+        return ""
+    if isinstance(value, np.ndarray) and value.dtype == object:
+        for index in np.ndindex(value.shape):
+            found = _unsupported_field(value[index], f"{path}({', '.join(str(item + 1) for item in index)})")
+            if found:
+                return found
+    return ""
 
 
 def _as_set_path(path: Path) -> Path:

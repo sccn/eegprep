@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, overload
 
 import numpy as np
 
@@ -13,6 +13,32 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._file_io import events_to_records, read_table_records
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_text_tokens
+
+
+@overload
+def pop_importepoch(
+    EEG: dict[str, Any],
+    filename: Any = None,
+    fieldlist: list[str] | tuple[str, ...] | str | None = None,
+    *args: Any,
+    return_com: Literal[False] = False,
+    gui: bool | None = None,
+    renderer: Any = None,
+    **kwargs: Any,
+) -> dict[str, Any]: ...
+
+
+@overload
+def pop_importepoch(
+    EEG: dict[str, Any],
+    filename: Any = None,
+    fieldlist: list[str] | tuple[str, ...] | str | None = None,
+    *args: Any,
+    return_com: Literal[True],
+    gui: bool | None = None,
+    renderer: Any = None,
+    **kwargs: Any,
+) -> tuple[dict[str, Any], str]: ...
 
 
 def pop_importepoch(

@@ -35,7 +35,7 @@ def pop_expevents(EEG: dict[str, Any], filename: str | Path, unit: str = "sample
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = _field_order(events)
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream, delimiter="\t")
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         writer.writerow(["number", *fields])
         for index, event in enumerate(events, start=1):
             writer.writerow([_format_cell(index), *[_format_cell(event.get(field, "")) for field in fields]])

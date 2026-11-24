@@ -1,19 +1,15 @@
-# POP_STUDYWIZARD - Create a STUDY by browsing datasets
+# Create a STUDY from dataset files
 
-`pop_studywizard` loads selected dataset files and creates a STUDY from them.
+`pop_studywizard` lists the files you selected. Each row is numbered and has the file, a browse button, subject, session, run, condition, group, task, and a `Clear` button that empties that row. The headers include `browse` and leave the Clear column unlabeled. Subject codes start at `S1`. Edit any cell, then press Ok. Cancel leaves the workspace unchanged.
 
-Usage:
+The history command is `[STUDY ALLEEG] = std_editset(STUDY, [], 'commands', {...}, 'updatedat', 'on')` followed by `std_checkset`. Each command cell keeps the subject, session, run, condition, group, and task from that row.
 
-```python
-STUDY, ALLEEG, com = pop_studywizard(
-    ["sub-01.set", "sub-02.set"],
-    name="Oddball",
-    return_com=True,
-)
+## Usage
+
+```matlab
+[STUDY ALLEEG] = pop_studywizard; % pop up window
 ```
 
-After loading the datasets with `pop_loadset`, the helper calls `pop_study` to
-build STUDY metadata. Use `pop_study` to edit dataset metadata or
-`pop_studydesign` to edit design variables after creation.
+## See also
 
-See also: POP_STUDY, POP_LOADSET, POP_STUDYDESIGN
+`pop_study`, `std_editset`, `std_checkset`

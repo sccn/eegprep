@@ -57,11 +57,11 @@ def pop_export(
     if is_on(options.get("erp", "off")) and data.ndim == 3:
         data = data.mean(axis=2)
     elif data.ndim == 3:
-        data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
+        data = np.reshape(data, (data.shape[0], data.shape[1] * data.shape[2]), order="F")
     if options.get("expr"):
         data = _apply_expression(data, str(options["expr"]))
         if data.ndim == 3:
-            data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
+            data = np.reshape(data, (data.shape[0], data.shape[1] * data.shape[2]), order="F")
     use_time = is_on(options.get("time", "on"))
     if use_time:
         time = np.tile(
@@ -78,7 +78,7 @@ def pop_export(
     path.parent.mkdir(parents=True, exist_ok=True)
     transpose = is_on(options.get("transpose", "off"))
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream, delimiter=separator)
+        writer = csv.writer(stream, delimiter=separator, lineterminator="\n")
         if transpose:
             if use_elec:
                 writer.writerow(_transpose_header(EEG, data.shape[0], ica=ica, use_time=use_time))
@@ -248,8 +248,13 @@ def _selected_data(EEG: dict[str, Any], *, ica: bool) -> np.ndarray:
     channels = np.asarray(EEG.get("icachansind", np.arange(EEG["nbchan"])), dtype=int)
     data = np.asarray(EEG["data"])[channels, ...]
     unmixing = finite_matmul(weights, sphere)
-    activations = finite_matmul(unmixing, data.reshape((len(channels), -1)))
-    return activations.reshape((activations.shape[0], int(EEG["pnts"]), int(EEG.get("trials", 1))))
+    flat = np.reshape(data, (len(channels), -1), order="F")
+    activations = finite_matmul(unmixing, flat)
+    return np.reshape(
+        activations,
+        (activations.shape[0], int(EEG["pnts"]), int(EEG.get("trials", 1))),
+        order="F",
+    )
 
 
 def _format_row(row: np.ndarray, precision: int) -> list[str]:

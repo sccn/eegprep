@@ -21,6 +21,7 @@ from eegprep.functions.popfunc.pop_importdata import pop_importdata
 from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
 from eegprep.functions.popfunc.pop_loadset import _is_hdf5_file, pop_loadset
+from eegprep.functions.popfunc.pop_mffimport import pop_mffimport
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_readegi import pop_readegi
 from eegprep.functions.sigprocfunc.loadeeg import _detect_format, loadeeg
@@ -29,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 # Fields that mark a .mat as a saved EEGLAB dataset rather than a raw data array.
 _EEGLAB_STRUCT_MARKERS = frozenset({"nbchan", "srate", "pnts", "trials", "chanlocs", "setname", "xmin", "xmax"})
+_POPUP_FORMATS = frozenset(
+    {"eeglab", "brainvision", "biosig", "neuroscan-cnt", "neuroscan-eeg", "egi-mff", "matlab-array"}
+)
 
 
 def pop_fileio(
@@ -56,18 +60,35 @@ def pop_fileio(
         for key in ('channels', 'samples', 'trials'):
             if result[key].strip():
                 options[key] = parse_numeric_sequence(result[key], dtype=int)
+        chosen = int(result.get("dataformat") or 1)
+        if chosen > 1:
+            options["dataformat"] = (
+                "auto",
+                "eeglab",
+                "brainvision",
+                "biosig",
+                "neuroscan-cnt",
+                "neuroscan-eeg",
+                "egi-mff",
+                "matlab-array",
+            )[chosen - 1]
     history_options = dict(options)
     blockrange = options.pop("blockrange", None)
     channels = options.pop("channels", None)
     samples = options.pop("samples", None)
     trials = options.pop("trials", None)
+    dataformat = str(options.pop("dataformat", "") or "")
     if suffix == '.eeg':
         for header_suffix in ('.vhdr', '.ahdr'):
             header = path.with_suffix(header_suffix)
             if header.is_file():
                 path, suffix = header, header_suffix
                 break
-    if suffix == ".set":
+    if dataformat and dataformat not in _POPUP_FORMATS:
+        options["dataformat"] = dataformat
+    if dataformat in _POPUP_FORMATS:
+        eeg, channels = _read_requested_format(dataformat, path, options, channels, blockrange, feature)
+    elif suffix == ".set":
         eeg = pop_loadset(str(path))
     elif suffix == ".mat" and options.get("dataformat") != "matlab-array":
         if _mat_is_eeglab_dataset(path):
@@ -122,6 +143,44 @@ def pop_fileio(
     command = _history_command(source_path, history_options)
     eeg["history"] = command
     return (eeg, command) if return_com else eeg
+
+
+def _read_requested_format(
+    dataformat: str,
+    path: Path,
+    options: dict[str, Any],
+    channels: Any,
+    blockrange: Any,
+    feature: str,
+) -> tuple[dict[str, Any], Any]:
+    if dataformat == "eeglab":
+        return pop_loadset(str(path)), channels
+    if dataformat == "matlab-array":
+        return pop_importdata("data", str(path), "setname", path.stem, "dataformat", "matlab", **options), channels
+    if dataformat == "brainvision":
+        return pop_loadbv(path, chans=channels), None
+    if dataformat == "neuroscan-cnt":
+        if blockrange is not None:
+            start, stop = _blockrange_values(blockrange)
+            options["t1"] = start
+            options["lddur"] = stop - start
+        return pop_loadcnt(path, **options), channels
+    if dataformat == "neuroscan-eeg":
+        return _read_neuroscan_epochs(path, **options), channels
+    if dataformat == "biosig":
+        reader = _reader_for_suffix(
+            path.suffix.lower() if path.suffix.lower() in {".edf", ".bdf", ".gdf"} else ".edf", feature
+        )
+        raw = reader(str(path), preload=True, verbose=False)
+        return mne_raw_to_eeg(raw, setname=path.stem, filename=str(path)), channels
+    if dataformat == "egi-mff":
+        loaded = pop_mffimport(path)
+        return loaded, channels
+    raise ValueError(
+        f"pop_fileio: dataformat {dataformat!r} is not a File-IO format. "
+        "Choose auto, eeglab, brainvision, biosig, neuroscan-cnt, neuroscan-eeg, egi-mff, or matlab-array "
+        "in the data-format popup, then import again."
+    )
 
 
 def _mat_is_eeglab_dataset(path: Path) -> bool:
@@ -251,8 +310,15 @@ def pop_fileio_dialog_spec() -> DialogSpec:
         function_name='pop_fileio',
         help_text='pop_fileio',
         eeglab_source='plugins/fileio/pop_fileio.m',
-        geometry=tuple([[2, 1]] * 3),
+        geometry=tuple([[2, 1]] * 4),
         controls=(
+            ControlSpec('text', 'Data format'),
+            ControlSpec(
+                'popupmenu',
+                'auto|EEGLAB .set|BrainVision|BIOSIG|Neuroscan CNT|Neuroscan EEG|EGI MFF|MATLAB array',
+                tag='dataformat',
+                value=1,
+            ),
             ControlSpec('text', 'Channel list (default all)'),
             ControlSpec('edit', tag='channels'),
             ControlSpec('text', 'Sample range [first last] (default all)'),

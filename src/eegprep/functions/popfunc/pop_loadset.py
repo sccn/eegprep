@@ -75,6 +75,8 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         except (OSError, MatReadError, ValueError) as exc:
             raise ValueError(read_error) from exc
         EEG = dataset_from_mat(loaded)
+    if isinstance(EEG, dict) and "comments" in EEG:
+        EEG["comments"] = _join_comment_matrix(EEG["comments"])
     if not {'data', 'nbchan', 'pnts', 'srate'}.issubset(EEG):
         raise ValueError(
             f"pop_loadset: {file_path!r} is not a valid EEG .set dataset (required fields are missing). "
@@ -119,6 +121,24 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     EEG["saved"] = "justloaded"
 
     return EEG
+
+
+def _join_comment_matrix(value):
+    """Join a saved comment char matrix back into one newline-separated string."""
+    if isinstance(value, np.ndarray) and value.dtype == object and value.size > 1:
+        rows = [str(item).rstrip() for item in value.reshape(-1, order="F")]
+        return "\n".join(rows)
+    if isinstance(value, np.ndarray) and value.dtype.kind in "SU" and value.ndim == 2 and value.shape[0] > 1:
+        rows = []
+        for row in value:
+            character = value.dtype.itemsize == np.dtype("<U1").itemsize or value.dtype in {
+                np.dtype("U1"),
+                np.dtype("S1"),
+            }
+            text = "".join(str(item) for item in row) if character else str(row)
+            rows.append(text.rstrip("\x00 ").rstrip())
+        return "\n".join(rows)
+    return value
 
 
 def _is_hdf5_file(file_path):

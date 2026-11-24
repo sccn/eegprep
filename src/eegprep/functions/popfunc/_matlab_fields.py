@@ -121,6 +121,12 @@ def normalize_numeric(field: str | None, value):
             return index
     if field in SCALAR_FIELDS or array.size == 1:
         return _python_scalar(array)
+    # cluster.sets is a rows-by-components matrix. A single component is (n, 1);
+    # squeezing that axis turns it into a flat list of dataset indices.
+    if field == "sets":
+        if array.ndim < 2:
+            return array.reshape(-1, 1)
+        return array
     squeezed = np.squeeze(array)
     if squeezed.shape == ():
         return _python_scalar(squeezed)

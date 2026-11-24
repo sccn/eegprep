@@ -805,11 +805,14 @@ def _catalog_notice(catalog_info: dict[str, Any]) -> str:
     errors = catalog_info.get("catalog_errors") or ()
     if errors:
         return f"Catalog unavailable from {source}: {'; '.join(errors)}"
-    return (
-        f"Catalog source: {source}. "
-        f"{catalog_info.get('catalog_entry_count', 0)} curated entr"
-        f"{'y' if catalog_info.get('catalog_entry_count', 0) == 1 else 'ies'} loaded."
-    )
+    count = int(catalog_info.get("catalog_entry_count") or 0)
+    message = f"Catalog source: {source}. {count} curated entr{'y' if count == 1 else 'ies'} loaded."
+    if count == 0:
+        message += (
+            " Third-party extensions are pip packages discovered through entry points. "
+            "See the extension curation guide for how to find and install one."
+        )
+    return message
 
 
 def _install_guidance(

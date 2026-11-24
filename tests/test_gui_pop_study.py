@@ -6,6 +6,7 @@ import time
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.studyfunc.pop_addindepvar import (
     apply_addindepvar_combine,
@@ -13,6 +14,7 @@ from eegprep.functions.studyfunc.pop_addindepvar import (
     pop_addindepvar_dialog_spec,
 )
 from eegprep.functions.studyfunc.pop_study import pop_study, pop_study_dialog_spec
+from eegprep.functions.studyfunc.std_editset import std_editset
 from eegprep.functions.studyfunc.pop_studydesign import (
     apply_studydesign_add,
     apply_studydesign_delete,
@@ -83,10 +85,11 @@ def test_pop_study_gui_updates_metadata_and_returns_python_history():
     assert edited["datasetinfo"][0]["subject"] == "S02"
     assert edited["datasetinfo"][0]["session"] == 2
     assert edited_alleeg[0]["condition"] == "standard"
-    assert "commands=" in command
-    ast.parse(command)
-    namespace = {"STUDY": study, "ALLEEG": alleeg, "pop_study": pop_study}
-    exec(command, namespace)
+    assert "'commands'" in command
+    python_command = _console_python_command(command)
+    ast.parse(python_command)
+    namespace = {"STUDY": study, "ALLEEG": alleeg, "std_editset": std_editset}
+    exec(python_command, namespace)
     assert namespace["STUDY"]["datasetinfo"][0]["subject"] == "S02"
     assert namespace["ALLEEG"][0]["condition"] == "standard"
 
@@ -107,7 +110,7 @@ def test_pop_study_gui_ignores_untouched_components_button_label():
 
     assert edited["datasetinfo"][0]["subject"] == "S02"
     assert "comps" not in command
-    ast.parse(command)
+    ast.parse(_console_python_command(command))
 
 
 def test_pop_study_gui_records_selected_components():
@@ -124,8 +127,8 @@ def test_pop_study_gui_records_selected_components():
     edited, _edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer, return_com=True)
 
     assert edited["datasetinfo"][0]["comps"] == [1, 2]
-    assert "'comps', [1, 2]" in command
-    ast.parse(command)
+    assert "'comps', [1 2]" in command
+    ast.parse(_console_python_command(command))
 
 
 def test_pop_study_dialog_spec_handles_numpy_component_lists():
@@ -150,7 +153,7 @@ def test_pop_study_gui_clear_resets_components_to_all():
 
     assert edited["datasetinfo"][0]["comps"] == []
     assert "'comps', []" in command
-    ast.parse(command)
+    ast.parse(_console_python_command(command))
 
 
 def test_pop_study_component_selection_propagates_to_same_recording_rows():
@@ -691,7 +694,7 @@ def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
     assert edited["design"][1]["name"] == "Renamed design"
     assert (tmp_path / "designs.study").is_file()
     assert "pop_savestudy" in command
-    ast.parse(command)
+    ast.parse("\n".join(_console_python_command(line) for line in command.splitlines() if line.strip()))
     dialog.close()
 
     def cancel(child):

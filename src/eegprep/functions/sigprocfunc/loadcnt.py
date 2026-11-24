@@ -474,15 +474,13 @@ def _read_events(
     for fields in parser.iter_unpack(payload):
         stimulus, keyboard, keypad_byte, stored_offset = fields[:4]
         if event_type == 3:
-            # Type 3 stores a zero-based global sample frame rather than a
-            # byte offset. Normalize every table type to a 1-based sample.
-            sample_number = float(stored_offset) + 1.0
+            sample_number = float(stored_offset)
         else:
             sample_number = (float(stored_offset) - data_offset) / (channels * bytes_per_sample)
         if sample_number != int(sample_number):
             raise ValueError("CNT event offset is not aligned to a complete channel frame")
         selected_sample = sample_number - first_sample
-        if selected_sample < 1 or selected_sample > sample_count:
+        if selected_sample < 0 or selected_sample >= sample_count:
             continue
         event = {
             "stimtype": int(stimulus),

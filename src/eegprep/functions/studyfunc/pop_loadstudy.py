@@ -15,7 +15,7 @@ from eegprep.functions.adminfunc.storage import storedisk_enabled
 from eegprep.functions.popfunc._matlab_fields import convert_matlab
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import build_matlab_call, ensure_study
 from eegprep.functions.studyfunc.std_checkfiles import std_checkfiles
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
@@ -94,10 +94,12 @@ def pop_loadstudy(
     study, alleeg = std_checkset(study, alleeg)
     std_checkfiles(study, alleeg)
     study["saved"] = "yes"
-    command_kwargs: dict[str, Any] = {"filename": path.name, "filepath": str(path.parent)}
-    if not load_datasets:
-        command_kwargs["load_datasets"] = False
-    command = build_python_call(("STUDY", "ALLEEG"), "pop_loadstudy", **command_kwargs)
+    command = build_matlab_call(
+        ("STUDY", "ALLEEG"),
+        "pop_loadstudy",
+        filename=path.name,
+        filepath=str(path.parent),
+    )
     return (study, alleeg, command) if return_com else (study, alleeg)
 
 
@@ -109,7 +111,9 @@ def _study_path(filename: str | Path, filepath: str | Path | None) -> Path:
 
 
 def _read_study(path: Path) -> dict[str, Any]:
-    header = path.read_bytes()[: len(_MATLAB_HEADER)]
+    header = path.read_bytes()[:128]
+    if header.startswith(b"MATLAB 7.3"):
+        return _study_from_mat73(path)
     if header.startswith(_MATLAB_HEADER):
         return _study_from_mat(path)
     with path.open(encoding="utf-8") as stream:
@@ -117,6 +121,23 @@ def _read_study(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("STUDY file must contain a JSON object")
     return payload
+
+
+def _study_from_mat73(path: Path) -> dict[str, Any]:
+    import h5py
+
+    from eegprep.functions.popfunc.pop_loadset_h5 import _read_value
+
+    with h5py.File(path, "r") as handle:
+        if "STUDY" not in handle:
+            raise ValueError(f"{path} does not contain a STUDY variable")
+        group = handle["STUDY"]
+        study = _read_value(group, "STUDY")
+        if isinstance(study, list):
+            study = study[0] if len(study) == 1 and isinstance(study[0], dict) else {}
+    if not isinstance(study, dict):
+        raise ValueError(f"{path} does not contain a STUDY structure")
+    return _normalize_loaded_study(study)
 
 
 def _study_from_mat(path: Path) -> dict[str, Any]:
@@ -144,6 +165,17 @@ def _normalize_loaded_study(study: dict[str, Any]) -> dict[str, Any]:
     for field in ("notes", "history", "filename", "filepath", "name", "task", "saved"):
         if field in study:
             study[field] = _text(study[field])
+    for group in study.get("changrp") or []:
+        if isinstance(group, dict) and isinstance(group.get("inds"), (int, float, np.integer, np.floating)):
+            group["inds"] = [int(group["inds"])]
+    clusters = study.get("cluster")
+    if isinstance(clusters, list):
+        for cluster in clusters:
+            if not isinstance(cluster, dict):
+                continue
+            for field in ("comps", "sets", "child", "parent", "allinds", "setinds"):
+                if isinstance(cluster.get(field), np.ndarray):
+                    cluster[field] = _loaded_cluster_field(cluster[field], field=field)
     designs = study.get("design")
     if isinstance(designs, list):
         for design in designs:
@@ -156,6 +188,16 @@ def _normalize_loaded_study(study: dict[str, Any]) -> dict[str, Any]:
             if isinstance(include, np.ndarray) and include.size == 0:
                 design["include"] = []
     return study
+
+
+def _loaded_cluster_field(array: np.ndarray, *, field: str) -> list[Any]:
+    if array.size == 0:
+        return []
+    if field != "comps" and array.ndim == 2:
+        return array.tolist()
+    if array.ndim > 2 and min(array.shape[:2]) > 1:
+        return array.tolist()
+    return array.reshape(-1, order="F").tolist()
 
 
 def _as_list(value: Any, *, wrap_dict: bool) -> Any:
