@@ -128,8 +128,9 @@ def _plot_channel_indices(plotchans, located, n_channels):
     """Return sorted 0-based channels to draw.
 
     Empty ``plotchans`` means every located channel. Otherwise the values
-    must be integers in ``0 .. n_channels - 1`` and are intersected with the
-    located channels, matching ``topoplot.m`` lines 703-716.
+    are 1-based integers in ``1 .. n_channels``. They are converted to
+    0-based indices and intersected with the located channels, matching
+    ``topoplot.m`` lines 703-716.
     """
     located = np.asarray(located, dtype=int)
     if plotchans is None or np.asarray(plotchans).size == 0:
@@ -137,17 +138,17 @@ def _plot_channel_indices(plotchans, located, n_channels):
     requested = np.asarray(plotchans, dtype=float).reshape(-1)
     if not np.all(np.isfinite(requested)) or np.any(requested != np.trunc(requested)):
         raise ValueError(
-            "topoplot: plotchans must be integer 0-based channel indices. "
+            "topoplot: plotchans must be integer 1-based channel indices. "
             f"Got {np.asarray(plotchans).reshape(-1).tolist()}. "
-            "Pass whole indices such as [0, 2, 5]."
+            "Pass whole indices such as [1, 3, 6]."
         )
     requested = requested.astype(int)
-    if np.any(requested < 0) or np.any(requested >= n_channels):
+    if np.any(requested < 1) or np.any(requested > n_channels):
         raise ValueError(
-            f"topoplot: plotchans must be 0-based indices from 0 through {n_channels - 1}. "
-            f"Got {requested.tolist()}. Pass the channel indices to include, for example [0, 2]."
+            f"topoplot: plotchans must be 1-based indices in 1..{n_channels}. "
+            f"Got {requested.tolist()}. Pass the channel indices to include, for example [1, 3]."
         )
-    return np.intersect1d(requested, located)
+    return np.intersect1d(requested - 1, located)
 
 
 def _require_channel_locations(chan_locs) -> None:
@@ -175,9 +176,9 @@ def topoplot(datavector, chan_locs, **kwargs):
         - noplot : str or tuple, default 'off'
         - plotgrid : str, default 'off'
         - plotchans : sequence of int, default []
-          0-based channel indices to include. Empty draws every channel that
-          has ``theta``. A single index is applied the same way. EEGLAB's
-          ``plotchans`` is 1-based. One remaining location raises
+          1-based channel indices to include, from 1 through the channel
+          count. Empty draws every channel that has ``theta``. A single
+          index is applied the same way. One remaining location raises
           ``ValueError`` from ``griddata_v4``. EEGLAB ``topoplot`` follows
           MATLAB ``griddata`` and returns a non-finite map instead.
         - ELECTRODES : str, default 'on'
@@ -261,7 +262,6 @@ def topoplot(datavector, chan_locs, **kwargs):
     )
     Th = np.deg2rad(Th)
     allchansind = list(range(len(Th)))
-    # topoplot.m:703-781, with plotchans 0-based.
     plotchans = _plot_channel_indices(plotchans, indices, len(tmpeloc))
     if len(tmpeloc) == len(datavector) + 1 and plotchans.size and int(plotchans[-1]) == len(tmpeloc) - 1:
         plotchans = plotchans[:-1]

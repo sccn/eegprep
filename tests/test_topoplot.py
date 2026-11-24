@@ -308,7 +308,7 @@ class TestTopoplot(unittest.TestCase):
         np.testing.assert_allclose(actual, expected, equal_nan=True)
 
     def test_single_plot_channel_asks_for_two_locations(self):
-        for index in (0, 4):
+        for index in (1, 5):
             with self.subTest(index=index):
                 with self.assertRaisesRegex(ValueError, _TWO_LOCATIONS_ERROR):
                     topoplot(self.datavector, self.chan_locs, noplot="on", plotchans=[index])
@@ -316,19 +316,31 @@ class TestTopoplot(unittest.TestCase):
             topoplot(np.array([self.datavector[0]]), [self.chan_locs[0]], noplot="on")
 
     def test_plotchans_keeps_the_requested_channels(self):
-        keep = [0, 5, 8]
+        keep = [1, 6, 9]
+        selected = [index - 1 for index in keep]
         _, actual, _, _, _ = topoplot(self.datavector, self.chan_locs, noplot="on", plotchans=keep)
         _, expected, _, _, _ = topoplot(
-            self.datavector[keep],
-            [self.chan_locs[index] for index in keep],
+            self.datavector[selected],
+            [self.chan_locs[index] for index in selected],
+            noplot="on",
+        )
+        np.testing.assert_allclose(actual, expected, equal_nan=True)
+
+    def test_plotchans_includes_the_last_channel(self):
+        last = len(self.chan_locs)
+        selected = [0, last - 1]
+        _, actual, _, _, _ = topoplot(self.datavector, self.chan_locs, noplot="on", plotchans=[1, last])
+        _, expected, _, _, _ = topoplot(
+            self.datavector[selected],
+            [self.chan_locs[index] for index in selected],
             noplot="on",
         )
         np.testing.assert_allclose(actual, expected, equal_nan=True)
 
     def test_plotchans_outside_the_channel_list_names_the_fix(self):
         message = (
-            r"topoplot: plotchans must be 0-based indices from 0 through 8\. "
-            r"Got \[0, 99\]\. Pass the channel indices to include, for example \[0, 2\]\."
+            r"topoplot: plotchans must be 1-based indices in 1\.\.9\. "
+            r"Got \[0, 99\]\. Pass the channel indices to include, for example \[1, 3\]\."
         )
         with self.assertRaisesRegex(ValueError, message):
             topoplot(self.datavector, self.chan_locs, noplot="on", plotchans=[0, 99])

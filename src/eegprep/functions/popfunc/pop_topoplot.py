@@ -18,7 +18,7 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_map_data, component_maps as ica_component_maps, show_figures
 from eegprep.functions.popfunc.plot_utils import history_command as plot_history_command
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
 
@@ -500,8 +500,21 @@ def _parse_numeric_sequence(value: Any) -> np.ndarray:
     return np.asarray(parse_numeric_sequence(value, dtype=float), dtype=float)
 
 
+_OPTION_TOKEN = re.compile(r"'([^']*)'|\"([^\"]*)\"|\[([^\[\]]*)\]|([^,\s]+)")
+
+
 def _parse_options_text(text: str) -> dict[str, Any]:
-    tokens = parse_text_tokens(text)
+    tokens = []
+    for match in _OPTION_TOKEN.finditer(str(text).strip()):
+        quoted, double, bracket, bare = match.groups()
+        if bracket is not None:
+            tokens.append(f"[{bracket}]")
+        elif quoted is not None:
+            tokens.append(quoted)
+        elif double is not None:
+            tokens.append(double)
+        else:
+            tokens.append(bare)
     if not tokens:
         return {}
     if len(tokens) % 2:

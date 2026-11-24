@@ -10,6 +10,7 @@ from eegprep.functions.popfunc.pop_topoplot import (
     _erp_maps,
     _latency_positions,
     _parse_items_text,
+    _parse_options_text,
     plot_channel_locations,
     pop_topoplot,
     pop_topoplot_dialog_spec,
@@ -256,6 +257,23 @@ def test_pop_topoplot_latency_positions_use_matlab_rounding():
     eeg["pnts"] = 4
 
     assert _latency_positions(eeg, np.array([500.0, 2500.0])).tolist() == [1, 3]
+
+
+def test_pop_topoplot_option_text_plotchans_selects_those_channels():
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=8, n_trials=1)
+    options = _parse_options_text("'plotchans', [1 2 3]")
+    assert options["plotchans"] == [1.0, 2.0, 3.0]
+    figures = pop_topoplot(eeg, typeplot=1, items=[0], plot="off", colorbar="off", **options)
+    values = np.asarray(eeg["data"])[:, 0]
+    _handle, expected, _plotrad, _xi, _yi = topoplot(
+        values[:3],
+        eeg["chanlocs"][:3],
+        noplot="on",
+        electrodes="off",
+    )
+    actual = np.asarray(figures[0].axes[0].images[0].get_array())
+    np.testing.assert_allclose(actual, expected, equal_nan=True)
+    plt.close(figures[0])
 
 
 def test_pop_topoplot_gui_parses_eeglab_style_options():

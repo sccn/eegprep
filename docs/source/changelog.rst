@@ -18,7 +18,7 @@ Unreleased
   is omitted.
 - ``topoplot`` averages sensors that MATLAB ``griddata`` treats as the same
   point. A separation equal to the axis tolerance stays separate, matching
-  ``mergesimpts`` strict ``<``. ``plotchans`` selects 0-based channel indices,
+  ``mergesimpts`` strict ``<``. ``plotchans`` selects 1-based channel indices,
   including a single index. A non-finite value drops that channel from the
   locations and the values together. One extra channel location is the common
   reference and is left off the map. One distinct location raises
