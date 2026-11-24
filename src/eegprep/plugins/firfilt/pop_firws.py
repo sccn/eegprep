@@ -106,7 +106,15 @@ def pop_firws_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Window type:"),
             ControlSpec(
                 "popupmenu",
-                "|".join(["Rectangular", "Hann", "Hamming", "Blackman", "Kaiser"]),
+                "|".join(
+                    [
+                        "Rectangular (PB dev=0.089, SB att=-21dB)",
+                        "Hann (PB dev=0.006, SB att=-44dB)",
+                        "Hamming (PB dev=0.002, SB att=-53dB)",
+                        "Blackman (PB dev=0.0002, SB att=-74dB)",
+                        "Kaiser",
+                    ]
+                ),
                 tag="wtype",
                 value=3,
                 callback=CallbackSpec(

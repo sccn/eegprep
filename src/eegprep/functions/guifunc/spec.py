@@ -82,6 +82,7 @@ class DialogSpec:
     # Size every control by its geometry weight alone, as EEGLAB's supergui does,
     # instead of by its content; column_spacing is the gap between controls in a row.
     weighted_columns: bool = False
+    validate: Any = None
     column_spacing: int = 4
 
 

@@ -58,6 +58,11 @@ def ensure_model_list(EEG: dict, count: int) -> list[dict]:
     return models
 
 
+def _flat_dipole_rows(value) -> list:
+    """Store dipole coordinates as rows of three, including a single dipole."""
+    return np.asarray(value, dtype=float).reshape(-1, 3).tolist()
+
+
 def empty_model(component: int) -> dict:
     """Return an empty EEGLAB dipole model."""
     return dict(posxyz=[], momxyz=[], rv=1.0, diffmap=[], sourcepot=[], datapot=[], component=component)
@@ -71,8 +76,8 @@ def store_source(EEG: dict, cfg: dict, source: dict) -> dict:
         dip = source["dip"][index]
         model = models[component - 1]
         model.update(
-            posxyz=dip["pos"].tolist(),
-            momxyz=dip["mom"].reshape(-1, 3).tolist(),
+            posxyz=_flat_dipole_rows(dip["pos"]),
+            momxyz=_flat_dipole_rows(dip["mom"]),
             rv=dip["rv"],
             diffmap=(source["Vmodel"][:, index] - source["Vdata"][:, index]).tolist(),
             sourcepot=source["Vmodel"][:, index].tolist(),

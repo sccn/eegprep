@@ -274,6 +274,7 @@ exclude = ["eegprep.eeglab*"]
 [tool.setuptools.package-data]
 "eegprep" = [
   "resources/**/*.elc",
+  "resources/**/*.elp",
   "resources/**/*.json",
   "resources/**/*.locs",
   "resources/**/*.m",

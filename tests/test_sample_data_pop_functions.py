@@ -14,7 +14,6 @@ from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
 from eegprep.functions.miscfunc.misc import finite_matmul
-from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
@@ -179,8 +178,10 @@ def test_pop_select_current_suite_combines_time_trial_and_channel_selection():
 
     selected = pop_select(eeg, time=[0.5, 1.0], notrial=[2, 3, 4], nochannel=[30])
 
-    points, _ = eeg_lat2point([0.5, 1.0], [1, 1], eeg["srate"], [eeg["xmin"], eeg["xmax"]])
-    start, stop = int(points[0]) - 1, int(points[1])
+    srate = float(eeg["srate"])
+    time0 = int(1.0 - float(eeg["xmin"]) * srate)
+    start = time0 + int(round(0.5 * srate)) - 1
+    stop = time0 + int(round(srate - 1))
     keep_channels = [index for index in range(eeg["nbchan"]) if index != 30]
     keep_trials = [index for index in range(eeg["trials"]) if index not in {1, 2, 3}]
     expected = eeg["data"][keep_channels, start:stop, :][:, :, keep_trials]
@@ -188,7 +189,7 @@ def test_pop_select_current_suite_combines_time_trial_and_channel_selection():
     assert selected["nbchan"] == eeg["nbchan"] - 1
     assert selected["trials"] == eeg["trials"] - 3
     assert selected["xmin"] == 0.5
-    assert selected["xmax"] == 1.0
+    assert selected["xmax"] == 127 / 128
 
 
 def test_pop_resample_halves_sample_rate_and_event_latencies(sample_eeg):
@@ -431,7 +432,7 @@ def test_pop_subcomp_removes_requested_sample_component(sample_eeg_with_ica):
     assert out["icaweights"].shape == (31, 32)
     assert out["icawinv"].shape == (32, 31)
     assert np.isfinite(out["data"]).all()
-    assert command == "EEG = pop_subcomp(EEG, [1], 0);"
+    assert command == "EEG = pop_subcomp(EEG, [1], 0, 0);"
 
 
 def test_pop_subcomp_empty_component_list_tolerates_an_empty_reject_array(sample_eeg_with_ica):

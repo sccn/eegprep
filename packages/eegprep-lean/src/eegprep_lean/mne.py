@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from .channels import stored_channel_type
 from .eeg import microvolts_per, require_physical
 from .extras import is_missing_extra, missing_extra_error
 from .window import Window
@@ -17,13 +18,40 @@ from .window import Window
 if TYPE_CHECKING:
     import mne
 
+# BIDS channels.tsv names whose MNE type is not the lowercased name.
+# mne_bids.utils._get_ch_type_mapping(fro="bids", to="mne").
+_BIDS_MNE_TYPES = {
+    "heog": "eog",
+    "veog": "eog",
+    "trig": "stim",
+    "temp": "temperature",
+    "nirs": "fnirs_cw_amplitude",
+    "nirscwamplitude": "fnirs_cw_amplitude",
+    "nirscwopticaldensity": "fnirs_od",
+    "nirscwhbo": "hbo",
+    "nirscwhbr": "hbr",
+}
+
 
 def to_mne_raw(window: Window, *, ch_types: str | Sequence[str] | None = None) -> "mne.io.RawArray":
     """Turn a window into an ``mne.io.RawArray`` in volts, named by the window's labels.
 
-    ``ch_types`` is one MNE channel type for every channel or one per channel, and
-    defaults to ``"eeg"``. The sampling frequency is the window's ``rate``. Units V, mV
-    and uV are converted; any other is refused with ``ValueError``. Needs the ``mne`` extra.
+    Channel types come from ``window.types`` when ``ch_types`` is left unset. Each value
+    is matched, ignoring case, against the types ``mne.create_info`` accepts
+    (:func:`mne.io.get_channel_type_constants`). ``EOG`` is ``eog``, ``ECG`` is ``ecg``,
+    ``EMG`` is ``emg``, ``MISC`` is ``misc`` and ``STIM`` is ``stim``. BIDS names that
+    are not themselves MNE types follow MNE-BIDS: ``HEOG`` and ``VEOG`` are ``eog``,
+    ``TRIG`` is ``stim``, ``TEMP`` is ``temperature``, and the NIRS names map to
+    ``fnirs_cw_amplitude``, ``fnirs_od``, ``hbo`` and ``hbr``. A declared type still
+    outside that set, such as ``EKG``, becomes ``misc``, so a later EEG pick leaves it
+    out. MNE's EEGLAB reader instead warns and marks that channel as EEG. A blank type,
+    ``n/a`` or ``nan`` is ``eeg``, as is a window that carries no types at all.
+
+    ``ch_types`` overrides that: one MNE type for every channel, or one per channel. A
+    value outside that set, or the wrong count, raises ``ValueError``.
+
+    The sampling frequency is the window's ``rate``. Units V, mV and uV are converted;
+    any other is refused with ``ValueError``. Needs the ``mne`` extra.
     """
     try:
         import mne
@@ -34,5 +62,71 @@ def to_mne_raw(window: Window, *, ch_types: str | Sequence[str] | None = None) -
 
     labels = require_physical(window)
     volts = window.data * (microvolts_per(window.unit) * 1e-6)
-    info = mne.create_info(list(labels), sfreq=float(window.rate), ch_types="eeg" if ch_types is None else ch_types)
+    accepted = frozenset(mne.io.get_channel_type_constants(include_defaults=True))
+    info = mne.create_info(
+        list(labels),
+        sfreq=float(window.rate),
+        ch_types=_mne_channel_types(window, ch_types, len(labels), accepted),
+    )
     return mne.io.RawArray(volts, info, verbose=False)
+
+
+def _mne_channel_types(
+    window: Window,
+    ch_types: str | Sequence[str] | None,
+    n_channels: int,
+    accepted: frozenset[str],
+) -> str | list[str]:
+    if ch_types is not None:
+        return _explicit_mne_types(ch_types, n_channels, accepted)
+    if window.types is None:
+        return "eeg"
+    if len(window.types) != n_channels:
+        raise ValueError(
+            f"to_mne_raw found {len(window.types)} entries in Window.types for {n_channels} channels. "
+            "Set Window.types to one string per channel, or leave types unset."
+        )
+    return [_mne_channel_type(channel_type, accepted) for channel_type in window.types]
+
+
+def _explicit_mne_types(ch_types: str | Sequence[str], n_channels: int, accepted: frozenset[str]) -> str | list[str]:
+    if isinstance(ch_types, str):
+        items = [ch_types]
+        single = True
+    else:
+        items = list(ch_types)
+        single = False
+        if len(items) != n_channels:
+            raise ValueError(
+                f"to_mne_raw got {len(items)} ch_types for {n_channels} channels. "
+                "Pass one MNE channel type, or one per channel, such as "
+                "'eeg', 'eog', 'ecg', 'emg', 'misc', or 'stim'."
+            )
+    normalized = [_require_mne_type(item, accepted) for item in items]
+    return normalized[0] if single else normalized
+
+
+def _require_mne_type(channel_type: object, accepted: frozenset[str]) -> str:
+    if isinstance(channel_type, str):
+        candidate = channel_type.strip().lower()
+        if candidate in accepted:
+            return candidate
+    raise ValueError(
+        f"to_mne_raw cannot use channel type {channel_type!r}. "
+        "Pass an MNE channel type such as 'eeg', 'eog', 'ecg', 'emg', 'misc', or 'stim'."
+    )
+
+
+def _mne_channel_type(channel_type: object, accepted: frozenset[str]) -> str:
+    if not isinstance(channel_type, str):
+        raise ValueError(
+            f"to_mne_raw found channel type {channel_type!r}, which is not text. "
+            "Set each Window.types entry to a string such as 'EEG', 'EOG', or 'ECG'."
+        )
+    stored = stored_channel_type(channel_type)
+    if not stored:
+        return "eeg"
+    candidate = _BIDS_MNE_TYPES.get(stored.lower(), stored.lower())
+    if candidate in accepted:
+        return candidate
+    return "misc"

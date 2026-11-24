@@ -22,6 +22,7 @@ class MenuItemSpec:
     checked: bool = False
     visibility: Visibility = "always"
     origin: str = "core"
+    tooltip: str = ""
     children: tuple["MenuItemSpec", ...] = field(default_factory=tuple)
 
     def with_children(self, children: tuple["MenuItemSpec", ...]) -> "MenuItemSpec":
@@ -40,6 +41,7 @@ def menu_item(
     checked: bool = False,
     visibility: Visibility = "always",
     origin: str = "core",
+    tooltip: str = "",
     children: tuple[MenuItemSpec, ...] | list[MenuItemSpec] = (),
 ) -> MenuItemSpec:
     """Create a menu item using compact call sites."""
@@ -53,6 +55,7 @@ def menu_item(
         checked=checked,
         visibility=visibility,
         origin=origin,
+        tooltip=tooltip,
         children=tuple(children),
     )
 

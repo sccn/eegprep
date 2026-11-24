@@ -50,6 +50,7 @@ _OPTION_NAMES = {
     "children",
     "noui",
     "show",
+    "data2_color",
 }
 
 
@@ -135,6 +136,7 @@ class BrowserState:
     noui: bool = False
     accepted: bool = False
     cancelled: bool = False
+    data2_color: tuple[float, float, float] = (210 / 255, 35 / 255, 35 / 255)
 
     def clamp_to_data(self, browser_data: BrowserData) -> None:
         """Clamp visible time and channel offsets to the available data."""
@@ -250,6 +252,9 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
         mark_color=_normalize_rgb(options["wincolor"], "wincolor"),
         setelectrode=bool(options["setelectrode"]),
         noui=_on_off(options["noui"], "noui"),
+        data2_color=_normalize_rgb(options["data2_color"], "data2_color")
+        if options.get("data2_color") is not None
+        else (210 / 255, 35 / 255, 35 / 255),
     )
     state.clamp_to_data(browser_data)
     return BrowserModel(browser_data, state)

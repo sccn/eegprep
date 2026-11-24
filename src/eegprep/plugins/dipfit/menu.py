@@ -25,6 +25,12 @@ def dipfit_menu() -> MenuItemSpec:
                 action="pop_dipfit_headmodel",
                 userdata="startup:off;study:off",
                 origin="dipfit",
+                enabled=False,
+                tooltip=(
+                    "pop_dipfit_headmodel: creating a boundary-element head model from an MRI is not yet available. "
+                    "Use Head model and settings and choose Template Boundary Element Model (MNI) "
+                    "or Template Spherical Four-Shell (BESA)."
+                ),
             ),
             menu_item(
                 "Component dipole coarse fit",
@@ -52,6 +58,11 @@ def dipfit_menu() -> MenuItemSpec:
                 action="pop_dipfit_loreta",
                 userdata="startup:off",
                 origin="dipfit",
+                enabled=False,
+                tooltip=(
+                    "pop_dipfit_loreta: eLORETA is not yet available. "
+                    "Use Component dipole autofit for an equivalent dipole or a symmetric pair."
+                ),
             ),
         ],
     )

@@ -9,7 +9,6 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.plugins.ICLabel.eeg_icalabelstat import eeg_icalabelstat
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
 
@@ -157,12 +156,8 @@ def _threshold_text(value: float) -> str:
 
 
 def _history_command(thresholds: np.ndarray) -> str:
-    return f"EEG = pop_icflag(EEG, thresholds={_history_thresholds(thresholds)});"
-
-
-def _history_thresholds(thresholds: np.ndarray) -> str:
-    values = [
-        [None if np.isnan(value) else float(value) for value in row]
-        for row in np.asarray(thresholds, dtype=float).tolist()
-    ]
-    return format_history_value(values, cell_for_sequence=None)
+    rows = []
+    for row in np.asarray(thresholds, dtype=float):
+        cells = ["NaN" if np.isnan(value) else f"{float(value):g}" for value in row]
+        rows.append(" ".join(cells))
+    return "EEG = pop_icflag(EEG, [" + ";".join(rows) + "]);"

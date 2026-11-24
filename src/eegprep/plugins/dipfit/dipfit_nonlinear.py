@@ -6,6 +6,7 @@ from eegprep.plugins.dipfit.dipfit_gridsearch import fitting_config, store_sourc
 from eegprep.plugins.dipfit.eeglab2fieldtrip import eeglab2fieldtrip
 from eegprep.plugins.dipfit.ft_dipolefitting import ft_dipolefitting
 from eegprep.plugins.dipfit._utils import normalize_model_list
+from eegprep.plugins.dipfit.eeg_compatlas import eeg_compatlas
 
 
 def dipfit_nonlinear(EEG: dict, *, component: int, nonlinear="yes", symmetry=None, maxiter=None) -> dict:
@@ -27,4 +28,10 @@ def dipfit_nonlinear(EEG: dict, *, component: int, nonlinear="yes", symmetry=Non
     )
     if maxiter is not None:
         cfg["dipfit"] = dict(cfg.get("dipfit", {}), maxiter=maxiter)
-    return store_source(EEG, cfg, ft_dipolefitting(cfg, eeglab2fieldtrip(EEG)))
+    fitted = store_source(EEG, cfg, ft_dipolefitting(cfg, eeglab2fieldtrip(EEG)))
+    dipfit = fitted.get("dipfit") or {}
+    coordformat = str(dipfit.get("coordformat", "")).lower()
+    transform = np.asarray(dipfit.get("coord_transform", []), dtype=float).size
+    if coordformat in {"mni", "spherical"} or transform:
+        return eeg_compatlas(fitted, components=[component])
+    return fitted

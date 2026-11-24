@@ -7,6 +7,7 @@ runs where mne is absent.
 
 from __future__ import annotations
 
+import dataclasses
 import sys
 
 import pytest
@@ -70,6 +71,71 @@ class TestWithMne:
     def test_ch_types_can_be_one_string_or_one_per_channel(self) -> None:
         assert to_mne_raw(window(), ch_types="eog").get_channel_types() == ["eog"] * 3
         assert to_mne_raw(window(), ch_types=["eeg", "eog", "eeg"]).get_channel_types() == ["eeg", "eog", "eeg"]
+
+    def test_eog_and_ecg_channels_keep_their_mne_types(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG", "EOG", "ECG"))
+
+        assert to_mne_raw(typed).get_channel_types() == ["eeg", "eog", "ecg"]
+
+    def test_window_types_are_matched_ignoring_case(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG", "Eog", "ecg"))
+
+        assert to_mne_raw(typed).get_channel_types() == ["eeg", "eog", "ecg"]
+
+    def test_ch_types_overrides_window_types(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG", "EOG", "ECG"))
+
+        assert to_mne_raw(typed, ch_types="misc").get_channel_types() == ["misc", "misc", "misc"]
+        assert to_mne_raw(typed, ch_types=["stim", "eeg", "emg"]).get_channel_types() == ["stim", "eeg", "emg"]
+
+    def test_a_types_length_mismatch_names_to_mne_raw(self) -> None:
+        typed = dataclasses.replace(window(), types=("EEG",))
+
+        with pytest.raises(ValueError, match=r"to_mne_raw found 1 entries in Window.types for 3 channels"):
+            to_mne_raw(typed)
+
+    def test_an_empty_type_is_eeg_only_in_mne(self) -> None:
+        typed = dataclasses.replace(window(), types=("", "n/a", "ECG"))
+
+        assert to_mne_raw(typed).get_channel_types() == ["eeg", "eeg", "ecg"]
+
+    def test_emg_misc_stim_and_an_unknown_type(self) -> None:
+        typed = dataclasses.replace(
+            window(
+                data=[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]],
+                labels=("EMG", "MISC", "STIM", "EKG"),
+            ),
+            types=("EMG", "MISC", "STIM", "EKG"),
+        )
+
+        assert to_mne_raw(typed).get_channel_types() == ["emg", "misc", "stim", "misc"]
+
+    @pytest.mark.parametrize(
+        ("declared", "mne_type"),
+        [
+            ("HEOG", "eog"),
+            ("VEOG", "eog"),
+            ("TRIG", "stim"),
+            ("TEMP", "temperature"),
+            ("NIRS", "fnirs_cw_amplitude"),
+            ("NIRSCWAMPLITUDE", "fnirs_cw_amplitude"),
+            ("NIRSCWOPTICALDENSITY", "fnirs_od"),
+            ("NIRSCWHBO", "hbo"),
+            ("NIRSCWHBR", "hbr"),
+        ],
+    )
+    def test_bids_names_that_are_not_mne_types(self, declared: str, mne_type: str) -> None:
+        typed = dataclasses.replace(window(data=[[1.0, 2.0, 3.0, 4.0]], labels=(declared,)), types=(declared,))
+
+        assert to_mne_raw(typed).get_channel_types() == [mne_type]
+
+    def test_a_ch_types_argument_mne_does_not_have_names_to_mne_raw(self) -> None:
+        with pytest.raises(ValueError, match=r"to_mne_raw cannot use channel type 'not-a-type'"):
+            to_mne_raw(window(), ch_types="not-a-type")
+
+    def test_the_wrong_number_of_ch_types_names_to_mne_raw(self) -> None:
+        with pytest.raises(ValueError, match=r"to_mne_raw got 1 ch_types for 3 channels"):
+            to_mne_raw(window(), ch_types=["eeg"])
 
     @pytest.mark.parametrize("unit", ["uV", "\u00b5V", "\u03bcV"], ids=["ascii-u", "micro-sign", "greek-mu"])
     def test_every_spelling_of_microvolts_gives_the_same_volts(self, unit: str) -> None:

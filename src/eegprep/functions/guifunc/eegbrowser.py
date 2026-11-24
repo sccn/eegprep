@@ -996,7 +996,10 @@ class EEGBrowserCanvas(_QWidget):
         curve = self.plot.plot(
             x_dec,
             self._trace_to_axis_y(y_dec, screen_index),
-            pen=plot_graphics.mkPen((210, 35, 35), width=1),
+            pen=plot_graphics.mkPen(
+                tuple(int(round(channel * 255)) for channel in self.model.state.data2_color),
+                width=1,
+            ),
             skipFiniteCheck=True,
         )
         curve.setClipToView(True)

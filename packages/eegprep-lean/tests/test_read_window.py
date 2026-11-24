@@ -41,6 +41,7 @@ np = pytest.importorskip("numpy", reason="needs the zarr extra")
 
 from zarr.storage import LocalStore  # noqa: E402
 
+from eegprep_lean.eeg import to_eeg  # noqa: E402
 from eegprep_lean.index import ChannelGroup, DatasetIndex, IndexError_, Store  # noqa: E402
 import eegprep_lean  # noqa: E402
 from eegprep_lean.transport import UrllibTransport  # noqa: E402
@@ -62,10 +63,14 @@ SECOND_STORE_PATH = "sub-02/eeg/sub-02_task-test_eeg.set"
 SECOND_ZARR = "rec2.zarr"
 SLOW_GROUP, SLOW_RATE = "eeg_125hz", 125.0
 FAST_GROUP, FAST_RATE = "eeg_250hz", 250.0
+MIXED_ZARR = "mixed.zarr"
+MIXED_GROUP = "eeg_250hz"
+MIXED_STORE_PATH = "sub-03/eeg/sub-03_task-mixed_eeg.set"
 ZARR_PATH = "rec.zarr"
 SCALE = [2.0, 10.0, 100.0]
 OFFSET = [1.0, -5.0, 0.0]
 LABELS = ("E1", "E2", "E3")
+TYPES = ("EEG", "EEG", "ECG")
 UNIT = "uV"
 
 
@@ -125,7 +130,7 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
                 {
                     "label": LABELS[i],
                     "unit": UNIT,
-                    "channel_type": "EEG",
+                    "channel_type": TYPES[i],
                     "row_index": i,
                     "original_rate": ORIGINAL_RATE,
                     "target_rate": RATE,
@@ -192,6 +197,45 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
             }
         )
 
+    mixed_channels = [
+        {"label": "E1", "unit": UNIT, "channel_type": "EEG", "row_index": 0},
+        {"label": "E2", "unit": UNIT, "row_index": 1},
+        {"label": "E3", "unit": UNIT, "channel_type": "ECG", "row_index": 2},
+        {"label": "E4", "unit": UNIT, "channel_type": "EOG", "row_index": 3},
+        {"label": "E5", "unit": UNIT, "channel_type": "n/a", "row_index": 4},
+        {"label": "E6", "unit": UNIT, "channel_type": None, "row_index": 5},
+    ]
+    mixed = zarr.create_group(store=LocalStore(root / MIXED_ZARR), overwrite=True).create_group(MIXED_GROUP)
+    mixed.attrs.update(
+        {
+            "modality": "EEG",
+            "rate": RATE,
+            "original_rate": ORIGINAL_RATE,
+            "n_channels": 6,
+            "channels": [
+                {
+                    **entry,
+                    "original_rate": ORIGINAL_RATE,
+                    "target_rate": RATE,
+                    "usable_for_inference": True,
+                }
+                for entry in mixed_channels
+            ],
+        }
+    )
+    mixed_array = mixed.create_array("0", shape=(6, 8), dtype="int16", chunks=(6, 4))
+    mixed_array[:] = np.arange(48, dtype=np.int16).reshape(6, 8)
+    mixed_array.attrs.update(
+        {
+            "physical_formula": "physical = digital * scale + offset",
+            "scale": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            "offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "level": 0,
+            "rate": RATE,
+            "source_rate_hz": ORIGINAL_RATE,
+        }
+    )
+
     requested: list[tuple[str, str | None]] = []
     handler = type("Handler", (_RangeHandler,), {"root": root, "requested": requested})
     server = HTTPServer(("127.0.0.1", 0), handler)
@@ -201,7 +245,7 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
         dataset_id="xx099999",
         format_version=3,
         contract_base=f"http://127.0.0.1:{server.server_port}/",
-        store_count=2,
+        store_count=3,
         stores=(
             Store(
                 path="sub-01/eeg/sub-01_task-test_eeg.set",
@@ -230,6 +274,20 @@ def served(tmp_path_factory) -> tuple[DatasetIndex, Store, list[str]]:
                         n_view_levels=0,
                     )
                     for name, rate in ((SLOW_GROUP, SLOW_RATE), (FAST_GROUP, FAST_RATE))
+                ),
+            ),
+            Store(
+                path=MIXED_STORE_PATH,
+                zarr=MIXED_ZARR,
+                groups=(
+                    ChannelGroup(
+                        name=MIXED_GROUP,
+                        modality="EEG",
+                        rate=RATE,
+                        n_channels=6,
+                        n_samples=8,
+                        n_view_levels=0,
+                    ),
                 ),
             ),
         ),
@@ -284,6 +342,7 @@ class TestWhatTheWindowSaysAboutItself:
         window = read(index, store, start_sample=0, n_samples=4)
 
         assert window.labels == LABELS
+        assert window.types == TYPES
         assert window.rate == RATE
         assert window.original_rate == ORIGINAL_RATE
         assert window.was_resampled is True
@@ -325,6 +384,17 @@ class TestChannelSelection:
         assert window.channels == (2, 0)
         assert window.data.tolist() == [[_digital(2, 0), _digital(2, 1)], [_digital(0, 0), _digital(0, 1)]]
         assert window.labels == ("E3", "E1")
+        assert window.types == ("ECG", "EEG")
+
+    def test_a_channel_with_no_type_does_not_drop_the_typed_ones(self, served) -> None:
+        index, _, _ = served
+        store = index.store(MIXED_STORE_PATH)
+
+        window = read(index, store, start_sample=0, n_samples=2)
+
+        assert window.types == ("EEG", "", "ECG", "EOG", "", "")
+        eeg = to_eeg(window, dataset_id="xx099999", store=MIXED_STORE_PATH, index_digest="0" * 64)
+        assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "", "ECG", "EOG", "", ""]
 
     def test_a_slice_selects_channels_too(self, served) -> None:
         """`channels` takes a sequence, a slice, or None. The slice branch was reachable

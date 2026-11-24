@@ -694,43 +694,32 @@ def test_plot_off_builds_figure_without_a_window(sample_eeg, sample_epoch, monke
 
 
 def test_headplot_mesh_choice_restores_each_template_transform(sample_eeg):
-    class Text:
-        def __init__(self):
-            self.value = ""
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication, QComboBox, QLineEdit
 
-        def setText(self, value):
-            self.value = value
-
-    class Combo:
-        def __init__(self):
-            self.index = 0
-
-        def setCurrentIndex(self, index):
-            self.index = index
-
-        def count(self):
-            return 2
-
+    QApplication.instance() or QApplication([])
     spec = pop_headplot_dialog_spec(sample_eeg, typeplot=1)
     params = controls_by_tag(spec)["meshfile"].callback.params
-    transform = Text()
-    reference = Combo()
+    transform = QLineEdit()
+    reference = QComboBox()
+    reference.addItems(["template", "other"])
 
     QtDialogRenderer._set_headplot_mesh_choice(
         {"meshchanfile": reference, "transform": transform},
         params,
         1,
     )
-    assert transform.value == "0 -15 -15 0.05 0 -1.57 100 88 110"
-    assert reference.index == 1
+    assert transform.text() == "0 -15 -15 0.05 0 -1.57 100 88 110"
+    assert reference.currentIndex() == 1
 
     QtDialogRenderer._set_headplot_mesh_choice(
         {"meshchanfile": reference, "transform": transform},
         params,
         0,
     )
-    assert transform.value == "0 -10 0 -0.1 0 -1.6 1100 1100 1100"
-    assert reference.index == 0
+    assert transform.text() == "0 -10 0 -0.1 0 -1.6 1100 1100 1100"
+    assert reference.currentIndex() == 0
 
 
 def test_pop_plottopo_scalp_array_places_channels_on_correct_side(sample_epoch):
