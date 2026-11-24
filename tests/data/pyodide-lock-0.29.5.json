@@ -1,0 +1,1144 @@
+{
+  "info": {
+    "python": "3.13.2"
+  },
+  "packages": {
+    "affine": {
+      "version": "2.4.0"
+    },
+    "affine-tests": {
+      "version": "2.4.0"
+    },
+    "aiohappyeyeballs": {
+      "version": "2.6.1"
+    },
+    "aiohttp": {
+      "version": "3.11.13"
+    },
+    "aiohttp-tests": {
+      "version": "3.11.13"
+    },
+    "aiosignal": {
+      "version": "1.3.2"
+    },
+    "altair": {
+      "version": "6.0.0"
+    },
+    "annotated-types": {
+      "version": "0.7.0"
+    },
+    "annotated-types-tests": {
+      "version": "0.7.0"
+    },
+    "anyio": {
+      "version": "4.9.0"
+    },
+    "apsw": {
+      "version": "3.50.4.0"
+    },
+    "apsw-tests": {
+      "version": "3.50.4.0"
+    },
+    "argon2-cffi": {
+      "version": "23.1.0"
+    },
+    "argon2-cffi-bindings": {
+      "version": "21.2.0"
+    },
+    "asciitree": {
+      "version": "0.3.3"
+    },
+    "astropy": {
+      "version": "7.0.1"
+    },
+    "astropy-iers-data": {
+      "version": "0.2025.3.10.0.29.26"
+    },
+    "astropy-iers-data-tests": {
+      "version": "0.2025.3.10.0.29.26"
+    },
+    "asttokens": {
+      "version": "3.0.0"
+    },
+    "async-timeout": {
+      "version": "5.0.1"
+    },
+    "atomicwrites": {
+      "version": "1.4.1"
+    },
+    "attrs": {
+      "version": "25.2.0"
+    },
+    "audioop-lts": {
+      "version": "0.2.1"
+    },
+    "autograd": {
+      "version": "1.7.0"
+    },
+    "autograd-tests": {
+      "version": "1.7.0"
+    },
+    "awkward-cpp": {
+      "version": "47"
+    },
+    "b2d": {
+      "version": "0.7.4"
+    },
+    "bcrypt": {
+      "version": "4.3.0"
+    },
+    "beautifulsoup4": {
+      "version": "4.13.3"
+    },
+    "beautifulsoup4-tests": {
+      "version": "4.13.3"
+    },
+    "bilby-cython": {
+      "version": "0.5.3"
+    },
+    "bilby-cython-tests": {
+      "version": "0.5.3"
+    },
+    "biopython": {
+      "version": "1.85"
+    },
+    "bitarray": {
+      "version": "3.8.0"
+    },
+    "bitarray-tests": {
+      "version": "3.8.0"
+    },
+    "bitstring": {
+      "version": "4.3.1"
+    },
+    "bleach": {
+      "version": "6.2.0"
+    },
+    "blosc2": {
+      "version": "3.5.1"
+    },
+    "bokeh": {
+      "version": "3.6.3"
+    },
+    "boost-histogram": {
+      "version": "1.7.1"
+    },
+    "bottleneck": {
+      "version": "1.6.0"
+    },
+    "brotli": {
+      "version": "1.2.0"
+    },
+    "cachetools": {
+      "version": "5.5.2"
+    },
+    "cartopy": {
+      "version": "0.25.0"
+    },
+    "cartopy-tests": {
+      "version": "0.25.0"
+    },
+    "casadi": {
+      "version": "3.7.0"
+    },
+    "cbor-diag": {
+      "version": "1.0.1"
+    },
+    "certifi": {
+      "version": "2026.1.4"
+    },
+    "cffi": {
+      "version": "1.17.1"
+    },
+    "cffi-example": {
+      "version": "0.1"
+    },
+    "cftime": {
+      "version": "1.6.4.post1"
+    },
+    "charset-normalizer": {
+      "version": "3.4.4"
+    },
+    "clarabel": {
+      "version": "0.11.0"
+    },
+    "click": {
+      "version": "8.3.1"
+    },
+    "cligj": {
+      "version": "0.7.2"
+    },
+    "clingo": {
+      "version": "5.8.0"
+    },
+    "cloudpickle": {
+      "version": "3.1.1"
+    },
+    "cmyt": {
+      "version": "2.0.2"
+    },
+    "cobs": {
+      "version": "1.2.1"
+    },
+    "colorspacious": {
+      "version": "1.1.2"
+    },
+    "contourpy": {
+      "version": "1.3.1"
+    },
+    "coolprop": {
+      "version": "7.2.0"
+    },
+    "coolprop-tests": {
+      "version": "7.2.0"
+    },
+    "coverage": {
+      "version": "7.6.12"
+    },
+    "cramjam": {
+      "version": "2.10.0rc1"
+    },
+    "crc32c": {
+      "version": "2.7.1"
+    },
+    "cryptography": {
+      "version": "46.0.3"
+    },
+    "cryptography-tests": {
+      "version": "46.0.3"
+    },
+    "css-inline": {
+      "version": "0.16.0"
+    },
+    "cssselect": {
+      "version": "1.3.0"
+    },
+    "cvxpy-base": {
+      "version": "1.6.3"
+    },
+    "cvxpy-base-tests": {
+      "version": "1.6.3"
+    },
+    "cycler": {
+      "version": "0.12.1"
+    },
+    "cysignals": {
+      "version": "1.12.3"
+    },
+    "cytoolz": {
+      "version": "1.0.1"
+    },
+    "cytoolz-tests": {
+      "version": "1.0.1"
+    },
+    "decorator": {
+      "version": "5.2.1"
+    },
+    "demes": {
+      "version": "0.2.3"
+    },
+    "deprecated": {
+      "version": "1.3.1"
+    },
+    "deprecation": {
+      "version": "2.1.0"
+    },
+    "diskcache": {
+      "version": "5.6.3"
+    },
+    "distlib": {
+      "version": "0.3.9"
+    },
+    "distro": {
+      "version": "1.9.0"
+    },
+    "docutils": {
+      "version": "0.21.2"
+    },
+    "donfig": {
+      "version": "0.8.1.post1"
+    },
+    "donfig-tests": {
+      "version": "0.8.1.post1"
+    },
+    "ewah-bool-utils": {
+      "version": "1.2.2"
+    },
+    "ewah-bool-utils-tests": {
+      "version": "1.2.2"
+    },
+    "exceptiongroup": {
+      "version": "1.2.2"
+    },
+    "executing": {
+      "version": "2.2.0"
+    },
+    "fastapi": {
+      "version": "0.116.1"
+    },
+    "fastcan": {
+      "version": "0.5.0"
+    },
+    "fastcan-tests": {
+      "version": "0.5.0"
+    },
+    "fastparquet": {
+      "version": "2024.11.0"
+    },
+    "fiona": {
+      "version": "1.9.5"
+    },
+    "fonttools": {
+      "version": "4.56.0"
+    },
+    "freesasa": {
+      "version": "2.2.1"
+    },
+    "frozenlist": {
+      "version": "1.6.0"
+    },
+    "fsspec": {
+      "version": "2025.3.2"
+    },
+    "fsspec-tests": {
+      "version": "2025.3.2"
+    },
+    "future": {
+      "version": "1.0.0"
+    },
+    "future-tests": {
+      "version": "1.0.0"
+    },
+    "galpy": {
+      "version": "1.10.2"
+    },
+    "geopandas": {
+      "version": "1.1.1"
+    },
+    "geopandas-tests": {
+      "version": "1.1.1"
+    },
+    "gmpy2": {
+      "version": "2.1.5"
+    },
+    "google-crc32c": {
+      "version": "1.8.0"
+    },
+    "gsw": {
+      "version": "3.6.19"
+    },
+    "gsw-tests": {
+      "version": "3.6.19"
+    },
+    "h11": {
+      "version": "0.14.0"
+    },
+    "h11-tests": {
+      "version": "0.14.0"
+    },
+    "h3": {
+      "version": "4.2.2"
+    },
+    "h5py": {
+      "version": "3.13.0"
+    },
+    "h5py-tests": {
+      "version": "3.13.0"
+    },
+    "hashlib": {
+      "version": "1.0.0"
+    },
+    "healpy": {
+      "version": "1.19.0"
+    },
+    "healpy-tests": {
+      "version": "1.19.0"
+    },
+    "highspy": {
+      "version": "1.11.0"
+    },
+    "html5lib": {
+      "version": "1.1"
+    },
+    "httpcore": {
+      "version": "1.0.7"
+    },
+    "httpx": {
+      "version": "0.28.1"
+    },
+    "idna": {
+      "version": "3.10"
+    },
+    "igraph": {
+      "version": "0.11.8"
+    },
+    "imageio": {
+      "version": "2.37.0"
+    },
+    "imgui-bundle": {
+      "version": "1.92.4"
+    },
+    "imgui-bundle-tests": {
+      "version": "1.92.4"
+    },
+    "iminuit": {
+      "version": "2.30.1"
+    },
+    "iniconfig": {
+      "version": "2.1.0"
+    },
+    "inspice": {
+      "version": "1.6.4.1"
+    },
+    "ipython": {
+      "version": "9.0.2"
+    },
+    "ipython-tests": {
+      "version": "9.0.2"
+    },
+    "jedi": {
+      "version": "0.19.2"
+    },
+    "jedi-tests": {
+      "version": "0.19.2"
+    },
+    "jinja2": {
+      "version": "3.1.6"
+    },
+    "jiter": {
+      "version": "0.9.0"
+    },
+    "joblib": {
+      "version": "1.4.2"
+    },
+    "joblib-tests": {
+      "version": "1.4.2"
+    },
+    "jsonpatch": {
+      "version": "1.33"
+    },
+    "jsonpointer": {
+      "version": "3.0.0"
+    },
+    "jsonschema": {
+      "version": "4.23.0"
+    },
+    "jsonschema-specifications": {
+      "version": "2024.10.1"
+    },
+    "jsonschema-specifications-tests": {
+      "version": "2024.10.1"
+    },
+    "jsonschema-tests": {
+      "version": "4.23.0"
+    },
+    "kiwisolver": {
+      "version": "1.4.8"
+    },
+    "lakers-python": {
+      "version": "0.6.0"
+    },
+    "lazy-loader": {
+      "version": "0.4"
+    },
+    "lazy-loader-tests": {
+      "version": "0.4"
+    },
+    "lazy-object-proxy": {
+      "version": "1.10.0"
+    },
+    "libcrc32c": {
+      "version": "1.1.0"
+    },
+    "libcst": {
+      "version": "1.6.0"
+    },
+    "libcst-tests": {
+      "version": "1.6.0"
+    },
+    "libgdal": {
+      "version": "3.8.3"
+    },
+    "libgeos": {
+      "version": "3.12.1"
+    },
+    "libhdf5": {
+      "version": "1.12.1"
+    },
+    "libheif": {
+      "version": "1.12.0"
+    },
+    "libmagic": {
+      "version": "5.42"
+    },
+    "libngspice": {
+      "version": "44.2"
+    },
+    "libopenblas": {
+      "version": "0.3.26"
+    },
+    "libopenssl": {
+      "version": "1.1.1w"
+    },
+    "libproj": {
+      "version": "9.6.2"
+    },
+    "libsuitesparse": {
+      "version": "5.11.0"
+    },
+    "libtaglib": {
+      "version": "2.1.1"
+    },
+    "lightgbm": {
+      "version": "4.6.0"
+    },
+    "logbook": {
+      "version": "1.8.0"
+    },
+    "lxml": {
+      "version": "6.0.2"
+    },
+    "lz4": {
+      "version": "4.4.5"
+    },
+    "lzma": {
+      "version": "1.0.0"
+    },
+    "markupsafe": {
+      "version": "3.0.2"
+    },
+    "matplotlib": {
+      "version": "3.8.4"
+    },
+    "matplotlib-inline": {
+      "version": "0.2.1"
+    },
+    "matplotlib-tests": {
+      "version": "3.8.4"
+    },
+    "memory-allocator": {
+      "version": "0.1.4"
+    },
+    "micropip": {
+      "version": "0.11.1"
+    },
+    "ml-dtypes": {
+      "version": "0.5.4"
+    },
+    "mmh3": {
+      "version": "5.1.0"
+    },
+    "more-itertools": {
+      "version": "10.6.0"
+    },
+    "mpmath": {
+      "version": "1.3.0"
+    },
+    "mpmath-tests": {
+      "version": "1.3.0"
+    },
+    "msgpack": {
+      "version": "1.1.2"
+    },
+    "msgspec": {
+      "version": "0.19.0"
+    },
+    "msprime": {
+      "version": "1.4.0"
+    },
+    "multidict": {
+      "version": "6.7.0"
+    },
+    "munch": {
+      "version": "4.0.0"
+    },
+    "mypy": {
+      "version": "1.15.0"
+    },
+    "mypy-tests": {
+      "version": "1.15.0"
+    },
+    "narwhals": {
+      "version": "2.15.0"
+    },
+    "ndindex": {
+      "version": "1.9.2"
+    },
+    "ndindex-tests": {
+      "version": "1.9.2"
+    },
+    "netcdf4": {
+      "version": "1.7.2"
+    },
+    "networkx": {
+      "version": "3.4.2"
+    },
+    "networkx-tests": {
+      "version": "3.4.2"
+    },
+    "newick": {
+      "version": "1.9.0"
+    },
+    "nh3": {
+      "version": "0.2.21"
+    },
+    "nlopt": {
+      "version": "2.9.1"
+    },
+    "nltk": {
+      "version": "3.9.1"
+    },
+    "nltk-tests": {
+      "version": "3.9.1"
+    },
+    "numcodecs": {
+      "version": "0.15.1"
+    },
+    "numcodecs-tests": {
+      "version": "0.15.1"
+    },
+    "numpy": {
+      "version": "2.2.5"
+    },
+    "numpy-tests": {
+      "version": "2.2.5"
+    },
+    "openai": {
+      "version": "1.68.2"
+    },
+    "opencv-python": {
+      "version": "4.11.0.86"
+    },
+    "optlang": {
+      "version": "1.8.3"
+    },
+    "optlang-tests": {
+      "version": "1.8.3"
+    },
+    "orjson": {
+      "version": "3.10.16"
+    },
+    "packaging": {
+      "version": "26.2"
+    },
+    "pandas": {
+      "version": "2.3.3"
+    },
+    "pandas-tests": {
+      "version": "2.3.3"
+    },
+    "parso": {
+      "version": "0.8.4"
+    },
+    "patsy": {
+      "version": "1.0.1"
+    },
+    "patsy-tests": {
+      "version": "1.0.1"
+    },
+    "pcodec": {
+      "version": "0.3.3"
+    },
+    "peewee": {
+      "version": "3.17.9"
+    },
+    "peewee-tests": {
+      "version": "3.17.9"
+    },
+    "phispy": {
+      "version": "5.0.2"
+    },
+    "pi-heif": {
+      "version": "0.21.0"
+    },
+    "pillow": {
+      "version": "11.3.0"
+    },
+    "pillow-heif": {
+      "version": "1.1.1"
+    },
+    "pkgconfig": {
+      "version": "1.5.5"
+    },
+    "platformdirs": {
+      "version": "4.3.6"
+    },
+    "pluggy": {
+      "version": "1.5.0"
+    },
+    "ply": {
+      "version": "3.11"
+    },
+    "pplpy": {
+      "version": "0.8.10"
+    },
+    "primecountpy": {
+      "version": "0.1.1"
+    },
+    "prompt-toolkit": {
+      "version": "3.0.50"
+    },
+    "propcache": {
+      "version": "0.3.0"
+    },
+    "protobuf": {
+      "version": "6.31.1"
+    },
+    "pure-eval": {
+      "version": "0.2.3"
+    },
+    "py": {
+      "version": "1.11.0"
+    },
+    "pyarrow": {
+      "version": "22.0.0"
+    },
+    "pycdfpp": {
+      "version": "0.8.5"
+    },
+    "pyclipper": {
+      "version": "1.3.0.post6"
+    },
+    "pycparser": {
+      "version": "2.22"
+    },
+    "pycryptodome": {
+      "version": "3.21.0"
+    },
+    "pycryptodome-tests": {
+      "version": "3.21.0"
+    },
+    "pydantic": {
+      "version": "2.12.5"
+    },
+    "pydantic-core": {
+      "version": "2.41.5"
+    },
+    "pydecimal": {
+      "version": "1.0.0"
+    },
+    "pydoc-data": {
+      "version": "1.0.0"
+    },
+    "pyerfa": {
+      "version": "2.0.1.5"
+    },
+    "pyerfa-tests": {
+      "version": "2.0.1.5"
+    },
+    "pygame-ce": {
+      "version": "2.5.6.dev2"
+    },
+    "pygments": {
+      "version": "2.19.1"
+    },
+    "pyheif": {
+      "version": "0.8.0"
+    },
+    "pyiceberg": {
+      "version": "0.10.0"
+    },
+    "pyinstrument": {
+      "version": "5.0.1"
+    },
+    "pylimer-tools": {
+      "version": "0.3.13"
+    },
+    "pymupdf": {
+      "version": "1.26.3"
+    },
+    "pynacl": {
+      "version": "1.6.2"
+    },
+    "pyodide-http": {
+      "version": "0.2.2"
+    },
+    "pyodide-unix-timezones": {
+      "version": "1.0.0"
+    },
+    "pyparsing": {
+      "version": "3.2.1"
+    },
+    "pyproj": {
+      "version": "3.7.2"
+    },
+    "pyroaring": {
+      "version": "1.0.3"
+    },
+    "pyrodigal": {
+      "version": "3.7.0"
+    },
+    "pyrodigal-tests": {
+      "version": "3.7.0"
+    },
+    "pyrsistent": {
+      "version": "0.20.0"
+    },
+    "pysam": {
+      "version": "0.23.0"
+    },
+    "pyshp": {
+      "version": "2.3.1"
+    },
+    "pytaglib": {
+      "version": "3.0.1"
+    },
+    "pytest": {
+      "version": "8.3.5"
+    },
+    "pytest-asyncio": {
+      "version": "0.25.3"
+    },
+    "pytest-benchmark": {
+      "version": "4.0.0"
+    },
+    "pytest-httpx": {
+      "version": "0.30.0"
+    },
+    "python-calamine": {
+      "version": "0.5.3"
+    },
+    "python-dateutil": {
+      "version": "2.9.0.post0"
+    },
+    "python-flint": {
+      "version": "0.8.0"
+    },
+    "python-flirt": {
+      "version": "0.9.10"
+    },
+    "python-magic": {
+      "version": "0.4.27"
+    },
+    "python-sat": {
+      "version": "1.8.dev26"
+    },
+    "python-solvespace": {
+      "version": "3.0.8"
+    },
+    "pytz": {
+      "version": "2025.2"
+    },
+    "pywavelets": {
+      "version": "1.8.0"
+    },
+    "pywavelets-tests": {
+      "version": "1.8.0"
+    },
+    "pyxirr": {
+      "version": "0.10.6"
+    },
+    "pyyaml": {
+      "version": "6.0.2"
+    },
+    "rasterio": {
+      "version": "1.4.3"
+    },
+    "rateslib": {
+      "version": "2.5.1"
+    },
+    "rebound": {
+      "version": "4.4.7"
+    },
+    "reboundx": {
+      "version": "4.4.1"
+    },
+    "referencing": {
+      "version": "0.36.2"
+    },
+    "referencing-tests": {
+      "version": "0.36.2"
+    },
+    "regex": {
+      "version": "2024.11.6"
+    },
+    "regex-tests": {
+      "version": "2024.11.6"
+    },
+    "requests": {
+      "version": "2.32.4"
+    },
+    "retrying": {
+      "version": "1.3.4"
+    },
+    "rich": {
+      "version": "13.9.4"
+    },
+    "river": {
+      "version": "0.22.0"
+    },
+    "river-tests": {
+      "version": "0.22.0"
+    },
+    "robotraconteur": {
+      "version": "1.2.7"
+    },
+    "rpds-py": {
+      "version": "0.30.0"
+    },
+    "ruamel-yaml": {
+      "version": "0.18.10"
+    },
+    "rustworkx": {
+      "version": "0.17.1"
+    },
+    "scikit-image": {
+      "version": "0.25.2"
+    },
+    "scikit-image-tests": {
+      "version": "0.25.2"
+    },
+    "scikit-learn": {
+      "version": "1.7.0"
+    },
+    "scikit-learn-tests": {
+      "version": "1.7.0"
+    },
+    "scipy": {
+      "version": "1.14.1"
+    },
+    "scipy-tests": {
+      "version": "1.14.1"
+    },
+    "screed": {
+      "version": "1.1.3"
+    },
+    "screed-tests": {
+      "version": "1.1.3"
+    },
+    "setuptools": {
+      "version": "76.0.0"
+    },
+    "setuptools-tests": {
+      "version": "76.0.0"
+    },
+    "shapely": {
+      "version": "2.0.7"
+    },
+    "shapely-tests": {
+      "version": "2.0.7"
+    },
+    "simplejson": {
+      "version": "3.20.1"
+    },
+    "simplejson-tests": {
+      "version": "3.20.1"
+    },
+    "sisl": {
+      "version": "0.16.2"
+    },
+    "sisl-tests": {
+      "version": "0.16.2"
+    },
+    "six": {
+      "version": "1.17.0"
+    },
+    "smart-open": {
+      "version": "7.1.0"
+    },
+    "sniffio": {
+      "version": "1.3.1"
+    },
+    "sniffio-tests": {
+      "version": "1.3.1"
+    },
+    "sortedcontainers": {
+      "version": "2.4.0"
+    },
+    "soundfile": {
+      "version": "0.12.1"
+    },
+    "soupsieve": {
+      "version": "2.6"
+    },
+    "sourmash": {
+      "version": "4.8.14"
+    },
+    "soxr": {
+      "version": "0.5.0.post1"
+    },
+    "sparseqr": {
+      "version": "1.2"
+    },
+    "sqlalchemy": {
+      "version": "2.0.39"
+    },
+    "sqlalchemy-tests": {
+      "version": "2.0.39"
+    },
+    "sqlite3": {
+      "version": "1.0.0"
+    },
+    "ssl": {
+      "version": "1.0.0"
+    },
+    "stack-data": {
+      "version": "0.6.3"
+    },
+    "starlette": {
+      "version": "0.47.2"
+    },
+    "statsmodels": {
+      "version": "0.14.4"
+    },
+    "strictyaml": {
+      "version": "1.7.3"
+    },
+    "svgwrite": {
+      "version": "1.4.3"
+    },
+    "swiglpk": {
+      "version": "5.0.12"
+    },
+    "sympy": {
+      "version": "1.13.3"
+    },
+    "sympy-tests": {
+      "version": "1.13.3"
+    },
+    "tblib": {
+      "version": "3.0.0"
+    },
+    "termcolor": {
+      "version": "2.5.0"
+    },
+    "test": {
+      "version": "1.0.0"
+    },
+    "texttable": {
+      "version": "1.7.0"
+    },
+    "texture2ddecoder": {
+      "version": "1.0.6"
+    },
+    "threadpoolctl": {
+      "version": "3.5.0"
+    },
+    "tiktoken": {
+      "version": "0.9.0"
+    },
+    "tomli": {
+      "version": "2.2.1"
+    },
+    "tomli-w": {
+      "version": "1.2.0"
+    },
+    "toolz": {
+      "version": "1.0.0"
+    },
+    "toolz-tests": {
+      "version": "1.0.0"
+    },
+    "tqdm": {
+      "version": "4.67.1"
+    },
+    "traitlets": {
+      "version": "5.14.3"
+    },
+    "traitlets-tests": {
+      "version": "5.14.3"
+    },
+    "traits": {
+      "version": "7.0.2"
+    },
+    "traits-tests": {
+      "version": "7.0.2"
+    },
+    "tree-sitter": {
+      "version": "0.23.2"
+    },
+    "tree-sitter-go": {
+      "version": "0.23.3"
+    },
+    "tree-sitter-java": {
+      "version": "0.23.4"
+    },
+    "tree-sitter-python": {
+      "version": "0.23.4"
+    },
+    "tskit": {
+      "version": "1.0.0"
+    },
+    "typing-extensions": {
+      "version": "4.15.0"
+    },
+    "typing-inspection": {
+      "version": "0.4.2"
+    },
+    "tzdata": {
+      "version": "2025.3"
+    },
+    "ujson": {
+      "version": "5.11.0"
+    },
+    "uncertainties": {
+      "version": "3.2.2"
+    },
+    "unyt": {
+      "version": "3.0.3"
+    },
+    "unyt-tests": {
+      "version": "3.0.3"
+    },
+    "urllib3": {
+      "version": "2.5.0"
+    },
+    "vega-datasets": {
+      "version": "0.9.0"
+    },
+    "vega-datasets-tests": {
+      "version": "0.9.0"
+    },
+    "vrplib": {
+      "version": "2.0.1"
+    },
+    "wcwidth": {
+      "version": "0.2.13"
+    },
+    "webencodings": {
+      "version": "0.5.1"
+    },
+    "wordcloud": {
+      "version": "1.9.4"
+    },
+    "wrapt": {
+      "version": "1.17.2"
+    },
+    "xarray": {
+      "version": "2025.12.0"
+    },
+    "xarray-tests": {
+      "version": "2025.12.0"
+    },
+    "xgboost": {
+      "version": "2.1.4"
+    },
+    "xlrd": {
+      "version": "2.0.1"
+    },
+    "xxhash": {
+      "version": "3.5.0"
+    },
+    "xyzservices": {
+      "version": "2025.1.0"
+    },
+    "xyzservices-tests": {
+      "version": "2025.1.0"
+    },
+    "yarl": {
+      "version": "1.18.3"
+    },
+    "yt": {
+      "version": "4.4.0"
+    },
+    "zengl": {
+      "version": "2.7.1"
+    },
+    "zfpy": {
+      "version": "1.0.1"
+    },
+    "zstandard": {
+      "version": "0.23.0"
+    }
+  }
+}

@@ -21,7 +21,15 @@ Unreleased
   row per subject and the events.json field table. Segmented MFF imports
   are in microvolts, with epoch timing and event-track events. A ``.study``
   cluster ``sets`` matrix stays numeric, including the MATLAB v7.3 fallback.
-  Datasets stay float64; ``option_single`` has no effect. (#673)
+  Datasets stay float64; ``option_single`` has no effect. Electrode
+  coordinates use six digits after the decimal, and a missing coordinate
+  stays ``n/a``. (#673)
+- ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
+  settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
+  3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,
+  ``n_good_samples`` and ``n_rejected_samples``, counts only. With rejection
+  on, ``returned_iter`` is the iterate the weights come from and ``best_iter``
+  is omitted. (#674)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search
