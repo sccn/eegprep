@@ -259,6 +259,29 @@ def test_pop_topoplot_latency_positions_use_matlab_rounding():
     assert _latency_positions(eeg, np.array([500.0, 2500.0])).tolist() == [1, 3]
 
 
+def test_parse_options_text_reads_matlab_literals():
+    assert _parse_options_text("'plotchans', [1, 2, 3]")["plotchans"] == [1.0, 2.0, 3.0]
+    assert _parse_options_text("'plotchans', [1; 2; 3]")["plotchans"] == [1.0, 2.0, 3.0]
+    assert _parse_options_text("'title', 'a b, [1]'")["title"] == "a b, [1]"
+    assert _parse_options_text("'emarker', {'.', 5, 'k'}")["emarker"] == [".", 5.0, "k"]
+    emarker2 = _parse_options_text("'emarker2', {[1 2 3], 'o', 'r', 10, 1}")
+    assert emarker2 == {"emarker2": [[1.0, 2.0, 3.0], "o", "r", 10.0, 1.0]}
+    assert _parse_options_text("'plotchans', [1 2 [3 4]]")["plotchans"] == [1.0, 2.0, 3.0, 4.0]
+    assert _parse_options_text("'title', 'it''s on'")["title"] == "it's on"
+    assert _parse_options_text("'plotchans', []")["plotchans"] == []
+    assert _parse_options_text("'electrodes', 'off', 'colorbar', 'off'") == {
+        "electrodes": "off",
+        "colorbar": "off",
+    }
+
+
+def test_parse_options_text_names_unparsed_text():
+    for bad in ("'emarker', {'.'", "'emarker2', {[1 2 3], 'o', 'r', 10, 1", "'plotchans', ???"):
+        with pytest.raises(ValueError, match=r"pop_topoplot:.*'electrodes', 'off'") as caught:
+            _parse_options_text(bad)
+        assert bad in str(caught.value)
+
+
 def test_pop_topoplot_option_text_plotchans_selects_those_channels():
     eeg = create_test_eeg_with_ica(n_channels=6, n_samples=8, n_trials=1)
     options = _parse_options_text("'plotchans', [1 2 3]")

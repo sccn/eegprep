@@ -500,38 +500,159 @@ def _parse_numeric_sequence(value: Any) -> np.ndarray:
     return np.asarray(parse_numeric_sequence(value, dtype=float), dtype=float)
 
 
-_OPTION_TOKEN = re.compile(r"'([^']*)'|\"([^\"]*)\"|\[([^\[\]]*)\]|([^,\s]+)")
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def _parse_options_text(text: str) -> dict[str, Any]:
-    tokens = []
-    for match in _OPTION_TOKEN.finditer(str(text).strip()):
-        quoted, double, bracket, bare = match.groups()
-        if bracket is not None:
-            tokens.append(f"[{bracket}]")
-        elif quoted is not None:
-            tokens.append(quoted)
-        elif double is not None:
-            tokens.append(double)
-        else:
-            tokens.append(bare)
-    if not tokens:
+    source = str(text).strip()
+    if not source:
         return {}
-    if len(tokens) % 2:
-        raise ValueError("Additional topoplot options must be key/value pairs")
-    return {str(tokens[index]).lower(): _parse_option_value(tokens[index + 1]) for index in range(0, len(tokens), 2)}
+    values = _OptionCursor(source).read_top()
+    if len(values) % 2:
+        raise _options_error(source)
+    options = {}
+    for index in range(0, len(values), 2):
+        key = values[index]
+        if not isinstance(key, str) or key == "":
+            raise _options_error(source)
+        options[key.lower()] = values[index + 1]
+    return options
 
 
-def _parse_option_value(value: Any) -> Any:
-    if isinstance(value, str):
-        text = value.strip()
-        if text.startswith("[") and text.endswith("]"):
-            return _parse_numeric_sequence(text).tolist()
+def _options_error(text: str) -> ValueError:
+    return ValueError(
+        "pop_topoplot: additional topoplot() options could not be parsed. "
+        f"Got {text!r}. "
+        "Write comma-separated pairs such as 'electrodes', 'off', 'plotchans', [1 2 3], "
+        "'emarker', {'.', 5, 'k'}."
+    )
+
+
+class _OptionCursor:
+    def __init__(self, source: str) -> None:
+        self.source = source
+        self.text = source
+        self.n = len(source)
+        self.i = 0
+
+    def read_top(self) -> list[Any]:
+        values = self._read_sequence(None, concatenate=False)
+        if self.i < self.n:
+            raise _options_error(self.source)
+        return values
+
+    def _read_sequence(self, closing: str | None, *, concatenate: bool) -> list[Any]:
+        rows: list[list[Any]] = [[]]
+        need_value = True
+        seen = False
+        while True:
+            self._skip_ws()
+            if self.i >= self.n:
+                if closing is None and not (need_value and seen):
+                    return self._finish(rows)
+                raise _options_error(self.source)
+            char = self.text[self.i]
+            if closing is not None and char == closing:
+                if need_value and seen:
+                    raise _options_error(self.source)
+                self.i += 1
+                return self._finish(rows)
+            if closing is None and char in "]}":
+                raise _options_error(self.source)
+            if char in ",;" and not (closing is None and char == ";"):
+                if need_value:
+                    raise _options_error(self.source)
+                if char == ";":
+                    rows.append([])
+                self.i += 1
+                need_value = True
+                continue
+            if closing is None and char == ";":
+                raise _options_error(self.source)
+            value = self._parse_value()
+            self._store(rows[-1], value, concatenate)
+            need_value = False
+            seen = True
+
+    def _parse_value(self) -> Any:
+        self._skip_ws()
+        if self.i >= self.n:
+            raise _options_error(self.source)
+        char = self.text[self.i]
+        if char in "'\"":
+            return self._parse_string(char)
+        if char == "[":
+            self.i += 1
+            return self._read_sequence("]", concatenate=True)
+        if char == "{":
+            self.i += 1
+            return self._read_sequence("}", concatenate=False)
+        return self._parse_atom()
+
+    def _parse_string(self, quote: str) -> str:
+        self.i += 1
+        chars: list[str] = []
+        while self.i < self.n:
+            char = self.text[self.i]
+            if char == quote:
+                if self.i + 1 < self.n and self.text[self.i + 1] == quote:
+                    chars.append(quote)
+                    self.i += 2
+                    continue
+                self.i += 1
+                return "".join(chars)
+            chars.append(char)
+            self.i += 1
+        raise _options_error(self.source)
+
+    def _parse_atom(self) -> Any:
+        start = self.i
+        while self.i < self.n and self.text[self.i] not in ",;[]{}'\" \t\r\n":
+            self.i += 1
+        token = self.text[start : self.i]
+        if not token:
+            raise _options_error(self.source)
+        if ":" in token:
+            try:
+                return parse_numeric_sequence(token, dtype=float)
+            except (TypeError, ValueError):
+                raise _options_error(self.source) from None
         try:
-            return parse_numeric_sequence(text, dtype=float)[0]
-        except (IndexError, ValueError):
-            return text
-    return value
+            return float(token)
+        except ValueError:
+            pass
+        if _IDENTIFIER.fullmatch(token):
+            return token
+        raise _options_error(self.source)
+
+    def _store(self, row: list[Any], value: Any, concatenate: bool) -> None:
+        if concatenate and isinstance(value, list):
+            if not value:
+                return
+            if any(isinstance(item, list) for item in value):
+                raise _options_error(self.source)
+            if all(isinstance(item, (int, float)) and not isinstance(item, bool) for item in value):
+                row.extend(value)
+                return
+        row.append(value)
+
+    def _finish(self, rows: list[list[Any]]) -> list[Any]:
+        if len(rows) > 1 and not rows[-1]:
+            rows = rows[:-1]
+        if not any(rows):
+            return []
+        if len(rows) == 1:
+            return rows[0]
+        if all(len(row) == 1 for row in rows):
+            return [row[0] for row in rows]
+        width = len(rows[0])
+        if any(len(row) != width for row in rows):
+            raise _options_error(self.source)
+        return rows
+
+    def _skip_ws(self) -> None:
+        while self.i < self.n and self.text[self.i].isspace():
+            self.i += 1
 
 
 def _require_chanlocs(EEG: dict[str, Any]) -> None:

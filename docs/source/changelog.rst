@@ -23,6 +23,9 @@ Unreleased
   locations and the values together. One extra channel location is the common
   reference and is left off the map. One distinct location raises
   ``ValueError``; MATLAB ``griddata`` returns a non-finite map.
+  ``pop_topoplot`` option text follows MATLAB ``eval(['{ ' options ' }'])``:
+  cells, nested brackets, commas, semicolons, and doubled quotes. Text that
+  cannot be parsed raises ``ValueError`` naming ``pop_topoplot`` and the text.
   (#670)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
