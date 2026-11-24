@@ -163,9 +163,7 @@ def _reject_unsupported_marker_options(kwargs: dict) -> None:
     present = {str(key).lower() for key in kwargs}
     for name in ("emarker", "emarker2"):
         if name in present:
-            raise ValueError(
-                f"topoplot: '{name}' is not supported yet in eegprep (EEGLAB topoplot.m supports it)."
-            )
+            raise ValueError(f"topoplot: '{name}' is not supported yet in eegprep (EEGLAB topoplot.m supports it).")
 
 
 def topoplot(datavector, chan_locs, **kwargs):
