@@ -828,12 +828,17 @@ packaged file. Continuous integration also rebuilds both networks from
 <code class="docutils literal notranslate"><span class="pre">iclabel.onnx</span></code> to 1e-5 and the 8-bit file to produce network outputs
 identical to the shipped <code class="docutils literal notranslate"><span class="pre">iclabel_int8.onnx</span></code> on the evaluation components.</p>
 <p>These are measured agreement results on one frozen set, not an accuracy claim.
-The set is dominated by one class: the full-precision network labels 193 of the
-217 components Other (and 18 Brain, 5 Eye, 1 Muscle), and Heart, Line Noise, and
-Channel Noise do not occur, so the agreement figures say nothing about those
-classes. Native results follow releases up to 0.5.0, which classified with
-PyTorch, to about 1e-6; results from the browser’s 8-bit file can differ from
-them by up to about 0.0135 (the largest difference measured on this set).</p>
+A class is verified for the browser int8 network only when that set has at least
+20 of its components and int8 top-1 and default keep-or-reject agreement with
+the full-precision network are both at least 0.95. Only Other (193) is verified.
+On those Other components the largest absolute probability difference is 0.01123.
+Brain (18), Eye (5), Muscle (1), Heart (0), Line Noise (0), and Channel Noise (0)
+are unverified because each has fewer than 20 examples in the evaluation set.</p>
+<p>The browser keeps the int8 network. Native runs keep the
+full-precision network. Native results follow releases up to 0.5.0, which
+classified with PyTorch, to about 1e-6; results from the browser’s 8-bit file
+can differ from them by up to 0.01346, the set-wide maximum on this set. That
+maximum is on a Brain component, not on Other.</p>
 <p>Developers who change <code class="docutils literal notranslate"><span class="pre">netICL.mat</span></code> or the quantization rebuild the packaged
 networks with the <code class="docutils literal notranslate"><span class="pre">torch</span></code> extra; the procedure is in <a class="reference internal" href="../releasing.html#releasing"><span class="std std-ref">Releasing</span></a>.</p>
 </section>
