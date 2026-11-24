@@ -272,6 +272,7 @@ def _per_class_outcome(per_class: Mapping[str, Any]) -> tuple[list[str], list[st
     evaluated: list[str] = []
     unverified: list[str] = []
     failures: list[str] = []
+    remedy = "Correct the int8 quantization and rerun the gate. Floor changes require a reviewed human pull request."
     for name in ICLABEL_CLASSES:
         row = per_class[name]
         count = int(row["count"])
@@ -285,15 +286,13 @@ def _per_class_outcome(per_class: Mapping[str, Any]) -> tuple[list[str], list[st
             passed = False
             failures.append(
                 f"gate_failures: {name} has {count} components but top-1 agreement {top1} is below "
-                f"{MIN_CLASS_TOP1_AGREEMENT}. Raise that class's agreement, or change the floor only "
-                "with approval from Suraj or Arno."
+                f"{MIN_CLASS_TOP1_AGREEMENT}. {remedy}"
             )
         if not keep >= MIN_CLASS_KEEP_REJECT_AGREEMENT:
             passed = False
             failures.append(
                 f"gate_failures: {name} has {count} components but keep-or-reject agreement {keep} is below "
-                f"{MIN_CLASS_KEEP_REJECT_AGREEMENT}. Raise that class's agreement, or change the floor only "
-                "with approval from Suraj or Arno."
+                f"{MIN_CLASS_KEEP_REJECT_AGREEMENT}. {remedy}"
             )
         if passed:
             evaluated.append(name)
@@ -401,12 +400,17 @@ def _metrics_match(actual: Any, wanted: Any, key: str) -> bool:
 
 
 def report_mismatches(report: Mapping[str, Any], reference: Mapping[str, Any]) -> list[str]:
-    """List where the gate or metrics of ``report`` differ from those of ``reference``.
+    """Verify the reference report's digest and compare its gate and metrics with the new report.
 
     Drift metrics, including per-class probability differences, may differ by
     ``_DRIFT_METRIC_TOLERANCE``. Every other gate and metric value must be equal.
     """
     mismatches = []
+    if reference.get("report_sha256") != _report_sha256(reference):
+        mismatches.append(
+            "report_mismatches: report_sha256 does not match the reference report's contents. "
+            "Restore the reviewed reference report and rerun the parity check."
+        )
     if report["gate"] != reference["gate"]:
         mismatches.append(f"gate: {report['gate']} != {reference['gate']}")
     metrics, expected = report["metrics"], reference["metrics"]
@@ -626,7 +630,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--require-matching-report",
         type=Path,
-        help="fail unless the new report's gate and metrics match this committed report",
+        help="verify the committed report's digest and require its gate and metrics to match the new report",
     )
     args = parser.parse_args(argv)
 

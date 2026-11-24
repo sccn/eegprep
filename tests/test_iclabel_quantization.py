@@ -229,6 +229,9 @@ def test_per_class_gate_fails_a_verified_class_below_the_floor():
     assert len(keep_failures) == 1
     assert "keep-or-reject" in keep_failures[0]
     assert "0.95" in keep_failures[0]
+    for message in (top1_failures[0], keep_failures[0]):
+        assert "quantization" in message
+        assert "reviewed human pull request" in message
 
 
 def test_per_class_gate_leaves_a_thin_class_unverified():
@@ -546,6 +549,18 @@ def test_quantize_reports_the_float32_artifact_it_quantized(tmp_path):
     assert recorded["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
     assert recorded["sha256"] != hashlib.sha256(PACKAGED_FLOAT32_MODEL.read_bytes()).hexdigest()
     assert recorded["size_bytes"] == artifact.stat().st_size
+
+
+@pytest.mark.parametrize("edit", [{"gate_pass": False}, {"report_sha256": "0" * 64}])
+def test_report_mismatches_rejects_a_stale_reference_digest(edit):
+    committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    reference = {**committed, **edit}
+
+    (message,) = report_mismatches(committed, reference)
+
+    assert "report_mismatches" in message
+    assert "report_sha256" in message
+    assert "restore" in message.lower()
 
 
 def test_report_mismatches_allow_only_cross_cpu_drift_noise():
