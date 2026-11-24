@@ -811,7 +811,7 @@ def _bids_number(value: float) -> str:
 
 def _coord(loc: dict[str, Any], *keys: str) -> str:
     for key in keys:
-        if key not in loc or loc[key] in ("", None):
+        if key not in loc or _coordinate_missing(loc[key]):
             continue
         try:
             number = float(loc[key])
@@ -820,3 +820,11 @@ def _coord(loc: dict[str, Any], *keys: str) -> str:
         if np.isfinite(number):
             return f"{number:.10g}"
     return "n/a"
+
+
+def _coordinate_missing(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    return np.size(value) == 0

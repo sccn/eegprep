@@ -859,22 +859,18 @@ def _add_buttons(
     button_layout.setContentsMargins(0, 18, 0, 0)
     button_layout.setSpacing(16)
     if spec.help_text and spec.show_help_button:
-        help_button = QtWidgets.QPushButton(spec.help_label)
+        help_button = QtWidgets.QPushButton(spec.help_label, dialog)
         help_button.setObjectName("help")
-        help_button.setFixedWidth(spec.button_size[0] if spec.button_size is not None else 80)
+        _apply_button_size(help_button, spec.button_size)
         help_button.clicked.connect(lambda: _show_help(QtWidgets, dialog, spec))
         button_layout.addWidget(help_button)
     button_layout.addStretch(1)
-    cancel_button = QtWidgets.QPushButton(spec.cancel_label)
-    ok_button = QtWidgets.QPushButton(spec.ok_label)
+    cancel_button = QtWidgets.QPushButton(spec.cancel_label, dialog)
+    ok_button = QtWidgets.QPushButton(spec.ok_label, dialog)
     cancel_button.setObjectName("cancel")
     ok_button.setObjectName("ok")
-    if spec.button_size is not None:
-        cancel_button.setFixedSize(*spec.button_size)
-        ok_button.setFixedSize(*spec.button_size)
-    else:
-        cancel_button.setFixedWidth(80)
-        ok_button.setFixedWidth(80)
+    _apply_button_size(cancel_button, spec.button_size)
+    _apply_button_size(ok_button, spec.button_size)
     cancel_button.clicked.connect(dialog.reject)
     ok_button.clicked.connect(lambda: _accept_if_valid(dialog, spec, widgets))
     if spec.cancel_first:
@@ -884,6 +880,15 @@ def _add_buttons(
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
     layout.addWidget(button_container)
+
+
+def _apply_button_size(button: Any, requested: tuple[int, int] | None) -> None:
+    if requested is None:
+        button.setFixedWidth(80)
+        return
+    button.ensurePolished()
+    hint = button.sizeHint()
+    button.setFixedSize(max(requested[0], hint.width()), max(requested[1], hint.height()))
 
 
 def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:

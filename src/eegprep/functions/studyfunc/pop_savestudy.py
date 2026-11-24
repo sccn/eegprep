@@ -97,7 +97,7 @@ def _write_study(path: Path, study: dict[str, Any], fileformat: str | None, *, s
     disk = _study_for_mat(study)
     temporary = path.with_name(f".{path.name}.{id(study)}.tmp")
     try:
-        scipy.io.savemat(temporary, {"STUDY": disk}, appendmat=False, format="5", long_field_names=True)
+        scipy.io.savemat(str(temporary), {"STUDY": disk}, appendmat=False, format="5", long_field_names=True)
         temporary.replace(path)
     except (OverflowError, ValueError) as exc:
         temporary.unlink(missing_ok=True)

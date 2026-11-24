@@ -463,6 +463,35 @@ def test_wizard_dialogs_open_in_the_qt_renderer(qapp):
     welcome.close()
 
 
+def test_dialog_buttons_grow_past_button_size_when_the_label_is_wider(qapp):
+    from PySide6.QtWidgets import QPushButton
+
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+
+    spec = DialogSpec(
+        title="wide buttons",
+        controls=(ControlSpec("text", "Export"),),
+        geometry=((1,),),
+        function_name="wide_buttons",
+        eeglab_source="test",
+        button_size=(110, 20),
+        ok_label="Continue",
+        help_text="Help for the export.",
+        extra_stylesheet="QPushButton { font-size: 28px; }",
+    )
+    _app, dialog, _widgets = QtDialogRenderer().build_dialog(spec)
+    dialog.show()
+    qapp.processEvents()
+    for name in ("ok", "cancel", "help"):
+        button = dialog.findChild(QPushButton, name)
+        assert button.width() >= 110
+        assert button.height() >= 20
+        assert button.contentsRect().width() >= button.fontMetrics().horizontalAdvance(button.text())
+    assert dialog.findChild(QPushButton, "ok").width() > 110
+    dialog.close()
+
+
 def _assert_clear_buttons_are_visible(dialog, widgets) -> None:
     assert dialog.width() <= 1280
     assert dialog.height() <= 800
@@ -851,6 +880,9 @@ def test_read_only_folder_keeps_the_wrapped_save_messages(tmp_path):
         with pytest.raises(ValueError, match="pop_savestudy: could not write") as studied:
             pop_savestudy(study, alleeg, filename=str(locked / "audit.study"))
         assert "Choose a writable .study path" in str(studied.value)
+        assert "Permission denied" in str(studied.value)
+        assert str(locked / "audit.study") in str(studied.value)
+        assert "Reader needs file name" not in str(studied.value)
 
         eeg["subject"] = "001"
         eeg["filename"] = "sub-001_task-rest_eeg.set"
@@ -1016,6 +1048,21 @@ def test_export_uses_channel_type_and_prompts_for_power_line(tmp_path):
     assert "Cz\tEOG\tuV" in channels
     sidecar = (out / "sub-001" / "eeg" / "sub-001_task-rest_eeg.json").read_text(encoding="utf-8")
     assert '"PowerLineFrequency": 60' in sidecar
+
+
+def test_export_writes_na_for_empty_channel_coordinates(tmp_path):
+    from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
+
+    eeg = pop_loadset(SAMPLE.with_name("eeglab_data_epochs_ica.set"))
+    eeg["subject"] = "S01"
+    root = Path(pop_exportbids(eeg, tmp_path / "bids", task="rest"))
+    rows = list(
+        csv.reader((root / "sub-S01" / "eeg" / "sub-S01_electrodes.tsv").open(encoding="utf-8"), delimiter="\t")
+    )
+    by_name = {row[0]: row for row in rows[1:]}
+    assert by_name["EOG1"] == ["EOG1", "n/a", "n/a", "n/a"]
+    assert by_name["EOG2"] == ["EOG2", "n/a", "n/a", "n/a"]
+    assert by_name["FPz"][1:] != ["n/a", "n/a", "n/a"]
 
 
 def test_quit_asks_before_discarding_unsaved_datasets():
