@@ -161,12 +161,10 @@ def test_std_makedesign_accepts_numpy_subject_selection():
 def test_pop_savestudy_resave_uses_existing_study_path(tmp_path):
     eeg = _eeg("saved", subject="S01", condition="target")
     study, alleeg = pop_study(None, [eeg], name="Initial study")
-    saved, _datasets, _save_command = pop_savestudy(
-        study, alleeg, filename="saved.study", filepath=tmp_path, return_com=True
-    )
+    saved, _datasets, _save_command = pop_savestudy(study, alleeg, filename="saved.study", filepath=tmp_path)
 
     saved["name"] = "Resaved study"
-    resaved, _datasets, command = pop_savestudy(saved, alleeg, savemode="resave", return_com=True)
+    resaved, _datasets, command = pop_savestudy(saved, alleeg, savemode="resave")
     reloaded, _loaded_alleeg = pop_loadstudy("saved.study", filepath=tmp_path, load_datasets="off")
 
     assert resaved["filename"] == "saved.study"
@@ -182,7 +180,7 @@ def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
     study, alleeg = pop_study(None, [eeg], name="Dataset resave study")
 
     saved, _datasets, command = pop_savestudy(
-        study, alleeg, filename="saved.study", filepath=tmp_path, resavedatasets="on", return_com=True
+        study, alleeg, filename="saved.study", filepath=tmp_path, resavedatasets="on"
     )
     reloaded, loaded_alleeg = pop_loadstudy(saved["filename"], filepath=saved["filepath"])
 

@@ -97,9 +97,7 @@ def test_study_end_to_end_workflow_roundtrips_and_syncs_console(tmp_path):
     study, cluster_plot_command, cluster_figure = pop_clustedit(
         study, alleeg, action="plot", clusters=[2, 3], return_com=True
     )
-    saved, saved_datasets, save_command = pop_savestudy(
-        study, alleeg, filename="phase_6c.study", filepath=tmp_path, return_com=True
-    )
+    saved, saved_datasets, save_command = pop_savestudy(study, alleeg, filename="phase_6c.study", filepath=tmp_path)
     loaded, loaded_alleeg, load_command = pop_loadstudy(
         "phase_6c.study", filepath=tmp_path, load_datasets=True, return_com=True
     )
