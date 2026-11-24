@@ -20,30 +20,12 @@ Unreleased
   MRI head-model creation and eLORETA stay disabled, with a tooltip that
   names the missing FieldTrip step and the template or autofit alternative.
   (#675)
-- File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
-  ``derivatives/eeglab`` and refuses to resave a raw BIDS file. ``pop_saveset``
-  replaces the ``.set`` and ``.fdt`` only after both temporary files are
-  written. ``pop_savestudy`` writes an EEGLAB MATLAB v6 ``.study`` and still
-  reads JSON. ``pop_chanevent`` evaluates ``X>50`` as numbers, and epoched
-  ``pop_export`` uses column-major order and LF line endings. CNT events copy
-  the reader's 1-based offset and do not set a duration. The BIDS export
-  wizard runs with no dataset loaded. Participant and event editors write one
-  row per subject and the events.json field table. Segmented MFF imports
-  are in microvolts, with epoch timing and event-track events. A ``.study``
-  cluster ``sets`` matrix stays numeric, including the MATLAB v7.3 fallback.
-  Datasets stay float64; ``option_single`` has no effect. Electrode
-  coordinates use six digits after the decimal, and a missing coordinate
-  stays ``n/a``. Save study keeps the resaved datasets in the session.
-  Quit and study resave use the same raw-BIDS refusal as ``pop_saveset``.
-  Replacing a mapped ``.fdt`` leaves an open array view readable; on Windows
-  that resave is refused until the view is closed or the dataset is saved
-  as a new file. (#673)
 - ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
   settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
   3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,
   ``n_good_samples`` and ``n_rejected_samples``, counts only. With rejection
   on, ``returned_iter`` is the iterate the weights come from and ``best_iter``
-  is omitted. (#674)
+  is omitted.
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search
@@ -510,11 +492,12 @@ Unreleased
   ``pop_select``'s 0-based indices (#543). Duplicate-channel draws use the
   cropped channel count. Python out-of-range errors name ``pop_select``, the
   invalid indices, ``nbchan``, and the valid Python and EEGLAB/GUI ranges.
-- A folder import returns ``STUDY`` and ``ALLEEG`` and records
-  ``[STUDY ALLEEG] = pop_importbids(...)``. It does not pass ``return_study``,
-  which EEGLAB rejects. A single file still returns that dataset. The history also
-  keeps the dialog's ``recordings`` selection, along with task, session, run,
-  and subject.
+- Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
+  with ``return_study`` on, so the console rebuilds the same study.
+  ``pop_importbids.m`` always returns ``STUDY`` and ``ALLEEG``. The direct
+  call still returns the datasets unless ``return_study=True``. The history
+  also keeps the dialog's ``recordings`` selection, along with task, session,
+  run, and subject.
 - ``pop_importbids(..., subjects=[1, 2])`` uses the same 1-based participant
   indices as the import dialog (``pop_importbids.m`` lines 163 and 281).
   Replaying the recorded ``'subjects', [1 2]`` command selects those
@@ -670,9 +653,9 @@ Unreleased
 - Importing a BIDS dataset replaces a missing ``chaninfo.plotrad`` or
   ``chaninfo.shrink`` with an empty array, so File > Save no longer fails while
   ``savemat`` is writing those fields. The import dialog matches
-  ``pop_importbids.m`` lines 104-164, copies each dataset into
-  ``derivatives/eeglab``, and returns the in-memory study with those datasets
-  (``pop_importbids.m`` lines 839 and 892).
+  ``pop_importbids.m`` lines 104-164 and loads an in-memory study. It does not
+  copy datasets into ``derivatives/eeglab`` (``pop_importbids.m`` lines 839 and
+  892 do).
 - ``pop_writeeeg`` keeps every EDF and BDF sample and every event annotation.
   EEGLAB ``writeeeg.m`` line 139 shortens a block longer than 1000 samples to
   one second (``round(srate)`` samples per record). Biosig then pads the file
