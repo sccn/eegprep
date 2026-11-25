@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``compute_spectra`` takes ``detrend`` (``"constant"`` or ``"linear"``),
+  passed to SciPy's ``welch`` for each window. The default ``False`` still
+  matches EEGLAB ``spectopo``, which does not detrend. (#689)
 - Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
   keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
   on the tutorial crop) and rejects a time range that misses the data.

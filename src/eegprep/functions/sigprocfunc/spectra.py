@@ -6,7 +6,7 @@ this module does not import Matplotlib.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from scipy.signal import get_window, welch
@@ -31,6 +31,7 @@ def compute_spectra(
     mapnorm: Any = None,
     wintype: str = "hamming",
     blckhn: int = 2,
+    detrend: Literal["constant", "linear", False] = False,
 ) -> tuple[np.ndarray, np.ndarray, None]:
     """Return Welch power-spectral-density spectra in dB, shaped ``channels x frequencies``.
 
@@ -54,6 +55,10 @@ def compute_spectra(
     ``mapnorm`` (a component scalp-map column) scales the linear power by
     ``sqrt(mean(mapnorm**4))`` before the dB conversion, so a single component's
     activation spectrum reflects its projected scalp power (EEGLAB ``spectopo.m``).
+
+    ``detrend`` is passed to SciPy's ``welch`` for each window. The default
+    ``False`` matches EEGLAB, which does not detrend; ``"constant"`` removes each
+    window's mean and ``"linear"`` its least-squares line.
     """
     values = np.asarray(data, dtype=float)
     if values.ndim == 3:
@@ -110,7 +115,7 @@ def compute_spectra(
             noverlap=noverlap,
             nfft=nfft,
             axis=1,
-            detrend=False,
+            detrend=detrend,
             scaling="density",
         )
         if psd_sum is None:
