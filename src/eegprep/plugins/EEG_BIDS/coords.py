@@ -1,6 +1,6 @@
 """Coordinate system utilities."""
 
-from typing import Dict, Any, Sequence
+from typing import Dict, Any, Optional, Sequence
 import numpy as np
 
 __all__ = [
@@ -11,7 +11,73 @@ __all__ = [
     'clear_chanloc',
     'chanloc_has_coords',
     'chanlocs_to_coords',
+    'BIDS_ALS_SYSTEMS',
+    'BIDS_RAS_SYSTEMS',
+    'bids_coordsystem_orientation',
 ]
+
+# The BIDS coordinate-systems appendix, as in eegprep_lean.locations: frames that are
+# ALS already (EEGLAB's own), and frames that are RAS. The appendix gives no orientation
+# to Pixels, ACPC, ScanRAS, Other, individual, study or scanner, so they are in neither.
+BIDS_ALS_SYSTEMS = frozenset({'EEGLAB', 'EEGLAB-HJ', 'CTF', '4DBti', 'KitYokogawa'})
+BIDS_RAS_SYSTEMS = frozenset(
+    {
+        'CapTrak',
+        'NeuromagElektaMEGIN',
+        'ElektaNeuromag',
+        'ChietiItab',
+        'ICBM452AirSpace',
+        'ICBM452Warp5Space',
+        'IXI549Space',
+        'fsaverage',
+        'fsaverageSym',
+        'fsLR',
+        'MNIColin27',
+        'MNI152Lin',
+        'MNI152NLin6Sym',
+        # The appendix's table prints MNI152NLin6ASym; the schema's value is that up to BIDS
+        # 1.10.1 and MNI152NLin6Asym from 1.11.0.
+        'MNI152NLin6ASym',
+        'MNI152NLin6Asym',
+        'MNI305',
+        'NIHPD',
+        'OASIS30AntsOASISAnts',
+        'OASIS30Atropos',
+        'Talairach',
+        'UNCInfant',
+        'fsaverage3',
+        'fsaverage4',
+        'fsaverage5',
+        'fsaverage6',
+        'fsaveragesym',
+        *(f'MNI152NLin2009{version}{symmetry}' for version in 'abc' for symmetry in ('Sym', 'Asym')),
+        *(f'UNCInfant{age}V{volume}' for age in '012' for volume in ('21', '22', '23')),
+    }
+)
+
+# Names are looked up without regard to case or surrounding spaces; no two frames above differ
+# only in case.
+_ORIENTATION_BY_SYSTEM = {
+    **{system.lower(): 'RAS' for system in BIDS_RAS_SYSTEMS},
+    **{system.lower(): 'ALS' for system in BIDS_ALS_SYSTEMS},
+}
+
+
+def bids_coordsystem_orientation(coordsystem: Dict[str, Any]) -> Optional[str]:
+    """Return ``'ALS'`` or ``'RAS'`` for the EEG frame a BIDS ``coordsystem.json`` names.
+
+    An ``EEGCoordinateSystemDescription`` of ``EEGLAB``, or a system with ``EEGLAB`` in its
+    name, is ALS. Any other system is looked up in the BIDS coordinate-systems appendix.
+    Returns ``None`` for ``Other``, a name the appendix does not list, or no name at all.
+    """
+    if coordsystem.get('EEGCoordinateSystemDescription') == 'EEGLAB':
+        return 'ALS'
+    system = coordsystem.get('EEGCoordinateSystem')
+    if not isinstance(system, str):
+        return None
+    if 'EEGLAB' in system.upper():
+        return 'ALS'
+    return _ORIENTATION_BY_SYSTEM.get(system.strip().lower())
 
 
 def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
