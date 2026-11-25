@@ -4,6 +4,43 @@
 
 # EEGPrep
 
+<!-- brainlife-app:begin (generated from the App manifest; edit the manifest, not this block) -->
+
+> **Preprocesses an EEGLAB .set EEG dataset with EEGPrep 0.2.22, a Python port of the EEGLAB pipeline: clean_rawdata artifact rejection (ASR), Picard ICA and ICLabel component classification.**
+
+Loads the EEGLAB dataset, runs clean_artifacts (flatline, channel, line-noise and burst/ASR criteria with fixed settings), decomposes the data with Picard ICA, labels components with ICLabel, and saves the result as an EEGLAB .set file. Use it for automated EEG cleaning that mirrors EEGLAB defaults. Note that at this tag main.py loads config.json.example instead of config.json and the BurstCriterion parameter is not read (burst criterion is hard-coded to 20).
+
+| | |
+|---|---|
+| 📥 **Inputs** | `neuro/eeg/eeglab` |
+| 📤 **Outputs** | `neuro/eeg/eeglab` |
+| 🐳 **Container** | `arnodelorme/eegprep:0.2.22` |
+| ⚙️ **Resources** | 8 CPUs |
+| 🔗 **Run it** | [doi.org/10.25663/brainlife.app.845](https://doi.org/10.25663/brainlife.app.845) |
+
+#### 📥 Inputs
+
+| Input | Datatype | Required | Description |
+|---|---|---|---|
+| `set` | `neuro/eeg/eeglab` | yes | EEG dataset in EEGLAB .set format. |
+
+#### 📤 Outputs
+
+| Output | Datatype | Description |
+|---|---|---|
+| `results` | `neuro/eeg/eeglab` | Cleaned EEGLAB dataset (<name>_out.set) with ICA decomposition and ICLabel classifications. |
+
+<details>
+<summary><b>⚙️ Parameters</b> (1)</summary>
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `BurstCriterion` | number | `20` | EGPrep is an automated preprocessing tool for human EEG data built on the validated EEGLAB pipeline, here implemented in Python. It applies clean_rawdata for artifact rejection and ICLabel to identify artifactual muscle components. This pipeline was reported to outperform all other pipelines evaluated in MNE, FieldTrip and Brainstorm, as shown in Figure 5 of https://www.nature.com/articles/s41598-023-27528-0. |
+
+</details>
+
+<!-- brainlife-app:end -->
+
 [![Tests](https://github.com/sccn/eegprep/actions/workflows/test.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/test.yml)
 [![Documentation Status](https://github.com/sccn/eegprep/actions/workflows/docs.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/docs.yml)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
