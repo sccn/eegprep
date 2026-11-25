@@ -21,6 +21,11 @@ dataset reference stays `common`. A BIDS `EEGReference` value is stored in
 `"merge"`, `"append"`, or disabled. `infer_locations` can infer channel
 locations from known channel labels or a packaged montage resource.
 
+BIDS electrode positions are converted to EEGLAB's ALS frame
+by the orientation the BIDS coordinate-systems appendix gives `EEGCoordinateSystem`.
+A frame with no orientation there, such as `Other`, leaves the positions unapplied
+and adds a warning to the import report.
+
 Use `pop_importbids` or `bids_preproc` when you need to scan or process a whole
 BIDS dataset.
 

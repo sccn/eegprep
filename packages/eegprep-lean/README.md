@@ -130,8 +130,8 @@ The unit and the coordinate system must be ones the BIDS coordinate-systems appe
 anything else fills no positions and is never guessed,
 and `reason` says `units_unknown` or `coordinate_system_unknown`.
 That is where it differs from the BIDS import,
-which guesses a unit when none is declared
-and assumes a frame when there is no coordsystem file or it names no system.
+which guesses a unit when none is declared, assumes a frame when there is no coordsystem file,
+and matches a frame's name without regard to case, reading any name with `EEGLAB` in it as ALS.
 The import also reads a coordsystem whose `EEGCoordinateSystemDescription` is `EEGLAB` as ALS,
 whatever `EEGCoordinateSystem` says.
 A store carries no description, so a dataset that states a RAS system with that description
