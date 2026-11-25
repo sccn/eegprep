@@ -1,6 +1,10 @@
 function result = eegprep_dipfit_component_parity(dataset, model, kind, eeglab_root)
 % Positions, residual variance, or inside-brain counts for one DIPFIT model.
 % kind is 'grid', 'single', or 'symmetric'.
+if exist('fminunc', 'file') ~= 2 || ~license('test', 'optimization_toolbox')
+    error('eegprep:missingOptimizationToolbox', ...
+        'Optimization Toolbox (fminunc) is required for DIPFIT component parity.');
+end
 if nargin < 4
     eeglab_root = '';
 end

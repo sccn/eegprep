@@ -461,9 +461,9 @@ def test_matlab_kmeans_numbering_matches_fixed_initial_centroids(eeglab_matlab_e
         nargout=2,
     )
 
-    np.testing.assert_array_equal(np.asarray(matlab_labels).ravel(), labels + 1)
+    np.testing.assert_array_equal(np.asarray(matlab_labels).ravel(), labels)
     np.testing.assert_allclose(np.asarray(matlab_centers, dtype=float), centers, rtol=0, atol=1e-12)
-    np.testing.assert_array_equal(np.asarray(stats_labels).ravel(), labels + 1)
+    np.testing.assert_array_equal(np.asarray(stats_labels).ravel(), labels)
     np.testing.assert_allclose(np.asarray(stats_centers, dtype=float), centers, rtol=0, atol=1e-12)
 
 

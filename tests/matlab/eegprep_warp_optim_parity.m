@@ -1,6 +1,10 @@
 function result = eegprep_warp_optim_parity(eeglab_root)
 % Traditional ft_warp_optim on the synthetic electrodes coregister fits.
 % Options stay inside ft_warp_optim: MaxIter 1500, TolFun 1e-4, LargeScale off.
+if exist('fminunc', 'file') ~= 2 || ~license('test', 'optimization_toolbox')
+    error('eegprep:missingOptimizationToolbox', ...
+        'Optimization Toolbox (fminunc) is required for ft_warp_optim parity.');
+end
 dipfit_standard_besa_add_fieldtrip(char(eeglab_root));
 if exist('ft_warp_optim', 'file') ~= 2 || exist('ft_warp_apply', 'file') ~= 2
     error('eegprep_warp_optim_parity:MissingFieldTrip', ...
