@@ -851,3 +851,62 @@ def test_missing_electrode_coordinates_round_trip_as_empty_arrays(tmp_path: Path
     assert all(_empty_coordinate(reloaded["chanlocs"][2][field]) for field in _COORD_FIELDS)
     np.testing.assert_allclose(float(reloaded["chanlocs"][0]["X"]), float(located["X"]))
     assert all(_empty_coordinate(reloaded["chaninfo"][key]) for key in ("plotrad", "shrink"))
+
+
+def _write_coordsystem_bids(root: Path, system: str, fp1_xyz: tuple[float, float, float]) -> Path:
+    eeg_dir = root / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (root / "dataset_description.json").write_text(json.dumps({"Name": "t", "BIDSVersion": "1.9.0"}))
+    edf_path = eeg_dir / "sub-01_task-rest_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Fp1"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDFPLUS,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+    (eeg_dir / "sub-01_task-rest_channels.tsv").write_text("name\ttype\tunits\nFp1\tEEG\tuV\n")
+    x, y, z = fp1_xyz
+    (eeg_dir / "sub-01_task-rest_electrodes.tsv").write_text(f"name\tx\ty\tz\nFp1\t{x}\t{y}\t{z}\n")
+    (eeg_dir / "sub-01_task-rest_coordsystem.json").write_text(
+        json.dumps({"EEGCoordinateSystem": system, "EEGCoordinateUnits": "mm"})
+    )
+    return edf_path
+
+
+@pytest.mark.parametrize(
+    ("system", "fp1_xyz"),
+    [
+        ("EEGLAB", (77, 32, 19)),
+        ("CTF", (77, 32, 19)),
+        ("4DBti", (77, 32, 19)),
+        ("KitYokogawa", (77, 32, 19)),
+        ("CapTrak", (-32, 77, 19)),
+    ],
+)
+def test_pop_load_frombids_reads_bids_frames_by_orientation(
+    tmp_path: Path, system: str, fp1_xyz: tuple[float, float, float]
+) -> None:
+    """The BIDS coordinate-systems appendix gives CTF, 4DBti and KitYokogawa ALS, like EEGLAB."""
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    edf_path = _write_coordsystem_bids(tmp_path, system, fp1_xyz)
+    eeg = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, dtype=np.float64, verbose=False)
+
+    fp1 = eeg["chanlocs"][0]
+    np.testing.assert_allclose([fp1["X"], fp1["Y"], fp1["Z"]], [77, 32, 19])
+    np.testing.assert_allclose(fp1["theta"], -np.degrees(np.arctan2(32, 77)))
+
+
+def test_pop_load_frombids_leaves_unknown_frame_unlocated(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    edf_path = _write_coordsystem_bids(tmp_path, "Other", (77, 32, 19))
+    eeg, report = pop_load_frombids(
+        str(edf_path), bidsevent=False, infer_locations=False, dtype=np.float64, return_report=True, verbose=False
+    )
+
+    assert all(_empty_coordinate(eeg["chanlocs"][0][field]) for field in _COORD_FIELDS)
+    assert any("'Other'" in warning for warning in report["Warnings"])

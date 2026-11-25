@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the
+  BIDS coordinate-systems appendix gives it. ``CTF``, ``4DBti`` and
+  ``KitYokogawa`` are ALS and are no longer turned by 90 degrees. A named
+  system with no orientation in the appendix, such as ``Other``, leaves the
+  channel locations unset and adds a report warning instead of being read as
+  RAS. A coordsystem with no ``EEGCoordinateSystem`` is still read as RAS. (#692)
+
 - Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
   keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
   on the tutorial crop) and rejects a time range that misses the data.

@@ -13,6 +13,8 @@ from eegprep.plugins.EEG_BIDS.bids import (
     root_for_fpath,
 )
 from eegprep.plugins.EEG_BIDS.coords import (
+    BIDS_ALS_SYSTEMS,
+    BIDS_RAS_SYSTEMS,
     chanloc_has_coords,
     chanlocs_to_coords,
     clear_chanloc,
@@ -309,16 +311,17 @@ def pop_load_frombids(
                     report['CoordsystemFrom'] = os.path.relpath(coordsystem_fo.path, root)
                     content = read_bids_json(coordsystem_fo.path)
                     EEG['etc']['BIDSCoordsystem'] = content
-                    coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
-                    if 'EEGLAB' in coord_system.upper():
-                        # as per BIDS docs, EEGLAB is the only one that's expressly not RAS
+                    coord_system_name = content.get('EEGCoordinateSystem')
+                    if coord_system_name in BIDS_ALS_SYSTEMS:
                         coord_system = 'ALS'
                     elif 'EEGLAB' == content.get('EEGCoordinateSystemDescription', ''):
                         # some datasets with EEGLAB-style coordinates use this field instead
-                        # and have other systems in the EEGCoordinateSystem field (e.g., 'CTF')
+                        # and have other systems in the EEGCoordinateSystem field
                         coord_system = 'ALS'
-                    else:
+                    elif coord_system_name is None or coord_system_name in BIDS_RAS_SYSTEMS:
                         coord_system = 'RAS'
+                    else:
+                        coord_system = coord_system_name
                     coord_units = content.get(
                         'EEGCoordinateUnits', 'guess'
                     ).lower()  # default to 'guess' if not specified
@@ -357,6 +360,12 @@ def pop_load_frombids(
                     f"Coordinate units for {fo.filename} could not be inferred "
                     f"or were invalid; not overriding channel locations."
                 )
+            elif coord_system not in ('ALS', 'RAS'):
+                warning(
+                    f"Coordinate system {coord_system!r} of {fo.filename} has no "
+                    f"orientation in the BIDS coordinate-systems appendix; not "
+                    f"overriding channel locations."
+                )
             else:
                 chaninfo = EEG.get("chaninfo")
                 if not isinstance(chaninfo, dict):
@@ -378,12 +387,6 @@ def pop_load_frombids(
                 coords = coords_to_mm(coords, coord_units)
                 if coord_system == 'RAS':
                     coords = coords_RAS_to_ALS(coords)
-                elif coord_system != 'ALS':
-                    raise ValueError(
-                        f"Unsupported coordinate system {coord_system!r} "
-                        f"in BIDS file {fo.filename}. Supported systems are "
-                        f"ALS and RAS."
-                    )
 
                 sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
 

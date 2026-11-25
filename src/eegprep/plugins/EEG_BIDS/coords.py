@@ -11,7 +11,45 @@ __all__ = [
     'clear_chanloc',
     'chanloc_has_coords',
     'chanlocs_to_coords',
+    'BIDS_ALS_SYSTEMS',
+    'BIDS_RAS_SYSTEMS',
 ]
+
+# The BIDS coordinate-systems appendix, as in eegprep_lean.locations: frames that are
+# ALS already (EEGLAB's own), and frames that are RAS. The appendix gives no orientation
+# to Pixels, ACPC, ScanRAS, Other, individual, study or scanner, so they are in neither.
+BIDS_ALS_SYSTEMS = frozenset({'EEGLAB', 'EEGLAB-HJ', 'CTF', '4DBti', 'KitYokogawa'})
+BIDS_RAS_SYSTEMS = frozenset(
+    {
+        'CapTrak',
+        'NeuromagElektaMEGIN',
+        'ElektaNeuromag',
+        'ChietiItab',
+        'ICBM452AirSpace',
+        'ICBM452Warp5Space',
+        'IXI549Space',
+        'fsaverage',
+        'fsaverageSym',
+        'fsLR',
+        'MNIColin27',
+        'MNI152Lin',
+        'MNI152NLin6Sym',
+        'MNI152NLin6ASym',
+        'MNI305',
+        'NIHPD',
+        'OASIS30AntsOASISAnts',
+        'OASIS30Atropos',
+        'Talairach',
+        'UNCInfant',
+        'fsaverage3',
+        'fsaverage4',
+        'fsaverage5',
+        'fsaverage6',
+        'fsaveragesym',
+        *(f'MNI152NLin2009{version}{symmetry}' for version in 'abc' for symmetry in ('Sym', 'Asym')),
+        *(f'UNCInfant{age}V{volume}' for age in '012' for volume in ('21', '22', '23')),
+    }
+)
 
 
 def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:

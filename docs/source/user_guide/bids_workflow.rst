@@ -176,6 +176,14 @@ A channel with no electrode coordinates, including a channel missing from
 ``plotrad`` and ``shrink`` are empty arrays when the file does not set them.
 Saving the dataset and loading it again keeps those empty values.
 
+Electrode positions end in EEGLAB's ALS frame (``+X`` nose, ``+Y`` left,
+``+Z`` up). ``EEGCoordinateSystem`` is read by the orientation the BIDS
+coordinate-systems appendix gives it: ``EEGLAB``, ``EEGLAB-HJ``, ``CTF``,
+``4DBti`` and ``KitYokogawa`` are already ALS, and ``CapTrak`` and the
+template spaces such as ``MNI305`` are RAS and are rotated. A system the
+appendix gives no orientation, such as ``Other``, leaves the locations unset
+and adds a warning to the import report.
+
 BIDS event ``duration`` is in seconds. ``pop_load_frombids`` stores each
 event's ``duration`` as that value times the sampling rate, including zero
 and fractional sample counts. A missing duration stays missing.

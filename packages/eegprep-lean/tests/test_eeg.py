@@ -686,10 +686,12 @@ def _write_bids_edf(root: Path, names: list[str], rows: dict, system: str, unit:
     return edf
 
 
-# Systems and units the BIDS import reads correctly: it turns every system whose name has
-# EEGLAB in it into ALS and every other into RAS. CTF, 4DBti and KitYokogawa are ALS in the
-# appendix, so the Zarr route differs from the import there by design; see the pull request.
+# Systems and units whose positions the BIDS import and the Zarr route both read, each by
+# the orientation the BIDS coordinate-systems appendix gives it.
 SAME_AS_THE_BIDS_IMPORT = [
+    ("CTF", "mm"),
+    ("4DBti", "m"),
+    ("KitYokogawa", "cm"),
     ("CapTrak", "m"),
     ("CapTrak", "cm"),
     ("CapTrak", "mm"),
