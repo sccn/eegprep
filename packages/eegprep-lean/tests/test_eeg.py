@@ -329,6 +329,7 @@ RAS_SYSTEMS = [
     *(f"MNI152NLin2009{version}{symmetry}" for version in "abc" for symmetry in ("Sym", "Asym")),
     "MNI152NLin6Sym",
     "MNI152NLin6ASym",
+    "MNI152NLin6Asym",
     "MNI305",
     "NIHPD",
     "OASIS30AntsOASISAnts",
@@ -703,6 +704,7 @@ SAME_AS_THE_BIDS_IMPORT = [
     ("ChietiItab", "cm"),
     ("MNI305", "mm"),
     ("MNI152NLin2009cAsym", "mm"),
+    ("MNI152NLin6Asym", "cm"),
     ("Talairach", "mm"),
     ("fsaverage", "m"),
 ]
