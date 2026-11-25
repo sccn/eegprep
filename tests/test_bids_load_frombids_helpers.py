@@ -853,7 +853,9 @@ def test_missing_electrode_coordinates_round_trip_as_empty_arrays(tmp_path: Path
     assert all(_empty_coordinate(reloaded["chaninfo"][key]) for key in ("plotrad", "shrink"))
 
 
-def _write_coordsystem_bids(root: Path, system: str, fp1_xyz: tuple[float, float, float]) -> Path:
+def _write_coordsystem_bids(
+    root: Path, system: str | None, fp1_xyz: tuple[float, float, float], *, description: str | None = None
+) -> Path:
     eeg_dir = root / "sub-01" / "eeg"
     eeg_dir.mkdir(parents=True)
     (root / "dataset_description.json").write_text(json.dumps({"Name": "t", "BIDSVersion": "1.9.0"}))
@@ -870,9 +872,12 @@ def _write_coordsystem_bids(root: Path, system: str, fp1_xyz: tuple[float, float
     (eeg_dir / "sub-01_task-rest_channels.tsv").write_text("name\ttype\tunits\nFp1\tEEG\tuV\n")
     x, y, z = fp1_xyz
     (eeg_dir / "sub-01_task-rest_electrodes.tsv").write_text(f"name\tx\ty\tz\nFp1\t{x}\t{y}\t{z}\n")
-    (eeg_dir / "sub-01_task-rest_coordsystem.json").write_text(
-        json.dumps({"EEGCoordinateSystem": system, "EEGCoordinateUnits": "mm"})
-    )
+    coordsystem = {"EEGCoordinateUnits": "mm"}
+    if system is not None:
+        coordsystem["EEGCoordinateSystem"] = system
+    if description is not None:
+        coordsystem["EEGCoordinateSystemDescription"] = description
+    (eeg_dir / "sub-01_task-rest_coordsystem.json").write_text(json.dumps(coordsystem))
     return edf_path
 
 
@@ -880,10 +885,19 @@ def _write_coordsystem_bids(root: Path, system: str, fp1_xyz: tuple[float, float
     ("system", "fp1_xyz"),
     [
         ("EEGLAB", (77, 32, 19)),
+        ("EEGLAB-HJ", (77, 32, 19)),
+        # Any name with EEGLAB in it, in any case, is ALS, as it was before #692.
+        ("eeglab", (77, 32, 19)),
+        ("EEGLAB ", (77, 32, 19)),
         ("CTF", (77, 32, 19)),
         ("4DBti", (77, 32, 19)),
         ("KitYokogawa", (77, 32, 19)),
         ("CapTrak", (-32, 77, 19)),
+        # Names match without regard to case. The schema spells this template MNI152NLin6Asym
+        # from BIDS 1.11.0 and MNI152NLin6ASym before it, which the appendix's table still prints.
+        ("MNI152NLin6Asym", (-32, 77, 19)),
+        ("MNI152NLin6ASym", (-32, 77, 19)),
+        ("captrak", (-32, 77, 19)),
     ],
 )
 def test_pop_load_frombids_reads_bids_frames_by_orientation(
@@ -900,13 +914,28 @@ def test_pop_load_frombids_reads_bids_frames_by_orientation(
     np.testing.assert_allclose(fp1["theta"], -np.degrees(np.arctan2(32, 77)))
 
 
-def test_pop_load_frombids_leaves_unknown_frame_unlocated(tmp_path: Path) -> None:
+def test_pop_load_frombids_reads_an_eeglab_description_as_als(tmp_path: Path) -> None:
     from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 
-    edf_path = _write_coordsystem_bids(tmp_path, "Other", (77, 32, 19))
+    edf_path = _write_coordsystem_bids(tmp_path, "Other", (77, 32, 19), description="EEGLAB")
+    eeg = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, dtype=np.float64, verbose=False)
+
+    fp1 = eeg["chanlocs"][0]
+    np.testing.assert_allclose([fp1["X"], fp1["Y"], fp1["Z"]], [77, 32, 19])
+
+
+# Other, a name the appendix does not list (even one that spells an orientation) and a
+# coordsystem that names no system give no orientation to read, so nothing is assumed.
+@pytest.mark.parametrize("system", ["Other", "ALS", "RAS", None])
+def test_pop_load_frombids_leaves_unknown_frame_unlocated(tmp_path: Path, system: str | None) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    edf_path = _write_coordsystem_bids(tmp_path, system, (77, 32, 19))
     eeg, report = pop_load_frombids(
         str(edf_path), bidsevent=False, infer_locations=False, dtype=np.float64, return_report=True, verbose=False
     )
 
     assert all(_empty_coordinate(eeg["chanlocs"][0][field]) for field in _COORD_FIELDS)
-    assert any("'Other'" in warning for warning in report["Warnings"])
+    assert any(repr(system) in warning and "_coordsystem.json" in warning for warning in report["Warnings"]), report[
+        "Warnings"
+    ]

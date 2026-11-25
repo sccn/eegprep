@@ -13,8 +13,7 @@ from eegprep.plugins.EEG_BIDS.bids import (
     root_for_fpath,
 )
 from eegprep.plugins.EEG_BIDS.coords import (
-    BIDS_ALS_SYSTEMS,
-    BIDS_RAS_SYSTEMS,
+    bids_coordsystem_orientation,
     chanloc_has_coords,
     chanlocs_to_coords,
     clear_chanloc,
@@ -312,16 +311,7 @@ def pop_load_frombids(
                     content = read_bids_json(coordsystem_fo.path)
                     EEG['etc']['BIDSCoordsystem'] = content
                     coord_system_name = content.get('EEGCoordinateSystem')
-                    if coord_system_name in BIDS_ALS_SYSTEMS:
-                        coord_system = 'ALS'
-                    elif 'EEGLAB' == content.get('EEGCoordinateSystemDescription', ''):
-                        # some datasets with EEGLAB-style coordinates use this field instead
-                        # and have other systems in the EEGCoordinateSystem field
-                        coord_system = 'ALS'
-                    elif coord_system_name is None or coord_system_name in BIDS_RAS_SYSTEMS:
-                        coord_system = 'RAS'
-                    else:
-                        coord_system = coord_system_name
+                    coord_system = bids_coordsystem_orientation(content)  # None: no orientation to read
                     coord_units = content.get(
                         'EEGCoordinateUnits', 'guess'
                     ).lower()  # default to 'guess' if not specified
@@ -360,9 +350,9 @@ def pop_load_frombids(
                     f"Coordinate units for {fo.filename} could not be inferred "
                     f"or were invalid; not overriding channel locations."
                 )
-            elif coord_system not in ('ALS', 'RAS'):
+            elif coord_system is None:
                 warning(
-                    f"Coordinate system {coord_system!r} of {fo.filename} has no "
+                    f"Coordinate system {coord_system_name!r} in {report['CoordsystemFrom']} has no "
                     f"orientation in the BIDS coordinate-systems appendix; not "
                     f"overriding channel locations."
                 )
