@@ -108,6 +108,27 @@ def test_default_grid_is_density_sampled_at_1_hz_through_nyquist():
     assert float(coarse_freqs[-1]) <= 64.0
 
 
+def test_constant_detrend_removes_each_window_mean():
+    data, pnts, srate = _reference_signal()
+    offset = data + np.array([[3.0], [-7.0]])
+    nperseg = 64
+    spectra, freqs, _std = compute_spectra(offset, pnts, srate, winsize=nperseg, overlap=32, detrend="constant")
+    expected_freqs, density = welch(
+        offset,
+        fs=srate,
+        window=get_window("hamming", nperseg, fftbins=False),
+        nperseg=nperseg,
+        noverlap=32,
+        axis=1,
+        detrend="constant",
+        scaling="density",
+    )
+    assert np.array_equal(freqs, expected_freqs)
+    assert np.allclose(spectra, 10.0 * np.log10(np.maximum(density, np.finfo(float).tiny)), rtol=0, atol=1e-9)
+    default, _freqs, _std = compute_spectra(offset, pnts, srate, winsize=nperseg, overlap=32)
+    assert np.all(default[:, 0] > spectra[:, 0] + 20.0)
+
+
 def test_line_noise_excess_is_the_db_mean_of_neighboring_bins():
     srate = 250.0
     pnts = 500
