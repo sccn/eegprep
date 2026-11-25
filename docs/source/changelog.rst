@@ -10,12 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the
-  BIDS coordinate-systems appendix gives it. ``CTF``, ``4DBti`` and
-  ``KitYokogawa`` are ALS and are no longer turned by 90 degrees. A named
-  system with no orientation in the appendix, such as ``Other``, leaves the
-  channel locations unset and adds a report warning instead of being read as
-  RAS. A coordsystem with no ``EEGCoordinateSystem`` is still read as RAS. (#692)
+- ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
+  ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
+  Names match without regard to case, so ``MNI152NLin6Asym``, the schema's spelling from BIDS 1.11.0, is RAS as ``MNI152NLin6ASym`` is;
+  any name with ``EEGLAB`` in it, or an ``EEGCoordinateSystemDescription`` of ``EEGLAB``, is still ALS.
+  ``Other``, a name the appendix does not list, or a coordsystem that names no system leaves the channel locations unset,
+  with a report warning that names the coordsystem file, instead of being read as RAS. (#692)
 
 - Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
   keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
@@ -277,7 +277,7 @@ Unreleased
 - ``runica`` can use ``scipy.linalg.blas.dgemm`` for its matrix products under Emscripten; native platforms keep ``numpy.matmul``.
 - ``eegprep_lean.to_eeg`` fills ``chanlocs`` from the electrode positions a NEMAR store declares, which ``load_recording`` now reads into ``Window.electrodes``.
   A channel is matched to the entry for exactly its label, and gets ``X``, ``Y`` and ``Z`` in millimeters in EEGLAB's ALS frame, ``sph_theta``, ``sph_phi``, ``sph_radius``, ``theta`` and ``radius``.
-  ``pop_load_frombids`` gives the same values from the same ``electrodes.tsv`` and coordsystem file, except where the import guesses a unit, assumes a system, or reads ``CTF``, ``4DBti`` or ``KitYokogawa``, which the BIDS appendix gives as ALS, as RAS.
+  ``pop_load_frombids`` gives the same values from the same ``electrodes.tsv`` and coordsystem file, except where the import guesses a unit or assumes a system.
   The import also reads a coordsystem whose ``EEGCoordinateSystemDescription`` is ``EEGLAB`` as ALS whatever ``EEGCoordinateSystem`` says.
   A store carries no description, so a RAS system with that description is turned by 90 degrees here.
   The converter writes no such description today, and reading it here is a follow-up if it ever does.
