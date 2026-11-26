@@ -33,6 +33,12 @@ Unreleased
   MRI head-model creation and eLORETA stay disabled, with a tooltip that
   names the missing FieldTrip step and the template or autofit alternative.
   (#675)
+- File > Preferences no longer shows the EEGLAB options that have no meaning
+  in Python: two-file saving, the switch for saving fields as individual
+  variables, the parallel toolbox, memory-mapped arrays, single precision, the
+  EEG object, RMS scaling of ICA activities, Show advanced options, plugins
+  pending approval, and HTML in graphics. The header of ``pop_editoptions``
+  says why for each. Their keys and defaults stay in ``EEG_OPTIONS``. (#709)
 - File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
   ``derivatives/eeglab`` and refuses to resave a raw BIDS file. ``pop_saveset``
   replaces the ``.set`` and ``.fdt`` only after both temporary files are

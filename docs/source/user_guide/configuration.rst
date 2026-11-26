@@ -75,7 +75,7 @@ Use File > Preferences in the GUI, or call ``pop_editoptions`` from
 
    from eegprep import EEG_OPTIONS, pop_editoptions
 
-   com = pop_editoptions(option_allmenus=1, option_savetwofiles=1)
+   com = pop_editoptions(option_allmenus=1, option_boundary99=1)
    pop_editoptions("option_storedisk", 1)
    print(com)
    print(EEG_OPTIONS["option_allmenus"])
@@ -97,20 +97,24 @@ with an existing session, preserves scripted in-process options. The console's
 ``gui()`` and ``eeglab()`` commands automatically use its existing session.
 
 The dialog follows the memory-options layout and exposes working controls for
-storing inactive datasets on disk, saving two-file datasets, boundary events,
-menu visibility, and native file dialogs. Enable Show advanced options and
-reopen Preferences to access memory mapping.
+storing inactive datasets on disk, boundary events, menu visibility, and native
+file dialogs.
+
+Preferences leaves out the EEGLAB options that have no meaning in Python:
+two-file saving (EEGPrep saves a dataset in one file), the switch for saving
+fields as individual variables (always on), the parallel toolbox, memory-mapped
+arrays, single precision, the EEG object, RMS scaling of ICA activities (always
+on), Show advanced options, plugins pending approval, and HTML in graphics.
+Their keys stay in ``EEG_OPTIONS`` with their defaults, so EEGLAB scripts and
+saved option files still load.
 
 Some preferences are visible but disabled because their global switches are
-not connected to EEGPrep workflows: single precision, ICA precomputation and
-RMS scaling, remembered folders, startup update checks, STUDY cache size,
-MATLAB save-version/struct choices, pending plugins, and HTML in graphics.
-Their registry values are retained for scripts, but changing those values
-does not change runtime behavior. Use explicit processing arguments where
-available and Help > Check for EEGPrep updates for a manual update check.
-MATLAB's parallel toolbox, EEG object, and toolbox-path switches are also
-disabled because EEGPrep runs without MATLAB. These are current standalone
-limitations, rather than implemented equivalents of the EEGLAB preferences.
+not connected to EEGPrep workflows: ICA precomputation, remembered folders,
+startup update checks, STUDY cache size, and the MATLAB save version. Their
+registry values are retained for scripts, but changing those values does not
+change runtime behavior. Use explicit processing arguments where available and
+Help > Check for EEGPrep updates for a manual update check. The MATLAB toolbox
+switch is also disabled because EEGPrep runs without MATLAB.
 
 Preprocessing Parameters
 ========================

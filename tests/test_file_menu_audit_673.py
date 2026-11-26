@@ -12,8 +12,6 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions_dialog_spec
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
@@ -242,12 +240,6 @@ def test_empty_fileio_annotation_is_named_boundary():
     raw.set_annotations(mne.Annotations([0.05], [0.0], [""]))
     eeg = mne_raw_to_eeg(raw, setname="boundary")
     assert eeg["event"][0]["type"] == "boundary"
-
-
-def test_option_single_tooltip_says_datasets_stay_float64():
-    spec = pop_editoptions_dialog_spec(dict(EEG_OPTIONS, option_showadvanced=1))
-    control = controls_by_tag(spec)["option_single"]
-    assert "float64" in (control.tooltip or "")
 
 
 def test_task_info_reaches_the_exported_description_and_eeg_json(tmp_path):

@@ -28,6 +28,19 @@ from tests.test_stream11_menus import qapp as qapp
 
 pytestmark = [pytest.mark.gui, pytest.mark.modal_dialogs]
 
+_OPTIONS_LEFT_OUT = (
+    "option_savetwofiles",
+    "option_saveasstruct",
+    "option_parallel",
+    "option_memmapdata",
+    "option_single",
+    "option_eegobject",
+    "option_scaleicarms",
+    "option_showadvanced",
+    "option_showpendingplugins",
+    "option_htmlingraphics",
+)
+
 
 @pytest.fixture
 def options(tmp_path, monkeypatch):
@@ -47,29 +60,32 @@ def test_f89_preferences_apply_immediately_and_reload(options, qapp, dialogs):
         assert dialog.windowTitle() == "Memory options - pop_editoptions()"
         for key in (
             "option_storedisk",
-            "option_savetwofiles",
             "option_computeica",
             "option_rememberfolder",
+            "option_donotusetoolboxes",
             "option_allmenus",
             "option_boundary99",
-            "option_showadvanced",
             "option_checkversion",
         ):
             assert dialog.findChild(QCheckBox, key) is not None
+        for key in _OPTIONS_LEFT_OUT:
+            assert dialog.findChild(QCheckBox, key) is None
         dialog.findChild(QCheckBox, "option_allmenus").setChecked(True)
-        dialog.findChild(QCheckBox, "option_savetwofiles").setChecked(True)
+        dialog.findChild(QCheckBox, "option_boundary99").setChecked(True)
         accept(dialog)
 
     pending.append(edit)
     try:
         window.dispatcher.dispatch("pop_editoptions", window.window)
         assert window.all_menus
-        assert EEG_OPTIONS["option_savetwofiles"] == 1
-        assert json.loads(options.read_text())["option_allmenus"] == 1
-        EEG_OPTIONS.update(option_allmenus=0, option_savetwofiles=0)
+        assert EEG_OPTIONS["option_boundary99"] == 1
+        saved = json.loads(options.read_text())
+        assert saved["option_allmenus"] == 1
+        assert (saved["option_savetwofiles"], saved["option_saveasstruct"], saved["option_scaleicarms"]) == (0, 1, 1)
+        EEG_OPTIONS.update(option_allmenus=0, option_boundary99=0)
         restarted = eeglab(show=False, include_plugins=False)
         assert restarted.all_menus
-        assert EEG_OPTIONS["option_savetwofiles"] == 1
+        assert EEG_OPTIONS["option_boundary99"] == 1
         restarted.window.close()
     finally:
         window.window.close()
@@ -201,7 +217,7 @@ def test_f89_preferences_history_records_replayable_values(options):
 
 @pytest.mark.parametrize("long_path", [False, True])
 def test_f89_default_options_are_visible_without_scrolling(qapp, options, long_path):
-    values = dict(EEG_OPTIONS, option_showadvanced=0)
+    values = dict(EEG_OPTIONS)
     path = options.parent / ("session-" * 30) / "options.json" if long_path else options
     _, dialog, widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(values, path))
     dialog.show()
@@ -224,23 +240,15 @@ def test_f27_native_dialog_preference_does_not_enter_matlab_history(options):
     "key",
     [
         "option_saveversion6",
-        "option_saveasstruct",
-        "option_parallel",
-        "option_single",
-        "option_eegobject",
         "option_computeica",
-        "option_scaleicarms",
         "option_rememberfolder",
         "option_donotusetoolboxes",
-        "option_showpendingplugins",
-        "option_htmlingraphics",
         "option_checkversion",
         "option_cachesize",
     ],
 )
 def test_f89_unavailable_preferences_cannot_be_changed_in_gui(qapp, options, key):
-    values = dict(EEG_OPTIONS, option_showadvanced=1)
-    _, dialog, widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(values))
+    _, dialog, widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(dict(EEG_OPTIONS)))
     try:
         control = widgets[key]
         assert not control.isEnabled()
