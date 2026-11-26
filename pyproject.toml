@@ -266,6 +266,8 @@ markers = [
 
 [tool.setuptools]
 include-package-data = true
+# THIRD_PARTY_NOTICES.md carries the Apache-2.0 text that eeg_mir's port of getMIR.m must ship with.
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

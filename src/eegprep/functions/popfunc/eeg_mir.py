@@ -27,12 +27,13 @@ def eeg_mir(EEG: dict[str, Any]) -> tuple[float, float]:
     decorrelation that sphering does, so MIR rates what the unmixing adds. Identity weights give 0;
     rescaling, reordering or flipping the sign of components does not change it. Larger is better.
 
-    Each ``h`` is the binned estimator of ``getMIR.m`` (bigdelys/pre_ICA_cleaning), as pAMICA ports it
-    in ``pamica.metrics.mir``: ``MIR_NBINS`` bins between a row's minimum and maximum, the
-    Miller-Madow correction and the log bin width. EEGLAB has no MIR function. getMIR's own bin count,
-    ``round(3 * log2(1 + N / 10))`` for ``N`` samples, grows with the recording: on two uniform sources
-    it reads MIR 0.046 nats low at 5,000 samples and 0.026 low at 1.2 million, where 256 bins read
-    0.005 low at both.
+    Each ``h`` is the binned estimator of ``getMIR.m`` by Nima Bigdely-Shamlo (bigdelys/pre_ICA_cleaning),
+    as pAMICA ports it in ``pamica.metrics.mir``: ``MIR_NBINS`` bins between a row's minimum and
+    maximum, the Miller-Madow correction and the log bin width. EEGLAB has no MIR function. getMIR's
+    own bin count, ``round(3 * log2(1 + N / 10))`` for ``N`` samples, grows with the recording: on two
+    uniform sources it reads MIR 0.046 nats low at 5,000 samples and 0.026 low at 1.2 million, where
+    256 bins read 0.005 low at both. This function is a modified port of ``getMIR.m``, which is under
+    the Apache License 2.0; the attribution and the license text are in ``THIRD_PARTY_NOTICES.md``.
 
     Epochs are concatenated, only the channels in ``icachansind`` are used, and ``icaact`` is not
     read: the components are recomputed from ``data``. ``icasphere`` may have fewer rows than
