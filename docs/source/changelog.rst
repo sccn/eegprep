@@ -10,12 +10,6 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- Dialogs with a fixed window size share the window height among their rows, as
-  EEGLAB's ``supergui`` does, instead of stacking the rows at the top above an
-  empty band. About fifty dialogs of the File, Edit, Tools and Plot menus take
-  their whole window. ``pop_importdata`` sizes its columns by their weights and
-  shows EEGLAB's note on channel location files. (#700)
-
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
   Names match without regard to case, so ``MNI152NLin6Asym``, the schema's spelling from BIDS 1.11.0, is RAS as ``MNI152NLin6ASym`` is;
@@ -51,6 +45,11 @@ Unreleased
   Replacing a mapped ``.fdt`` leaves an open array view readable; on Windows
   that resave is refused until the view is closed or the dataset is saved
   as a new file. (#673)
+- Dialogs with a fixed window size share the window height among their rows, as
+  EEGLAB's ``supergui`` does, instead of stacking the rows at the top above an
+  empty band. About fifty dialogs of the File, Edit, Tools and Plot menus take
+  their whole window. ``pop_importdata`` sizes its columns by their weights and
+  shows EEGLAB's note on channel location files. (#700)
 - ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
   settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
   3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,
