@@ -36,6 +36,7 @@ zero-based component and sample indices.
    eegprep.eeg_getica
    eegprep.eeg_icalabelstat
    eegprep.eeg_icflag
+   eegprep.eeg_mir
    eegprep.eeg_picard
    eegprep.eeg_pv
    eegprep.eeg_pvaf
@@ -63,3 +64,48 @@ zero-based component and sample indices.
    eegprep.varimax
    eegprep.varsort
    eegprep.zica
+
+.. _mutual_information_reduction:
+
+Mutual information reduction
+----------------------------
+
+``eeg_mir`` rates a decomposition by its mutual information reduction (MIR):
+the mutual information that ``icaweights`` removes from the sphered data
+``icasphere @ data``, in nats (Delorme et al., 2012,
+`doi:10.1371/journal.pone.0030135 <https://doi.org/10.1371/journal.pone.0030135>`_).
+It returns the MIR and the variance of that estimate:
+
+.. code-block:: python
+
+   from eegprep import eeg_mir
+
+   mir, variance = eeg_mir(EEG)
+
+With ``W = icaweights``, ``x = icasphere @ data`` and ``y = W @ x``, MIR is
+``log|det W| + sum(h(x_i)) - sum(h(y_i))``, where ``h`` is a marginal
+differential entropy. Measuring from the sphered data leaves out the
+decorrelation that sphering does, so MIR rates what the unmixing adds. Identity
+weights give 0, and rescaling, reordering or flipping the sign of components
+leaves MIR unchanged. Larger is better.
+
+Each entropy is the binned estimator of ``getMIR.m``, as pAMICA ports it in
+``pamica.metrics.mir``, with a fixed 256 bins between a row's minimum and
+maximum. ``getMIR.m`` takes ``round(3 * log2(1 + N / 10))`` bins for ``N``
+samples, a count that grows with the recording. On two unit-variance uniform
+sources rotated by 45 degrees, whose MIR is ``1 - ln 2`` (0.3069) nats, that
+rule reads 0.046 nats low at 5,000 samples and 0.026 nats low at 1.2 million,
+while 256 bins read 0.005 nats low at every length. On the 32 components of
+``sample_data/eeglab_data_epochs_ica.set`` (30,720 samples), the length-based
+count of 35 bins gives 0.851 nats, 256 bins give 0.993, and 512 bins give 0.994.
+``eeg_mir`` needs no optional dependency, and it returns the same numbers as
+``pamica.metrics.mir(icaweights, icasphere @ data, nbins=256)``.
+
+Epochs are concatenated, and only the channels in ``icachansind`` are used.
+``icaact`` is not read: the components are recomputed from ``data``.
+``icasphere`` may have fewer rows than channels, as after AMICA's ``pcakeep``,
+and MIR is then measured in that subspace. ``icaweights`` must be square, so a
+``runica`` decomposition reduced by PCA, which keeps the reduction in
+``icaweights``, raises ``ValueError``. A singular ``icaweights`` or
+``icasphere``, NaN or infinite values, and a constant sphered row or component
+also raise ``ValueError``.
