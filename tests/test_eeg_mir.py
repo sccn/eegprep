@@ -77,6 +77,37 @@ def test_scaling_reordering_and_sign_flips_of_the_weights_leave_mir_unchanged():
     assert abs(moved_variance - variance) < 1e-12
 
 
+def test_icachansind_leaves_out_a_flat_and_a_noise_channel():
+    data, rng = _laplace_mixture(4, 20_000, seed=5)
+    weights = rng.normal(size=(4, 4))
+    sphere = rng.normal(size=(4, 4))
+    flat = np.zeros((1, data.shape[1]))
+    noise = 50.0 * rng.normal(size=(1, data.shape[1]))
+    recording = np.vstack((data[:2], flat, data[2:], noise))
+
+    value = eeg_mir(_ica_eeg(recording, weights, sphere, icachansind=[0, 1, 3, 4]))
+
+    assert value == pytest.approx(eeg_mir(_ica_eeg(data, weights, sphere)), rel=1e-12, abs=1e-12)
+    with pytest.raises(ValueError, match="row 3 of icasphere @ data is constant"):
+        eeg_mir(_ica_eeg(recording, weights, np.eye(4), icachansind=[0, 1, 2, 3]))
+
+
+def test_variance_is_getent4s_over_the_sphered_rows_and_the_components():
+    # With 256 bins and each row spanning 0 to 255, a value k falls in bin k: both rows have three
+    # samples in one bin and one in another, so each has p = (3/4, 1/4).
+    data = np.array([[0.0, 0.0, 0.0, 255.0], [0.0, 255.0, 255.0, 255.0]])
+    p = np.array([0.75, 0.25])
+    plugin_entropy = -np.sum(p * np.log(p))
+    row_variance = np.sum(p * np.log(p) ** 2) - plugin_entropy**2  # 0.2263 for this histogram
+    eeg = _ica_eeg(data, weights=np.eye(2), sphere=np.eye(2))
+
+    value, variance = eeg_mir(eeg)
+
+    # Two sphered rows and two components, each with that variance, over four samples.
+    assert value == 0.0
+    assert variance == pytest.approx((2 + 2) * row_variance / 4, rel=1e-12)
+
+
 def test_matches_pamica_on_epoched_data_a_channel_subset_and_a_reduced_sphere():
     metrics = pytest.importorskip("pamica.metrics")
     rng = np.random.default_rng(3)
@@ -119,6 +150,18 @@ def _sphere_for_other_channels(eeg):
     eeg["icachansind"] = np.arange(3)
 
 
+def _sphere_with_too_few_rows(eeg):
+    eeg["icasphere"] = eeg["icasphere"][:3]
+
+
+def _nan_weight(eeg):
+    eeg["icaweights"][0, 0] = np.nan
+
+
+def _infinite_sphere_entry(eeg):
+    eeg["icasphere"][1, 2] = np.inf
+
+
 def _nan_sample(eeg):
     eeg["data"][2, 100] = np.nan
 
@@ -135,8 +178,11 @@ def _flat_channel(eeg):
         (_pca_reduced_runica, "square"),
         (_duplicated_component, "icaweights is singular"),
         (_rank_deficient_sphere, "icasphere is singular"),
+        (_sphere_with_too_few_rows, "rows to match icaweights"),
         (_sphere_for_other_channels, "icachansind"),
-        (_nan_sample, "NaN or infinite"),
+        (_nan_weight, "icaweights holds NaN or infinite"),
+        (_infinite_sphere_entry, "icasphere holds NaN or infinite"),
+        (_nan_sample, "data holds NaN or infinite"),
         (_flat_channel, "constant"),
     ],
 )
