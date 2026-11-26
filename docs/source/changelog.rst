@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Dialogs with a fixed window size share the window height among their rows, as
+  EEGLAB's ``supergui`` does, instead of stacking the rows at the top above an
+  empty band. About fifty dialogs of the File, Edit, Tools and Plot menus take
+  their whole window. ``pop_importdata`` sizes its columns by their weights and
+  shows EEGLAB's note on channel location files. (#700)
+
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
   Names match without regard to case, so ``MNI152NLin6Asym``, the schema's spelling from BIDS 1.11.0, is RAS as ``MNI152NLin6ASym`` is;
