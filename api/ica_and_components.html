@@ -280,6 +280,10 @@
   
 
   
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
 </div>
 
     </header>
@@ -449,6 +453,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getica.html">eeg_getica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_icalabelstat.html">eeg_icalabelstat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_icflag.html">eeg_icflag</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_mir.html">eeg_mir</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_picard.html">eeg_picard</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_pv.html">eeg_pv</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_pvaf.html">eeg_pvaf</a></li>
@@ -598,90 +603,139 @@ zero-based component and sample indices.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_icflag.html#eegprep.eeg_icflag" title="eegprep.eeg_icflag"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_icflag</span></code></a>(EEG, thresholds)</p></td>
 <td><p>Flag independent components based on ICLabel classification probabilities.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_picard.html#eegprep.eeg_picard" title="eegprep.eeg_picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_picard</span></code></a>(EEG[, engine, posact, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_mir.html#eegprep.eeg_mir" title="eegprep.eeg_mir"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_mir</span></code></a>(EEG)</p></td>
+<td><p>Return the mutual information reduction (MIR) of the ICA decomposition, in nats.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_picard.html#eegprep.eeg_picard" title="eegprep.eeg_picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_picard</span></code></a>(EEG[, engine, posact, ...])</p></td>
 <td><p>Perform ICA decomposition using Picard algorithm.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_pv.html#eegprep.eeg_pv" title="eegprep.eeg_pv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pv</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_pv.html#eegprep.eeg_pv" title="eegprep.eeg_pv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pv</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
 <td><p>Compatibility alias for <code class="docutils literal notranslate"><span class="pre">eeg_pvaf</span></code> using legacy positional options.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_pvaf.html#eegprep.eeg_pvaf" title="eegprep.eeg_pvaf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pvaf</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_pvaf.html#eegprep.eeg_pvaf" title="eegprep.eeg_pvaf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pvaf</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
 <td><p>Compute percent variance accounted for by ICA component projections.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_rpsd.html#eegprep.eeg_rpsd" title="eegprep.eeg_rpsd"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_rpsd</span></code></a>(EEG[, nfreqs, pct_data])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_rpsd.html#eegprep.eeg_rpsd" title="eegprep.eeg_rpsd"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_rpsd</span></code></a>(EEG[, nfreqs, pct_data])</p></td>
 <td><p>Compute relative power spectral density for ICA components.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_runica.html#eegprep.eeg_runica" title="eegprep.eeg_runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_runica</span></code></a>(EEG[, posact, sortcomps])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_runica.html#eegprep.eeg_runica" title="eegprep.eeg_runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_runica</span></code></a>(EEG[, posact, sortcomps])</p></td>
 <td><p>Perform ICA decomposition using runica (infomax) algorithm.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.icaact.html#eegprep.icaact" title="eegprep.icaact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icaact</span></code></a>(data, weights[, datamean])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.icaact.html#eegprep.icaact" title="eegprep.icaact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icaact</span></code></a>(data, weights[, datamean])</p></td>
 <td><p>Compute ICA activation waveforms from channel data and weights.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.icadefs.html#eegprep.icadefs" title="eegprep.icadefs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icadefs</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.icadefs.html#eegprep.icadefs" title="eegprep.icadefs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icadefs</span></code></a>()</p></td>
 <td><p>Return platform-aware ICA defaults without mutating process globals.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.icaproj.html#eegprep.icaproj" title="eegprep.icaproj"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icaproj</span></code></a>(data, weights, compindex[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.icaproj.html#eegprep.icaproj" title="eegprep.icaproj"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icaproj</span></code></a>(data, weights, compindex[, ...])</p></td>
 <td><p>Back-project selected ICA components into channel space.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.icavar.html#eegprep.icavar" title="eegprep.icavar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icavar</span></code></a>(data, weights[, sphere, compnums])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.icavar.html#eegprep.icavar" title="eegprep.icavar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icavar</span></code></a>(data, weights[, sphere, compnums])</p></td>
 <td><p>Return per-frame scalp variance contributed by selected components.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.iclabel.html#eegprep.iclabel" title="eegprep.iclabel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.iclabel</span></code></a>(EEG[, algorithm, engine, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.iclabel.html#eegprep.iclabel" title="eegprep.iclabel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.iclabel</span></code></a>(EEG[, algorithm, engine, ...])</p></td>
 <td><p>Classify independent components with ICLabel.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.iclabel_async.html#eegprep.iclabel_async" title="eegprep.iclabel_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.iclabel_async</span></code></a>(EEG[, algorithm, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.iclabel_async.html#eegprep.iclabel_async" title="eegprep.iclabel_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.iclabel_async</span></code></a>(EEG[, algorithm, ...])</p></td>
 <td><p>Classify independent components with ICLabel from asynchronous code.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.optimal_kmeans.html#eegprep.optimal_kmeans" title="eegprep.optimal_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.optimal_kmeans</span></code></a>(clustdata, clusnum, *)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.optimal_kmeans.html#eegprep.optimal_kmeans" title="eegprep.optimal_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.optimal_kmeans</span></code></a>(clustdata, clusnum, *)</p></td>
 <td><p>Run k-means for a range and choose the best silhouette score.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.picard.html#eegprep.picard" title="eegprep.picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.picard</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.picard.html#eegprep.picard" title="eegprep.picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.picard</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_picard.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.posact.html#eegprep.posact" title="eegprep.posact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.posact</span></code></a>(data, weights[, sphere])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.posact.html#eegprep.posact" title="eegprep.posact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.posact</span></code></a>(data, weights[, sphere])</p></td>
 <td><p>Flip ICA components whose negative samples have the larger RMS.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.promax.html#eegprep.promax" title="eegprep.promax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.promax</span></code></a>(data[, n_components, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.promax.html#eegprep.promax" title="eegprep.promax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.promax</span></code></a>(data[, n_components, ...])</p></td>
 <td><p>Return oblique Promax and orthogonal Varimax row rotations.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.robust_kmeans.html#eegprep.robust_kmeans" title="eegprep.robust_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.robust_kmeans</span></code></a>(data, clus_num[, STD, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.robust_kmeans.html#eegprep.robust_kmeans" title="eegprep.robust_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.robust_kmeans</span></code></a>(data, clus_num[, STD, ...])</p></td>
 <td><p>Cluster rows and iteratively mark distant rows as outliers.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.spher.html#eegprep.spher" title="eegprep.spher"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.spher</span></code></a>(data)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.spher.html#eegprep.spher" title="eegprep.spher"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.spher</span></code></a>(data)</p></td>
 <td><p>Return the sphering (whitening) matrix for the given data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runamica.html#eegprep.runamica" title="eegprep.runamica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runamica</span></code></a>(data[, num_models, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runamica.html#eegprep.runamica" title="eegprep.runamica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runamica</span></code></a>(data[, num_models, ...])</p></td>
 <td><p>Run AMICA binary on a data matrix.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica.html#eegprep.runica" title="eegprep.runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica</span></code></a>(data, *args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica.html#eegprep.runica" title="eegprep.runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Perform Independent Component Analysis (ICA) decomposition using infomax.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica_ml2.html#eegprep.runica_ml2" title="eegprep.runica_ml2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_ml2</span></code></a>(data, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica_ml2.html#eegprep.runica_ml2" title="eegprep.runica_ml2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_ml2</span></code></a>(data, **kwargs)</p></td>
 <td><p>Run the ML2 infomax defaults through the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> engine.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica_mlb.html#eegprep.runica_mlb" title="eegprep.runica_mlb"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_mlb</span></code></a>(data, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica_mlb.html#eegprep.runica_mlb" title="eegprep.runica_mlb"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_mlb</span></code></a>(data, **kwargs)</p></td>
 <td><p>Run the MLB infomax defaults through the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> engine.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runicalowmem.html#eegprep.runicalowmem" title="eegprep.runicalowmem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runicalowmem</span></code></a>(data, *args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runicalowmem.html#eegprep.runicalowmem" title="eegprep.runicalowmem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runicalowmem</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Run infomax ICA through EEGPrep's single maintained ICA engine.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runpca.html#eegprep.runpca" title="eegprep.runpca"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca</span></code></a>(data[, n_components, normalize])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runpca.html#eegprep.runpca" title="eegprep.runpca"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca</span></code></a>(data[, n_components, normalize])</p></td>
 <td><p>Decompose channel-major data into principal components.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runpca2.html#eegprep.runpca2" title="eegprep.runpca2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca2</span></code></a>(data[, n_components, symmetric])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runpca2.html#eegprep.runpca2" title="eegprep.runpca2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca2</span></code></a>(data[, n_components, symmetric])</p></td>
 <td><p>Whiten channel-major data from its channel covariance matrix.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.varimax.html#eegprep.varimax" title="eegprep.varimax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varimax</span></code></a>(data[, tolerance, reorder, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.varimax.html#eegprep.varimax" title="eegprep.varimax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varimax</span></code></a>(data[, tolerance, reorder, ...])</p></td>
 <td><p>Rotate matrix rows toward a sparse, orthogonal simple structure.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.varsort.html#eegprep.varsort" title="eegprep.varsort"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varsort</span></code></a>(activations, weights, sphere)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.varsort.html#eegprep.varsort" title="eegprep.varsort"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varsort</span></code></a>(activations, weights, sphere)</p></td>
 <td><p>Return zero-based component order and descending projected power.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.zica.html#eegprep.zica" title="eegprep.zica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.zica</span></code></a>(activations[, frames, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.zica.html#eegprep.zica" title="eegprep.zica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.zica</span></code></a>(activations[, frames, ...])</p></td>
 <td><p>Z-score ICA activations from repeated within-epoch baseline frames.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<section id="mutual-information-reduction">
+<span id="id1"></span><h2>Mutual information reduction<a class="headerlink" href="#mutual-information-reduction" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code> rates a decomposition by its mutual information reduction (MIR):
+the mutual information that <code class="docutils literal notranslate"><span class="pre">icaweights</span></code> removes from the sphered data
+<code class="docutils literal notranslate"><span class="pre">icasphere</span> <span class="pre">&#64;</span> <span class="pre">data</span></code>, in nats (Delorme et al., 2012,
+<a class="reference external" href="https://doi.org/10.1371/journal.pone.0030135">doi:10.1371/journal.pone.0030135</a>).
+It returns the MIR and the variance of that estimate:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_mir</span>
+
+<span class="n">mir</span><span class="p">,</span> <span class="n">variance</span> <span class="o">=</span> <span class="n">eeg_mir</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">icaweights</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">icasphere</span> <span class="pre">&#64;</span> <span class="pre">data</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span> <span class="pre">=</span> <span class="pre">W</span> <span class="pre">&#64;</span> <span class="pre">x</span></code>, MIR is
+<code class="docutils literal notranslate"><span class="pre">log|det</span> <span class="pre">W|</span> <span class="pre">+</span> <span class="pre">sum(h(x_i))</span> <span class="pre">-</span> <span class="pre">sum(h(y_i))</span></code>, where <code class="docutils literal notranslate"><span class="pre">h</span></code> is a marginal
+differential entropy. Identity weights give 0, and rescaling, reordering or
+flipping the sign of components leaves MIR unchanged. Larger is better.</p>
+<p>This is equation 17 of Delorme et al. (2012) with <code class="docutils literal notranslate"><span class="pre">x</span></code> taken after sphering,
+so MIR rates what the unmixing adds to the decorrelation that sphering does.
+The paper measures MIR from the recorded channels with the full unmixing and
+reports it in kbits/s, and the commented-out <code class="docutils literal notranslate"><span class="pre">mir</span></code> of NEMAR’s
+<code class="docutils literal notranslate"><span class="pre">eeg_nemar_dataqual.m</span></code> passes the channel data with
+<code class="docutils literal notranslate"><span class="pre">icaweights</span> <span class="pre">&#64;</span> <span class="pre">icasphere</span></code>. Their values include the reduction that sphering
+achieves, so they are not comparable with the values of <code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code>.</p>
+<p>Each entropy is the binned estimator of <code class="docutils literal notranslate"><span class="pre">getMIR.m</span></code>, as pAMICA ports it in
+<code class="docutils literal notranslate"><span class="pre">pamica.metrics.mir</span></code>, with a fixed 256 bins between a row’s minimum and
+maximum. <code class="docutils literal notranslate"><span class="pre">getMIR.m</span></code> takes <code class="docutils literal notranslate"><span class="pre">round(3</span> <span class="pre">*</span> <span class="pre">log2(1</span> <span class="pre">+</span> <span class="pre">N</span> <span class="pre">/</span> <span class="pre">10))</span></code> bins for <code class="docutils literal notranslate"><span class="pre">N</span></code>
+samples, a count that grows with the recording. On two unit-variance uniform
+sources rotated by 45 degrees, whose MIR is <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">-</span> <span class="pre">ln</span> <span class="pre">2</span></code> (0.3069) nats, that
+rule reads 0.046 nats low at 5,000 samples and 0.026 nats low at 1.2 million,
+while 256 bins read 0.005 nats low at every length. On the 32 components of
+<code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data_epochs_ica.set</span></code> (30,720 samples), the length-based
+count of 35 bins gives 0.851 nats, 256 bins give 0.993, and 512 bins give 0.994.
+<code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code> needs no optional dependency, and it returns the numbers of
+<code class="docutils literal notranslate"><span class="pre">pamica.metrics.mir(icaweights,</span> <span class="pre">icasphere</span> <span class="pre">&#64;</span> <span class="pre">data,</span> <span class="pre">nbins=256)</span></code> to within
+rounding in the last bit.</p>
+<p>Epochs are concatenated, and only the channels in <code class="docutils literal notranslate"><span class="pre">icachansind</span></code> are used.
+<code class="docutils literal notranslate"><span class="pre">icaact</span></code> is not read: the components are recomputed from <code class="docutils literal notranslate"><span class="pre">data</span></code>, a block
+of 8,192 samples at a time, so the memory <code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code> needs beyond the dataset
+stays near 18 MiB for 32 components and 73 MiB for 128, whatever the length.
+<code class="docutils literal notranslate"><span class="pre">icasphere</span></code> may have fewer rows than channels, as after AMICA’s <code class="docutils literal notranslate"><span class="pre">pcakeep</span></code>,
+and MIR is then measured in that subspace. <code class="docutils literal notranslate"><span class="pre">icaweights</span></code> must be square, so a
+<code class="docutils literal notranslate"><span class="pre">runica</span></code> decomposition reduced by PCA, which keeps the reduction in
+<code class="docutils literal notranslate"><span class="pre">icaweights</span></code>, raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. A singular <code class="docutils literal notranslate"><span class="pre">icaweights</span></code> or
+<code class="docutils literal notranslate"><span class="pre">icasphere</span></code>, NaN or infinite values, and a constant sphered row or component
+also raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p>
+</section>
 </section>
 
 
@@ -718,6 +772,24 @@ zero-based component and sample indices.</p>
             </div>
             
             
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mutual-information-reduction">Mutual information reduction</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>

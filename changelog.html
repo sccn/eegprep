@@ -491,6 +491,12 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code> returns the mutual information reduction (MIR) of a dataset’s ICA decomposition, in nats, and the variance of that estimate:
+the mutual information that <code class="docutils literal notranslate"><span class="pre">icaweights</span></code> removes from <code class="docutils literal notranslate"><span class="pre">icasphere</span> <span class="pre">&#64;</span> <span class="pre">data</span></code>.
+It uses the binned entropy estimator of <code class="docutils literal notranslate"><span class="pre">getMIR.m</span></code>, as <code class="docutils literal notranslate"><span class="pre">pamica.metrics.mir</span></code> ports it, with a fixed 256 bins instead of a count that grows with the recording,
+so MIR no longer drifts with recording length; it needs no optional dependency.
+Epochs are concatenated and <code class="docutils literal notranslate"><span class="pre">icachansind</span></code> selects the channels.
+A missing, non-square or singular decomposition, and non-finite data, raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> reads <code class="docutils literal notranslate"><span class="pre">EEGCoordinateSystem</span></code> by the orientation the BIDS coordinate-systems appendix gives it.
 <code class="docutils literal notranslate"><span class="pre">CTF</span></code>, <code class="docutils literal notranslate"><span class="pre">4DBti</span></code> and <code class="docutils literal notranslate"><span class="pre">KitYokogawa</span></code> are ALS and are no longer turned by 90 degrees.
 Names match without regard to case, so <code class="docutils literal notranslate"><span class="pre">MNI152NLin6Asym</span></code>, the schema’s spelling from BIDS 1.11.0, is RAS as <code class="docutils literal notranslate"><span class="pre">MNI152NLin6ASym</span></code> is;

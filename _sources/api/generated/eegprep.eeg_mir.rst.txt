@@ -1,0 +1,6 @@
+﻿eeg\_mir
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_mir
