@@ -10,6 +10,17 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``topoplot`` draws ``emarker`` (``marker`` or ``{marker, color, size, linewidth}``),
+  ``emarker2`` (``{chans, marker, color, size, linewidth}``), ``emarkersize`` / ``emsize``,
+  ``electcolor`` / ``ecolor``, and ``emarkersize1chan`` / ``emarkersizemark`` for
+  selected-channel blank maps. ``electrodes`` accepts EEGLAB aliases (``pts``, ``nums``,
+  ``ptslabels``, ``ptsnumbers``), draws markers alongside labels/numbers on interpolated
+  maps, keeps ``emarker2`` visible when ``electrodes='off'``, and only auto-hides
+  electrodes above 64 channels when omitted. Unknown keyword arguments now raise
+  ``ValueError`` naming ``topoplot`` and the option instead of being silently ignored;
+  caller-compatibility keys (``iclabel``, ``verbose``, ``chaninfo``, ``masksurf``) remain
+  allowed. (#683)
+
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
   Names match without regard to case, so ``MNI152NLin6Asym``, the schema's spelling from BIDS 1.11.0, is RAS as ``MNI152NLin6ASym`` is;

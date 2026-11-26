@@ -18,7 +18,9 @@ pop_topoplot(EEG, typeplot=0, items=[1, -2, float("nan"), 3], topotitle="IC maps
 ```
 
 Additional `topoplot` options can be passed as keyword arguments, for example
-`electrodes="on"`, `colorbar="off"`, or `maplimits=[-5, 5]`.
+`electrodes="on"`, `colorbar="off"`, `maplimits=[-5, 5]`,
+`emarker=["s", "b", 8, 2]`, or `emarker2=[[1, 3], "o", "r", 10, 1]`.
+Unknown `topoplot` options raise `ValueError`.
 Component colorbars use `-`, `0`, and `+` labels only when their limits span
 both negative and positive values. One-sided scales retain numeric labels and
 the exact requested endpoints.

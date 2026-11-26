@@ -668,6 +668,17 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        358-362, then passes that filename to ``readlocs``.
        ``test_missing_or_empty_channel_locations_name_the_problem`` locks
        the EEGPrep error.
+   * - ``topoplot`` marker options and unknown parameters
+     - ``topoplot`` draws ``emarker`` (hollow for geometric shapes, solid for
+       ``.`` and ``*``), ``emarker2`` (filled, still drawn when
+       ``electrodes='off'``, and indexed against the plotted channel list as in
+       ``topoplot.m`` lines 913-914), ``emarkersize`` / ``emsize``,
+       ``electcolor`` / ``ecolor``, and ``emarkersize1chan`` /
+       ``emarkersizemark`` on blank selected-channel maps (applied directly
+       without requiring ``plotdisk='on'``). Unknown parameters raise
+       ``ValueError`` naming ``topoplot`` and the option; ``iclabel``,
+       ``verbose``, ``chaninfo``, and ``masksurf`` stay allowed for caller
+       compatibility.
 
 File menu and data I/O
 =======================

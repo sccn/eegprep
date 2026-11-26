@@ -15,7 +15,7 @@ from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
 from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
-from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords, topoplot
+from eegprep.functions.sigprocfunc.topoplot import topoplot
 from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc._bootstrap import (
     bootstrap_indices as shared_bootstrap_indices,
@@ -1139,28 +1139,12 @@ def _draw_scalp_inset(fig, topovec: Any, elocs: Any):
     """Draw the channel/component scalp-map inset at EEGLAB's mid-left position."""
     inset = fig.add_axes(_axes_rect(-0.1, 0.43, 0.2, 0.14))
     values = np.asarray(topovec)
-    if values.size == 1:  # a single channel: blank head with its electrode marked
+    if values.size == 1:  # a single channel: blank head with its electrode marked (newtimef.m:1908)
         channel = int(values.flat[0])
-        topoplot(channel, elocs, axes=inset, style="blank", electrodes="off", title="")
-        _mark_electrode(inset, elocs, channel - 1)
+        topoplot(channel, elocs, axes=inset, style="blank", electrodes="off", emarkersize1chan=10, title="")
     else:  # an ICA component column: interpolated scalp map
         topoplot(values, elocs, axes=inset, electrodes="off")
     inset.set_aspect("equal")
-
-
-def _mark_electrode(axis, elocs: Any, index: int) -> None:
-    """Mark one electrode (EEGLAB's ``emarkersize1chan``) on a blank channel inset."""
-    if not (isinstance(elocs, (list, tuple)) and 0 <= index < len(elocs)):
-        return
-    loc = elocs[index]
-    theta, radius = loc.get("theta"), loc.get("radius")
-    if theta is None or radius is None:
-        return
-    try:
-        screen_x, screen_y = topo_screen_coords(float(theta), float(radius))
-    except (TypeError, ValueError):
-        return
-    axis.plot(screen_x, screen_y, marker="o", color="r", markersize=6, markeredgecolor="k", zorder=6)
 
 
 def _plot_curve_figure(

@@ -655,12 +655,251 @@ def test_reference_near_duplicate_and_nan_channel(eeglab_backend):
     )
 
 
-def test_topoplot_rejects_unsupported_emarker_options():
-    locs = [{"labels": "Cz", "theta": 0.0, "radius": 0.0}]
-    for name in ("emarker", "emarker2"):
-        with pytest.raises(ValueError, match=rf"topoplot: '{name}' is not supported yet in eegprep") as caught:
-            topoplot([0.0], locs, noplot="on", **{name: "."})
-        assert "EEGLAB topoplot.m supports it" in str(caught.value)
+def test_topoplot_rejects_unknown_options_and_keeps_compat_allowlist():
+    locs = [
+        {"labels": "Fz", "theta": 0.0, "radius": 0.3},
+        {"labels": "Cz", "theta": 0.0, "radius": 0.0},
+        {"labels": "Pz", "theta": 180.0, "radius": 0.3},
+        {"labels": "C3", "theta": 270.0, "radius": 0.4},
+    ]
+    data = np.array([1.0, 2.0, -1.0, 0.5])
+
+    for bad_key, bad_val in (
+        ("foobar", 1),
+        ("headrad", 0.5),
+        ("plotgrid", [[1, 2]]),
+        ("dipole", [0.0, 0.0, 1.0, 0.0, 0.0]),
+    ):
+        with pytest.raises(ValueError, match=rf"topoplot: Unknown input parameter '{bad_key}'"):
+            topoplot(data, locs, noplot="on", **{bad_key: bad_val})
+        with pytest.raises(ValueError, match=rf"topoplot: Unknown input parameter '{bad_key}'"):
+            topoplot([], locs, style="blank", noplot="on", **{bad_key: bad_val})
+
+    # Explicitly ignored / caller-compat keys remain accepted.
+    _handle, zi, *_rest = topoplot(
+        data,
+        locs,
+        noplot="on",
+        iclabel=True,
+        verbose="off",
+        chaninfo={},
+        masksurf="on",
+    )
+    assert np.isfinite(zi).any()
+
+
+def test_topoplot_emarker_draws_marker_color_size_linewidth_and_autosize():
+    locs = [
+        {"labels": "Fz", "theta": 0.0, "radius": 0.3},
+        {"labels": "Cz", "theta": 0.0, "radius": 0.0},
+        {"labels": "Pz", "theta": 180.0, "radius": 0.3},
+        {"labels": "C3", "theta": 270.0, "radius": 0.4},
+        {"labels": "C4", "theta": 90.0, "radius": 0.4},
+    ]
+    data = np.array([1.0, 2.0, -1.0, 0.5, -0.5])
+
+    # Full 4-item emarker tuple draws hollow blue squares with explicit size and linewidth.
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data, locs, axes=ax, emarker=["s", [0.0, 0.0, 1.0], 8, 2])
+        marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
+        assert len(marker_col.get_offsets()) == 5
+        assert np.asarray(marker_col.get_facecolor()).size == 0
+        np.testing.assert_allclose(marker_col.get_edgecolor()[0], [0.0, 0.0, 1.0, 1.0])
+        np.testing.assert_allclose(marker_col.get_sizes(), [64.0])
+        np.testing.assert_allclose(marker_col.get_linewidth(), [2.0])
+    finally:
+        plt.close(fig)
+
+    # Empty size placeholder triggers EEGLAB channel-count auto-size table.
+    for n_chans, expected_pt in ((8, 10.0), (32, 8.0), (48, 6.0), (64, 5.0), (80, 4.0), (100, 3.0)):
+        ring_locs = [
+            {"labels": f"E{i + 1}", "theta": i * (360.0 / n_chans), "radius": 0.4 if i else 0.0} for i in range(n_chans)
+        ]
+        ring_data = np.linspace(-1.0, 1.0, n_chans)
+        fig, ax = plt.subplots()
+        try:
+            topoplot(ring_data, ring_locs, axes=ax, electrodes="on", emarker=[".", "r", [], 1.5])
+            marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
+            assert len(marker_col.get_offsets()) == n_chans
+            np.testing.assert_allclose(marker_col.get_sizes(), [expected_pt**2])
+            np.testing.assert_allclose(marker_col.get_facecolor()[0], [1.0, 0.0, 0.0, 1.0])
+        finally:
+            plt.close(fig)
+
+    # Left-to-right option precedence between emarker and emsize/ecolor.
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data, locs, axes=ax, emarker=["o", "r", 12, 1], emsize=6, ecolor="b")
+        marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
+        np.testing.assert_allclose(marker_col.get_sizes(), [36.0])
+        np.testing.assert_allclose(marker_col.get_edgecolor()[0], [0.0, 0.0, 1.0, 1.0])
+    finally:
+        plt.close(fig)
+
+    # Unfilled line markers ('+', 'x') draw with zero matplotlib warnings; 'none' skips drawing.
+    for sym in ("+", "x"):
+        fig, ax = plt.subplots()
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                topoplot(data, locs, axes=ax, emarker=[sym, "k", 9, 1.5])
+                fig.canvas.draw()
+            assert not any("unfilled marker" in str(item.message) for item in caught)
+            marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
+            assert len(marker_col.get_offsets()) == 5
+        finally:
+            plt.close(fig)
+
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data, locs, axes=ax, emarker="none")
+        assert not any(isinstance(c, PathCollection) for c in ax.collections)
+    finally:
+        plt.close(fig)
+
+    for bad_emarker in ([], [".", "k", 8, 1, "extra"], "not_a_marker", [".", "not_a_color"]):
+        with pytest.raises(ValueError, match="topoplot"):
+            topoplot(data, locs, noplot="on", emarker=bad_emarker)
+
+
+def test_topoplot_emarker2_indexing_plotchans_plotrad_and_electrodes_modes():
+    locs = [
+        {"labels": "Fz", "theta": 0.0, "radius": 0.3},
+        {"labels": "Cz", "theta": 0.0, "radius": 0.0},
+        {"labels": "Pz", "theta": 180.0, "radius": 0.3},
+        {"labels": "C3", "theta": 270.0, "radius": 0.4},
+        {"labels": "C4", "theta": 90.0, "radius": 0.4},
+    ]
+    data = np.array([1.0, 2.0, -1.0, 0.5, -0.5])
+
+    # Matches MATLAB topoplot.m:913-914: emarker2 indexes into post-plotchans pltchans.
+    fig, ax = plt.subplots()
+    try:
+        topoplot(
+            data,
+            locs,
+            axes=ax,
+            plotchans=[2, 4, 5],
+            emarker=["s", "b", 8, 2],
+            emarker2=[[2], "o", [0.0, 1.0, 0.0], 14, 3],
+        )
+        pcs = sorted((c for c in ax.collections if isinstance(c, PathCollection)), key=lambda c: c.get_zorder())
+        assert len(pcs) == 2
+        normal_col, mark2_col = pcs
+        assert normal_col.get_zorder() < mark2_col.get_zorder()
+        assert len(normal_col.get_offsets()) == 2  # Cz and C4
+        assert len(mark2_col.get_offsets()) == 1  # C3 (position 2 of plotchans)
+        assert mark2_col.get_offsets()[0, 0] < 0  # C3 is on the left
+        np.testing.assert_allclose(mark2_col.get_facecolor()[0], [0.0, 1.0, 0.0, 1.0])
+        np.testing.assert_allclose(mark2_col.get_sizes(), [196.0])
+        np.testing.assert_allclose(mark2_col.get_linewidth(), [3.0])
+        assert np.asarray(normal_col.get_facecolor()).size == 0  # hollow square
+    finally:
+        plt.close(fig)
+
+    # Channel excluded by plotrad is not drawn by emarker2; later channels keep their 1-based position.
+    wide_locs = [dict(loc) for loc in locs]
+    wide_locs[2]["radius"] = 0.8  # Pz outside plotrad=0.5
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data, wide_locs, axes=ax, plotrad=0.5, electrodes="off", emarker2=[[3, 4], "d", "r", 11, 2])
+        pcs = [c for c in ax.collections if isinstance(c, PathCollection)]
+        assert len(pcs) == 1
+        assert len(pcs[0].get_offsets()) == 1  # only C3 (4); Pz (3) excluded by plotrad
+        assert pcs[0].get_offsets()[0, 0] < 0
+    finally:
+        plt.close(fig)
+
+    # electrodes='off' suppresses emarker but STILL draws emarker2 (topoplot.m:1614-1616).
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data, locs, axes=ax, electrodes="off", emarker2=[[1, 3], "d", "m", 12, 2])
+        pcs = [c for c in ax.collections if isinstance(c, PathCollection)]
+        assert len(pcs) == 1
+        assert len(pcs[0].get_offsets()) == 2
+        np.testing.assert_allclose(pcs[0].get_sizes(), [144.0])
+    finally:
+        plt.close(fig)
+
+    # electrodes='labels' / 'numbers' draw text only (neither emarker nor emarker2).
+    for mode, expected_texts in (("labels", ["Fz", "Cz", "Pz", "C3", "C4"]), ("nums", ["1", "2", "3", "4", "5"])):
+        fig, ax = plt.subplots()
+        try:
+            topoplot(data, locs, axes=ax, electrodes=mode, emarker2=[[1], "o", "r", 12, 1])
+            assert not any(isinstance(c, PathCollection) for c in ax.collections)
+            assert [t.get_text() for t in ax.texts] == expected_texts
+        finally:
+            plt.close(fig)
+
+    # electrodes='ptsnumbers' on interpolated map draws both markers and original 1-based channel numbers.
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data, locs, axes=ax, plotchans=[2, 4, 5], electrodes="ptsnumbers")
+        pcs = [c for c in ax.collections if isinstance(c, PathCollection)]
+        assert len(pcs) == 1
+        assert len(pcs[0].get_offsets()) == 3
+        assert [t.get_text() for t in ax.texts] == ["2", "4", "5"]
+    finally:
+        plt.close(fig)
+
+    # Default electrodes disables markers for >64 channels only when electrodes is omitted.
+    many_locs = [{"labels": f"E{i + 1}", "theta": i * (360.0 / 68), "radius": 0.4 if i else 0.0} for i in range(68)]
+    many_data = np.linspace(-1.0, 1.0, 68)
+    fig, ax = plt.subplots()
+    try:
+        topoplot(many_data, many_locs, axes=ax)
+        assert not any(isinstance(c, PathCollection) for c in ax.collections)
+    finally:
+        plt.close(fig)
+
+    # emarker2 on style='blank' raises ValueError matching EEGLAB even with noplot='on'.
+    with pytest.raises(ValueError, match="emarker2 not defined for style 'blank'"):
+        topoplot([], locs, style="blank", noplot="on", emarker2=[[1]])
+
+
+def test_topoplot_blank_marks_selected_channels_with_emarkersize1chan():
+    locs = [
+        {"labels": "Fz", "theta": 0.0, "radius": 0.3},
+        {"labels": "Cz", "theta": 0.0, "radius": 0.0},
+        {"labels": "Pz", "theta": 180.0, "radius": 0.3},
+        {"labels": "C3", "theta": 270.0, "radius": 0.4},
+        {"labels": "C4", "theta": 90.0, "radius": 0.4},
+    ]
+
+    # Single channel index with emarkersize1chan draws one red marker at C3 sized by pt**2.
+    fig, ax = plt.subplots()
+    try:
+        topoplot(4, locs, style="blank", electrodes="off", emarkersize1chan=12, axes=ax)
+        pcs = [c for c in ax.collections if isinstance(c, PathCollection)]
+        assert len(pcs) == 1
+        assert len(pcs[0].get_offsets()) == 1
+        assert pcs[0].get_offsets()[0, 0] < 0  # C3 on left
+        np.testing.assert_allclose(pcs[0].get_sizes(), [144.0])
+        np.testing.assert_allclose(pcs[0].get_facecolor()[0], [1.0, 0.0, 0.0, 1.0])
+    finally:
+        plt.close(fig)
+
+    # Alias emarkersizemark and default size 20 pt work, and electrodes='on' keeps normal dots below.
+    fig, ax = plt.subplots()
+    try:
+        topoplot([1, 5], locs, style="blank", electrodes="on", emarkersizemark=15, axes=ax)
+        pcs = sorted((c for c in ax.collections if isinstance(c, PathCollection)), key=lambda c: c.get_zorder())
+        assert len(pcs) == 2
+        assert len(pcs[0].get_offsets()) == 5
+        assert len(pcs[1].get_offsets()) == 2
+        np.testing.assert_allclose(pcs[1].get_sizes(), [225.0])
+    finally:
+        plt.close(fig)
+
+    fig, ax = plt.subplots()
+    try:
+        topoplot(5, locs, style="blank", electrodes="off", axes=ax)
+        pcs = [c for c in ax.collections if isinstance(c, PathCollection)]
+        assert len(pcs) == 1
+        np.testing.assert_allclose(pcs[0].get_sizes(), [400.0])  # default EMARKERSIZE1CHAN=20
+    finally:
+        plt.close(fig)
 
 
 if __name__ == '__main__':
