@@ -932,6 +932,23 @@ def test_pop_export_ok_keeps_the_dialog_precision_default(tmp_path):
         importer.close()
 
 
+def test_pop_export_dialog_aligns_checkboxes_and_edits_and_shows_help():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(pop_export_dialog_spec())
+    try:
+        dialog.show()
+        tags = ("ica", "erp", "transpose", "elec", "separator", "time", "precision", "expr")
+        lefts = {tag: widgets[tag].mapTo(dialog, qt_module.QtCore.QPoint(0, 0)).x() for tag in tags}
+        assert len(set(lefts.values())) == 1, lefts
+        assert dialog.findChild(qt_module.QtWidgets.QPushButton, "help") is not None
+    finally:
+        dialog.close()
+
+
 def test_qt_export_dialogs_build(tmp_path):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from eegprep.functions.guifunc import qt as qt_module
