@@ -151,6 +151,8 @@ def pop_export_dialog_spec() -> DialogSpec:
             ControlSpec("text", ""),
         ),
         help_text="pophelp('pop_export')",
+        weighted_columns=True,
+        size=(852, 300),
         known_differences=("The label says significant digits, but pop_export.m:179 writes %.Nf decimal places.",),
     )
 
