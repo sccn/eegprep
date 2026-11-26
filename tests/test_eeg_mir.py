@@ -124,7 +124,10 @@ def test_matches_pamica_on_epoched_data_a_channel_subset_and_a_reduced_sphere():
     expected, expected_variance = metrics.mir(weights, finite_matmul(sphere, mixed[icachansind]), nbins=MIR_NBINS)
     # eeg_mir multiplies by the sphere and the weights a block of samples at a time and pAMICA in one
     # product, so a BLAS may round a few products differently in the last bit; that moves a row's
-    # minimum, maximum and log bin width by about 1e-16, far inside this tolerance.
+    # minimum, maximum and log bin width by about 1e-16, far inside this tolerance. In principle such a
+    # difference could also move one sample across a bin boundary, changing an entropy by about 1/N
+    # (3e-5 here). That needs a sample within one rounding step (about 3e-14 of a bin width) of a
+    # boundary, which for these 30,000 samples of 8 rows has a probability below about 1e-8.
     assert value == pytest.approx(expected, rel=1e-12, abs=1e-12)
     assert variance == pytest.approx(expected_variance, rel=1e-12, abs=1e-12)
 
@@ -166,6 +169,14 @@ def _nan_sample(eeg):
     eeg["data"][2, 100] = np.nan
 
 
+def _no_samples(eeg):
+    eeg["data"] = eeg["data"][:, :0]
+
+
+def _no_epochs(eeg):
+    eeg["data"] = np.zeros((eeg["data"].shape[0], 10, 0))
+
+
 def _flat_channel(eeg):
     eeg["icasphere"] = np.eye(4)
     eeg["data"][1] = 5.0
@@ -183,6 +194,8 @@ def _flat_channel(eeg):
         (_nan_weight, "icaweights holds NaN or infinite"),
         (_infinite_sphere_entry, "icasphere holds NaN or infinite"),
         (_nan_sample, "data holds NaN or infinite"),
+        (_no_samples, "no samples"),
+        (_no_epochs, "no samples"),
         (_flat_channel, "constant"),
     ],
 )

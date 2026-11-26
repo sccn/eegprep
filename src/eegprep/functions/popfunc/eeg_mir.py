@@ -86,6 +86,8 @@ def eeg_mir(EEG: dict[str, Any]) -> tuple[float, float]:
             "they must be the channels the decomposition was computed on."
         )
     samples = data[0].size
+    if samples == 0:
+        raise ValueError("EEG data holds no samples; eeg_mir needs data.")
     selection = slice(None) if np.array_equal(channels, np.arange(data.shape[0])) else channels
     components = weights.shape[0]
 
