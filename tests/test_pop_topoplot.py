@@ -3,6 +3,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import PathCollection
 import numpy as np
 import pytest
 
@@ -286,17 +287,44 @@ def test_parse_options_text_matches_matlab_eval_edges():
         assert bad in str(caught.value)
 
 
-def test_pop_topoplot_option_text_rejects_unsupported_markers():
+def test_pop_topoplot_option_text_forwards_emarker_and_rejects_unknown_options():
     eeg = create_test_eeg_with_ica(n_channels=4, n_samples=8, n_trials=1)
-    cases = (
-        ("'emarker', {'.', 5, 'k'}", "emarker"),
-        ("'emarker2', {[1 2 3], 'o', 'r', 10, 1}", "emarker2"),
+
+    figs = pop_topoplot(eeg, typeplot=1, items=[0], plot="off", **_parse_options_text("'emarker', {'s', 'b', 8, 2}"))
+    try:
+        ax = figs[0].axes[0]
+        marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
+        assert len(marker_col.get_offsets()) == 4
+        assert np.asarray(marker_col.get_facecolor()).size == 0
+        np.testing.assert_allclose(marker_col.get_edgecolor()[0], [0.0, 0.0, 1.0, 1.0])
+        np.testing.assert_allclose(marker_col.get_sizes(), [64.0])
+        np.testing.assert_allclose(marker_col.get_linewidth(), [2.0])
+    finally:
+        for fig in figs:
+            plt.close(fig)
+
+    figs = pop_topoplot(
+        eeg,
+        typeplot=1,
+        items=[0],
+        plot="off",
+        **_parse_options_text("'emarker2', {[1 3], 'o', 'r', 12, 2}"),
     )
-    for text, name in cases:
-        with pytest.raises(ValueError, match=rf"topoplot: '{name}' is not supported yet in eegprep") as caught:
-            pop_topoplot(eeg, typeplot=1, items=[0], plot="off", **_parse_options_text(text))
-        message = str(caught.value)
-        assert "EEGLAB topoplot.m supports it" in message
+    try:
+        ax = figs[0].axes[0]
+        pcs = sorted((c for c in ax.collections if isinstance(c, PathCollection)), key=lambda c: c.get_zorder())
+        assert len(pcs) == 2
+        assert len(pcs[0].get_offsets()) == 2
+        assert len(pcs[1].get_offsets()) == 2
+        np.testing.assert_allclose(pcs[1].get_facecolor()[0], [1.0, 0.0, 0.0, 1.0])
+        np.testing.assert_allclose(pcs[1].get_sizes(), [144.0])
+        np.testing.assert_allclose(pcs[1].get_linewidth(), [2.0])
+    finally:
+        for fig in figs:
+            plt.close(fig)
+
+    with pytest.raises(ValueError, match=r"topoplot: Unknown input parameter 'foobar'"):
+        pop_topoplot(eeg, typeplot=1, items=[0], plot="off", **_parse_options_text("'foobar', 1"))
 
 
 def test_parse_options_text_names_unparsed_text():

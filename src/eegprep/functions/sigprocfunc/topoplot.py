@@ -3,11 +3,93 @@
 import warnings
 
 import numpy as np
+from matplotlib import colors as mcolors
+from matplotlib.markers import MarkerStyle
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 
 from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.plot_utils import show_figures
+
+
+_IMPLEMENTED_OPTIONS = frozenset(
+    {
+        "noplot",
+        "plotchans",
+        "gridscale",
+        "electrodes",
+        "intrad",
+        "plotrad",
+        "method",
+        "style",
+        "colormap",
+        "maplimits",
+        "numcontour",
+        "colorbar",
+        "markersize",
+        "showlabels",
+        "axes",
+        "title",
+        "emarker",
+        "emarker2",
+        "emarkersize1chan",
+        "emarkersizemark",
+        "emarkersize",
+        "emsize",
+        "electcolor",
+        "ecolor",
+    }
+)
+# Accepted without effect: EEGLAB ignores 'iclabel' (topoplot.m:613), and
+# existing callers/tests pass 'verbose', 'chaninfo', and 'masksurf'.
+_COMPAT_IGNORED_OPTIONS = frozenset({"iclabel", "verbose", "chaninfo", "masksurf"})
+_ALLOWED_OPTIONS = _IMPLEMENTED_OPTIONS | _COMPAT_IGNORED_OPTIONS
+
+_ELECTRODE_ALIASES = {
+    "on": "on",
+    "pts": "on",
+    "off": "off",
+    "labels": "labels",
+    "numbers": "numbers",
+    "nums": "numbers",
+    "labelpoint": "labelpoint",
+    "pointlabels": "labelpoint",
+    "ptslabels": "labelpoint",
+    "labelspts": "labelpoint",
+    "ptlabels": "labelpoint",
+    "labelpts": "labelpoint",
+    "numpoint": "numpoint",
+    "pointnumbers": "numpoint",
+    "ptsnumbers": "numpoint",
+    "numberspts": "numpoint",
+    "ptnumbers": "numpoint",
+    "numberpts": "numpoint",
+    "ptsnums": "numpoint",
+    "numspts": "numpoint",
+}
+
+_MATLAB_MARKERS = {
+    ".": ".",
+    "o": "o",
+    "+": "+",
+    "*": "*",
+    "x": "x",
+    "s": "s",
+    "square": "s",
+    "d": "d",
+    "diamond": "d",
+    "^": "^",
+    "v": "v",
+    "<": "<",
+    ">": ">",
+    "p": "p",
+    "pentagram": "p",
+    "h": "h",
+    "hexagram": "h",
+}
+_BLANK_COLOR_ARRAY = ((1.0, 0.0, 0.0, 1.0), (0.5, 0.0, 0.0, 1.0), (0.0, 0.0, 0.0, 1.0))
+_DEFAULT_EMARKERSIZE1CHAN = 20.0
+_EMARKERSIZE_THRESHOLDS = ((100, 3.0), (80, 4.0), (64, 5.0), (48, 6.0), (32, 8.0))
 
 
 def griddata_v4(x, y, v, xq, yq):
@@ -159,11 +241,187 @@ def _require_channel_locations(chan_locs) -> None:
         )
 
 
-def _reject_unsupported_marker_options(kwargs: dict) -> None:
-    present = {str(key).lower() for key in kwargs}
-    for name in ("emarker", "emarker2"):
-        if name in present:
-            raise ValueError(f"topoplot: '{name}' is not supported yet in eegprep (EEGLAB topoplot.m supports it).")
+def _is_empty_placeholder(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    return isinstance(value, (list, tuple)) and len(value) == 0
+
+
+def _normalize_electrodes(value) -> str:
+    if isinstance(value, str):
+        normalized = _ELECTRODE_ALIASES.get(value.lower())
+        if normalized is not None:
+            return normalized
+    raise ValueError(f"topoplot: Unknown value for keyword 'electrodes': {value!r}")
+
+
+def _parse_marker_symbol(value, option_name: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"topoplot: invalid {option_name} marker {value!r}")
+    if value.lower() == "none":
+        return "none"
+    mapped = _MATLAB_MARKERS.get(value) or _MATLAB_MARKERS.get(value.lower())
+    if mapped is None:
+        raise ValueError(f"topoplot: invalid {option_name} marker {value!r}")
+    return mapped
+
+
+def _parse_color_spec(value, option_name: str):
+    if isinstance(value, str):
+        if value.lower() == "none":
+            return "none"
+        try:
+            return mcolors.to_rgba(value)
+        except ValueError:
+            raise ValueError(f"topoplot: invalid {option_name} color {value!r}") from None
+    if isinstance(value, (list, tuple, np.ndarray)):
+        try:
+            arr = np.asarray(value, dtype=float).reshape(-1)
+        except (TypeError, ValueError):
+            raise ValueError(f"topoplot: invalid {option_name} color {value!r}") from None
+        if arr.size in (3, 4) and np.all(np.isfinite(arr)) and np.all((arr >= 0.0) & (arr <= 1.0)):
+            return mcolors.to_rgba(tuple(arr.tolist()))
+    raise ValueError(f"topoplot: invalid {option_name} color {value!r}")
+
+
+def _parse_positive_number(value, option_name: str, field_name: str) -> float:
+    if isinstance(value, (bool, np.bool_)):
+        raise ValueError(f"topoplot: {option_name} {field_name} must be a positive number, got {value!r}")
+    try:
+        arr = np.asarray(value, dtype=float).reshape(-1)
+    except (TypeError, ValueError):
+        raise ValueError(f"topoplot: {option_name} {field_name} must be a positive number, got {value!r}") from None
+    if arr.size != 1 or not np.isfinite(arr[0]) or arr[0] <= 0.0:
+        raise ValueError(f"topoplot: {option_name} {field_name} must be a positive number, got {value!r}")
+    return float(arr[0])
+
+
+def _parse_emarker2_channels(value) -> np.ndarray:
+    if _is_empty_placeholder(value):
+        return np.array([], dtype=int)
+    if isinstance(value, (str, bytes, bool, np.bool_)):
+        raise ValueError(f"topoplot: emarker2 channel indices must be whole numbers, got {value!r}")
+    try:
+        arr = np.asarray(value, dtype=float).reshape(-1)
+    except (TypeError, ValueError):
+        raise ValueError(f"topoplot: emarker2 channel indices must be whole numbers, got {value!r}") from None
+    if not np.all(np.isfinite(arr)) or np.any(arr != np.trunc(arr)):
+        raise ValueError(f"topoplot: emarker2 channel indices must be whole numbers, got {value!r}")
+    # topoplot.m:523 takes abs(Value{1}) for negative channel indices.
+    return np.abs(arr).astype(int)
+
+
+def _default_emarkersize(n_channels: int) -> float:
+    """EEGLAB channel-count marker size table (topoplot.m:1466-1483)."""
+    for threshold, size in _EMARKERSIZE_THRESHOLDS:
+        if n_channels >= threshold:
+            return size
+    return 10.0
+
+
+def _apply_marker_spec(target: dict, items, option_name: str, *, allow_auto_size: bool) -> None:
+    if items and not _is_empty_placeholder(items[0]):
+        target["marker"] = _parse_marker_symbol(items[0], option_name)
+    if len(items) > 1 and not _is_empty_placeholder(items[1]):
+        target["color"] = _parse_color_spec(items[1], option_name)
+    if len(items) > 2:
+        if _is_empty_placeholder(items[2]):
+            if allow_auto_size:
+                target["size"] = None
+        else:
+            target["size"] = _parse_positive_number(items[2], option_name, "size")
+    if len(items) > 3 and not _is_empty_placeholder(items[3]):
+        target["linewidth"] = _parse_positive_number(items[3], option_name, "linewidth")
+
+
+def _parse_topoplot_options(kwargs: dict) -> dict:
+    opts: dict = {}
+    marker_style: dict = {"marker": ".", "color": mcolors.to_rgba("k"), "size": None, "linewidth": 1.0}
+    marker2_style: dict = {
+        "chans": np.array([], dtype=int),
+        "marker": "o",
+        "color": mcolors.to_rgba("r"),
+        "size": 10.0,
+        "linewidth": 1.0,
+    }
+    emarkersize1chan = _DEFAULT_EMARKERSIZE1CHAN
+    legacy_markersize = None
+    electrodes_arg = None
+
+    for raw_key, value in kwargs.items():
+        key = str(raw_key).lower()
+        if key not in _ALLOWED_OPTIONS:
+            raise ValueError(f"topoplot: Unknown input parameter '{raw_key}'")
+        opts[key] = value
+        if key == "electrodes":
+            electrodes_arg = _normalize_electrodes(value)
+        elif key == "emarker":
+            if isinstance(value, str):
+                marker_style["marker"] = _parse_marker_symbol(value, "emarker")
+            elif isinstance(value, (list, tuple)) and 1 <= len(value) <= 4:
+                _apply_marker_spec(marker_style, value, "emarker", allow_auto_size=True)
+            else:
+                raise ValueError(
+                    "topoplot: 'emarker' argument must be a marker string or a 1-to-4 item sequence "
+                    "{marker, color, size, linewidth}"
+                )
+        elif key == "emarker2":
+            if not isinstance(value, (list, tuple)) or not (1 <= len(value) <= 5):
+                raise ValueError(
+                    "topoplot: 'emarker2' argument must be a 1-to-5 item sequence "
+                    "{chans, marker, color, size, linewidth}"
+                )
+            marker2_style["chans"] = _parse_emarker2_channels(value[0])
+            _apply_marker_spec(marker2_style, value[1:], "emarker2", allow_auto_size=False)
+        elif key in {"emarkersize", "emsize"}:
+            marker_style["size"] = None if _is_empty_placeholder(value) else _parse_positive_number(value, key, "size")
+        elif key in {"electcolor", "ecolor"}:
+            if not _is_empty_placeholder(value):
+                marker_style["color"] = _parse_color_spec(value, key)
+        elif key in {"emarkersize1chan", "emarkersizemark"}:
+            if not _is_empty_placeholder(value):
+                emarkersize1chan = _parse_positive_number(value, key, "size")
+        elif key == "markersize":
+            legacy_markersize = value
+
+    return {
+        "opts": opts,
+        "marker_style": marker_style,
+        "marker2_style": marker2_style,
+        "emarkersize1chan": emarkersize1chan,
+        "legacy_markersize": legacy_markersize,
+        "electrodes": electrodes_arg,
+    }
+
+
+def _resolve_emarker_size_sq(marker_style: dict, n_channels: int, legacy_markersize) -> float:
+    if marker_style["size"] is not None:
+        return float(marker_style["size"]) ** 2
+    if legacy_markersize is not None:
+        return float(legacy_markersize)
+    return _default_emarkersize(n_channels) ** 2
+
+
+def _draw_markers(ax, x, y, *, marker: str, color, size_sq: float, linewidth: float, filled: bool, zorder: int):
+    x_arr = np.asarray(x, dtype=float).ravel()
+    y_arr = np.asarray(y, dtype=float).ravel()
+    if x_arr.size == 0 or marker == "none" or color == "none":
+        return None
+    if not MarkerStyle(marker).is_filled():
+        return ax.scatter(x_arr, y_arr, marker=marker, s=size_sq, color=color, linewidths=linewidth, zorder=zorder)
+    facecolors = color if (filled or marker in {".", "*"}) else "none"
+    return ax.scatter(
+        x_arr,
+        y_arr,
+        marker=marker,
+        s=size_sq,
+        facecolors=facecolors,
+        edgecolors=color,
+        linewidths=linewidth,
+        zorder=zorder,
+    )
 
 
 def topoplot(datavector, chan_locs, **kwargs):
@@ -172,49 +430,54 @@ def topoplot(datavector, chan_locs, **kwargs):
     Parameters
     ----------
     datavector : array-like
-        Values to plot at each channel location.
+        Values to plot at each channel location, or 1-based channel indices to
+        mark when ``style='blank'``.
     chan_locs : list of dict
         Channel location structures with 'labels', 'theta', and 'radius' fields.
         ``None`` raises ``ValueError``. An empty list raises ``ValueError``
         for an interpolated map. A blank map with an empty list draws the head.
     kwargs : dict
-        Additional keyword arguments for customization:
-
-        - noplot : str or tuple, default 'off'
-        - plotgrid : str, default 'off'
-        - plotchans : sequence of int, default []
-          1-based channel indices to include, from 1 through the channel
-          count. Empty draws every channel that has ``theta``. A single
-          index is applied the same way. One remaining location raises
-          ``ValueError`` from ``griddata_v4``. EEGLAB ``topoplot`` follows
-          MATLAB ``griddata`` and returns a non-finite map instead.
-        - ELECTRODES : str, default 'on'
-        - intrad : float, default nan
-        - plotrad : float, default nan
-        - headrad : float, default 0.5
-        - method : str, default 'rbf'
+        Case-insensitive options from an explicit allow-list. Unknown keys raise
+        ``ValueError`` naming ``topoplot`` and the key. Implemented options:
+        ``noplot``, ``plotchans`` (1-based indices), ``electrodes`` (``on``/``pts``,
+        ``off``, ``labels``, ``numbers``/``nums``, ``labelpoint``/``ptslabels``,
+        ``numpoint``/``ptsnumbers``), ``emarker`` (``marker`` or
+        ``{marker, color, size, linewidth}``), ``emarker2``
+        (``{chans, marker, color, size, linewidth}``), ``emarkersize``/``emsize``,
+        ``electcolor``/``ecolor``, ``emarkersize1chan``/``emarkersizemark``
+        (default 20), ``gridscale`` (67), ``intrad``, ``plotrad``, ``method``
+        (``'v4'``), ``style`` (``'map'``), ``colormap`` (``'turbo'``),
+        ``maplimits``, ``numcontour`` (6), ``colorbar``, ``markersize``,
+        ``showlabels``, ``axes``, and ``title``. Compatibility keys accepted
+        without effect: ``iclabel``, ``verbose``, ``chaninfo``, ``masksurf``.
 
     Returns
     -------
     handle : matplotlib.figure.Figure or None
         Figure handle if plotted, None otherwise.
     """
-    _reject_unsupported_marker_options(kwargs)
+    parsed = _parse_topoplot_options(kwargs)
+    opts = parsed["opts"]
+    marker_style = parsed["marker_style"]
+    marker2_style = parsed["marker2_style"]
+    emarkersize1chan = parsed["emarkersize1chan"]
+    legacy_markersize = parsed["legacy_markersize"]
+    electrodes_arg = parsed["electrodes"]
+
     if chan_locs is None:
         _require_channel_locations(chan_locs)
     # Set default values
-    noplot = kwargs.get('noplot', 'off')
-    plotchans = kwargs.get('plotchans', [])
-    gridscale = kwargs.get('gridscale', 67)  # Default to 67 (EEGLAB default)
+    noplot = opts.get('noplot', 'off')
+    plotchans = opts.get('plotchans', [])
+    gridscale = opts.get('gridscale', 67)  # Default to 67 (EEGLAB default)
     handle = None
     Zi = None
     rmax = 0.5  # actual head radius
     INTSQUARE = 'on'
     default_intrad = 1
-    ELECTRODES = kwargs.get('electrodes', kwargs.get('ELECTRODES', 'on'))
     MAXDEFAULTSHOWLOCS = 64
-    intrad = kwargs.get('intrad', np.nan)
-    plotrad = kwargs.get('plotrad', np.nan)
+    intrad = opts.get('intrad', np.nan)
+    plotrad = opts.get('plotrad', np.nan)
     squeezefac = 1.0
     ContourVals = datavector
     # MATLAB uses 'v4' (biharmonic spline) by default, which extrapolates
@@ -222,11 +485,11 @@ def topoplot(datavector, chan_locs, **kwargs):
     # Python's griddata_v4 now properly filters NaN coordinates before interpolation.
     # This matches MATLAB's coverage and properly interpolates frontal regions.
     # Users can override with method='griddata' for scipy's cubic interpolation (56.2% coverage).
-    method = kwargs.get('method', 'v4')
-    style = str(kwargs.get('style', 'map')).lower()
+    method = opts.get('method', 'v4')
+    style = str(opts.get('style', 'map')).lower()
 
-    if 'noplot' in kwargs:
-        noplot = kwargs['noplot']
+    if 'noplot' in opts:
+        noplot = opts['noplot']
         if not isinstance(noplot, str):
             if len(noplot) != 2:
                 raise ValueError("'noplot' location should be [radius, angle]")
@@ -234,22 +497,37 @@ def topoplot(datavector, chan_locs, **kwargs):
                 noplot = 'on'
 
     # Set colormap
-    cmap = plt.get_cmap(kwargs.get('colormap') or 'turbo')
+    cmap = plt.get_cmap(opts.get('colormap') or 'turbo')
     GRID_SCALE = gridscale
 
     datavector = np.array([] if datavector is None else datavector).flatten()
-    if datavector.size == 0 or style == 'blank':
-        blank_kwargs = dict(kwargs)
-        blank_kwargs.pop('noplot', None)
-        blank_kwargs.pop('electrodes', None)
-        blank_kwargs.pop('ELECTRODES', None)
-        return _blank_topoplot(chan_locs, noplot=noplot, electrodes=ELECTRODES, gridscale=gridscale, **blank_kwargs)
+    is_blank = datavector.size == 0 or style == 'blank'
+    if is_blank and marker2_style["chans"].size > 0:
+        raise ValueError(
+            "topoplot: emarker2 not defined for style 'blank' - use marking channel numbers in place of data"
+        )
+
+    if electrodes_arg is None:
+        ELECTRODES = 'off' if (not is_blank and len(datavector) > MAXDEFAULTSHOWLOCS) else 'on'
+    else:
+        ELECTRODES = electrodes_arg
+
+    if is_blank:
+        return _blank_topoplot(
+            chan_locs,
+            datavector=datavector,
+            noplot=noplot,
+            electrodes=ELECTRODES,
+            gridscale=gridscale,
+            marker_style=marker_style,
+            emarkersize1chan=emarkersize1chan,
+            legacy_markersize=legacy_markersize,
+            axes=opts.get('axes', None),
+            title=opts.get('title', 'Channel locations'),
+            showlabels=opts.get('showlabels', False),
+        )
 
     _require_channel_locations(chan_locs)
-    if len(datavector) > MAXDEFAULTSHOWLOCS and str(ELECTRODES).lower() == 'on':
-        ELECTRODES = 'off'
-    elif str(ELECTRODES).lower() == 'on':
-        ELECTRODES = 'on'
 
     ContourVals = np.array(ContourVals).flatten()
 
@@ -306,6 +584,14 @@ def topoplot(datavector, chan_locs, **kwargs):
     pltchans = np.where(Rd <= plotrad)[0]
     intchans = np.where((x <= intrad) & (y <= intrad) if INTSQUARE == 'on' else (Rd <= intrad))[0]
 
+    # topoplot.m:913-914 splits pltchans (1-based positions after plotchans filtering).
+    mark2_mask = np.zeros(pltchans.size, dtype=bool)
+    if marker2_style["chans"].size > 0:
+        mark2_set = set(marker2_style["chans"].tolist())
+        mark2_mask = np.array([int(idx + 1) in mark2_set for idx in pltchans], dtype=bool)
+    mark1_mask = ~mark2_mask
+
+    allchansind = allchansind[pltchans]
     labels = labels[pltchans]
 
     # topoplot.m:918-923 keeps a one-channel value vector aligned with Th.
@@ -351,7 +637,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     Zi[~mask] = np.nan
 
     if noplot == 'off':
-        ax = kwargs.get('axes', None)
+        ax = opts.get('axes', None)
         own_figure = ax is None
         if own_figure:
             fig, ax = plt.subplots(1, 1)
@@ -366,7 +652,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         screen_extent = (ymin, ymax, xmin, xmax)
 
         im = ax.imshow(
-            Zi, extent=screen_extent, origin='lower', cmap=cmap, **_maplimits_kwargs(kwargs.get('maplimits'), Zi)
+            Zi, extent=screen_extent, origin='lower', cmap=cmap, **_maplimits_kwargs(opts.get('maplimits'), Zi)
         )
         # Contour lines
         if np.count_nonzero(np.isfinite(Zi)) > 1 and np.nanmin(Zi) < np.nanmax(Zi):
@@ -374,7 +660,7 @@ def topoplot(datavector, chan_locs, **kwargs):
                 linspace(screen_extent[0], screen_extent[1], Zi.shape[1]),
                 linspace(screen_extent[2], screen_extent[3], Zi.shape[0]),
             )
-            levels = _contour_levels(np.nanmin(Zi), np.nanmax(Zi), int(kwargs.get('numcontour', 6)))
+            levels = _contour_levels(np.nanmin(Zi), np.nanmax(Zi), int(opts.get('numcontour', 6)))
             ax.contour(
                 grid_x,
                 grid_y,
@@ -385,12 +671,36 @@ def topoplot(datavector, chan_locs, **kwargs):
                 linestyles='solid',
                 zorder=2,
             )
-        if kwargs.get('colorbar', own_figure):
+        if opts.get('colorbar', own_figure):
             fig.colorbar(im, ax=ax, shrink=0.7)
 
-        markersize = kwargs.get('markersize', 6)
-        if str(ELECTRODES).lower() == 'on':
-            ax.scatter(screen_x, screen_y, c='k', s=markersize, zorder=5)
+        # topoplot.m:1489-1617 draws emarker+emarker2 for on/labelpoint/numpoint,
+        # emarker2 only for off, and text only for labels/numbers.
+        if ELECTRODES in {'on', 'labelpoint', 'numpoint'}:
+            _draw_markers(
+                ax,
+                screen_x[mark1_mask],
+                screen_y[mark1_mask],
+                marker=marker_style["marker"],
+                color=marker_style["color"],
+                size_sq=_resolve_emarker_size_sq(marker_style, screen_x.size, legacy_markersize),
+                linewidth=marker_style["linewidth"],
+                filled=False,
+                zorder=5,
+            )
+        if ELECTRODES in {'on', 'labelpoint', 'numpoint', 'off'} and np.any(mark2_mask):
+            _draw_markers(
+                ax,
+                screen_x[mark2_mask],
+                screen_y[mark2_mask],
+                marker=marker2_style["marker"],
+                color=marker2_style["color"],
+                size_sq=float(marker2_style["size"]) ** 2,
+                linewidth=marker2_style["linewidth"],
+                filled=True,
+                zorder=6,
+            )
+
         theta_c = linspace(0, 2 * np.pi, 100)
         # white ring hides the jagged color edge at rmax
         ax.plot(
@@ -409,7 +719,16 @@ def topoplot(datavector, chan_locs, **kwargs):
         )
         _draw_ears(ax, scale=squeezefac)
 
-        _draw_electrode_labels(ax, screen_x, screen_y, labels, ELECTRODES, showlabels=kwargs.get('showlabels', False))
+        _draw_electrode_labels(
+            ax,
+            screen_x,
+            screen_y,
+            labels,
+            ELECTRODES,
+            showlabels=opts.get('showlabels', False),
+            location_indices=allchansind,
+            color=marker_style["color"],
+        )
 
         ax.set_xlim(-0.6, 0.6)
         ax.set_ylim(-0.6, 0.65)
@@ -417,7 +736,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         ax.axis('off')
 
         if own_figure:
-            ax.set_title('Topoplot')
+            ax.set_title(opts.get('title', 'Topoplot'))
             # Display only when we own the figure, like a bare EEGLAB topoplot() call.
             show_figures(fig)
 
@@ -426,8 +745,47 @@ def topoplot(datavector, chan_locs, **kwargs):
     return handle, Zi, plotrad, xi, yi
 
 
-def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, **kwargs):
+def _blank_selected_markers(datavector: np.ndarray, n_chanlocs: int, location_indices, screen_x, screen_y):
+    """Map style='blank' channel numbers or indicator values to (x, y, color) groups."""
+    if datavector.size == 0 or location_indices.size == 0:
+        return {}
+    coords_by_index = {int(idx): (float(sx), float(sy)) for idx, sx, sy in zip(location_indices, screen_x, screen_y)}
+    grouped: dict = {}
+    if datavector.size < n_chanlocs:
+        for raw_val in datavector:
+            val = float(raw_val)
+            if not np.isfinite(val) or val != np.trunc(val):
+                continue
+            idx = int(val) - 1
+            if idx in coords_by_index:
+                grouped.setdefault(_BLANK_COLOR_ARRAY[0], []).append(coords_by_index[idx])
+    else:
+        for idx, raw_val in enumerate(datavector[:n_chanlocs]):
+            val = float(raw_val)
+            if not np.isfinite(val) or abs(val) == 0.0 or idx not in coords_by_index:
+                continue
+            color_idx = max(0, min(int(round(abs(val))) - 1, len(_BLANK_COLOR_ARRAY) - 1))
+            grouped.setdefault(_BLANK_COLOR_ARRAY[color_idx], []).append(coords_by_index[idx])
+    return grouped
+
+
+def _blank_topoplot(
+    chan_locs,
+    *,
+    datavector=None,
+    noplot='off',
+    electrodes='on',
+    gridscale=67,
+    marker_style=None,
+    emarkersize1chan=_DEFAULT_EMARKERSIZE1CHAN,
+    legacy_markersize=None,
+    axes=None,
+    title='Channel locations',
+    showlabels=False,
+):
     """Draw channel locations without interpolated data."""
+    if marker_style is None:
+        marker_style = {"marker": ".", "color": mcolors.to_rgba("k"), "size": None, "linewidth": 1.0}
     labels, screen_x, screen_y, location_indices = _channel_location_points(chan_locs)
     xi_1d = np.linspace(-0.5, 0.5, int(gridscale))
     yi_1d = np.linspace(-0.5, 0.5, int(gridscale))
@@ -438,7 +796,7 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
     if str(noplot).lower() != 'off':
         return None, Zi, 0.5, xi, yi
 
-    ax = kwargs.get('axes', None)
+    ax = axes
     own_figure = ax is None
     if own_figure:
         fig, ax = plt.subplots(1, 1)
@@ -446,11 +804,47 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
         fig = ax.figure
 
     _draw_head(ax)
-    markersize = kwargs.get('markersize', 6)
-    electrode_mode = str(electrodes).lower()
+    electrode_mode = _normalize_electrodes(electrodes)
     if electrode_mode in {'on', 'labelpoint', 'numpoint'}:
-        ax.scatter(screen_x, screen_y, c='k', s=markersize, zorder=5)
-    _draw_electrode_labels(ax, screen_x, screen_y, labels, electrodes, location_indices=location_indices)
+        size_sq = _resolve_emarker_size_sq(marker_style, screen_x.size, legacy_markersize)
+        _draw_markers(
+            ax,
+            screen_x,
+            screen_y,
+            marker=marker_style["marker"],
+            color=marker_style["color"],
+            size_sq=size_sq,
+            linewidth=marker_style["linewidth"],
+            filled=False,
+            zorder=5,
+        )
+    if datavector is not None and datavector.size > 0:
+        selected = _blank_selected_markers(datavector, len(chan_locs), location_indices, screen_x, screen_y)
+        selected_size_sq = float(emarkersize1chan) ** 2
+        for color, points in selected.items():
+            xs = [pt[0] for pt in points]
+            ys = [pt[1] for pt in points]
+            _draw_markers(
+                ax,
+                xs,
+                ys,
+                marker=marker_style["marker"],
+                color=color,
+                size_sq=selected_size_sq,
+                linewidth=marker_style["linewidth"],
+                filled=True,
+                zorder=6,
+            )
+    _draw_electrode_labels(
+        ax,
+        screen_x,
+        screen_y,
+        labels,
+        electrode_mode,
+        showlabels=showlabels,
+        location_indices=location_indices,
+        color=marker_style["color"],
+    )
     if electrode_mode in {'labelpoint', 'numpoint'}:
         ax.set_xlim(-0.85, 0.85)
         ax.set_ylim(-0.95, 0.78)
@@ -481,7 +875,7 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
         ax.set_ylim(-0.6, 0.65)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.set_title(kwargs.get('title', 'Channel locations'))
+    ax.set_title(title)
     if own_figure:
         show_figures(fig)
     return fig, Zi, 0.5, xi, yi
@@ -592,29 +986,39 @@ def _toggle_electrode_label(event):
         artist.figure.canvas.draw_idle()
 
 
-def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False, location_indices=None):
-    electrode_mode = str(electrodes).lower()
+def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False, location_indices=None, color='k'):
+    electrode_mode = _normalize_electrodes(electrodes)
     if location_indices is None:
         location_indices = range(len(labels))
-    if electrode_mode == 'numpoint':
+    if electrode_mode in {'numpoint', 'numbers'}:
         text_labels = [str(int(index) + 1) for index in location_indices]
     elif electrode_mode in {'labelpoint', 'labels'} or showlabels:
         text_labels = labels
     else:
         return
     # Offset the text beside the marker dot (EEGLAB text(y+0.01, x), left-aligned) whenever a dot
-    # is drawn under it: labelpoint/numpoint, or 'on' with showlabels. 'labels' has no dot and
-    # stays centered.
+    # is drawn under it: labelpoint/numpoint, or 'on' with showlabels. 'labels' and 'numbers'
+    # have no dot and stay centered.
     if electrode_mode in {'labelpoint', 'numpoint'} or (showlabels and electrode_mode == 'on'):
         x_offset = _LABEL_OFFSET
         halign = 'left'
     else:
         x_offset = 0.0
         halign = 'center'
+    text_color = 'k' if color == 'none' else color
     names = [str(label) for label in labels]
     numbers = [str(int(index) + 1) for index in location_indices]
     for x_pos, y_pos, text, name, number in zip(x, y, text_labels, names, numbers):
-        artist = ax.annotate(text, (x_pos + x_offset, y_pos), fontsize=7, ha=halign, va='center', clip_on=False)
+        artist = ax.annotate(
+            text,
+            (x_pos + x_offset, y_pos),
+            fontsize=7,
+            color=text_color,
+            ha=halign,
+            va='center',
+            clip_on=False,
+            zorder=7,
+        )
         if electrode_mode in {'labelpoint', 'numpoint'}:
             artist.set_picker(5)
             artist._eegprep_electrode_name = name
