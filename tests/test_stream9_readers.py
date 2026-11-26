@@ -54,31 +54,6 @@ def test_f10_biosig_reference_range_and_event_controls(tmp_path):
     assert "'ref', [2]" in command
 
 
-def test_biosig_uncalibrated_edf_returns_stored_integers(tmp_path):
-    path = _write_edf_bids_dataset(tmp_path)
-    calibrated = pop_biosig(path)
-    digital = pop_biosig(path, uncalibrated='on')
-    gain = 200 / 65535
-    offset = -100 + 32768 * gain
-    np.testing.assert_array_equal(digital['data'], np.round(digital['data']))
-    np.testing.assert_allclose(digital['data'] * gain + offset, calibrated['data'], atol=1e-4)
-    assert np.ptp(digital['data']) > 1000
-
-
-def test_biosig_rejects_options_the_python_reader_cannot_honor(tmp_path):
-    path = _write_edf_bids_dataset(tmp_path)
-    with pytest.raises(ValueError, match='blockepoch'):
-        pop_biosig(path, blockepoch='on')
-    np.testing.assert_array_equal(pop_biosig(path, blockepoch='off')['data'], pop_biosig(path)['data'])
-    np.testing.assert_array_equal(pop_biosig(path, overflow='on')['data'], pop_biosig(path)['data'])
-    gdf = path.with_suffix('.gdf')
-    gdf.write_bytes(path.read_bytes())
-    with pytest.raises(ValueError, match='uncalibrated'):
-        pop_biosig(gdf, uncalibrated='on')
-    with pytest.raises(ValueError, match='overflow'):
-        pop_biosig(gdf, overflow='on')
-
-
 def test_f23_brainvision_returns_single_precision(tmp_path):
 
     path = _write_binary_brainvision(tmp_path, 'test', np.arange(10).reshape(2, 5))

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +16,6 @@ from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from eegprep.functions.sigprocfunc.openbdf import openbdf
 from eegprep.functions.sigprocfunc.readbdf import readbdf
 
-logger = logging.getLogger(__name__)
 
 _BIOSIG_SUFFIXES = {".edf", ".bdf", ".gdf"}
 _STATUS_LABEL = "Status"
@@ -41,22 +39,6 @@ def pop_biosig(
     ``on``) stores those triggers, and ``rmeventchan`` (default ``on``) removes
     ``Status`` from the data. Unsupported values raise ``ValueError``.
     Options may be keywords or positional name/value pairs.
-
-    ``uncalibrated='on'`` returns the integers stored in an EDF or BDF file
-    instead of physical values. ``overflow='on'`` leaves EDF and BDF data
-    unchanged, as BIOSIG does for these two formats. ``blockepoch='off'`` (the
-    default) imports continuous data; ``'on'`` raises ``ValueError``.
-
-    The dialog has the controls of EEGLAB's ``pop_biosig`` dialog except two:
-
-    - "Import using alternative BIOSIG method (mexSLOAD)" is left out because
-      mexSLOAD is a compiled BIOSIG reader and EEGPrep reads with MNE-Python.
-    - "Import as memory mapped file" is left out because the Python reader
-      loads the file into memory; ``memorymapped='on'`` only moves the loaded
-      samples to a temporary mapping and stays a command-line option.
-
-    ``rmeventchan`` has no checkbox in EEGLAB's dialog and is a command-line
-    option here too.
     """
     path = Path(filename)
     if path.suffix.lower() not in _BIOSIG_SUFFIXES:
@@ -71,15 +53,9 @@ def pop_biosig(
         for key in ('channels', 'ref', 'blockrange'):
             if result[key].strip():
                 options[key] = parse_numeric_sequence(result[key], dtype=float if key == 'blockrange' else int)
-        # pop_biosig.m lines 187-201: a key is written only when it leaves its default.
-        if int(result['bdfeventmode']) != 4:
-            options['bdfeventmode'] = int(result['bdfeventmode'])
-        for key in ('importevent', 'blockepoch', 'importannot'):
-            if not result[key]:
-                options[key] = 'off'
-        for key in ('overflow', 'uncalibrated'):
-            if result[key]:
-                options[key] = 'on'
+        options['bdfeventmode'] = int(result['bdfeventmode'])
+        for key in ('importevent', 'importannot', 'rmeventchan', 'memorymapped'):
+            options[key] = 'on' if result[key] else 'off'
     history_options = dict(options)
     reference = parse_numeric_sequence(options.pop('ref', None), dtype=int)
     import_annotations = _on_off('importannot', options.pop('importannot', 'on'))
@@ -87,26 +63,8 @@ def pop_biosig(
     event_mode = _bdf_event_mode(options.pop("bdfeventmode", 4))
     remove_event_channel = _on_off("rmeventchan", options.pop("rmeventchan", "on"))
     import_events = _on_off("importevent", options.pop("importevent", "on"))
-    uncalibrated = _on_off("uncalibrated", options.pop("uncalibrated", "off"))
-    if _on_off("blockepoch", options.pop("blockepoch", "off")):
-        raise ValueError(
-            "pop_biosig: blockepoch='on' (one epoch per data record) is not supported. "
-            "Import continuous data, then epoch it with pop_epoch."
-        )
-    if _on_off("overflow", options.pop("overflow", "off")):
-        if path.suffix.lower() == ".gdf":
-            raise ValueError("pop_biosig: overflow detection is not available for GDF files. Use overflow='off'.")
-        # sopen.m (BIOSIG 3.8.4) lines 604-612 turn overflow detection off for EDF and BDF.
-        logger.warning(
-            "pop_biosig: overflow detection is not applied to EDF and BDF files, as in BIOSIG: "
-            "their physical and digital limits do not define the dynamic range."
-        )
-    if uncalibrated and path.suffix.lower() == ".gdf":
-        raise ValueError("pop_biosig: uncalibrated import is available for EDF and BDF files only.")
     blockrange = options.get("blockrange")
     eeg, _command = pop_fileio(filename, return_com=True, feature="pop_biosig", **options)
-    if uncalibrated:
-        eeg["data"] = _digital_samples(path, eeg, options.get("channels"), blockrange)
     kind = {".bdf": "BDF file", ".edf": "EDF file", ".gdf": "GDF file"}.get(path.suffix.lower())
     if kind:
         eeg["setname"] = kind
@@ -137,41 +95,6 @@ def pop_biosig(
     command = f"EEG = pop_biosig({', '.join(arguments)});"
     eeg["history"] = command
     return (eeg, command) if return_com else eeg
-
-
-def _digital_samples(path: Path, eeg: dict[str, Any], channels: Any, blockrange: Any) -> np.ndarray:
-    """Return the integers stored in an EDF or BDF file for the loaded channels and samples.
-
-    This is BIOSIG's ``UCAL`` mode: no gain or offset is applied. Rows follow
-    the loaded channels, which are the file's signals without its annotation
-    signals, restricted to the 1-based ``channels``.
-    """
-    count = int(eeg["pnts"])
-    first = 0 if blockrange is None else round(_blockrange_seconds(blockrange)[0] * float(eeg["srate"]))
-    selected = None if channels is None else [index - 1 for index in parse_numeric_sequence(channels, dtype=int)]
-    if path.suffix.lower() == ".bdf":
-        opened = openbdf(path)
-        head = opened["Head"]
-        signals = [index for index, label in enumerate(head["Label"]) if not str(label).startswith("BDF Annotations")]
-        signals = signals if selected is None else [signals[index] for index in selected]
-        per_record = {int(head["SPR"][index]) for index in signals}
-        if len(per_record) != 1:
-            raise ValueError("pop_biosig: uncalibrated import needs one sampling rate for all loaded channels.")
-        stride = per_record.pop()
-        records = np.arange(first // stride + 1, (first + count - 1) // stride + 2)
-        decoded, _raw = readbdf(opened, records, 3)
-        start = first - (int(records[0]) - 1) * stride
-        digital = np.asarray(decoded["Record"])[signals, start : start + count]
-    else:
-        import pyedflib  # in the base install except under Pyodide, where pop_biosig cannot read files either
-
-        with pyedflib.EdfReader(str(path)) as reader:
-            signals = list(range(reader.signals_in_file)) if selected is None else selected
-            rows = [reader.readSignal(index, first, count, digital=True) for index in signals]
-        if any(row.size != count for row in rows):
-            raise ValueError("pop_biosig: uncalibrated import needs one sampling rate for all loaded channels.")
-        digital = np.vstack(rows)
-    return digital.astype(np.asarray(eeg["data"]).dtype)
 
 
 def _bdf_event_mode(value: Any) -> int:
@@ -455,20 +378,19 @@ def _drop_channel(eeg: dict[str, Any], index: int) -> None:
 
 
 def pop_biosig_dialog_spec() -> DialogSpec:
-    """Return the dialog of pop_biosig.m lines 160-176 without its mexSLOAD and memory-mapping checkboxes."""
+    """Return BIOSIG import selections supported by the Python readers."""
     controls = []
     for label, tag, default in [
         ('Channel list (default all):', 'channels', ''),
         ('Data range (in seconds) to read (default all)', 'blockrange', ''),
         ('Reference chan(s) indices - recommended for BIOSEMI', 'ref', ''),
-        ('Event mode import (see bdf2biosig_events function help)', 'bdfeventmode', '4'),
+        ('Event mode import (see bdf2biosig_events help)', 'bdfeventmode', '4'),
     ]:
         controls.extend([ControlSpec('text', label), ControlSpec('edit', tag=tag, value=default)])
     for label, tag, default in [
         ('Extract event from marker channel', 'importevent', True),
-        ('Force continuous data when data is stored in blocks', 'blockepoch', True),
-        ('Enable overflow detection', 'overflow', False),
-        ('Import uncalibrated data', 'uncalibrated', False),
+        ('Remove marker channel', 'rmeventchan', True),
+        ('Import as memory mapped file', 'memorymapped', False),
         ('Import EDF+ annotations', 'importannot', True),
     ]:
         controls.append(ControlSpec('checkbox', label, tag=tag, value=default))
@@ -477,10 +399,9 @@ def pop_biosig_dialog_spec() -> DialogSpec:
         function_name='pop_biosig',
         help_text='pop_biosig',
         eeglab_source='functions/popfunc/pop_biosig.m',
-        geometry=(*[[3, 1]] * 4, 1, 1, 1, 1, 1),
+        geometry=(*[[3, 1]] * 4, 1, 1, 1, 1),
         controls=tuple(controls),
         known_differences=(
-            'No mexSLOAD and memory-mapping checkboxes: EEGPrep reads with MNE-Python into memory.',
-            'The data range label does not show the recording length: the file is opened after the dialog.',
+            'Python readers use calibrated continuous data; BIOSIG mexSLOAD, overflow and uncalibrated switches do not apply.',
         ),
     )

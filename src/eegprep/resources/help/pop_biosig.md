@@ -31,16 +31,4 @@ EEGLAB `.set` files.
 
 See also: POP_FILEIO, POP_IMPORTDATA, POP_LOADSET
 
-Use `gui=True` for channel/range/event/reference options. References are 1-based indices in the loaded channels after Status removal. `importannot="off"` suppresses annotations independently of marker-event import. `memorymapped="on"` stores the imported samples in a temporary mapping. Install readers with `pip install "eegprep[mne]"`.
-
-`uncalibrated="on"` returns the integers stored in an EDF or BDF file instead
-of physical values. `overflow="on"` leaves EDF and BDF data unchanged, as
-BIOSIG does for these two formats, and raises `ValueError` for GDF.
-`blockepoch="off"` (the default) imports continuous data; `"on"` raises
-`ValueError`.
-
-The dialog has the controls of EEGLAB's dialog except two. "Import using
-alternative BIOSIG method (mexSLOAD)" is left out because mexSLOAD is a
-compiled BIOSIG reader and EEGPrep reads with MNE-Python. "Import as memory
-mapped file" is left out because the Python reader loads the file into memory;
-`memorymapped` stays a command-line option.
+Use `gui=True` for channel/range/event/reference options. References are 1-based indices in the loaded channels after Status removal. `importannot="off"` suppresses annotations independently of marker-event import. `memorymapped="on"` stores the imported samples in a temporary mapping. Install readers with `pip install "eegprep[mne]"`. Python readers expose calibrated continuous data; MATLAB mexSLOAD and overflow/uncalibrated options do not apply.
