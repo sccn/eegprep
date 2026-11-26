@@ -10,6 +10,7 @@ import numpy as np
 from eegprep.extras import import_optional_dependency
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.guifunc.theme import EEGLAB_CONTROL_DISABLED_BACKGROUND, EEGLAB_DISABLED_TEXT
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
@@ -20,6 +21,7 @@ from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
 from eegprep.plugins.EEG_BIDS.sidecar import read_bids_table
 
 _TYPE_FIELDS = ("value", "trial_type", "type", "event_type", "HED", "code")
+_TIMING_COLUMNS = {"onset", "duration", "sample", "stim_file", "response_time"}
 _DIALOG_KEYS = {
     "gui",
     "renderer",
@@ -116,6 +118,22 @@ def pop_importbids(
     return (result, command) if return_com else result
 
 
+# pop_importbids.m line 127 gives a listbox row 1.5 times the height of a row; a disabled
+# listbox is greyed like the other disabled controls.
+_DIALOG_BASE_HEIGHT = 70
+_DIALOG_ROW_HEIGHT = 30
+_LISTBOX_STYLESHEET = f"""
+    QListWidget {{
+        min-height: 38px;
+        max-height: 38px;
+    }}
+    QListWidget:disabled {{
+        background: {EEGLAB_CONTROL_DISABLED_BACKGROUND};
+        color: {EEGLAB_DISABLED_TEXT};
+    }}
+"""
+
+
 def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = _TYPE_FIELDS) -> DialogSpec:
     """Return the import options dialog from ``pop_importbids.m`` lines 104-143."""
     folder = Path(path)
@@ -157,6 +175,7 @@ def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = 
         ),
     ]
     geometry: list[list[float] | list[int]] = [[2, 1.5], [1], [1], [1, 0.35], [0.6, 0.35, 0.5]]
+    geomvert: list[float] = [1, 0.5, 1, 1, 1]
     for label, check_tag, value_tag, choices in (
         ("Import only the following sessions", "bidssessions", "bidsessionstr", sessions),
         ("Import only the following runs", "bidsruns", "bidsrunsstr", runs),
@@ -166,6 +185,7 @@ def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = 
             continue
         controls.extend(_choice_row(label, check_tag, value_tag, choices, "listbox"))
         geometry.append([0.6, 0.35, 0.5])
+        geomvert.append(1.5)
     controls.extend(
         [
             ControlSpec(
@@ -184,13 +204,18 @@ def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = 
         ]
     )
     geometry.extend([[0.6, 0.35, 0.5], [1], [1, 2, 0.5]])
+    geomvert.extend([1, 0.5, 1])
     return DialogSpec(
         title="Import BIDS data -- pop_importbids()",
         function_name="pop_importbids",
         eeglab_source="plugins/EEG-BIDS/pop_importbids.m",
         geometry=tuple(geometry),
+        geomvert=tuple(geomvert),
         controls=tuple(controls),
         help_text="pop_importbids",
+        weighted_columns=True,
+        size=(1078, _DIALOG_BASE_HEIGHT + round(_DIALOG_ROW_HEIGHT * sum(geomvert))),
+        extra_stylesheet=_LISTBOX_STYLESHEET,
         known_differences=(
             "Imported datasets are saved under derivatives/eeglab (or the chosen output folder). "
             "The raw BIDS folder is left unchanged.",
@@ -339,18 +364,23 @@ def _entity_id(name: str) -> str:
 
 
 def _event_columns(source: Path) -> tuple[str, ...]:
-    found: list[str] = []
-    for events in source.rglob("*_events.tsv"):
+    """Return the event type choices of pop_importbids.m lines 86-92.
+
+    ``bids_geteventfieldsfromfolder`` takes every column of every events.tsv file,
+    sorted, without the timing columns; ``value`` is then listed first.
+    """
+    found: set[str] = set()
+    for events in source.rglob("*events.tsv"):
         try:
-            table = read_bids_table(events)
-        except (OSError, UnicodeError, ValueError):
+            with events.open(encoding="utf-8") as stream:
+                found.update(stream.readline().rstrip("\r\n").split("\t"))
+        except (OSError, UnicodeError):
             continue
-        for column in table.columns:
-            if column not in found:
-                found.append(str(column))
-        break
-    ordered = [name for name in _TYPE_FIELDS if name in found]
-    return tuple(ordered or ("value",))
+    fields = sorted(found - _TIMING_COLUMNS - {""})
+    if "value" in fields:
+        fields.remove("value")
+        fields.insert(0, "value")
+    return tuple(fields or ("value",))
 
 
 def _loader_options(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, Any]:
