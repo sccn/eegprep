@@ -1,4 +1,12 @@
-"""Import EEG data using Python file readers analogous to EEGLAB File-IO."""
+"""Import EEG data with Python readers chosen by file extension.
+
+This is not FieldTrip's File-IO library, which EEGLAB's ``pop_fileio.m`` calls.
+EEGPrep's own readers handle .set and EEGLAB .mat (``pop_loadset``), .cnt
+(``pop_loadcnt``), .vhdr/.ahdr (``pop_loadbv``), .raw (``pop_readegi``),
+Neuroscan .eeg epochs (``loadeeg``), and .csv/.txt/.tsv/.npy/.npz or array .mat
+(``pop_importdata``). MNE-Python reads .edf (``mne.io.read_raw_edf``), .bdf
+(``read_raw_bdf``), .gdf (``read_raw_gdf``), and .mff (``read_raw_egi``).
+"""
 
 from __future__ import annotations
 

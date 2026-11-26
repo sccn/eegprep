@@ -16,7 +16,13 @@ channel-major. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (defa
 4, rising edges of the lower 16 bits), stores those triggers when
 ``importevent`` is ``on``, and removes ``Status`` when ``rmeventchan`` is
 ``on``. A requested time range reads only the overlapping BDF records.
-``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
+``pop_fileio`` does not use FieldTrip's File-IO library. It picks a reader
+from the file extension: EEGPrep's ``pop_loadset``, ``pop_loadcnt``,
+``pop_loadbv``, ``pop_readegi``, ``loadeeg``, and ``pop_importdata`` for
+``.set``, ``.cnt``, ``.vhdr``/``.ahdr``, ``.raw``, Neuroscan ``.eeg``, and
+array files, and MNE-Python's ``read_raw_edf``, ``read_raw_bdf``,
+``read_raw_gdf``, and ``read_raw_egi`` for ``.edf``, ``.bdf``, ``.gdf``, and
+``.mff``. ``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
 and inclusive ``samples`` and ``trials`` ranges. ``pop_loadset`` supports
 metadata-only and 1-based channel loading through ``loadmode``.
 ``pop_importpres`` recognizes tab-delimited Presentation headers and also
