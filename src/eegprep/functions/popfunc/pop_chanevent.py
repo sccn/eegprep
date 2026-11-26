@@ -436,5 +436,5 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         controls=tuple(controls),
         weighted_columns=True,
         fit_weighted_labels=True,
-        size=(833, 314),
+        size=(833, None),
     )

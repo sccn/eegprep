@@ -975,7 +975,7 @@ def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:
     width, height = spec.size
     if spec.fit_weighted_labels:
         width = max(width, _width_fitting_weighted_labels(dialog, spec))
-    dialog.resize(width, height)
+    dialog.resize(width, dialog.height() if height is None else height)
 
 
 def _width_fitting_weighted_labels(dialog: Any, spec: DialogSpec) -> int:

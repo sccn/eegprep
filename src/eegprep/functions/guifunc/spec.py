@@ -64,7 +64,8 @@ class DialogSpec:
     geometry: tuple[Any, ...]
     function_name: str
     eeglab_source: str
-    size: tuple[int, int] | None = None
+    # (width, height); a height of None keeps the height the content needs.
+    size: tuple[int, int | None] | None = None
     help_text: str | None = None
     help_label: str = "Help"
     show_help_button: bool = True
