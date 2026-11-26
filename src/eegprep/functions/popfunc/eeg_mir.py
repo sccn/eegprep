@@ -1,4 +1,9 @@
-"""Mutual information reduction (MIR) of an ICA decomposition."""
+"""Mutual information reduction (MIR) of an ICA decomposition.
+
+This module is a modified port of ``getMIR.m`` by Nima Bigdely-Shamlo (bigdelys/pre_ICA_cleaning),
+which is under the Apache License 2.0; ``THIRD_PARTY_NOTICES.md`` holds the attribution, the changes
+and the license text.
+"""
 
 from __future__ import annotations
 
@@ -33,13 +38,11 @@ def eeg_mir(EEG: dict[str, Any]) -> tuple[float, float]:
     ``eeg_nemar_dataqual.m`` passes the channel data with ``icaweights @ icasphere``. Their values include
     the reduction that sphering achieves, so they are not comparable with these.
 
-    Each ``h`` is the binned estimator of ``getMIR.m`` by Nima Bigdely-Shamlo (bigdelys/pre_ICA_cleaning),
-    as pAMICA ports it in ``pamica.metrics.mir``: ``MIR_NBINS`` bins between a row's minimum and
-    maximum, the Miller-Madow correction and the log bin width. EEGLAB has no MIR function. getMIR's
-    own bin count, ``round(3 * log2(1 + N / 10))`` for ``N`` samples, grows with the recording: on two
-    uniform sources it reads MIR 0.046 nats low at 5,000 samples and 0.026 low at 1.2 million, where
-    256 bins read 0.005 low at both. This function is a modified port of ``getMIR.m``, which is under
-    the Apache License 2.0; the attribution and the license text are in ``THIRD_PARTY_NOTICES.md``.
+    Each ``h`` is the binned estimator of ``getMIR.m``, as pAMICA ports it in ``pamica.metrics.mir``:
+    ``MIR_NBINS`` bins between a row's minimum and maximum, the Miller-Madow correction and the log
+    bin width. EEGLAB has no MIR function. getMIR's own bin count, ``round(3 * log2(1 + N / 10))`` for
+    ``N`` samples, grows with the recording: on two uniform sources it reads MIR 0.046 nats low at
+    5,000 samples and 0.026 low at 1.2 million, where 256 bins read 0.005 low at both.
 
     Epochs are concatenated, only the channels in ``icachansind`` are used, and ``icaact`` is not
     read: the components are recomputed from ``data``, a block of samples at a time. ``icasphere``

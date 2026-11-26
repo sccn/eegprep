@@ -10,12 +10,14 @@ and reproduces the license text that each of those licenses requires.
 written by Nima Bigdely-Shamlo, from the repository
 [`bigdelys/pre_ICA_cleaning`](https://github.com/bigdelys/pre_ICA_cleaning)
 at [commit `b6034f0`](https://github.com/bigdelys/pre_ICA_cleaning/blob/b6034f03889a6a418968ee119123f3df55251957/getMIR.m).
-It follows the Python port of that file in pAMICA (`pamica/metrics/mir.py`, BSD 3-Clause License).
+It follows the Python port of that file in pAMICA (`pamica/metrics/mir.py`, BSD 3-Clause License);
+pAMICA's copyright holder, Seyed Yahya Shirazi, contributes the code derived from that port to EEGPrep
+under EEGPrep's BSD 2-Clause License.
 `getMIR.m` is licensed under the Apache License, Version 2.0.
 The file carries no copyright header of its own, and the repository has no NOTICE file.
 EEGPrep's changes: the bin count is fixed at 256 instead of growing with the number of samples,
 the inputs are read from an EEG dataset (`icaweights`, `icasphere @ data`),
-and bins are counted with NumPy.
+and the data are read a block of samples at a time, with the bins counted by NumPy.
 The full Apache License 2.0 text is reproduced below, as Section 4(a) of that license requires.
 
 ---
