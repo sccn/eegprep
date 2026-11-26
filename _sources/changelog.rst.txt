@@ -17,6 +17,12 @@ Unreleased
   ``Other``, a name the appendix does not list, or a coordsystem that names no system leaves the channel locations unset,
   with a report warning that names the coordsystem file, instead of being read as RAS. (#692)
 
+- The ``pop_biosig`` dialog has the controls of EEGLAB's dialog, without the
+  mexSLOAD and memory-mapping checkboxes, which have no Python counterpart.
+  ``uncalibrated="on"`` returns the integers stored in an EDF or BDF file.
+  ``overflow="on"`` leaves EDF and BDF data unchanged, as BIOSIG does, and
+  ``blockepoch="on"`` raises ``ValueError``. A dialog import writes to the
+  history only the options that leave their default. (#701)
 - Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
   keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
   on the tutorial crop) and rejects a time range that misses the data.
