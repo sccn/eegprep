@@ -1614,6 +1614,8 @@ def test_chanevent_labels_fit_their_column(qapp):
     assert found["(click to select)"].text() == "(click to select)"
     assert found["(set=yes)"].text() == "(set=yes)"
     assert found["        (set = yes)"].text() == "        (set = yes)"
+    boxes = [_widgets[tag] for tag in ("chan", "oper", "edge", "edgelen")]
+    assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
     layout = dialog.layout()
     assert dialog.height() <= layout.sizeHint().height() + 4
     dialog.close()
