@@ -20,15 +20,18 @@ _BLOCK_SAMPLES = 8192
 def eeg_mir(EEG: dict[str, Any]) -> tuple[float, float]:
     """Return the mutual information reduction (MIR) of the ICA decomposition, in nats.
 
-    MIR is the mutual information that ``icaweights`` removes from the sphered data
-    (Delorme et al. 2012, PLoS ONE 7(2):e30135). With ``W = icaweights``,
-    ``x = icasphere @ data`` and ``y = W @ x``::
+    MIR is the mutual information that ``icaweights`` removes from the sphered data. With
+    ``W = icaweights``, ``x = icasphere @ data`` and ``y = W @ x``::
 
         MIR = log|det W| + sum_i h(x_i) - sum_i h(y_i)
 
-    where ``h`` is a marginal differential entropy. Measuring from the sphered data leaves out the
-    decorrelation that sphering does, so MIR rates what the unmixing adds. Identity weights give 0;
-    rescaling, reordering or flipping the sign of components does not change it. Larger is better.
+    where ``h`` is a marginal differential entropy. Identity weights give 0; rescaling, reordering or
+    flipping the sign of components does not change it. Larger is better. This is equation 17 of
+    Delorme et al. (2012, PLoS ONE 7(2):e30135) with ``x`` taken after sphering, so MIR rates what the
+    unmixing adds to the decorrelation that sphering does. The paper measures MIR from the recorded
+    channels with the full unmixing and reports it in kbits/s, and the commented-out ``mir`` of NEMAR's
+    ``eeg_nemar_dataqual.m`` passes the channel data with ``icaweights @ icasphere``. Their values include
+    the reduction that sphering achieves, so they are not comparable with these.
 
     Each ``h`` is the binned estimator of ``getMIR.m`` by Nima Bigdely-Shamlo (bigdelys/pre_ICA_cleaning),
     as pAMICA ports it in ``pamica.metrics.mir``: ``MIR_NBINS`` bins between a row's minimum and
