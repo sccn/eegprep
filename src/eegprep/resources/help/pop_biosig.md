@@ -1,7 +1,10 @@
-# POP_BIOSIG - Import BIOSIG-style files
+# POP_BIOSIG - Import EDF, BDF, and GDF files
 
-`pop_biosig` imports EDF, BDF, and GDF files through EEGPrep's Python File-IO
-path.
+`pop_biosig` imports EDF, BDF, and GDF files with MNE-Python, not with the
+BIOSIG toolbox. It keeps EEGLAB's menu entry and options, but `pop_fileio`
+reads the samples with `mne.io.read_raw_edf`, `mne.io.read_raw_bdf`, or
+`mne.io.read_raw_gdf`. For BioSemi BDF files, EEGPrep's own `openbdf` and
+`readbdf` read the `Status` channel to decode trigger events.
 
 Usage:
 

@@ -1,4 +1,10 @@
-"""Import EEG data using BIOSIG-equivalent Python readers."""
+"""Import EDF, BDF, and GDF files with MNE-Python readers.
+
+EEGPrep does not use the BIOSIG toolbox. ``pop_biosig`` keeps EEGLAB's menu
+entry and options, but ``pop_fileio`` reads the samples with
+``mne.io.read_raw_edf``, ``read_raw_bdf``, or ``read_raw_gdf``. BioSemi BDF
+``Status`` events are decoded by EEGPrep's own ``openbdf`` and ``readbdf``.
+"""
 
 from __future__ import annotations
 
@@ -32,7 +38,7 @@ _EPOCH_END = 0xFFFE
 def pop_biosig(
     filename: str | Path, *args: Any, return_com: bool = False, gui: bool = False, renderer: Any = None, **kwargs: Any
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
-    """Import BIOSIG-style EDF/BDF/GDF files, optionally over a time range.
+    """Import EDF/BDF/GDF files with MNE-Python, optionally over a time range.
 
     BioSemi BDF files decode the ``Status`` channel with ``bdfeventmode``
     (default 4: rising edges of the lower 16 bits). ``importevent`` (default
