@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_mir`` returns the mutual information reduction (MIR) of a dataset's ICA decomposition, in nats, and the variance of that estimate:
+  the mutual information that ``icaweights`` removes from ``icasphere @ data``.
+  It uses the binned entropy estimator of ``getMIR.m``, as ``pamica.metrics.mir`` ports it, with a fixed 256 bins instead of a count that grows with the recording,
+  so MIR no longer drifts with recording length; it needs no optional dependency.
+  Epochs are concatenated and ``icachansind`` selects the channels.
+  A missing, non-square or singular decomposition, and non-finite data, raise ``ValueError``.
+
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
   Names match without regard to case, so ``MNI152NLin6Asym``, the schema's spelling from BIDS 1.11.0, is RAS as ``MNI152NLin6ASym`` is;

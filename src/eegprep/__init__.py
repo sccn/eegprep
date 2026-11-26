@@ -118,6 +118,7 @@ _LAZY_EXPORTS = {
     "eeg_matchchans": ("eegprep.functions.popfunc.eeg_matchchans", "eeg_matchchans"),
     "eeg_mergechan": ("eegprep.functions.popfunc.eeg_mergechan", "eeg_mergechan"),
     "eeg_mergelocs": ("eegprep.functions.popfunc.eeg_mergelocs", "eeg_mergelocs"),
+    "eeg_mir": ("eegprep.functions.popfunc.eeg_mir", "eeg_mir"),
     "eeg_mne2eeg": ("eegprep.functions.miscfunc.eeg_mne2eeg", "eeg_mne2eeg"),
     "eeg_mne2eeg_epochs": ("eegprep.functions.miscfunc.eeg_mne2eeg_epochs", "eeg_mne2eeg_epochs"),
     "eeg_ms2f": ("eegprep.functions.miscfunc.eeg_ms2f", "eeg_ms2f"),
