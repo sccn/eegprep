@@ -80,7 +80,7 @@ def test_scaling_reordering_and_sign_flips_of_the_weights_leave_mir_unchanged():
 def test_matches_pamica_on_epoched_data_a_channel_subset_and_a_reduced_sphere():
     metrics = pytest.importorskip("pamica.metrics")
     rng = np.random.default_rng(3)
-    n_channels, pnts, trials, rank = 8, 2_000, 5, 4
+    n_channels, pnts, trials, rank = 8, 10_000, 3, 4
     icachansind = np.array([0, 1, 2, 4, 5, 7])
     sources = rng.laplace(size=(n_channels, pnts * trials))
     mixed = finite_matmul(rng.normal(size=(n_channels, n_channels)), sources)
@@ -90,8 +90,12 @@ def test_matches_pamica_on_epoched_data_a_channel_subset_and_a_reduced_sphere():
 
     value, variance = eeg_mir(_ica_eeg(data, weights, sphere, icachansind=icachansind))
 
-    expected = metrics.mir(weights, finite_matmul(sphere, mixed[icachansind]), nbins=MIR_NBINS)
-    assert (value, variance) == expected
+    expected, expected_variance = metrics.mir(weights, finite_matmul(sphere, mixed[icachansind]), nbins=MIR_NBINS)
+    # eeg_mir multiplies by the sphere and the weights a block of samples at a time and pAMICA in one
+    # product, so a BLAS may round a few products differently in the last bit; that moves a row's
+    # minimum, maximum and log bin width by about 1e-16, far inside this tolerance.
+    assert value == pytest.approx(expected, rel=1e-12, abs=1e-12)
+    assert variance == pytest.approx(expected_variance, rel=1e-12, abs=1e-12)
 
 
 def _no_ica(eeg):

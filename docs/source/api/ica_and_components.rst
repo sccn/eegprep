@@ -98,11 +98,14 @@ rule reads 0.046 nats low at 5,000 samples and 0.026 nats low at 1.2 million,
 while 256 bins read 0.005 nats low at every length. On the 32 components of
 ``sample_data/eeglab_data_epochs_ica.set`` (30,720 samples), the length-based
 count of 35 bins gives 0.851 nats, 256 bins give 0.993, and 512 bins give 0.994.
-``eeg_mir`` needs no optional dependency, and it returns the same numbers as
-``pamica.metrics.mir(icaweights, icasphere @ data, nbins=256)``.
+``eeg_mir`` needs no optional dependency, and it returns the numbers of
+``pamica.metrics.mir(icaweights, icasphere @ data, nbins=256)`` to within
+rounding in the last bit.
 
 Epochs are concatenated, and only the channels in ``icachansind`` are used.
-``icaact`` is not read: the components are recomputed from ``data``.
+``icaact`` is not read: the components are recomputed from ``data``, a block
+of 8,192 samples at a time, so the memory ``eeg_mir`` needs beyond the dataset
+stays near 18 MiB for 32 components and 73 MiB for 128, whatever the length.
 ``icasphere`` may have fewer rows than channels, as after AMICA's ``pcakeep``,
 and MIR is then measured in that subspace. ``icaweights`` must be square, so a
 ``runica`` decomposition reduced by PCA, which keeps the reduction in
