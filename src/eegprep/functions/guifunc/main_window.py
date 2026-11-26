@@ -171,8 +171,8 @@ class EEGPrepMainWindow:
             label.setObjectName("startup_title" if index == 0 else "startup_line")
             _configure_eeglab_label(label, qt_widgets)
             self.startup_labels.append(label)
-            startup_layout.addWidget(label)
-        startup_layout.addStretch(1)
+            # Equal shares of the frame height, as eeglab.m spreads its text rows over the figure.
+            startup_layout.addWidget(label, 1)
         self.stack.addWidget(startup)
 
         data_panel = qt_widgets.QWidget()

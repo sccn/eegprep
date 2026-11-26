@@ -298,6 +298,20 @@ class EEGPrepSessionTests(unittest.TestCase):
         self.assertEqual(_reference_state(eeg), "unknown")
         self.assertEqual(_channel_location_state(eeg), "No (labels only)")
 
+    def test_startup_text_fills_the_frame_height(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        window = build_main_window(include_plugins=False, native_menu_bar=False)
+        try:
+            window.show()
+            window.app.processEvents()
+            last = window.startup_labels[-1]
+            bottom = last.mapTo(window.stack, last.rect().bottomLeft()).y()
+            self.assertGreater(bottom, 0.9 * window.stack.height())
+        finally:
+            window.window.close()
+
 
 class MenuActionDispatcherTests(unittest.TestCase):
     def test_gui_dispatch_shows_warning_for_action_errors(self):
