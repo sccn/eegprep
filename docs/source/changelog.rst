@@ -35,8 +35,10 @@ Unreleased
   (``EEG Fp1`` and ``EEG-Fp1`` become ``Fp1``), as EEGLAB does for every import, unless
   30 or more labels are numbered. The labels then match channel location files. (#746)
 
-- The ``pop_importdata`` window is 430 pixels high in place of 480, so its rows
-  sit closer together. (#775)
+- A dialog whose specification gives no height is as high as its rows: every row, blank rows
+  included, takes one row height per platform (``EEGLAB_ROW_HEIGHT`` in ``guifunc/theme.py``, 28 pixels),
+  as EEGLAB's ``supergui`` sizes a figure. ``pop_importdata`` no longer has a height of its own, and the
+  import dialogs that had none are 7 to 45 pixels taller. (#775)
 
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
