@@ -536,7 +536,9 @@ def test_importepoch_edit_boxes_share_one_left_edge(app):
     app.processEvents()
     try:
         tags = ('filename', 'fieldlist', 'latencyfields', 'durationfields', 'typefield', 'timeunit', 'headerlines')
-        lefts = {widgets[tag].mapTo(dialog, widgets[tag].rect().topLeft()).x() for tag in tags}
-        assert max(lefts) - min(lefts) <= 1
+        lefts = {widgets[tag].mapTo(dialog, widgets[tag].rect().topLeft()).x() for tag in (*tags, 'clearevents')}
+        assert max(lefts) - min(lefts) <= 2
+        for label in dialog.findChildren(QtWidgets.QLabel):
+            assert label.width() >= label.sizeHint().width(), label.text()
     finally:
         dialog.close()
