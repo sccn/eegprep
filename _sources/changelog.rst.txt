@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- File > Import data names its two reader menus Using the EEG-IO interface
+  (``pop_fileio``) and Using the MNE-IO interface (``pop_biosig``), in place of
+  EEGLAB's FILE-IO and BIOSIG. EDF, BDF and GDF files open only through
+  MNE-IO, and the EEG-IO data-format list no longer offers an MNE entry.
+  Scripts are unchanged: ``pop_fileio(..., dataformat="biosig")`` still works.
+  (#761)
+
 - The ``pop_importdata`` window has an **Enter comments** button next to "About this dataset" that opens the ``pop_comments`` editor,
   and shows "Data sampling rate (Hz)" and "Channel location file or info" in bold. (#756)
 

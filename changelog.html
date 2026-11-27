@@ -491,6 +491,12 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>File &gt; Import data names its two reader menus Using the EEG-IO interface
+(<code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code>) and Using the MNE-IO interface (<code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>), in place of
+EEGLAB’s FILE-IO and BIOSIG. EDF, BDF and GDF files open only through
+MNE-IO, and the EEG-IO data-format list no longer offers an MNE entry.
+Scripts are unchanged: <code class="docutils literal notranslate"><span class="pre">pop_fileio(...,</span> <span class="pre">dataformat=&quot;biosig&quot;)</span></code> still works.
+(#761)</p></li>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">pop_importdata</span></code> window has an <strong>Enter comments</strong> button next to “About this dataset” that opens the <code class="docutils literal notranslate"><span class="pre">pop_comments</span></code> editor,
 and shows “Data sampling rate (Hz)” and “Channel location file or info” in bold. (#756)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code> returns the mutual information reduction (MIR) of a dataset’s ICA decomposition, in nats, and the variance of that estimate:

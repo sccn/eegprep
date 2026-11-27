@@ -1290,6 +1290,10 @@ scripts that table. Replay the recorded line in EEGLAB to open the dialog.</p></
 three extra samples. <code class="docutils literal notranslate"><span class="pre">loadcnt</span></code> stores the same 0-based sample offset as
 MATLAB <code class="docutils literal notranslate"><span class="pre">loadcnt</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_loadcnt</span></code> adds 1, matching <code class="docutils literal notranslate"><span class="pre">pop_loadcnt.m</span></code>
 line 152. The first boundary is kept because its duration is left unset.</p></li>
+<li><p>File &gt; Import data &gt; Using the FILE-IO interface and Using the BIOSIG
+interface are named Using the EEG-IO interface (<code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code>) and Using
+the MNE-IO interface (<code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>); EEGPrep ships neither toolbox, and
+EDF, BDF and GDF are read through MNE-Python.</p></li>
 <li><p>File-IO names an empty discontinuity annotation <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. EEGLAB’s
 file-io plugin can leave that type empty.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> creates a missing folder. EEGLAB errors when the folder does

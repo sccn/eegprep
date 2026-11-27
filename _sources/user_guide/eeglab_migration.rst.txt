@@ -696,6 +696,10 @@ These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
   three extra samples. ``loadcnt`` stores the same 0-based sample offset as
   MATLAB ``loadcnt``, and ``pop_loadcnt`` adds 1, matching ``pop_loadcnt.m``
   line 152. The first boundary is kept because its duration is left unset.
+* File > Import data > Using the FILE-IO interface and Using the BIOSIG
+  interface are named Using the EEG-IO interface (``pop_fileio``) and Using
+  the MNE-IO interface (``pop_biosig``); EEGPrep ships neither toolbox, and
+  EDF, BDF and GDF are read through MNE-Python.
 * File-IO names an empty discontinuity annotation ``boundary``. EEGLAB's
   file-io plugin can leave that type empty.
 * ``pop_saveset`` creates a missing folder. EEGLAB errors when the folder does
