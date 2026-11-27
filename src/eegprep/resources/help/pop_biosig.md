@@ -23,7 +23,8 @@ ignores samples whose epoch bit is set. Modes 1, 2, 3, 4, 5, 6, 7, 8, and 99
 are accepted; any other value raises `ValueError`. Modes 3 and 5 keep each
 trigger code on the edge that produced it. `importevent` defaults to `on` and
 replaces file annotations with those triggers; `off` leaves the annotations in
-place. `rmeventchan` defaults to `on` and removes `Status`; `off` keeps it.
+place. Triggers are read from the file's `Status` channel even when
+`channels` leaves it out. `rmeventchan` defaults to `on` and removes `Status`; `off` keeps it.
 Values other than `on` and `off` raise `ValueError`.
 
 Use `pop_fileio` for other formats such as BrainVision, EGI MFF, CNT, or
