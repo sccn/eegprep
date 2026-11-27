@@ -66,7 +66,6 @@ def pop_fileio(
                 "auto",
                 "eeglab",
                 "brainvision",
-                "biosig",
                 "neuroscan-cnt",
                 "neuroscan-eeg",
                 "egi-mff",
@@ -315,7 +314,7 @@ def pop_fileio_dialog_spec() -> DialogSpec:
             ControlSpec('text', 'Data format'),
             ControlSpec(
                 'popupmenu',
-                'auto|EEGLAB .set|BrainVision|MNE (EDF, BDF, GDF)|Neuroscan CNT|Neuroscan EEG|EGI MFF|MATLAB array',
+                'auto|EEGLAB .set|BrainVision|Neuroscan CNT|Neuroscan EEG|EGI MFF|MATLAB array',
                 tag='dataformat',
                 value=1,
             ),

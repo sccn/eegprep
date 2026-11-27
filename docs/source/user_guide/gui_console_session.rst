@@ -258,7 +258,12 @@ with more rows than columns are transposed unless ``nbchan`` specifies the
 orientation. Samples are float32; absent channel locations and names remain
 empty. A sampling rate of zero uses 1 Hz, which is also recorded in history.
 
-BIOSIG import exposes channels, a time range in seconds, reference channels,
+File > Import data has two reader menus. Using the EEG-IO interface
+(``pop_fileio``) reads BrainVision, MFF, Neuroscan CNT and EEG, EEGLAB
+``.set`` and MATLAB arrays; it sends EDF, BDF and GDF files to Using the
+MNE-IO interface (``pop_biosig``), which reads them through MNE-Python.
+
+MNE-IO import exposes channels, a time range in seconds, reference channels,
 BDF event decoding, EDF+ annotations, and memory mapping. Channel and reference
 indices are 1-based; references index the loaded channel list after removing
 the Status channel. Marker events and EDF+ annotations have independent

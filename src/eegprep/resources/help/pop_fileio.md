@@ -1,7 +1,10 @@
-# POP_FILEIO - Import EEG files through Python File-IO readers
+# POP_FILEIO - Import EEG files through EEG-IO
 
 `pop_fileio` imports supported EEG file formats using EEGPrep's Python reader
-stack.
+stack. In the GUI it is File > Import data > Using the EEG-IO interface. That
+menu sends EDF, BDF, and GDF files to Using the MNE-IO interface
+(`pop_biosig`), and its data-format list has no MNE entry; scripts can still
+read them with `pop_fileio`, including `dataformat="biosig"`.
 
 Supported paths include EEGLAB `.set`, MATLAB arrays, text/NumPy arrays,
 EDF/BDF/GDF, BrainVision `.vhdr`/`.ahdr`, EGI `.mff`, Neuroscan `.cnt`, and

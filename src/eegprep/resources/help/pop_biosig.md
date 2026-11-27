@@ -1,7 +1,7 @@
-# POP_BIOSIG - Import BIOSIG-style files
+# POP_BIOSIG - Import EDF, BDF, and GDF files through MNE-IO
 
-`pop_biosig` imports EDF, BDF, and GDF files through EEGPrep's Python File-IO
-path.
+`pop_biosig` imports EDF, BDF, and GDF files through MNE-Python. In the GUI it
+is File > Import data > Using the MNE-IO interface.
 
 Usage:
 

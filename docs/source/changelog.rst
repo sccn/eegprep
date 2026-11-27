@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- File > Import data names its two reader menus Using the EEG-IO interface
+  (``pop_fileio``) and Using the MNE-IO interface (``pop_biosig``), in place of
+  EEGLAB's FILE-IO and BIOSIG. EDF, BDF and GDF files open only through
+  MNE-IO, and the EEG-IO data-format list no longer offers an MNE entry.
+  Scripts are unchanged: ``pop_fileio(..., dataformat="biosig")`` still works.
+  (#761)
+
 - ``eeg_mir`` returns the mutual information reduction (MIR) of a dataset's ICA decomposition, in nats, and the variance of that estimate:
   the mutual information that ``icaweights`` removes from ``icasphere @ data``.
   It uses the binned entropy estimator of ``getMIR.m``, as ``pamica.metrics.mir`` ports it, with a fixed 256 bins instead of a count that grows with the recording,
