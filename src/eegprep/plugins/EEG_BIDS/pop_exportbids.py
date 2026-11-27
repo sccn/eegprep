@@ -67,11 +67,21 @@ def pop_exportbids(
     _check_task_name(task)
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
-    task_info = _task_info(datasets, task)
+    task_info = _task_info(datasets, task, study)
+    if (gui or renderer is not None) and str(task_info.get("PowerLineFrequency") or "n/a") == "n/a":
+        chosen = _power_line_prompt(renderer)
+        if chosen is None:
+            return ("", "") if return_com else ""
+        task_info["PowerLineFrequency"] = chosen
+        for dataset in datasets:
+            etc = dataset.setdefault("etc", {})
+            bids = etc.setdefault("bids", {})
+            stored = bids.setdefault("task", {})
+            stored["PowerLineFrequency"] = chosen
     _write_description(root / "dataset_description.json", task_info, license_name)
     _write_readme(root / "README", task_info)
     if changes_text:
-        (root / "CHANGES").write_text(changes_text.rstrip() + "\n", encoding="utf-8")
+        (root / "CHANGES").write_text(changes_text.rstrip() + "\n", encoding="utf-8", newline="\n")
     labels, used_subject = _subject_labels(datasets, study, subject=subject)
     exported_labels = _write_recordings(
         root,
@@ -136,8 +146,6 @@ def pop_exportbids_dialog_spec(*, task: str = "eeg") -> DialogSpec:
         known_differences=(
             "Task name is on this dialog. EEGLAB asks in a second window when STUDY.task is empty "
             "(pop_exportbids.m lines 90-98).",
-            "PowerLineFrequency defaults to n/a, the value bids_writetinfofile.m line 70 writes. "
-            "EEGLAB prompts when the field is missing (pop_exportbids.m lines 100-113).",
             "The dialog records a replayable pop_exportbids command with the dataset list, task, "
             "license, changes, and createids. pop_exportbids.m lines 247-252 leave that command empty.",
         ),
@@ -207,8 +215,12 @@ def _check_task_name(task: str) -> None:
         )
 
 
-def _task_info(datasets: list[dict[str, Any]], task: str) -> dict[str, Any]:
+def _task_info(datasets: list[dict[str, Any]], task: str, study: dict[str, Any] | None = None) -> dict[str, Any]:
     stored: dict[str, Any] = {}
+    if isinstance(study, dict):
+        study_task = ((study.get("etc") or {}).get("bids") or {}).get("task")
+        if isinstance(study_task, dict):
+            stored.update(study_task)
     for dataset in datasets:
         etc = dataset.get("etc")
         if isinstance(etc, dict):
@@ -245,7 +257,7 @@ def _write_description(path: Path, task_info: dict[str, Any], license_name: str)
 def _write_readme(path: Path, task_info: dict[str, Any]) -> None:
     name = str(task_info.get("Name") or "EEGPrep export")
     intro = str(task_info.get("README") or "EEG dataset exported by EEGPrep.").strip()
-    path.write_text(f"# {name}\n\n{intro}\n", encoding="utf-8")
+    path.write_text(f"# {name}\n\n{intro}\n", encoding="utf-8", newline="\n")
 
 
 def _createids_flag(value: bool | str) -> bool:
@@ -377,11 +389,15 @@ def _write_recordings(
 ) -> list[str]:
     exported = _exported_subject_ids(labels, createids=createids)
     infos = _dataset_info(study, len(datasets))
+    subject_counts: dict[str, int] = {}
+    for subject_label in exported:
+        subject_counts[subject_label] = subject_counts.get(subject_label, 0) + 1
     run_counts: dict[str, int] = {}
     for eeg, info, subject_label in zip(datasets, infos, exported):
         session = _entity_label(eeg.get("session")) or _entity_label(info.get("session"))
         run = _entity_label(eeg.get("run")) or _entity_label(info.get("run"))
-        if not run:
+        several = subject_counts[subject_label] > 1
+        if several and not run:
             run_counts[subject_label] = run_counts.get(subject_label, 0) + 1
             run = f"{run_counts[subject_label]:02d}"
         eeg_dir = root / f"sub-{subject_label}"
@@ -389,10 +405,14 @@ def _write_recordings(
             eeg_dir = eeg_dir / f"ses-{session}"
         eeg_dir = eeg_dir / "eeg"
         eeg_dir.mkdir(parents=True, exist_ok=True)
+        file_task = str(eeg.get("task") or info.get("task") or task).strip() or task
+        _check_task_name(file_task)
         prefix = f"sub-{subject_label}"
         if session:
             prefix += f"_ses-{session}"
-        prefix += f"_task-{task}_run-{run}"
+        prefix += f"_task-{file_task}"
+        if run and (several or _entity_label(eeg.get("run")) or _entity_label(info.get("run"))):
+            prefix += f"_run-{run}"
         target = eeg_dir / f"{prefix}_eeg.set"
         if target.exists():
             raise ValueError(
@@ -402,7 +422,11 @@ def _write_recordings(
         pop_saveset(deepcopy(eeg), str(target))
         _write_channels(eeg_dir / f"{prefix}_channels.tsv", eeg)
         _write_events(eeg_dir / f"{prefix}_events.tsv", eeg)
-        _write_eeg_json(eeg_dir / f"{prefix}_eeg.json", eeg, task_info)
+        # bids_export.m writes one task events sidecar at the dataset root.
+        _write_events_json(root / f"task-{file_task}_events.json", eeg)
+        file_info = dict(task_info)
+        file_info["TaskName"] = file_task
+        _write_eeg_json(eeg_dir / f"{prefix}_eeg.json", eeg, file_info)
         electrode_stem = _electrode_basename(prefix)
         _write_electrodes(eeg_dir / f"{electrode_stem}_electrodes.tsv", eeg)
         _write_coordsystem(eeg_dir / f"{electrode_stem}_coordsystem.json", eeg)
@@ -428,18 +452,21 @@ def _write_participants(path: Path, datasets: list[dict[str, Any]], subjects: li
         if any(field in row for row in rows):
             fields.append(field)
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=fields, delimiter="\t", extrasaction="ignore")
+        writer = csv.DictWriter(stream, fieldnames=fields, delimiter="\t", extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow({field: row.get(field, "n/a") for field in fields})
+    _write_participants_json(path.with_suffix(".json"), fields, datasets)
 
 
 def _write_channels(path: Path, eeg: dict[str, Any]) -> None:
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream, delimiter="\t")
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         writer.writerow(["name", "type", "units"])
-        for label in channel_labels(eeg):
-            writer.writerow([label, "EEG", "uV"])
+        channels = _channel_records(eeg)
+        for index, label in enumerate(channel_labels(eeg)):
+            channel = channels[index] if index < len(channels) and isinstance(channels[index], dict) else label
+            writer.writerow([label, _channel_type(channel), "uV"])
 
 
 def _write_events(path: Path, eeg: dict[str, Any]) -> None:
@@ -450,7 +477,7 @@ def _write_events(path: Path, eeg: dict[str, Any]) -> None:
         fields.append("trial_type")
     srate = float(eeg.get("srate") or 1.0)
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream, delimiter="\t")
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         writer.writerow(fields)
         for event in events:
             latency = float(event.get("latency", 1) or 1)
@@ -475,9 +502,12 @@ def _write_eeg_json(path: Path, eeg: dict[str, Any], task_info: dict[str, Any]) 
         "TaskName": task_info["TaskName"],
         "SamplingFrequency": srate,
         "EEGReference": task_info.get("EEGReference") or "Unknown",
-        "PowerLineFrequency": task_info.get("PowerLineFrequency", "n/a"),
+        "PowerLineFrequency": _power_line_number(task_info.get("PowerLineFrequency", "n/a")),
         "SoftwareFilters": task_info.get("SoftwareFilters", "n/a"),
-        "EEGChannelCount": int(eeg.get("nbchan") or np.asarray(eeg.get("data")).shape[0]),
+        "EEGChannelCount": _type_count(eeg, "EEG"),
+        "EOGChannelCount": _type_count(eeg, "EOG"),
+        "ECGChannelCount": _type_count(eeg, "ECG"),
+        "EMGChannelCount": _type_count(eeg, "EMG"),
         "RecordingType": "continuous" if trials == 1 else "epoched",
         "RecordingDuration": duration if trials == 1 else duration * trials,
     }
@@ -507,8 +537,148 @@ def _write_eeg_json(path: Path, eeg: dict[str, Any], task_info: dict[str, Any]) 
 
 
 def _electrode_basename(stem: str) -> str:
-    # bids_writeelectrodefile.m:32-49 removes task- and desc- from the electrodes name.
-    return _drop_filename_entity(_drop_filename_entity(stem, "task-"), "desc-")
+    name = stem
+    for token in ("task-", "desc-", "run-"):
+        name = _drop_filename_entity(name, token)
+    return name
+
+
+def _channel_records(eeg: dict[str, Any]) -> list[Any]:
+    channels = eeg.get("chanlocs")
+    if isinstance(channels, np.ndarray):
+        channels = channels.reshape(-1).tolist()
+    if isinstance(channels, (list, tuple)):
+        return list(channels)
+    return []
+
+
+def _channel_text(value: Any) -> str:
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ""
+        value = value.reshape(-1)[0]
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _channel_type(channel: Any) -> str:
+    if isinstance(channel, dict):
+        declared = _channel_text(channel.get("type"))
+        if declared:
+            return declared
+        label = _channel_text(channel.get("labels"))
+    else:
+        label = channel
+    text = str(label).upper()
+    if "EOG" in text:
+        return "EOG"
+    if "ECG" in text or "EKG" in text:
+        return "ECG"
+    if "EMG" in text:
+        return "EMG"
+    return "EEG"
+
+
+def _type_count(eeg: dict[str, Any], kind: str) -> int:
+    channels = _channel_records(eeg)
+    labels = channel_labels(eeg)
+    count = 0
+    for index, label in enumerate(labels):
+        channel = channels[index] if index < len(channels) and isinstance(channels[index], dict) else label
+        if _channel_type(channel) == kind:
+            count += 1
+    return count
+
+
+def _power_line_prompt(renderer: Any) -> int | None:
+    spec = DialogSpec(
+        title="Power line frequency -- pop_exportbids()",
+        function_name="pop_exportbids",
+        eeglab_source="plugins/EEG-BIDS/pop_exportbids.m",
+        geometry=((1,), (1,)),
+        controls=(
+            ControlSpec("text", "Power line frequency (Hz)"),
+            ControlSpec("popupmenu", "50|60", tag="PowerLineFrequency", value=1),
+        ),
+    )
+    result = inputgui(spec, renderer=renderer)
+    if result is None:
+        return None
+    return 60 if int(result.get("PowerLineFrequency") or 1) == 2 else 50
+
+
+def _power_line_number(value: Any) -> Any:
+    """Store a power-line frequency as a number when one was given.
+
+    EEGLAB writes ``50`` or ``60``. ``n/a`` stays when no EEG or option value
+    was set and the export is not asking the user.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        number = float(value)
+        return int(number) if number.is_integer() else number
+    text = str(value).strip()
+    if text.lower() in {"", "n/a", "nan"}:
+        return "n/a"
+    try:
+        number = float(text)
+    except ValueError:
+        return text
+    return int(number) if number.is_integer() else number
+
+
+def _write_participants_json(path: Path, fields: list[str], datasets: list[dict[str, Any]]) -> None:
+    descriptions = {
+        "participant_id": {"Description": "Unique participant identifier"},
+        "Gender": {"Description": "Participant gender"},
+        "Age": {"Description": "Participant age", "Units": "years"},
+        "Group": {"Description": "Participant group"},
+        "HeadCircumference": {"Description": "Head circumference", "Units": "cm"},
+        "SubjectArtefactDescription": {"Description": "Subject artefact description"},
+    }
+    overrides: dict[str, Any] = {}
+    for dataset in datasets:
+        stored = _section(dataset, "participant_columns")
+        if isinstance(stored, dict):
+            overrides.update(stored)
+    payload = {}
+    for field in fields:
+        if field == "participant_id":
+            continue
+        entry = dict(descriptions.get(field, {"Description": field}))
+        extra = overrides.get(field)
+        if isinstance(extra, dict):
+            entry.update({key: value for key, value in extra.items() if value not in ("", None)})
+        payload[field] = entry
+    write_json(path, payload)
+
+
+def _write_events_json(path: Path, eeg: dict[str, Any]) -> None:
+    etc = eeg.get("etc")
+    event_info = {}
+    if isinstance(etc, dict) and isinstance(etc.get("bids"), dict) and isinstance(etc["bids"].get("event"), dict):
+        event_info = dict(etc["bids"]["event"])
+    payload = {
+        "onset": {"Description": "Event onset", "Units": "s"},
+        "duration": {"Description": "Event duration", "Units": "s"},
+        "sample": {"Description": "1-based sample index of the event onset"},
+        "value": {"Description": "Event value"},
+    }
+    for key, value in event_info.items():
+        if isinstance(value, dict):
+            entry = {
+                name: value[name]
+                for name in ("Description", "LongName", "Levels", "Units", "eeglab_field")
+                if value.get(name) not in (None, "")
+            }
+            if "eeglab_field" in entry:
+                entry["EEGLABField"] = entry.pop("eeglab_field")
+            payload[key] = entry or {"Description": key}
+        else:
+            payload[key] = {"Description": str(value)}
+    write_json(path, payload)
 
 
 def _drop_filename_entity(name: str, token: str) -> str:
@@ -564,7 +734,7 @@ def _write_electrodes(path: Path, eeg: dict[str, Any]) -> None:
         chanlocs = []
     labels = channel_labels(eeg)
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream, delimiter="\t")
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         writer.writerow(["name", "x", "y", "z"])
         for index, label in enumerate(labels):
             loc = chanlocs[index] if index < len(chanlocs) and isinstance(chanlocs[index], dict) else {}
@@ -641,12 +811,20 @@ def _bids_number(value: float) -> str:
 
 def _coord(loc: dict[str, Any], *keys: str) -> str:
     for key in keys:
-        if key not in loc or loc[key] in ("", None):
+        if key not in loc or _coordinate_missing(loc[key]):
             continue
         try:
             number = float(loc[key])
         except (TypeError, ValueError):
             continue
         if np.isfinite(number):
-            return f"{number:.10g}"
+            return f"{number:2.6f}"
     return "n/a"
+
+
+def _coordinate_missing(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    return np.size(value) == 0

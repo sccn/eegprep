@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._file_io import infer_dataformat, load_data_array
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
@@ -60,6 +61,7 @@ def pop_editset(
     gui: bool | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
+    alleeg: list[dict[str, Any]] | None = None,
     **kwargs: Any,
 ) -> Any:
     """Edit dataset metadata fields in an EEG dictionary."""
@@ -73,11 +75,11 @@ def pop_editset(
         gui = not bool(options)
 
     if gui:
-        result = inputgui(pop_editset_dialog_spec(EEG), renderer=renderer)
+        result = inputgui(pop_editset_dialog_spec(EEG, alleeg=alleeg), renderer=renderer)
         if result is None:
             original = copy.copy(EEG)
             return (original, "") if return_com else original
-        options = _changed_options_from_gui(EEG, result)
+        options = _changed_options_from_gui(EEG, result, alleeg=alleeg)
         if not options:
             original = copy.copy(EEG)
             return (original, "") if return_com else original
@@ -96,7 +98,7 @@ def pop_editset(
     for key, value in options.items():
         if key == "dataformat":
             continue
-        _assign_option(output, key, value, dataformat=dataformat)
+        _assign_option(output, key, value, dataformat=dataformat, alleeg=alleeg)
 
     _normalize_data_dimensions(output, strict_pnts="pnts" in options)
     if "xmin" in options:
@@ -108,7 +110,66 @@ def pop_editset(
     return (output, command) if return_com else output
 
 
-def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
+_GUI_FILE_FIELDS = {
+    "chanfile": "chanlocs",
+    "weightfile": "icaweights",
+    "sphfile": "icasphere",
+    "icainds": "icachansind",
+}
+_ALLEEG_REFERENCE = re.compile(r"^ALLEEG\((\d+)\)\.([A-Za-z_]\w*)$")
+
+
+def _dataset_button(target: str, field: str, alleeg: list[dict[str, Any]] | None) -> ControlSpec:
+    return ControlSpec(
+        "pushbutton",
+        "From other dataset",
+        tag=f"{target}_dataset",
+        callback=CallbackSpec(
+            "editset_from_dataset",
+            params={
+                "button": f"{target}_dataset",
+                "target": target,
+                "field": field,
+                "datasets": list(alleeg or []),
+            },
+        ),
+    )
+
+
+def _browse_button(target: str, caption: str, file_filter: str) -> ControlSpec:
+    return ControlSpec(
+        "pushbutton",
+        "Browse",
+        tag=f"{target}_browse",
+        callback=CallbackSpec(
+            "select_file",
+            params={
+                "button": f"{target}_browse",
+                "target": target,
+                "caption": caption,
+                "filter": file_filter,
+            },
+        ),
+    )
+
+
+def _validate_editset(values: Mapping[str, Any]) -> None:
+    text = str(values.get("srate", "")).strip()
+    try:
+        parsed = float(text)
+    except ValueError:
+        raise ValueError(
+            f'pop_editset: Data sampling rate must be a positive number (got "{text}"). '
+            "Enter the rate in Hz, for example 128."
+        ) from None
+    if parsed <= 0:
+        raise ValueError(
+            f"pop_editset: Data sampling rate must be a positive number (got {parsed:g}). "
+            "Enter the rate in Hz, for example 128."
+        )
+
+
+def pop_editset_dialog_spec(EEG: dict[str, Any], alleeg: list[dict[str, Any]] | None = None) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_editset``."""
     return DialogSpec(
         title="Edit dataset information - pop_editset()",
@@ -159,29 +220,32 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="session", value=_display_value(EEG.get("session", ""))),
             ControlSpec("spacer"),
             ControlSpec("text", "Channel location file or info", font_weight="bold"),
-            ControlSpec("pushbutton", "From other dataset", enabled=False),
-            ControlSpec("edit", tag="chanfile", enabled=False),
-            ControlSpec("pushbutton", "Browse", enabled=False),
+            _dataset_button("chanfile", "chanlocs", alleeg),
+            ControlSpec("edit", tag="chanfile"),
+            _browse_button(
+                "chanfile", "Channel location file", "Location files (*.locs *.elp *.elc *.sfp *.ced);;All files (*)"
+            ),
             ControlSpec(
                 "text",
                 'Note: The file format may be auto-detected from its file extension. See menu "Edit > Channel locations" for other options.',
             ),
             ControlSpec("text", "ICA weights array or text/binary file (if any):"),
-            ControlSpec("pushbutton", "From other dataset", enabled=False),
-            ControlSpec("edit", tag="weightfile", enabled=False),
-            ControlSpec("pushbutton", "Browse", enabled=False),
+            _dataset_button("weightfile", "icaweights", alleeg),
+            ControlSpec("edit", tag="weightfile"),
+            _browse_button("weightfile", "ICA weights file", "Matrix files (*.txt *.mat *.npy);;All files (*)"),
             ControlSpec("text", "ICA sphere array:"),
-            ControlSpec("pushbutton", "From other dataset", enabled=False),
-            ControlSpec("edit", tag="sphfile", enabled=False),
-            ControlSpec("spacer"),
+            _dataset_button("sphfile", "icasphere", alleeg),
+            ControlSpec("edit", tag="sphfile"),
+            _browse_button("sphfile", "ICA sphere file", "Matrix files (*.txt *.mat *.npy);;All files (*)"),
             ControlSpec("text", "ICA channel indices (by default all):"),
-            ControlSpec("pushbutton", "From other dataset", enabled=False),
-            ControlSpec("edit", tag="icainds", enabled=False),
+            _dataset_button("icainds", "icachansind", alleeg),
+            ControlSpec("edit", tag="icainds"),
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "Channel-location and ICA file pickers and fields are visible for parity but disabled until later Phase 1b channel workflows.",
+            "From other dataset writes ALLEEG(n).field. The console replays that as ALLEEG[n-1]['field'].",
         ),
+        validate=_validate_editset,
         extra_stylesheet="""
             QDialog#pop_editset QLabel,
             QDialog#pop_editset QLineEdit,
@@ -197,7 +261,12 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     )
 
 
-def _changed_options_from_gui(EEG: dict[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
+def _changed_options_from_gui(
+    EEG: dict[str, Any],
+    result: Mapping[str, Any],
+    *,
+    alleeg: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     options: dict[str, Any] = {}
     for key in ("setname", "srate", "subject", "pnts", "condition", "xmin", "group", "nbchan", "run", "ref", "session"):
         if key not in result:
@@ -215,10 +284,45 @@ def _changed_options_from_gui(EEG: dict[str, Any], result: Mapping[str, Any]) ->
             continue
         if str(value) != _display_value(EEG.get(key, "")):
             options[key] = str(value)
+    for tag, key in _GUI_FILE_FIELDS.items():
+        text = str(result.get(tag, "") or "").strip()
+        if text:
+            options[key] = text
     return options
 
 
-def _assign_option(output: dict[str, Any], key: str, value: Any, *, dataformat: str = "auto") -> None:
+def _resolve_dataset_reference(value: Any, alleeg: list[dict[str, Any]] | None) -> Any:
+    if not isinstance(value, str):
+        return value
+    match = _ALLEEG_REFERENCE.match(value.strip())
+    if match is None:
+        return value
+    index = int(match.group(1)) - 1
+    field = match.group(2)
+    if alleeg is None or index < 0 or index >= len(alleeg):
+        raise ValueError(
+            f"pop_editset: {value.strip()} does not name a loaded dataset. "
+            "Load that dataset first. ALLEEG indices are 1-based."
+        )
+    dataset = alleeg[index]
+    if field not in dataset:
+        raise ValueError(
+            f"pop_editset: dataset {index + 1} has no field {field}. "
+            "Choose a dataset that already has that field, or type a file path."
+        )
+    return dataset[field]
+
+
+def _assign_option(
+    output: dict[str, Any],
+    key: str,
+    value: Any,
+    *,
+    dataformat: str = "auto",
+    alleeg: list[dict[str, Any]] | None = None,
+) -> None:
+    if isinstance(value, str) and _ALLEEG_REFERENCE.match(value.strip()):
+        value = _resolve_dataset_reference(value, alleeg)
     if key in _TEXT_FIELDS:
         output[key] = "" if value is None else str(value)
         return
@@ -463,6 +567,8 @@ def _history_command(options: Mapping[str, Any]) -> str:
 
 
 def _history_value(value: Any) -> str:
+    if isinstance(value, str) and _ALLEEG_REFERENCE.match(value.strip()):
+        return value.strip()
     if _is_empty_value(value):
         return "[]"
     if isinstance(value, np.ndarray) and value.dtype == object:
@@ -554,9 +660,14 @@ def _parse_optional_number(value: Any) -> str | int | float:
 
 
 def _positive_float(value: Any, key: str) -> float:
-    parsed = float(value)
+    label = "Data sampling rate" if key == "srate" else key
+    hint = " Enter the rate in Hz, for example 128." if key == "srate" else " Enter a positive number."
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f'pop_editset: {label} must be a positive number (got "{value}").{hint}') from None
     if parsed <= 0:
-        raise ValueError(f"{key} must be positive")
+        raise ValueError(f"pop_editset: {label} must be a positive number (got {parsed:g}).{hint}")
     return parsed
 
 

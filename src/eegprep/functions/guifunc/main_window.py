@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal, ROUND_HALF_UP
 import ctypes
 import ctypes.util
 import logging
@@ -337,6 +338,7 @@ class EEGPrepMainWindow:
 
     def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str], kept: list[Any]) -> Any:
         menu = self._qt_widgets.QMenu(spec.label, menubar)
+        menu.setToolTipsVisible(True)
         menubar.addMenu(menu)
         kept.append(menu)
         action = menu.menuAction()
@@ -353,6 +355,7 @@ class EEGPrepMainWindow:
             menu.addSeparator()
         if spec.children:
             submenu = self._qt_widgets.QMenu(spec.label, menu)
+            submenu.setToolTipsVisible(True)
             menu.addMenu(submenu)
             kept.append(submenu)
             if spec.tag:
@@ -758,6 +761,9 @@ def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None
     action.setProperty("eegprep_checked", bool(spec.checked))
     if spec.action:
         action.setData(spec.action)
+    if spec.tooltip:
+        action.setToolTip(spec.tooltip)
+        action.setStatusTip(spec.tooltip)
 
 
 def _set_menu_enabled(menu: Any | None, action: Any, enabled: bool) -> None:
@@ -963,7 +969,8 @@ def _collection_len(value: Any) -> int:
 
 
 def _size_mb(value: Any) -> str:
-    return str(round(_memory_bytes(value, set()) / 1e6, 1))
+    number = Decimal(_memory_bytes(value, set())) / Decimal("1000000")
+    return str(number.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
 def _memory_bytes(value: Any, seen: set[int]) -> int:

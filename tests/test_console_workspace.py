@@ -147,12 +147,6 @@ def _fake_pop_study(STUDY, ALLEEG, *, return_com=False):
     return (study, ALLEEG, command) if return_com else (study, ALLEEG)
 
 
-def _fake_pop_savestudy(STUDY, EEG=None, *, return_com=False):
-    study = dict(STUDY, filename="console.study", filepath="/tmp", saved="yes")
-    command = "STUDY = pop_savestudy(STUDY, ALLEEG, filename='console.study', filepath='/tmp')"
-    return (study, command) if return_com else study
-
-
 def _fake_pop_fresh_study(*, return_com=False):
     study = {"name": "fresh study", "design": []}
     command = "STUDY = pop_freshstudy()"
@@ -679,19 +673,24 @@ def test_console_pop_study_result_updates_shared_study_workspace():
     assert len(result) == 2
 
 
-def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():
+def test_console_pop_savestudy_updates_study_datasets_and_history(tmp_path):
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
     session.STUDY = {"name": "console study", "datasetinfo": [], "design": []}
     session.CURRENTSTUDY = 1
-    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_savestudy": _fake_pop_savestudy})
+    workspace = EEGPrepConsoleWorkspace(session)
 
-    result = workspace.namespace["pop_savestudy"](workspace.namespace["STUDY"], workspace.namespace["EEG"])
+    path = tmp_path / "console.study"
+    result = workspace.namespace["pop_savestudy"](workspace.namespace["STUDY"], workspace.namespace["ALLEEG"], path)
+    study, datasets = result
 
+    assert path.is_file()
+    assert study is session.STUDY
     assert session.STUDY["filename"] == "console.study"
+    assert datasets is session.ALLEEG
     assert session.ALLEEG[0]["setname"] == "demo"
-    assert len(result) == 2
-    assert session.ALLCOM[-1].startswith("STUDY = pop_savestudy(")
+    assert result.command == session.ALLCOM[-1]
+    assert result.command.startswith("[STUDY ALLEEG] = pop_savestudy(")
 
 
 def test_console_pop_precomp_result_updates_shared_study_history():

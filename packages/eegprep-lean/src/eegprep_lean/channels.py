@@ -28,6 +28,19 @@ from .index import ChannelGroup, DatasetIndex, IndexError_, Store
 from .transport import Transport, default_transport
 
 
+_UNTYPED = frozenset({"", "n/a", "nan"})
+
+
+def stored_channel_type(channel_type: str | None) -> str:
+    """The channel type to store. None, blank, ``n/a`` and ``nan`` are ``''``."""
+    if channel_type is None:
+        return ""
+    text = channel_type.strip()
+    if text.lower() in _UNTYPED:
+        return ""
+    return text
+
+
 @dataclass(frozen=True)
 class Channel:
     """One channel, as the group describes it."""
@@ -42,10 +55,11 @@ class Channel:
 
     @classmethod
     def from_entry(cls, entry: dict) -> "Channel":
+        raw_type = entry.get("channel_type", "")
         return cls(
             label=str(entry.get("label", "")),
             unit=str(entry.get("unit", "")),
-            channel_type=str(entry.get("channel_type", "")),
+            channel_type="" if raw_type is None else str(raw_type),
             row_index=int(entry.get("row_index", -1)),
             original_rate=float(entry.get("original_rate") or 0.0),
             target_rate=float(entry.get("target_rate") or 0.0),
@@ -78,6 +92,11 @@ class GroupMetadata:
         by_row = {channel.row_index: channel.label for channel in self.channels}
         labels = tuple(by_row.get(row, "") for row in rows)
         return labels if all(labels) else None
+
+    def types(self, rows: tuple[int, ...]) -> tuple[str, ...]:
+        """Channel type for each row."""
+        by_row = {channel.row_index: channel.channel_type for channel in self.channels}
+        return tuple(stored_channel_type(by_row.get(row, "")) for row in rows)
 
     def unit(self, rows: tuple[int, ...]) -> str | None:
         """The unit these rows share, or None when they do not share one.

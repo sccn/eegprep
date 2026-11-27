@@ -14,7 +14,6 @@ from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
 from eegprep.functions.miscfunc.misc import finite_matmul
-from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
@@ -179,8 +178,10 @@ def test_pop_select_current_suite_combines_time_trial_and_channel_selection():
 
     selected = pop_select(eeg, time=[0.5, 1.0], notrial=[2, 3, 4], nochannel=[30])
 
-    points, _ = eeg_lat2point([0.5, 1.0], [1, 1], eeg["srate"], [eeg["xmin"], eeg["xmax"]])
-    start, stop = int(points[0]) - 1, int(points[1])
+    srate = float(eeg["srate"])
+    time0 = int(1.0 - float(eeg["xmin"]) * srate)
+    start = time0 + int(round(0.5 * srate)) - 1
+    stop = time0 + int(round(srate - 1))
     keep_channels = [index for index in range(eeg["nbchan"]) if index != 30]
     keep_trials = [index for index in range(eeg["trials"]) if index not in {1, 2, 3}]
     expected = eeg["data"][keep_channels, start:stop, :][:, :, keep_trials]
@@ -188,7 +189,7 @@ def test_pop_select_current_suite_combines_time_trial_and_channel_selection():
     assert selected["nbchan"] == eeg["nbchan"] - 1
     assert selected["trials"] == eeg["trials"] - 3
     assert selected["xmin"] == 0.5
-    assert selected["xmax"] == 1.0
+    assert selected["xmax"] == 127 / 128
 
 
 def test_pop_resample_halves_sample_rate_and_event_latencies(sample_eeg):
@@ -431,7 +432,7 @@ def test_pop_subcomp_removes_requested_sample_component(sample_eeg_with_ica):
     assert out["icaweights"].shape == (31, 32)
     assert out["icawinv"].shape == (32, 31)
     assert np.isfinite(out["data"]).all()
-    assert command == "EEG = pop_subcomp(EEG, [1], 0);"
+    assert command == "EEG = pop_subcomp(EEG, [1], 0, 0);"
 
 
 def test_pop_subcomp_empty_component_list_tolerates_an_empty_reject_array(sample_eeg_with_ica):
@@ -682,7 +683,7 @@ def test_pop_study_records_sample_dataset_info(sample_eeg):
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command.startswith("STUDY, ALLEEG = pop_study(")
+    assert command.startswith("[STUDY ALLEEG] = std_editset(")
 
 
 def test_pop_studyerp_marks_sample_study_as_erp(sample_eeg):
@@ -691,13 +692,13 @@ def test_pop_studyerp_marks_sample_study_as_erp(sample_eeg):
     assert study["name"] == "Simple ERP STUDY"
     assert study["design"][0]["name"] == "ERP"
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY, ALLEEG = pop_studyerp(ALLEEG)"
+    assert command == "[STUDY ALLEEG] = pop_studyerp(ALLEEG);"
 
 
 def test_pop_savestudy_and_pop_loadstudy_roundtrip_sample_study(tmp_path, sample_eeg):
     study, _alleeg = pop_study(None, [sample_eeg], name="Sample study")
 
-    saved, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study", return_com=True)
+    saved, _datasets, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study")
     loaded, loaded_alleeg, load_command = pop_loadstudy(tmp_path / "sample.study", return_com=True)
 
     assert saved["filename"] == "sample.study"
@@ -729,7 +730,8 @@ def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command.startswith("STUDY, ALLEEG = pop_studywizard(")
+    assert command.startswith("[STUDY ALLEEG] = std_editset(")
+    assert "'subject'" in command
 
 
 @eeglab_test("unittesting_popfunc/pop_saveh/popfunc_pop_saveh_wrapperTest.m", "test_test_pop_saveh")
@@ -824,7 +826,8 @@ def test_pop_exportbids_writes_valid_bids_dataset_from_sample(tmp_path, sample_e
 def test_pop_importbids_reads_sample_bids_export(tmp_path, sample_eeg):
     root, _command = pop_exportbids(sample_eeg, tmp_path / "bids", return_com=True)
 
-    imported, command = pop_importbids(root, return_com=True)
+    _study, datasets, command = pop_importbids(root, return_com=True)
+    imported = datasets[0]
 
     assert imported["data"].shape == sample_eeg["data"].shape
     assert imported["event"][0]["type"] == sample_eeg["event"][0]["type"]

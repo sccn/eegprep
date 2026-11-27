@@ -94,16 +94,14 @@ the ``subject`` argument. ``createids=True`` replaces the unique subjects
 with ``sub-001``, ``sub-002``, and so on, and ``participants.tsv`` has one
 row per subject. The export dialog records a command you can run again in
 ``eegprep-console``. EEGLAB leaves that history command empty. Importing a
-BIDS folder from the File menu loads the datasets into an in-memory study.
-It does not copy them into ``derivatives/eeglab``. The import field "Import
-only the following participant indices" takes 1-based positions in
+BIDS folder copies each dataset into ``derivatives/eeglab`` and returns
+``(STUDY, ALLEEG)``. A single file still returns that dataset. The import
+field "Import only the following participant indices" takes 1-based positions in
 ``participants.tsv`` (or in the sorted ``sub-*`` folders when that file is
 missing), such as ``2`` or ``1 2``. ``pop_importbids(..., subjects=[1, 2])``
 uses that same list, including when the dialog's history command is run again.
-A folder import from the dialog records ``[STUDY, ALLEEG] = pop_importbids(...)``
-with ``return_study`` on, plus any selected recordings. Running that command
-again rebuilds the same study. A direct call still returns the datasets unless
-``return_study=True``.
+A folder import records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not
+pass ``return_study``. Running that command again rebuilds the same study.
 
 This export is useful for learning EEGPrep's BIDS file handling. It is not a
 replacement for a curated experimental BIDS dataset with full study metadata.
@@ -177,6 +175,15 @@ A channel with no electrode coordinates, including a channel missing from
 ``electrodes.tsv``, keeps empty numeric location fields. ``chaninfo``
 ``plotrad`` and ``shrink`` are empty arrays when the file does not set them.
 Saving the dataset and loading it again keeps those empty values.
+
+Electrode positions end in EEGLAB's ALS frame (``+X`` nose, ``+Y`` left, ``+Z`` up).
+``EEGCoordinateSystem`` is read by the orientation the BIDS coordinate-systems appendix gives it:
+``EEGLAB``, ``EEGLAB-HJ``, ``CTF``, ``4DBti`` and ``KitYokogawa`` are already ALS,
+and ``CapTrak`` and the template spaces such as ``MNI305`` are RAS and are rotated.
+Names match without regard to case, any name with ``EEGLAB`` in it is ALS,
+and an ``EEGCoordinateSystemDescription`` of ``EEGLAB`` is read as ALS whatever the system says.
+``Other``, a name the appendix does not list, or no name leaves the locations unset and adds a warning to the import report;
+with ``infer_locations=None``, locations are then inferred from the channel labels when no channel has one.
 
 BIDS event ``duration`` is in seconds. ``pop_load_frombids`` stores each
 event's ``duration`` as that value times the sampling rate, including zero

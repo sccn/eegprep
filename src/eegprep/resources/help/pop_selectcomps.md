@@ -5,8 +5,10 @@ Usage:
     EEG = pop_selectcomps(EEG, compnum, reject=[...])
     EEG, command = pop_selectcomps(EEG, return_com=True)
 
-This EEGPrep implementation provides the component-selection and marking path.
-Marked components are stored in `EEG.reject.gcompreject` and can be inspected
-alongside component activity in the scrolling EEGPlot/EEGBrowser workflows.
+The dialog shows one button per component, 35 per page. Clicking a button opens
+`pop_prop` and an ACCEPT/REJECT control. OK stores the flags in
+`EEG.reject.gcompreject`. Cancel leaves the flags unchanged. Set thresholds
+and See comp. stats stay disabled until `pop_icathresh` and
+`EEG.stats.compenta` exist.
 
 Use `pop_subcomp` to remove marked components from the data.

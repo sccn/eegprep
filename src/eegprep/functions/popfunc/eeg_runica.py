@@ -15,6 +15,9 @@ from ..sigprocfunc.runica import runica
 
 logger = logging.getLogger(__name__)
 
+# pop_runica.m lines 503 and 523 pass this before the caller's options.
+POP_RUNICA_LRATE = 0.001
+
 # pop_runica.m:475 and getrank, pop_runica.m:670-684.
 _RUNICA_RANK_FRAME_LIMIT = 3000
 _RUNICA_RANK_EIGEN_TOLERANCE = 1e-7
@@ -103,6 +106,9 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
         If 'on' or True, sort components by descending activation variance. Default is 'off'.
     kwargs : dict
         Additional keyword arguments to pass to the runica algorithm.
+        An omitted ``lrate`` becomes 0.001, matching ``pop_runica.m``.
+        A caller-supplied ``lrate`` is left unchanged. The history command
+        records only the caller-supplied value.
 
     Returns
     -------
@@ -112,6 +118,9 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     EEG = copy.deepcopy(EEG)
 
     data = flatten_ica_data(EEG['data'].astype('float64'))
+    kwargs = dict(kwargs)
+    if not any(str(key).lower() == "lrate" for key in kwargs):
+        kwargs["lrate"] = POP_RUNICA_LRATE
     if _pca_option_key(kwargs) is None:
         kwargs = apply_runica_data_rank(data, kwargs, pca_requested=False)
 

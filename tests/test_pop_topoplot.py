@@ -10,6 +10,7 @@ from eegprep.functions.popfunc.pop_topoplot import (
     _erp_maps,
     _latency_positions,
     _parse_items_text,
+    _parse_options_text,
     plot_channel_locations,
     pop_topoplot,
     pop_topoplot_dialog_spec,
@@ -256,6 +257,70 @@ def test_pop_topoplot_latency_positions_use_matlab_rounding():
     eeg["pnts"] = 4
 
     assert _latency_positions(eeg, np.array([500.0, 2500.0])).tolist() == [1, 3]
+
+
+def test_parse_options_text_reads_matlab_literals():
+    assert _parse_options_text("'plotchans', [1, 2, 3]")["plotchans"] == [1.0, 2.0, 3.0]
+    assert _parse_options_text("'plotchans', [1; 2; 3]")["plotchans"] == [1.0, 2.0, 3.0]
+    assert _parse_options_text("'title', 'a b, [1]'")["title"] == "a b, [1]"
+    assert _parse_options_text("'emarker', {'.', 5, 'k'}")["emarker"] == [".", 5.0, "k"]
+    emarker2 = _parse_options_text("'emarker2', {[1 2 3], 'o', 'r', 10, 1}")
+    assert emarker2 == {"emarker2": [[1.0, 2.0, 3.0], "o", "r", 10.0, 1.0]}
+    assert _parse_options_text("'plotchans', [1 2 [3 4]]")["plotchans"] == [1.0, 2.0, 3.0, 4.0]
+    assert _parse_options_text("'title', 'it''s on'")["title"] == "it's on"
+    assert _parse_options_text("'plotchans', []")["plotchans"] == []
+    assert _parse_options_text("'electrodes', 'off', 'colorbar', 'off'") == {
+        "electrodes": "off",
+        "colorbar": "off",
+    }
+
+
+def test_parse_options_text_matches_matlab_eval_edges():
+    assert _parse_options_text("'electrodes', 'off',") == {"electrodes": "off"}
+    assert _parse_options_text("'plotchans', [1, 2, 3,]")["plotchans"] == [1.0, 2.0, 3.0]
+    assert _parse_options_text("'emarker', {'.', 5,},")["emarker"] == [".", 5.0]
+    assert _parse_options_text("'title', '100% done'")["title"] == "100% done"
+    for bad in ("'plotchans', [1 2 {3 4}]", "'electrodes', 'off' % hide"):
+        with pytest.raises(ValueError, match=r"pop_topoplot:.*'electrodes', 'off'") as caught:
+            _parse_options_text(bad)
+        assert bad in str(caught.value)
+
+
+def test_pop_topoplot_option_text_rejects_unsupported_markers():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=8, n_trials=1)
+    cases = (
+        ("'emarker', {'.', 5, 'k'}", "emarker"),
+        ("'emarker2', {[1 2 3], 'o', 'r', 10, 1}", "emarker2"),
+    )
+    for text, name in cases:
+        with pytest.raises(ValueError, match=rf"topoplot: '{name}' is not supported yet in eegprep") as caught:
+            pop_topoplot(eeg, typeplot=1, items=[0], plot="off", **_parse_options_text(text))
+        message = str(caught.value)
+        assert "EEGLAB topoplot.m supports it" in message
+
+
+def test_parse_options_text_names_unparsed_text():
+    for bad in ("'emarker', {'.'", "'emarker2', {[1 2 3], 'o', 'r', 10, 1", "'plotchans', ???"):
+        with pytest.raises(ValueError, match=r"pop_topoplot:.*'electrodes', 'off'") as caught:
+            _parse_options_text(bad)
+        assert bad in str(caught.value)
+
+
+def test_pop_topoplot_option_text_plotchans_selects_those_channels():
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=8, n_trials=1)
+    options = _parse_options_text("'plotchans', [1 2 3]")
+    assert options["plotchans"] == [1.0, 2.0, 3.0]
+    figures = pop_topoplot(eeg, typeplot=1, items=[0], plot="off", colorbar="off", **options)
+    values = np.asarray(eeg["data"])[:, 0]
+    _handle, expected, _plotrad, _xi, _yi = topoplot(
+        values[:3],
+        eeg["chanlocs"][:3],
+        noplot="on",
+        electrodes="off",
+    )
+    actual = np.asarray(figures[0].axes[0].images[0].get_array())
+    np.testing.assert_allclose(actual, expected, equal_nan=True)
+    plt.close(figures[0])
 
 
 def test_pop_topoplot_gui_parses_eeglab_style_options():

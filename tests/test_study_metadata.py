@@ -9,7 +9,7 @@ from scipy.io.matlab._mio5_params import miUINT16, mxCHAR_CLASS
 
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
+from eegprep.functions.studyfunc.pop_loadstudy import _normalize_loaded_study, pop_loadstudy
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.pop_addindepvar import pop_addindepvar
@@ -161,16 +161,16 @@ def test_std_makedesign_accepts_numpy_subject_selection():
 def test_pop_savestudy_resave_uses_existing_study_path(tmp_path):
     eeg = _eeg("saved", subject="S01", condition="target")
     study, alleeg = pop_study(None, [eeg], name="Initial study")
-    saved, _save_command = pop_savestudy(study, alleeg, filename="saved.study", filepath=tmp_path, return_com=True)
+    saved, _datasets, _save_command = pop_savestudy(study, alleeg, filename="saved.study", filepath=tmp_path)
 
     saved["name"] = "Resaved study"
-    resaved, command = pop_savestudy(saved, alleeg, savemode="resave", return_com=True)
+    resaved, _datasets, command = pop_savestudy(saved, alleeg, savemode="resave")
     reloaded, _loaded_alleeg = pop_loadstudy("saved.study", filepath=tmp_path, load_datasets="off")
 
     assert resaved["filename"] == "saved.study"
     assert Path(resaved["filepath"]) == tmp_path
     assert reloaded["name"] == "Resaved study"
-    assert "savemode='resave'" in command
+    assert "'savemode', 'resave'" in command
 
 
 def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
@@ -179,8 +179,8 @@ def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
     eeg["saved"] = "no"
     study, alleeg = pop_study(None, [eeg], name="Dataset resave study")
 
-    saved, command = pop_savestudy(
-        study, alleeg, filename="saved.study", filepath=tmp_path, resavedatasets="on", return_com=True
+    saved, _datasets, command = pop_savestudy(
+        study, alleeg, filename="saved.study", filepath=tmp_path, resavedatasets="on"
     )
     reloaded, loaded_alleeg = pop_loadstudy(saved["filename"], filepath=saved["filepath"])
 
@@ -188,7 +188,7 @@ def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
     assert alleeg[0]["saved"] == "no"
     assert loaded_alleeg[0]["setname"] == "saved"
     assert reloaded["name"] == "Dataset resave study"
-    assert "resavedatasets='on'" in command
+    assert "'resavedatasets', 'on'" in command
 
 
 class _Latin1CharWriter(VarWriter5):
@@ -545,6 +545,31 @@ def test_pop_savestudy_after_a_delete_writes_each_dataset_with_its_own_metadata(
 
     pop_savestudy(study, alleeg, filename="gaps.study", filepath=tmp_path)
     reloaded, _alleeg = pop_loadstudy("gaps.study", filepath=tmp_path, load_datasets="off")
-
     rows = [(info["index"], info["setname"], info["subject"]) for info in reloaded["datasetinfo"]]
     assert rows == [(1, "one", "S01"), (2, "three", "S03")]
+
+
+def test_loaded_cluster_sets_keep_one_column_per_component():
+    study = _normalize_loaded_study(
+        {
+            "cluster": [
+                {
+                    "name": "ParentCluster",
+                    "sets": np.array([[1, 1, 2], [1, 2, 2]]),
+                    "comps": np.array([[3, 4, 5]]),
+                },
+                {
+                    "name": "One component",
+                    "sets": np.array([[1], [2]]),
+                    "comps": np.array([7]),
+                },
+            ]
+        }
+    )
+    sets = np.asarray(study["cluster"][0]["sets"])
+    comps = np.asarray(study["cluster"][0]["comps"]).ravel()
+    assert sets.shape == (2, 3)
+    assert sets.shape[1] == comps.size
+    one_column = np.asarray(study["cluster"][1]["sets"])
+    assert one_column.shape == (2, 1)
+    assert one_column.shape[1] == np.asarray(study["cluster"][1]["comps"]).size

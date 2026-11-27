@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from eegprep_lean.channels import Channel, GroupMetadata, read_group_metadata
+from eegprep_lean.channels import Channel, GroupMetadata, read_group_metadata, stored_channel_type
 from eegprep_lean.index import IndexError_
 
 FIXTURE = Path(__file__).parent / "nm000103_group_v3.json"
@@ -116,6 +116,54 @@ class TestLabelsAndUnits:
 
         assert mixed.unit((0, 1)) is None
         assert mixed.unit((0,)) == "uV"
+
+    @pytest.mark.parametrize(
+        "missing",
+        [
+            {},
+            {"channel_type": ""},
+            {"channel_type": "  "},
+            {"channel_type": None},
+            {"channel_type": "n/a"},
+            {"channel_type": "nan"},
+        ],
+    )
+    def test_a_channel_with_no_type_does_not_drop_the_others(self, missing: dict) -> None:
+        metadata = GroupMetadata.from_attributes(
+            {
+                "modality": "EEG",
+                "channels": [
+                    {"label": "E1", "unit": "uV", "channel_type": "EEG", "row_index": 0},
+                    {"label": "E2", "unit": "uV", "row_index": 1, **missing},
+                    {"label": "E3", "unit": "uV", "channel_type": "ECG", "row_index": 2},
+                ],
+            },
+            name=GROUP_NAME,
+        )
+
+        assert metadata.types((0, 1, 2)) == ("EEG", "", "ECG")
+        assert metadata.types((2, 999)) == ("ECG", "")
+
+    def test_null_and_na_stay_empty_beside_the_declared_types(self) -> None:
+        metadata = GroupMetadata.from_attributes(
+            {
+                "modality": "EEG",
+                "channels": [
+                    {"label": "E1", "unit": "uV", "channel_type": "EEG", "row_index": 0},
+                    {"label": "E2", "unit": "uV", "row_index": 1},
+                    {"label": "E3", "unit": "uV", "channel_type": "ECG", "row_index": 2},
+                    {"label": "E4", "unit": "uV", "channel_type": "EOG", "row_index": 3},
+                    {"label": "E5", "unit": "uV", "channel_type": "n/a", "row_index": 4},
+                    {"label": "E6", "unit": "uV", "channel_type": None, "row_index": 5},
+                ],
+            },
+            name=GROUP_NAME,
+        )
+
+        assert metadata.types((0, 1, 2, 3, 4, 5)) == ("EEG", "", "ECG", "EOG", "", "")
+
+    def test_stored_channel_type_treats_none_as_empty(self) -> None:
+        assert stored_channel_type(None) == ""
 
 
 @pytest.mark.network

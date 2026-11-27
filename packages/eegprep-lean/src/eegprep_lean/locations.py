@@ -8,13 +8,14 @@ and this package must not import eegprep, which depends on it and not the other 
 so the same few steps are written out here in NumPy, with the operations in the same order.
 ``test_eeg.py`` builds both routes from one set of coordinates and requires equal answers.
 
-**Where this differs from the import is what it refuses, and that is deliberate.** The
-import guesses a unit from the size of the coordinates when the coordsystem names none,
-assumes a frame when there is no coordsystem file, and reads every frame it does not know as
-RAS. Here a unit or a frame that is not in the BIDS coordinate-systems appendix gives no
-positions and a recorded reason, because a wrong guess moves ``theta`` and ``radius`` and
-raises nothing. ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS in the appendix and are kept
-as they are, where the import turns them by 90 degrees.
+Both read a frame by the orientation the BIDS coordinate-systems appendix gives it, from the
+same table (``BIDS_ALS_SYSTEMS`` and ``BIDS_RAS_SYSTEMS`` there), and give no positions for
+a frame without one. **Where this differs from the import is what else it refuses, and that
+is deliberate.** The import guesses a unit from the size of the coordinates when the
+coordsystem names none, assumes a frame when there is no coordsystem file, matches a frame's
+name without regard to case and reads any name with ``EEGLAB`` in it as ALS. Here a unit
+that is not known, or a frame not spelled as in the table, gives no positions and a recorded
+reason, because a wrong guess moves ``theta`` and ``radius`` and raises nothing.
 
 The import also reads a coordsystem whose ``EEGCoordinateSystemDescription`` is ``EEGLAB`` as
 ALS, whatever ``EEGCoordinateSystem`` says. A store carries no description, so a dataset that
@@ -71,7 +72,10 @@ _RAS_SYSTEMS = frozenset(
         "MNIColin27",
         "MNI152Lin",
         "MNI152NLin6Sym",
+        # The appendix's table prints MNI152NLin6ASym; the schema's value is that up to BIDS
+        # 1.10.1 and MNI152NLin6Asym from 1.11.0.
         "MNI152NLin6ASym",
+        "MNI152NLin6Asym",
         "MNI305",
         "NIHPD",
         "OASIS30AntsOASISAnts",

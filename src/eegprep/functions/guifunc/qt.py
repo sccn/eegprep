@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.guifunc.coregister import run_coregister_dialog
 from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs
 from eegprep.functions.guifunc.listdlg2 import listdlg2
 from eegprep.functions.guifunc.pophelp import pophelp
@@ -79,6 +80,40 @@ def _require_qt() -> tuple[Any, Any]:
     return QtCore, QtWidgets
 
 
+def _qt_isinstance(widget: Any, *names: str) -> bool:
+    if widget is None:
+        return False
+    _core, widgets = _require_qt()
+    return isinstance(widget, tuple(getattr(widgets, name) for name in names))
+
+
+def _is_button(widget: Any) -> bool:
+    return _qt_isinstance(widget, "QAbstractButton")
+
+
+def _is_combo(widget: Any) -> bool:
+    return _qt_isinstance(widget, "QComboBox")
+
+
+def _is_line_edit(widget: Any) -> bool:
+    return _qt_isinstance(widget, "QLineEdit", "QAbstractSpinBox")
+
+
+def _is_text_widget(widget: Any) -> bool:
+    return _qt_isinstance(widget, "QLineEdit", "QLabel", "QAbstractButton", "QPlainTextEdit", "QTextEdit")
+
+
+def _reads_text(widget: Any) -> bool:
+    return _qt_isinstance(widget, "QLineEdit", "QLabel", "QAbstractButton")
+
+
+def _is_qt_object(widget: Any) -> bool:
+    if widget is None:
+        return False
+    core, _widgets = _require_qt()
+    return isinstance(widget, core.QObject)
+
+
 class QtDialogRenderer:
     """Render :class:`DialogSpec` using PySide6 widgets."""
 
@@ -116,9 +151,12 @@ class QtDialogRenderer:
     _select_event_field: Any
     _mirror_text: Any
     _select_channels: Any
+    _dipfit_coregister: Any
     _navigate_event: Any
     _navigate_channel: Any
     _select_file: Any
+    _editset_from_dataset: Any
+    _edit_event_structure: Any
     _open_eegplot: Any
     _open_rejection_browser: Any
     _set_headplot_setup_mode: Any
@@ -146,7 +184,13 @@ class QtDialogRenderer:
         app.processEvents()
         if dialog.exec() != self._QDialog().Accepted:
             return None
-        return {tag: self._read_widget(widget) for tag, widget in widgets.items()}
+        values = {tag: self._read_widget(widget) for tag, widget in widgets.items()}
+        eventnum = widgets.get("eventnum")
+        state = getattr(eventnum, _EVENT_STATE_ATTR, None) if eventnum is not None else None
+        if isinstance(state, dict):
+            values["field_displays"] = state["field_displays"]
+            values["structure_ops"] = state["structure_ops"]
+        return values
 
     def build_dialog(
         self,
@@ -219,6 +263,8 @@ class QtDialogRenderer:
             scroll_area.setObjectName("content_scroll")
             scroll_area.setWidgetResizable(True)
             scroll_area.setFrameShape(qt_widgets.QFrame.NoFrame)
+            if not spec.horizontal_scroll:
+                scroll_area.setHorizontalScrollBarPolicy(qt_core.Qt.ScrollBarAlwaysOff)
             scroll_area.setWidget(content_widget)
             layout.addWidget(scroll_area, 1)
 
@@ -235,6 +281,8 @@ class QtDialogRenderer:
         value = initial_values.get(control.tag, control.value)
         if style == "text":
             widget = QtWidgets.QLabel(control.string)
+            if control.wrap:
+                widget.setWordWrap(True)
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
         elif style == "textarea":
@@ -242,6 +290,8 @@ class QtDialogRenderer:
             widget.setPlainText("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
+            widget.setAutoDefault(False)
+            widget.setDefault(False)
             if value is not None:
                 widget.setProperty(_VALUE_PROPERTY, value)
         elif style == "checkbox":
@@ -300,9 +350,9 @@ class QtDialogRenderer:
         def navigate(*_args, params=params, index_tag=index_tag):
             _navigate_indexed_form(widgets, params, index_tag=index_tag)
 
-        if hasattr(source, "clicked"):
+        if _is_button(source):
             source.clicked.connect(navigate)
-        if hasattr(source, "editingFinished"):
+        if _is_line_edit(source):
             setattr(source, _DISPLAYED_INDEX_ATTR, 1)
             source._eegprep_index_nav = (params, index_tag)
             source.editingFinished.connect(navigate)
@@ -333,6 +383,17 @@ class QtDialogRenderer:
             source = widgets[params["source"]]
             target = widgets[params["target"]]
             source.editingFinished.connect(lambda: self._mirror_text(source, target))
+        elif callback.name == "set_algorithm_options":
+            source = widgets.get("icatype")
+            target = widgets.get(params["target"])
+            choices = tuple(params.get("options", ()))
+
+            def apply_options(index, target=target, choices=choices):
+                if target is not None and _is_text_widget(target) and 0 <= int(index) < len(choices):
+                    target.setText(str(choices[int(index)]))
+
+            if source is not None and _qt_isinstance(source, "QListWidget"):
+                source.currentRowChanged.connect(apply_options)
         elif callback.name == "select_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -363,6 +424,14 @@ class QtDialogRenderer:
                 lambda index: self._set_enabled(targets, index + 1 == int(params["enabled_index"]))
             )
             self._set_enabled(targets, source.currentIndex() + 1 == int(params["enabled_index"]))
+        elif callback.name == "dipfit_coregister":
+            button = widgets[params.get("button", "coregister")]
+            button.clicked.connect(lambda: self._dipfit_coregister(button, widgets, params))
+        elif callback.name == "dipfit_nonlinear_action":
+            button = widgets[params["button"]]
+            button.clicked.connect(
+                lambda _checked=False, params=params: _dipfit_nonlinear_action(button, widgets, params)
+            )
         elif callback.name == "dipfit_template":
             source = widgets[params["source"]]
             templates = list(params["templates"])
@@ -405,6 +474,13 @@ class QtDialogRenderer:
             button = widgets[params["button"]]
             target = widgets[params["target"]]
             button.clicked.connect(lambda: self._select_interp_channels(button, target, params))
+        elif callback.name == "edit_event_structure":
+            button = widgets[params["button"]]
+            button.clicked.connect(lambda: self._edit_event_structure(button, widgets, params))
+        elif callback.name == "editset_from_dataset":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._editset_from_dataset(button, target, params))
         elif callback.name == "select_file":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -847,7 +923,7 @@ def _add_buttons(
     dialog: Any,
     widgets: dict[str, Any],
 ) -> None:
-    if spec.geomvert is None and spec.size is not None:
+    if spec.geomvert is None and spec.size is not None and not spec.scrollable:
         layout.addStretch(1)
     button_container = QtWidgets.QWidget()
     button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
@@ -855,22 +931,24 @@ def _add_buttons(
     button_layout.setContentsMargins(0, 18, 0, 0)
     button_layout.setSpacing(16)
     if spec.help_text and spec.show_help_button:
-        help_button = QtWidgets.QPushButton(spec.help_label)
+        help_button = QtWidgets.QPushButton(spec.help_label, dialog)
         help_button.setObjectName("help")
-        help_button.setFixedWidth(spec.button_size[0] if spec.button_size is not None else 80)
+        help_button.setAutoDefault(False)
+        help_button.setDefault(False)
+        _apply_button_size(help_button, spec.button_size)
         help_button.clicked.connect(lambda: _show_help(QtWidgets, dialog, spec))
         button_layout.addWidget(help_button)
     button_layout.addStretch(1)
-    cancel_button = QtWidgets.QPushButton(spec.cancel_label)
-    ok_button = QtWidgets.QPushButton(spec.ok_label)
+    cancel_button = QtWidgets.QPushButton(spec.cancel_label, dialog)
+    ok_button = QtWidgets.QPushButton(spec.ok_label, dialog)
     cancel_button.setObjectName("cancel")
     ok_button.setObjectName("ok")
-    if spec.button_size is not None:
-        cancel_button.setFixedSize(*spec.button_size)
-        ok_button.setFixedSize(*spec.button_size)
-    else:
-        cancel_button.setFixedWidth(80)
-        ok_button.setFixedWidth(80)
+    cancel_button.setAutoDefault(False)
+    cancel_button.setDefault(False)
+    ok_button.setAutoDefault(True)
+    ok_button.setDefault(True)
+    _apply_button_size(cancel_button, spec.button_size)
+    _apply_button_size(ok_button, spec.button_size)
     cancel_button.clicked.connect(dialog.reject)
     ok_button.clicked.connect(lambda: _accept_if_valid(dialog, spec, widgets))
     if spec.cancel_first:
@@ -880,6 +958,15 @@ def _add_buttons(
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
     layout.addWidget(button_container)
+
+
+def _apply_button_size(button: Any, requested: tuple[int, int] | None) -> None:
+    if requested is None:
+        button.setFixedWidth(80)
+        return
+    button.ensurePolished()
+    hint = button.sizeHint()
+    button.setFixedSize(max(requested[0], hint.width()), max(requested[1], hint.height()))
 
 
 def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:
@@ -919,6 +1006,16 @@ def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> 
         _qt_core, qt_widgets = _require_qt()
         qt_widgets.QMessageBox.warning(dialog, "Warning", message)
         return
+    if spec.validate is not None:
+        _qt_core, qt_widgets = _require_qt()
+        values = {tag: _read_widget(widget) for tag, widget in widgets.items()}
+        try:
+            spec.validate(values)
+        except ValueError as exc:
+            text = str(exc)
+            title = f"{spec.function_name or 'dialog'} warning"
+            _qt_core.QTimer.singleShot(0, lambda: qt_widgets.QMessageBox.warning(dialog, title, text))
+            return
     dialog.accept()
 
 
@@ -1068,7 +1165,7 @@ def _widget_vector(widget: Any) -> list[float] | None:
 
 
 def _combo_choice(widget: Any, values: tuple[str, ...], default: str) -> str:
-    if widget is not None and hasattr(widget, "currentIndex"):
+    if _is_combo(widget):
         index = int(widget.currentIndex())
         if 0 <= index < len(values):
             return values[index]
@@ -1080,11 +1177,11 @@ def _is_int_text(value: str) -> bool:
 
 
 def _widget_checked(widget: Any) -> bool:
-    return bool(widget is not None and hasattr(widget, "isChecked") and widget.isChecked())
+    return bool(_is_button(widget) and widget.isChecked())
 
 
 def _widget_text(widget: Any) -> str:
-    if widget is None or not hasattr(widget, "text"):
+    if not _reads_text(widget):
         return ""
     return str(widget.text())
 
@@ -1093,7 +1190,7 @@ def _plot_tf_cycle_calc(button: Any, widgets: dict[str, Any]) -> None:
     _qt_core, qt_widgets = _require_qt()
     width_index = 0
     width_widget = widgets.get("widthpop")
-    if width_widget is not None and hasattr(width_widget, "currentIndex"):
+    if width_widget is not None and _is_combo(width_widget):
         width_index = int(width_widget.currentIndex())
     try:
         tf_cycle_calc(
@@ -1110,7 +1207,7 @@ def _plot_tf_cycle_calc(button: Any, widgets: dict[str, Any]) -> None:
 def _estimate_fir_kaiser_beta(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
     _qt_core, qt_widgets = _require_qt()
     target = widgets.get(params.get("target", ""))
-    if target is None or not hasattr(target, "setText"):
+    if target is None or not _is_text_widget(target):
         return
     dev_widget = widgets.get(params.get("dev", ""))
     dev = _widget_number(dev_widget)
@@ -1132,14 +1229,14 @@ def _estimate_fir_kaiser_beta(button: Any, widgets: dict[str, Any], params: Mapp
         qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
         return
     target.setText(f"{beta:g}")
-    if dev_widget is not None and hasattr(dev_widget, "setText"):
+    if dev_widget is not None and _is_text_widget(dev_widget):
         dev_widget.setText(f"{dev:g}")
 
 
 def _estimate_firws_order(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
     _qt_core, qt_widgets = _require_qt()
     target = widgets.get(params.get("target", ""))
-    if target is None or not hasattr(target, "setText"):
+    if target is None or not _is_text_widget(target):
         return
     srate = _widget_number(widgets.get(params.get("srate", "")))
     if srate is None:
@@ -1150,24 +1247,44 @@ def _estimate_firws_order(button: Any, widgets: dict[str, Any], params: Mapping[
     df_widget = widgets.get(params.get("df", ""))
     df = _widget_number(df_widget)
     if df is None:
-        df, accepted = qt_widgets.QInputDialog.getDouble(
-            button,
-            "Estimate filter order",
-            "Transition bandwidth (Hz):",
-            max(1.0, srate / 100),
-            1e-12,
-            srate / 2,
-            6,
+        from eegprep.functions.guifunc.inputgui import inputgui
+        from eegprep.plugins.firfilt.pop_firwsord import pop_firwsord_dialog_spec
+
+        result = inputgui(
+            pop_firwsord_dialog_spec(),
+            initial_values={
+                "fs": f"{float(srate):g}",
+                "wtype": list(WINDOW_TYPES).index(wtype) + 1 if wtype in WINDOW_TYPES else 3,
+            },
         )
-        if not accepted:
+        if result is None:
             return
+        try:
+            chosen = WINDOW_TYPES[int(result.get("wtype", 3)) - 1]
+            order, out_dev = firwsord(
+                chosen,
+                float(result.get("fs")),
+                float(result.get("df")),
+                result.get("dev") if str(result.get("dev") or "").strip() else dev,
+            )
+        except (TypeError, ValueError) as exc:
+            qt_widgets.QMessageBox.warning(
+                button,
+                "pop_firwsord",
+                f"pop_firwsord: transition bandwidth and sampling rate must be positive numbers in Hz. {exc}",
+            )
+            return
+        target.setText(str(int(order)))
+        if dev_widget is not None and _is_text_widget(dev_widget) and out_dev is not None:
+            dev_widget.setText(f"{float(out_dev):g}")
+        return
     try:
         order, out_dev = firwsord(wtype, srate, df, dev)
     except ValueError as exc:
         qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
         return
     target.setText(str(int(order)))
-    if dev_widget is not None and hasattr(dev_widget, "setText") and out_dev is not None:
+    if dev_widget is not None and _is_text_widget(dev_widget) and out_dev is not None:
         dev_widget.setText(f"{float(out_dev):g}")
 
 
@@ -1189,6 +1306,9 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
     ftype = _combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
     try:
         edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype, srate)
+        nyquist = float(srate) / 2.0
+        if edges and edges[0] == 0.0 and abs(edges[-1] - nyquist) <= 1e-9 * max(1.0, nyquist):
+            edges = edges[1:-1]
         order, wtpass, wtstop = pop_firpmord(edges, amplitudes, fs=srate, gui=True)
     except ValueError as exc:
         qt_widgets.QMessageBox.warning(
@@ -1200,13 +1320,14 @@ def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[
         return
     if order is None:
         return
+    order = int(math.ceil(float(order) / 2.0) * 2)
     for tag, value in (
         (params.get("forder"), order),
         (params.get("wtpass"), wtpass),
         (params.get("wtstop"), wtstop),
     ):
         widget = widgets.get(tag or "")
-        if widget is not None and hasattr(widget, "setText"):
+        if widget is not None and _is_text_widget(widget):
             widget.setText(f"{float(value):g}")
 
 
@@ -1321,6 +1442,21 @@ def _navigate_channel(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> 
 
 
 _DISPLAYED_INDEX_ATTR = "_eegprep_displayed_index"
+_EVENT_STATE_ATTR = "_eegprep_event_state"
+
+
+def _event_edit_state(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> dict[str, Any]:
+    index_widget = widgets.get(params.get("eventnum_tag", "eventnum"))
+    state = getattr(index_widget, _EVENT_STATE_ATTR, None) if index_widget is not None else None
+    if isinstance(state, dict):
+        return state
+    state = {
+        "field_displays": [dict(row) for row in params.get("field_displays", [])],
+        "structure_ops": [],
+    }
+    if index_widget is not None:
+        setattr(index_widget, _EVENT_STATE_ATTR, state)
+    return state
 
 
 def _commit_index_navigation(widgets: Mapping[str, Any]) -> None:
@@ -1334,10 +1470,12 @@ def _commit_index_navigation(widgets: Mapping[str, Any]) -> None:
 
 def _navigate_indexed_form(widgets: Mapping[str, Any], params: Mapping[str, Any], *, index_tag: str) -> None:
     index_widget = widgets.get(params[index_tag])
-    displays = params["field_displays"]
+    displays = (
+        _event_edit_state(widgets, params)["field_displays"] if "eventnum_tag" in params else params["field_displays"]
+    )
     if index_widget is None or not displays:
         return
-    max_index = min(max(1, int(params["max_index"])), len(displays))
+    max_index = max(1, len(displays))
     displayed = int(getattr(index_widget, _DISPLAYED_INDEX_ATTR, 1))
     try:
         current = int(float(_widget_text(index_widget) or "1"))
@@ -1388,12 +1526,57 @@ def _same_displayed_value(previous: Any, value: Any) -> bool:
 
 
 def _set_widget_display_value(widget: Any, value: Any) -> None:
-    if hasattr(widget, "setChecked") and isinstance(value, (bool, np.bool_)):
+    if _is_button(widget) and isinstance(value, (bool, np.bool_)):
         widget.setChecked(bool(value))
         return
-    if hasattr(widget, "setText"):
+    if _is_text_widget(widget):
         text = "" if value is None or (isinstance(value, str) and value == "") else str(value)
         widget.setText(text)
+
+
+def _dipfit_coregister(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+    """Open the co-registration editor and write the 9-parameter warp back."""
+    from eegprep.plugins.dipfit._utils import packaged_dipfit_file
+
+    _qt_core, qt_widgets = _require_qt()
+    chanfile = widgets[params["chanfile"]].text().strip()
+    if not chanfile:
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_dipfit_settings",
+            "pop_dipfit_settings: the template channel file is empty. "
+            "Choose a head model, or enter the landmark file before Co-register.",
+        )
+        return
+    current = widgets[params["target"]].text().strip()
+    try:
+        fitted = run_coregister_dialog(
+            params.get("chanlocs"),
+            packaged_dipfit_file(chanfile),
+            chaninfo=params.get("chaninfo") or None,
+            meshfile=packaged_dipfit_file(widgets[params["hdmfile"]].text().strip()),
+            transform=current or None,
+            parent=button,
+        )
+    except (OSError, ValueError, RuntimeError) as exc:
+        qt_widgets.QMessageBox.warning(button, "pop_dipfit_settings", str(exc))
+        return
+    if not fitted:
+        return
+    widgets[params["target"]].setText(" ".join(format(float(value), ".4g") for value in fitted))
+    no_coreg = widgets.get(params.get("no_coreg", ""))
+    if no_coreg is not None and _is_button(no_coreg):
+        no_coreg.setChecked(False)
+
+
+def _dipfit_nonlinear_action(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+    from eegprep.plugins.dipfit.pop_dipfit_nonlinear import apply_nonlinear_dialog_action
+
+    try:
+        apply_nonlinear_dialog_action(widgets, dict(params))
+    except (RuntimeError, ValueError, np.linalg.LinAlgError) as exc:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "pop_dipfit_nonlinear", str(exc))
 
 
 def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
@@ -1425,6 +1608,66 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
     target.setText(value.strip())
 
 
+def _edit_event_structure(button: Any, widgets: dict[str, Any], params: dict[str, Any]) -> None:
+    """Insert, append, or delete the event currently shown in pop_editeventvals."""
+    _qt_core, qt_widgets = _require_qt()
+    state = _event_edit_state(widgets, params)
+    displays = state["field_displays"]
+    try:
+        index = int(float(widgets["eventnum"].text().strip() or "1")) - 1
+    except ValueError:
+        index = 0
+    index = max(0, min(index, max(0, len(displays) - 1)))
+    action = str(params.get("action"))
+    ops = state["structure_ops"]
+    if action == "delete":
+        if len(displays) <= 1:
+            qt_widgets.QMessageBox.warning(
+                button,
+                "pop_editeventvals",
+                "pop_editeventvals: the last event cannot be deleted. "
+                "Keep at least one event, or remove the dataset's events another way.",
+            )
+            return
+        displays.pop(index)
+        ops.append(("delete", index + 1))
+        widgets["eventnum"].setText(str(min(index + 1, len(displays))))
+    elif action == "insert":
+        displays.insert(index, {key: "" for key in displays[index]})
+        ops.append(("insert", index + 1))
+    else:
+        displays.insert(index + 1, {key: "" for key in displays[index]})
+        ops.append(("append", index + 1))
+        widgets["eventnum"].setText(str(index + 2))
+    shown = max(1, min(int(float(widgets["eventnum"].text() or "1")), len(displays)))
+    widgets["eventnum"].setText(str(shown))
+    setattr(widgets["eventnum"], _DISPLAYED_INDEX_ATTR, shown)
+    for tag, value in displays[shown - 1].items():
+        widget = widgets.get(tag)
+        if widget is not None and _is_text_widget(widget):
+            widget.setText("" if value is None else str(value))
+
+
+def _editset_from_dataset(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+    """Write ``ALLEEG(n).field`` for a dataset chosen from the loaded list."""
+    _qt_core, qt_widgets = _require_qt()
+    datasets = list(params.get("datasets") or [])
+    field = str(params.get("field") or "")
+    if not datasets:
+        qt_widgets.QMessageBox.warning(
+            button,
+            "pop_editset",
+            "pop_editset: no other dataset is loaded. Load a dataset first, or use Browse to pick a file.",
+        )
+        return
+    labels = [f"{index}: {dataset.get('setname') or 'dataset'}" for index, dataset in enumerate(datasets, start=1)]
+    choice, accepted = qt_widgets.QInputDialog.getItem(button, "From other dataset", "Dataset", labels, 0, False)
+    if not accepted or not choice:
+        return
+    index = labels.index(str(choice)) + 1
+    target.setText(f"ALLEEG({index}).{field}")
+
+
 def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
     _qt_core, qt_widgets = _require_qt()
 
@@ -1445,10 +1688,10 @@ def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: M
         filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter, **kwargs)
     if not filename:
         return
-    if hasattr(target, "setText"):
+    if _is_text_widget(target):
         target.setText(filename)
         return
-    if hasattr(target, "setEditable") and hasattr(target, "setEditText"):
+    if _is_combo(target):
         target.setEditable(True)
         target.setEditText(filename)
         target.setProperty(_VALUE_PROPERTY, filename)
@@ -1524,7 +1767,7 @@ def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Map
             for tag in params.get("count_tags", ()):
                 widget = widgets.get(tag)
                 field = params.get("count_fields", {}).get(tag)
-                if widget is not None and field is not None and hasattr(widget, "setText"):
+                if widget is not None and field is not None and _is_text_widget(widget):
                     widget.setText(str(int(np.asarray((eeg.get("reject") or {}).get(field, []), dtype=bool).sum())))
 
         pop_eegplot(
@@ -1542,7 +1785,7 @@ def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Map
 def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:
     source = widgets.get(params["source"])
     if not checked:
-        if source is not None and hasattr(source, "blockSignals"):
+        if source is not None and _is_qt_object(source):
             source.blockSignals(True)
             source.setChecked(True)
             source.blockSignals(False)
@@ -1565,11 +1808,7 @@ def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, An
 
 def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, Any], index: int) -> None:
     reference_target = widgets.get(params.get("reference_target", ""))
-    if (
-        reference_target is not None
-        and hasattr(reference_target, "setCurrentIndex")
-        and index < reference_target.count()
-    ):
+    if reference_target is not None and _is_combo(reference_target) and index < reference_target.count():
         reference_target.setCurrentIndex(index)
     target = widgets.get(params.get("transform_target", ""))
     transforms = tuple(str(value) for value in params.get("transform_choices", ()))
@@ -1579,7 +1818,7 @@ def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, A
 
 def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
     transform_target = widgets.get(params.get("transform_target", ""))
-    if transform_target is None or not hasattr(transform_target, "setText"):
+    if transform_target is None or not _is_text_widget(transform_target):
         return
     try:
         # Manual headplot co-registration is the only generic Qt dialog path
@@ -1613,14 +1852,14 @@ def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: 
 
 
 def _choice_or_text(widget: Any, choices: tuple[str, ...]) -> str:
-    stored_value = widget.property(_VALUE_PROPERTY) if widget is not None and hasattr(widget, "property") else None
+    stored_value = widget.property(_VALUE_PROPERTY) if _is_qt_object(widget) else None
     if stored_value is not None:
         return str(stored_value)
-    if widget is not None and hasattr(widget, "currentIndex"):
+    if _is_combo(widget):
         index = int(widget.currentIndex())
         if 0 <= index < len(choices):
             return choices[index]
-    if widget is not None and hasattr(widget, "text"):
+    if _reads_text(widget):
         return str(widget.text())
     return choices[0] if choices else ""
 
@@ -1762,9 +2001,9 @@ def _clear_widgets(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> Non
         widget = widgets.get(tag)
         if widget is None:
             continue
-        if hasattr(widget, "setText"):
+        if _is_text_widget(widget):
             widget.setText(str(labels.get(tag, "")))
-        if hasattr(widget, "setProperty"):
+        if _is_qt_object(widget):
             widget.setProperty(_VALUE_PROPERTY, values.get(tag))
 
 
@@ -1845,17 +2084,21 @@ def _read_widget(widget: Any) -> Any:
     stored_value = widget.property(_VALUE_PROPERTY)
     if stored_value is not None:
         return stored_value
-    if hasattr(widget, "isChecked"):
+    if _is_button(widget):
         return widget.isChecked()
-    if widget.property(_MULTI_SELECT_PROPERTY) and hasattr(widget, "selectedIndexes"):
+    if (
+        _is_qt_object(widget)
+        and widget.property(_MULTI_SELECT_PROPERTY)
+        and _qt_isinstance(widget, "QAbstractItemView")
+    ):
         return sorted({index.row() + 1 for index in widget.selectedIndexes()})
-    if hasattr(widget, "currentRow"):
+    if _qt_isinstance(widget, "QListWidget"):
         return widget.currentRow() + 1
-    if hasattr(widget, "currentIndex"):
+    if _is_combo(widget):
         return widget.currentIndex() + 1
-    if hasattr(widget, "toPlainText"):
+    if _qt_isinstance(widget, "QPlainTextEdit", "QTextEdit"):
         return widget.toPlainText()
-    if hasattr(widget, "text"):
+    if _reads_text(widget):
         return widget.text()
     return None
 
@@ -1937,9 +2180,12 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_select_event_field",
     "_mirror_text",
     "_select_channels",
+    "_dipfit_coregister",
     "_navigate_event",
     "_navigate_channel",
     "_select_file",
+    "_editset_from_dataset",
+    "_edit_event_structure",
     "_open_eegplot",
     "_open_rejection_browser",
     "_set_headplot_setup_mode",

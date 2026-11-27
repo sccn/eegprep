@@ -396,6 +396,23 @@ def _ica_activation_matrix(EEG, ica_data):
     return np.reshape(product, (components, pnts, trials), order="F")
 
 
+def _empty_coord_transform(stored):
+    if stored is None:
+        return True
+    try:
+        return np.asarray(stored, dtype=float).size == 0
+    except (TypeError, ValueError):
+        return True
+
+
+def _normalise_empty_dipfit_transform(EEG):
+    dipfit = EEG.get("dipfit")
+    if not isinstance(dipfit, dict) or not dipfit:
+        return
+    if "coord_transform" not in dipfit or _empty_coord_transform(dipfit.get("coord_transform")):
+        dipfit["coord_transform"] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+
+
 def eeg_checkset(EEG, *checks, load_data=True):
     """Validate and set up EEG dataset structure.
 
@@ -445,6 +462,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
 
     if 'chaninfo' not in EEG:
         EEG['chaninfo'] = {}
+
+    _normalise_empty_dipfit_transform(EEG)
 
     if 'reject' not in EEG:
         EEG['reject'] = {}
@@ -578,6 +597,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
                         field_values = []
                         for idx in event_idx_list:
                             val = tmpevent[idx].get(fname, None)
+                            if val is None:
+                                val = np.array([])
 
                             # Special handling for latency: convert to epoch-relative time in ms
                             if fname == 'latency' and val is not None:

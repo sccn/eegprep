@@ -393,6 +393,64 @@ def build_python_call(targets: tuple[str, ...], function_name: str, *args: str, 
     return f"{assignment} = {function_name}({', '.join(pieces)})"
 
 
+def build_matlab_call(targets: tuple[str, ...], function_name: str, *args: Any, **kwargs: Any) -> str:
+    """Build an EEGLAB ``[A B] = func(A, B, 'name', value);`` history command."""
+    from eegprep.functions.popfunc._pop_utils import format_history_value
+
+    formatter = kwargs.pop("dict_formatter", None)
+    pieces: list[str] = []
+    for arg in args:
+        if isinstance(arg, MatlabLiteral):
+            pieces.append(str(arg))
+        elif isinstance(arg, str) and arg in {"STUDY", "ALLEEG", "EEG"}:
+            pieces.append(arg)
+        else:
+            pieces.append(format_history_value(arg, dict_formatter=formatter))
+    for key, value in kwargs.items():
+        if _empty_value(value):
+            continue
+        rendered = (
+            str(value) if isinstance(value, MatlabLiteral) else format_history_value(value, dict_formatter=formatter)
+        )
+        pieces.extend([format_history_value(key), rendered])
+    return f"[{' '.join(targets)}] = {function_name}({', '.join(pieces)});"
+
+
+class MatlabLiteral(str):
+    """History text that is already an EEGLAB literal."""
+
+
+def matlab_flat_commands(commands: list[Any]) -> MatlabLiteral:
+    """Format a flat STUDY command list as one EEGLAB name/value cell."""
+    from eegprep.functions.popfunc._pop_utils import format_history_value
+
+    if commands and all(isinstance(item, dict) for item in commands):
+        return MatlabLiteral(matlab_command_cell(commands))
+    parts: list[str] = []
+    index = 0
+    while index < len(commands):
+        key = commands[index]
+        value = commands[index + 1] if index + 1 < len(commands) else []
+        parts.append(format_history_value(str(key)))
+        parts.append(format_history_value([] if value is None else value))
+        index += 2
+    return MatlabLiteral("{" + ", ".join(parts) + "}")
+
+
+def matlab_command_cell(commands: list[dict[str, Any]]) -> str:
+    """Format STUDY edit commands as an EEGLAB cell of name/value cells."""
+    from eegprep.functions.popfunc._pop_utils import format_history_value
+
+    groups = []
+    for command in commands:
+        parts = []
+        for key, value in command.items():
+            parts.append(format_history_value(str(key)))
+            parts.append(format_history_value(value))
+        groups.append("{" + ", ".join(parts) + "}")
+    return "{" + ", ".join(groups) + "}"
+
+
 def unique_preserving_order(values: list[int]) -> list[int]:
     """Return integers de-duplicated while keeping first-seen order."""
     output: list[int] = []

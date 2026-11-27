@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._utils import (
@@ -35,7 +35,15 @@ def pop_dipfit_nonlinear(
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Run standalone nonlinear dipole refinement for one component."""
+    """Run standalone nonlinear dipole refinement for one component.
+
+    Plot map titles the figure ``IC n``. Plot dipole draws the dipoles whose
+    fit checkbox is selected. EEGLAB draws a second dipole whenever its
+    position is nonzero, even when that checkbox is clear. OK stores the
+    dipole on screen and records ``posxyz``, ``momxyz``, and ``select`` so
+    the menu and history replay those coordinates. The command line still
+    runs the nonlinear fit unless those coordinates are supplied.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     ensure_dipfit_settings(EEG)
@@ -44,16 +52,21 @@ def pop_dipfit_nonlinear(
         component = options.pop("component")
     nonlinear = options.pop("nonlinear", nonlinear)
     symmetry = options.pop("symmetry", symmetry)
+    manual_model = _manual_model_options(options)
     if gui is None:
-        gui = component is None and not options
+        gui = component is None and not options and manual_model is None
     working = EEG
     if gui:
         result = inputgui(pop_dipfit_nonlinear_dialog_spec(EEG), renderer=renderer)
         if result is None:
             return (EEG, "") if return_com else EEG
         working, component = _apply_nonlinear_gui_model(EEG, result)
-        if result.get("dip2sel") and result.get("dip2sym"):
-            symmetry = "x" if str(dipfit_record(EEG).get("coordformat", "")).lower() == "mni" else "y"
+        manual_model = _model_coordinates(working, component)
+    if manual_model is not None:
+        if not gui:
+            working, component = _store_manual_model(EEG, component, manual_model)
+        command = dipfit_history("pop_dipfit_nonlinear", component=component, **manual_model)
+        return (working, command) if return_com else working
     component_index = _single_component(component, working)
     out = run_nonlinear(working, component=component_index, nonlinear=nonlinear, symmetry=symmetry)
     command = dipfit_history(
@@ -70,6 +83,10 @@ def pop_dipfit_nonlinear_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     component, model = _current_dialog_model(EEG)
     first_selected = 1 in _dialog_selected_dipoles(model)
     second_selected = 2 in _dialog_selected_dipoles(model)
+
+    def action(name: str) -> CallbackSpec:
+        return CallbackSpec("dipfit_nonlinear_action", params={"action": name, "button": name, "eeg": EEG})
+
     return DialogSpec(
         title="Manual dipole fit -- pop_dipfit_nonlinear()",
         function_name="pop_dipfit_nonlinear",
@@ -88,7 +105,7 @@ def pop_dipfit_nonlinear_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         controls=(
             ControlSpec("text", "Component to fit"),
             ControlSpec("edit", tag="component", value=str(component)),
-            ControlSpec("pushbutton", "Plot map", tag="plotmap", enabled=False),
+            ControlSpec("pushbutton", "Plot map", tag="plotmap", callback=action("plotmap")),
             ControlSpec("text", "Residual variance = "),
             ControlSpec("text", _format_dialog_rv(model), tag="relvar"),
             ControlSpec("spacer"),
@@ -102,20 +119,22 @@ def pop_dipfit_nonlinear_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("edit", tag="dip1pos", value=_format_dialog_triplet(model.get("posxyz"), 0)),
             ControlSpec("edit", tag="dip1mom", value=_format_dialog_triplet(model.get("momxyz"), 0)),
-            ControlSpec("pushbutton", "Flip (in|out)", tag="flip1", enabled=False),
+            ControlSpec("pushbutton", "Flip (in|out)", tag="flip1", callback=action("flip1")),
             ControlSpec("text", "#2", tag="dip2"),
             ControlSpec("checkbox", tag="dip2sel", value=second_selected),
             ControlSpec("spacer"),
             ControlSpec("edit", tag="dip2pos", value=_format_dialog_triplet(model.get("posxyz"), 1)),
             ControlSpec("edit", tag="dip2mom", value=_format_dialog_triplet(model.get("momxyz"), 1)),
-            ControlSpec("pushbutton", "Flip (in|out)", tag="flip2", enabled=False),
+            ControlSpec("pushbutton", "Flip (in|out)", tag="flip2", callback=action("flip2")),
             ControlSpec("checkbox", "Symmetry constrain for dipole #2", tag="dip2sym", value=True),
-            ControlSpec("pushbutton", "Fit dipole(s)' position & moment", tag="fitposition", enabled=False),
-            ControlSpec("pushbutton", "OR fit only dipole(s)' moment", tag="fitmoment", enabled=False),
-            ControlSpec("pushbutton", "Plot dipole(s)", tag="plotdip", enabled=False),
-        ),
-        known_differences=(
-            "EEGPrep OK applies the displayed values and runs a spherical nonlinear fit; individual MATLAB callbacks are not mirrored.",
+            ControlSpec(
+                "pushbutton",
+                "Fit dipole(s)' position & moment",
+                tag="fitposition",
+                callback=action("fitposition"),
+            ),
+            ControlSpec("pushbutton", "OR fit only dipole(s)' moment", tag="fitmoment", callback=action("fitmoment")),
+            ControlSpec("pushbutton", "Plot dipole(s)", tag="plotdip", callback=action("plotdip")),
         ),
     )
 
@@ -142,26 +161,24 @@ def _dialog_selected_dipoles(model: dict[str, Any]) -> list[int]:
     return [int(index) for index in indices if int(index) in (1, 2)] or [1]
 
 
-def _format_dialog_triplet(value: Any, row_index: int) -> str:
+def _dipole_coordinate_rows(value: Any) -> np.ndarray:
     try:
-        values = numeric_vector(value, dtype=float)
-    except ValueError:
-        values = np.asarray([], dtype=float)
-    if values.size < 3:
-        return "0 0 0"
-    rows = values.reshape(-1, 3)
-    if row_index >= rows.shape[0]:
+        rows = np.asarray(value, dtype=float).reshape(-1, 3)
+    except (TypeError, ValueError):
+        return np.zeros((0, 3))
+    return rows
+
+
+def _format_dialog_triplet(value: Any, row_index: int) -> str:
+    rows = _dipole_coordinate_rows(value)
+    if rows.size < 3 or row_index >= rows.shape[0]:
         return "0 0 0"
     row = rows[row_index]
     return " ".join(f"{float(item):g}" for item in row)
 
 
 def _format_dialog_rv(model: dict[str, Any]) -> str:
-    try:
-        has_position = numeric_vector(model.get("posxyz", []), dtype=float).size >= 3
-    except ValueError:
-        has_position = False
-    if not has_position:
+    if _dipole_coordinate_rows(model.get("posxyz", [])).size < 3:
         return "not fit"
     try:
         rv = float(np.asarray(model.get("rv", []), dtype=float).ravel()[0])
@@ -177,6 +194,36 @@ def _single_component(value: Any, EEG: dict[str, Any]) -> int:
         current = dipfit_record(EEG).get("current", 1)
         value = current if current else 1
     return one_based_indices([value], limit=component_count(EEG), default_all=False)[0]
+
+
+def _manual_model_options(options: dict[str, Any]) -> dict[str, Any] | None:
+    if "posxyz" not in options and "momxyz" not in options and "select" not in options:
+        return None
+    return {
+        "posxyz": options.pop("posxyz", []),
+        "momxyz": options.pop("momxyz", []),
+        "select": options.pop("select", [1]),
+    }
+
+
+def _model_coordinates(EEG: dict[str, Any], component: int) -> dict[str, Any]:
+    model = normalize_model_list(EEG)[component - 1]
+    return {
+        "posxyz": _dipole_coordinate_rows(model.get("posxyz")).tolist(),
+        "momxyz": _dipole_coordinate_rows(model.get("momxyz")).tolist(),
+        "select": [int(index) for index in _dialog_selected_dipoles(model)],
+    }
+
+
+def _store_manual_model(
+    EEG: dict[str, Any], component: Any, manual_model: dict[str, Any]
+) -> tuple[dict[str, Any], int]:
+    out = copy_eeg(EEG)
+    component_index = _single_component(component, out)
+    models = ensure_model_list(out, component_count(out))
+    models[component_index - 1].update({**manual_model, "component": component_index})
+    out["dipfit"]["current"] = component_index
+    return out, component_index
 
 
 def _apply_nonlinear_gui_model(EEG: dict[str, Any], result: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -200,3 +247,66 @@ def _apply_nonlinear_gui_model(EEG: dict[str, Any], result: dict[str, Any]) -> t
 
 def _component_count_or_one(EEG: dict[str, Any]) -> int:
     return max(component_count(EEG), 1)
+
+
+def _nonlinear_widget_result(widgets: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "component": widgets["component"].text(),
+        "dip1sel": bool(widgets["dip1sel"].isChecked()),
+        "dip2sel": bool(widgets["dip2sel"].isChecked()),
+        "dip1pos": widgets["dip1pos"].text(),
+        "dip1mom": widgets["dip1mom"].text(),
+        "dip2pos": widgets["dip2pos"].text(),
+        "dip2mom": widgets["dip2mom"].text(),
+        "dip2sym": bool(widgets["dip2sym"].isChecked()),
+    }
+
+
+def apply_nonlinear_dialog_action(widgets: dict[str, Any], params: dict[str, Any]) -> None:
+    """Run one manual-fit dialog button and write the result back into the fields."""
+    action = str(params.get("action", ""))
+    if action in {"flip1", "flip2"}:
+        tag = "dip1mom" if action == "flip1" else "dip2mom"
+        flipped = -numeric_vector(widgets[tag].text(), dtype=float)
+        widgets[tag].setText(" ".join(format(float(value), "g") for value in flipped))
+        return
+    eeg = params.get("eeg")
+    if not isinstance(eeg, dict):
+        return
+    component_text = widgets["component"].text()
+    component_index = int(float(component_text or 1))
+    if action == "plotmap":
+        from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+
+        pop_topoplot(eeg, 0, component_index, f"IC {component_index}", [1, 1], 1)
+        return
+    if action == "plotdip":
+        from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+
+        working, component = _apply_nonlinear_gui_model(copy_eeg(eeg), _nonlinear_widget_result(widgets))
+        pop_dipplot(
+            working,
+            [component],
+            gui=False,
+            normlen="on",
+            projlines="on",
+            title=f"IC {component}",
+        )
+        return
+    result = _nonlinear_widget_result(widgets)
+    symmetry = None
+    if result["dip2sel"] and result["dip2sym"]:
+        symmetry = "x" if str(dipfit_record(eeg).get("coordformat", "")).lower() == "mni" else "y"
+    working, component = _apply_nonlinear_gui_model(eeg, result)
+    fitted = run_nonlinear(
+        working,
+        component=component,
+        nonlinear="no" if action == "fitmoment" else "yes",
+        symmetry=symmetry,
+    )
+    model = normalize_model_list(fitted)[component - 1]
+    widgets["dip1pos"].setText(_format_dialog_triplet(model.get("posxyz"), 0))
+    widgets["dip1mom"].setText(_format_dialog_triplet(model.get("momxyz"), 0))
+    widgets["dip2pos"].setText(_format_dialog_triplet(model.get("posxyz"), 1))
+    widgets["dip2mom"].setText(_format_dialog_triplet(model.get("momxyz"), 1))
+    widgets["relvar"].setText(_format_dialog_rv(model))

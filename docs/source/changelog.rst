@@ -10,6 +10,74 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_mir`` returns the mutual information reduction (MIR) of a dataset's ICA decomposition, in nats, and the variance of that estimate:
+  the mutual information that ``icaweights`` removes from ``icasphere @ data``.
+  It uses the binned entropy estimator of ``getMIR.m``, as ``pamica.metrics.mir`` ports it, with a fixed 256 bins instead of a count that grows with the recording,
+  so MIR no longer drifts with recording length; it needs no optional dependency.
+  Epochs are concatenated and ``icachansind`` selects the channels.
+  A missing, non-square or singular decomposition, and non-finite data, raise ``ValueError``.
+
+- ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
+  ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
+  Names match without regard to case, so ``MNI152NLin6Asym``, the schema's spelling from BIDS 1.11.0, is RAS as ``MNI152NLin6ASym`` is;
+  any name with ``EEGLAB`` in it, or an ``EEGCoordinateSystemDescription`` of ``EEGLAB``, is still ALS.
+  ``Other``, a name the appendix does not list, or a coordsystem that names no system leaves the channel locations unset,
+  with a report warning that names the coordsystem file, instead of being read as RAS. (#692)
+
+- The ``pop_biosig`` dialog has the controls of EEGLAB's dialog, without the
+  mexSLOAD and memory-mapping checkboxes, which have no Python counterpart.
+  ``uncalibrated="on"`` returns the integers stored in an EDF or BDF file.
+  ``overflow="on"`` leaves EDF and BDF data unchanged, as BIOSIG does, and
+  ``blockepoch="on"`` raises ``ValueError``. A dialog import writes to the
+  history only the options that leave their default. (#701)
+- Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
+  keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
+  on the tutorial crop) and rejects a time range that misses the data.
+  ``pop_firpmord`` uses the Herrmann order; Estimate still rounds it even.
+  DIPFIT settings warp an unmatched montage onto the template and enable
+  Co-register. Fine fit reads nested dipole coordinates. Inspect/label
+  components opens ``pop_prop`` and stores rejection flags on OK.
+  MRI head-model creation and eLORETA stay disabled, with a tooltip that
+  names the missing FieldTrip step and the template or autofit alternative.
+  (#675)
+- File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
+  ``derivatives/eeglab`` and refuses to resave a raw BIDS file. ``pop_saveset``
+  replaces the ``.set`` and ``.fdt`` only after both temporary files are
+  written. ``pop_savestudy`` writes an EEGLAB MATLAB v6 ``.study`` and still
+  reads JSON. ``pop_chanevent`` evaluates ``X>50`` as numbers, and epoched
+  ``pop_export`` uses column-major order and LF line endings. CNT events copy
+  the reader's 1-based offset and do not set a duration. The BIDS export
+  wizard runs with no dataset loaded. Participant and event editors write one
+  row per subject and the events.json field table. Segmented MFF imports
+  are in microvolts, with epoch timing and event-track events. A ``.study``
+  cluster ``sets`` matrix stays numeric, including the MATLAB v7.3 fallback.
+  Datasets stay float64; ``option_single`` has no effect. Electrode
+  coordinates use six digits after the decimal, and a missing coordinate
+  stays ``n/a``. Save study keeps the resaved datasets in the session.
+  Quit and study resave use the same raw-BIDS refusal as ``pop_saveset``.
+  Replacing a mapped ``.fdt`` leaves an open array view readable; on Windows
+  that resave is refused until the view is closed or the dataset is saved
+  as a new file. (#673)
+- ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
+  settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
+  3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,
+  ``n_good_samples`` and ``n_rejected_samples``, counts only. With rejection
+  on, ``returned_iter`` is the iterate the weights come from and ``best_iter``
+  is omitted. (#674)
+- ``topoplot`` averages sensors that MATLAB ``griddata`` treats as the same
+  point. A separation equal to the axis tolerance stays separate, matching
+  ``mergesimpts`` strict ``<``. ``plotchans`` selects 1-based channel indices,
+  including a single index. A non-finite value drops that channel from the
+  locations and the values together. One extra channel location is the common
+  reference and is left off the map. One distinct location raises
+  ``ValueError``; MATLAB ``griddata`` returns a non-finite map.
+  ``pop_topoplot`` option text follows MATLAB ``eval(['{ ' options ' }'])``:
+  cells, nested brackets, commas, semicolons, doubled quotes, and a trailing
+  comma. A cell inside ``[]`` or a ``%`` comment raises ``ValueError`` naming
+  ``pop_topoplot`` and the text. ``emarker`` and ``emarker2`` raise
+  ``ValueError`` from ``topoplot``; EEGLAB draws those markers and EEGPrep
+  does not yet.
+  (#670)
 - ``clean_windows`` names itself when fewer than eleven windows make a fit
   width round to 1 or less, and the error says to use a longer recording or
   set ``WindowCriterion`` to ``'off'``. EEGLAB's ``fit_eeg_distribution.m``
@@ -236,7 +304,7 @@ Unreleased
 - ``runica`` can use ``scipy.linalg.blas.dgemm`` for its matrix products under Emscripten; native platforms keep ``numpy.matmul``.
 - ``eegprep_lean.to_eeg`` fills ``chanlocs`` from the electrode positions a NEMAR store declares, which ``load_recording`` now reads into ``Window.electrodes``.
   A channel is matched to the entry for exactly its label, and gets ``X``, ``Y`` and ``Z`` in millimeters in EEGLAB's ALS frame, ``sph_theta``, ``sph_phi``, ``sph_radius``, ``theta`` and ``radius``.
-  ``pop_load_frombids`` gives the same values from the same ``electrodes.tsv`` and coordsystem file, except where the import guesses a unit, assumes a system, or reads ``CTF``, ``4DBti`` or ``KitYokogawa``, which the BIDS appendix gives as ALS, as RAS.
+  ``pop_load_frombids`` gives the same values from the same ``electrodes.tsv`` and coordsystem file, except where the import guesses a unit or assumes a system.
   The import also reads a coordsystem whose ``EEGCoordinateSystemDescription`` is ``EEGLAB`` as ALS whatever ``EEGCoordinateSystem`` says.
   A store carries no description, so a RAS system with that description is turned by 90 degrees here.
   The converter writes no such description today, and reading it here is a follow-up if it ever does.
@@ -490,12 +558,11 @@ Unreleased
   ``pop_select``'s 0-based indices (#543). Duplicate-channel draws use the
   cropped channel count. Python out-of-range errors name ``pop_select``, the
   invalid indices, ``nbchan``, and the valid Python and EEGLAB/GUI ranges.
-- Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
-  with ``return_study`` on, so the console rebuilds the same study.
-  ``pop_importbids.m`` always returns ``STUDY`` and ``ALLEEG``. The direct
-  call still returns the datasets unless ``return_study=True``. The history
-  also keeps the dialog's ``recordings`` selection, along with task, session,
-  run, and subject.
+- A folder import returns ``STUDY`` and ``ALLEEG`` and records
+  ``[STUDY ALLEEG] = pop_importbids(...)``. It does not pass ``return_study``,
+  which EEGLAB rejects. A single file still returns that dataset. The history also
+  keeps the dialog's ``recordings`` selection, along with task, session, run,
+  and subject.
 - ``pop_importbids(..., subjects=[1, 2])`` uses the same 1-based participant
   indices as the import dialog (``pop_importbids.m`` lines 163 and 281).
   Replaying the recorded ``'subjects', [1 2]`` command selects those
@@ -651,9 +718,9 @@ Unreleased
 - Importing a BIDS dataset replaces a missing ``chaninfo.plotrad`` or
   ``chaninfo.shrink`` with an empty array, so File > Save no longer fails while
   ``savemat`` is writing those fields. The import dialog matches
-  ``pop_importbids.m`` lines 104-164 and loads an in-memory study. It does not
-  copy datasets into ``derivatives/eeglab`` (``pop_importbids.m`` lines 839 and
-  892 do).
+  ``pop_importbids.m`` lines 104-164, copies each dataset into
+  ``derivatives/eeglab``, and returns the in-memory study with those datasets
+  (``pop_importbids.m`` lines 839 and 892).
 - ``pop_writeeeg`` keeps every EDF and BDF sample and every event annotation.
   EEGLAB ``writeeeg.m`` line 139 shortens a block longer than 1000 samples to
   one second (``round(srate)`` samples per record). Biosig then pads the file

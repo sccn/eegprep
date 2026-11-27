@@ -52,6 +52,7 @@ class ControlSpec:
     tooltip: str | None = None
     enabled: bool = True
     font_weight: str | None = None
+    wrap: bool = False
 
 
 @dataclass(frozen=True)
@@ -77,9 +78,11 @@ class DialogSpec:
     row_spacing: int = 4
     geomvert: tuple[float, ...] | None = None
     scrollable: bool = False
+    horizontal_scroll: bool = True
     # Size every control by its geometry weight alone, as EEGLAB's supergui does,
     # instead of by its content; column_spacing is the gap between controls in a row.
     weighted_columns: bool = False
+    validate: Any = None
     column_spacing: int = 4
 
 

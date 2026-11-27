@@ -46,11 +46,18 @@ with one method and one property, and EEGPrep runs the network through it:
 
 In the EEGPrep source repository, `tools/pyodide/iclabel_web_bridge.mjs` (`createIcLabelWebBridge`)
 is the reference implementation: it creates one `onnxruntime-web` session from the bytes of the
-packaged `iclabel_int8.onnx`, the 8-bit network meant for the browser. It runs on one thread
-unless the host passes `numThreads` in its options argument or has already set
+packaged `iclabel_int8.onnx`, the 8-bit network meant for the browser.
+The bridge runs on one thread unless the host passes `numThreads` in its options argument or has already set
 `ort.env.wasm.numThreads` itself, which the bridge then leaves alone; ONNX Runtime Web reads that
 count once, when its WebAssembly backend starts, so a host that already created another session decides it.
 A host may run Pyodide in a Web Worker to keep the page responsive.
 If no bridge is registered, the call raises an error that names it.
+
+Only Other (193 components) is verified for the browser's int8 network.
+On those components the largest absolute probability difference is 0.01123.
+A class is verified when the evaluation set has at least 20 of its components and both its
+top-1 and default keep-or-reject agreement with the full-precision network reach 0.95.
+Brain (18), Eye (5), Muscle (1), Heart, Line Noise, and Channel Noise each have fewer than
+20 examples and are unverified. The set-wide maximum difference is 0.01346.
 
 See also: POP_ICLABEL

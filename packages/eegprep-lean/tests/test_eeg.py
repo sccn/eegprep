@@ -132,6 +132,34 @@ class TestTheDictionary:
 
         assert eeg["chanlocs"] == [{"labels": "E1"}, {"labels": "E2"}, {"labels": "E3"}]
 
+    def test_chanlocs_carry_the_channel_types(self) -> None:
+        typed = dataclasses.replace(window(DATA), types=("EEG", "EEG", "ECG"))
+
+        eeg = to_eeg(typed, **IDS)
+
+        assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "EEG", "ECG"]
+
+    def test_a_types_length_mismatch_names_to_eeg(self) -> None:
+        typed = dataclasses.replace(window(DATA), types=("EEG",))
+
+        with pytest.raises(ValueError, match=r"to_eeg found 1 entries in Window.types for 3 channels"):
+            to_eeg(typed, **IDS)
+
+    @pytest.mark.parametrize("channel_type", [None, 1])
+    def test_a_non_text_type_names_to_eeg(self, channel_type: object) -> None:
+        typed = dataclasses.replace(window(DATA), types=(channel_type, "EOG", "ECG"))
+
+        with pytest.raises(ValueError, match=rf"to_eeg found channel type {channel_type!r}, which is not text"):
+            to_eeg(typed, **IDS)
+
+    def test_located_chanlocs_carry_the_channel_types_too(self) -> None:
+        typed = dataclasses.replace(located(stated({"E1": ALS_MM["E1"]})), types=("EEG", "EEG", "ECG"))
+
+        eeg = to_eeg(typed, **IDS)
+
+        assert [chanloc["type"] for chanloc in eeg["chanlocs"]] == ["EEG", "EEG", "ECG"]
+        assert eeg["chanlocs"][0]["X"] == pytest.approx(ALS_MM["E1"][0])
+
     def test_the_name_and_provenance(self) -> None:
         eeg = to_eeg(window(DATA), **IDS)
 
@@ -249,6 +277,15 @@ class TestEegprepAcceptsIt:
         assert (checked["nbchan"], checked["srate"], checked["pnts"]) == (3, RATE, 4)
         assert checked["data"].shape == (3, 4)
 
+    def test_selecting_eeg_by_type_drops_the_ecg_channel(self) -> None:
+        pop_select = pytest.importorskip("eegprep").pop_select
+        eeg = to_eeg(dataclasses.replace(window(DATA), types=("EEG", "EEG", "ECG")), **IDS)
+
+        selected = pop_select(eeg, chantype=["EEG"])
+
+        assert [chanloc["labels"] for chanloc in selected["chanlocs"]] == ["E1", "E2"]
+        assert selected["data"].tolist() == DATA[:2]
+
     def test_eeg_checkset_keeps_the_filled_locations(self) -> None:
         eeg_checkset = pytest.importorskip("eegprep").eeg_checkset
         attributes = stated({"E1": ALS_MM["E1"], "E3": ALS_MM["E3"]}, "EEGLAB", "mm")
@@ -292,6 +329,7 @@ RAS_SYSTEMS = [
     *(f"MNI152NLin2009{version}{symmetry}" for version in "abc" for symmetry in ("Sym", "Asym")),
     "MNI152NLin6Sym",
     "MNI152NLin6ASym",
+    "MNI152NLin6Asym",
     "MNI305",
     "NIHPD",
     "OASIS30AntsOASISAnts",
@@ -649,10 +687,12 @@ def _write_bids_edf(root: Path, names: list[str], rows: dict, system: str, unit:
     return edf
 
 
-# Systems and units the BIDS import reads correctly: it turns every system whose name has
-# EEGLAB in it into ALS and every other into RAS. CTF, 4DBti and KitYokogawa are ALS in the
-# appendix, so the Zarr route differs from the import there by design; see the pull request.
+# Systems and units whose positions the BIDS import and the Zarr route both read, each by
+# the orientation the BIDS coordinate-systems appendix gives it.
 SAME_AS_THE_BIDS_IMPORT = [
+    ("CTF", "mm"),
+    ("4DBti", "m"),
+    ("KitYokogawa", "cm"),
     ("CapTrak", "m"),
     ("CapTrak", "cm"),
     ("CapTrak", "mm"),
@@ -664,6 +704,7 @@ SAME_AS_THE_BIDS_IMPORT = [
     ("ChietiItab", "cm"),
     ("MNI305", "mm"),
     ("MNI152NLin2009cAsym", "mm"),
+    ("MNI152NLin6Asym", "cm"),
     ("Talairach", "mm"),
     ("fsaverage", "m"),
 ]

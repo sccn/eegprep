@@ -9,9 +9,10 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.studyfunc._study_utils import (
     as_alleeg_list,
-    build_python_call,
+    build_matlab_call,
     ensure_study,
     format_components_button,
+    matlab_flat_commands,
     parse_optional_int_text,
 )
 from eegprep.functions.studyfunc.std_checkset import std_checkset
@@ -78,16 +79,16 @@ def pop_study(
         study, _design_command = std_makedesign(study, datasets, 1, name=design, return_com=True)
     else:
         study, datasets = std_checkset(study, datasets)
-    command = build_python_call(
+    command = build_matlab_call(
         ("STUDY", "ALLEEG"),
-        "pop_study",
+        "std_editset",
         "STUDY",
         "ALLEEG",
         name=study.get("name", ""),
-        task=study.get("task", ""),
-        notes=study.get("notes", ""),
-        design=design,
-        commands=commands,
+        task=study.get("task", "") or None,
+        notes=study.get("notes", "") or None,
+        commands=matlab_flat_commands(commands) if commands else None,
+        updatedat="on",
         rmclust="on" if remove_clusters else None,
     )
     return (study, datasets, command) if return_com else (study, datasets)

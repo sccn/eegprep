@@ -91,7 +91,17 @@ def test_f18_mff_picker_selects_directory(app, tmp_path, monkeypatch):
         (
             'pop_biosig',
             {'filename': 'unused.edf'},
-            {'channels', 'blockrange', 'ref', 'bdfeventmode', 'importevent', 'rmeventchan'},
+            {
+                'channels',
+                'blockrange',
+                'ref',
+                'bdfeventmode',
+                'importevent',
+                'blockepoch',
+                'overflow',
+                'uncalibrated',
+                'importannot',
+            },
         ),
         ('pop_loadbv', {'path': 'unused.vhdr'}, {'chans', 'srange'}),
         ('pop_fileio', {'filename': 'unused.eeg'}, {'channels', 'samples', 'trials'}),
@@ -220,7 +230,7 @@ def test_f10_accept_menu_import_updates_shared_session(app, tmp_path, action, sh
     elif action == 'pop_importepoch':
         assert len(session.EEG['event']) == 2
     else:
-        assert [event['latency'] for event in session.EEG['event']] == [10, 21]
+        assert [event['latency'] for event in session.EEG['event']] == [10]
     command = next(command for command in session.ALLCOM if expected + '(' in command)
     bridge.execute_history_command(command)
     assert bridge.namespace['EEG'] is session.EEG

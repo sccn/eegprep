@@ -58,7 +58,7 @@ Reproducibility is pamica's promise: the same seed, data, settings, and pamica a
 EEGPrep's tests check this on one host, by repeating a run and by replaying a run from its record.
 Another platform, another torch version, a GPU, or more threads is not covered by that check.
 The settings that reproduce a run are the ones recorded in ``EEG["etc"]["pamica"]``.
-A setting you do not pass takes eegprep's ``runamica15`` default, such as ``lrate=0.05`` and ``do_newton=True``.
+A setting you do not pass takes eegprep's ``runamica15`` default, such as ``lrate=0.05``, ``do_newton=True``, and ``maxrej=3`` (EEGLAB's ``numrej``).
 These defaults follow eegprep's own table (``_AMICA_DEFAULTS``), which differs from EEGLAB's ``runamica15.m`` in places.
 The exception is ``block_size``, which is pAMICA's own 131072, because the 128 of ``runamica15`` is the block each thread of the Fortran program processes.
 Pass ``pcakeep`` to keep fewer components than channels.
@@ -66,6 +66,17 @@ Pass ``pcakeep`` to keep fewer components than channels.
 ``pop_runica`` sorts components by variance by default, as it does for the other engines; ``reorder="off"`` keeps pAMICA's order, which ``eeg_pamica`` called directly keeps by default.
 ``EEG["etc"]["pamica"]`` records the pamica and torch versions, the pamica ``backend`` class and ``pipeline`` that produced the decomposition, the device, the seed, the settings used, the rank that ran, the iteration count, the stop reason, and ``did_converge``.
 ``did_converge`` is false when pAMICA used all ``max_iter`` iterations without meeting a convergence check.
+``do_reject`` stays off unless you turn it on. Turning it on uses ``maxrej=3``, ``rejsig=3.0``, ``rejstart=2`` and ``rejint=3``.
+EEGLAB calls the pass limit ``numrej``; pass that name or ``maxrej``. If both are passed and the values differ, ``eeg_pamica`` raises and tells you to pass only one.
+``rejstart`` and ``rejint`` count iterations from 1, as Fortran AMICA does: the first pass follows iteration ``rejstart``, then every ``rejint`` iterations, and ``maxrej`` is the most passes allowed.
+pAMICA uses that same test. Its loop index starts at 0, and it adds one before comparing with ``rejstart`` and ``rejint``.
+With rejection on, pAMICA drops low-likelihood samples during the fit.
+The record keeps the settings that ran (``do_reject``, ``rejsig``, ``rejstart``, ``rejint``, ``maxrej``) and three counts, ``rejection_passes``, ``n_good_samples`` and ``n_rejected_samples``.
+It does not keep a per-sample mask, so these values stay scalars, including after ``pop_saveset`` and ``pop_loadset``.
+``n_good_samples + n_rejected_samples`` is every sample of every trial.
+Under rejection the weights are the last iterate: each pass changes which samples the likelihood is averaged over, and pAMICA does not restore an earlier one.
+``returned_iter`` is that iterate's index into the likelihood history, starting at 0.
+``best_iter`` and ``best_ll`` are omitted. They would name the maximum of likelihoods that are not comparable, which is not the iterate the weights come from.
 If pAMICA ends on a non-finite value, ``pop_runica`` raises ``PamicaFitError`` (from ``eegprep.functions.popfunc.eeg_pamica``) and leaves the ICA fields unset.
 The ICA dialog does not list pAMICA yet, so choose it from the command line or the console.
 
@@ -310,12 +321,18 @@ packaged file. Continuous integration also rebuilds both networks from
 identical to the shipped ``iclabel_int8.onnx`` on the evaluation components.
 
 These are measured agreement results on one frozen set, not an accuracy claim.
-The set is dominated by one class: the full-precision network labels 193 of the
-217 components Other (and 18 Brain, 5 Eye, 1 Muscle), and Heart, Line Noise, and
-Channel Noise do not occur, so the agreement figures say nothing about those
-classes. Native results follow releases up to 0.5.0, which classified with
-PyTorch, to about 1e-6; results from the browser's 8-bit file can differ from
-them by up to about 0.0135 (the largest difference measured on this set).
+A class is verified for the browser int8 network only when that set has at least
+20 of its components and int8 top-1 and default keep-or-reject agreement with
+the full-precision network are both at least 0.95. Only Other (193) is verified.
+On those Other components the largest absolute probability difference is 0.01123.
+Brain (18), Eye (5), Muscle (1), Heart (0), Line Noise (0), and Channel Noise (0)
+are unverified because each has fewer than 20 examples in the evaluation set.
+
+The browser keeps the int8 network. Native runs keep the
+full-precision network. Native results follow releases up to 0.5.0, which
+classified with PyTorch, to about 1e-6; results from the browser's 8-bit file
+can differ from them by up to 0.01346, the set-wide maximum on this set. That
+maximum is on a Brain component, not on Other.
 
 Developers who change ``netICL.mat`` or the quantization rebuild the packaged
 networks with the ``torch`` extra; the procedure is in :ref:`releasing`.

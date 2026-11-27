@@ -83,10 +83,39 @@ def test_rejection_marks_transfer_without_ica(qapp, qt_dialogs, variant, source,
     assert session.LASTCOM == f"EEG.reject.{target} = EEG.reject.rejglobal;"
 
 
+def test_editset_sampling_rate_error_keeps_the_dialog_open(qapp, dialogs):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(epoched=True))
+    window = build_main_window(session, include_plugins=False)
+    pending, seen = dialogs
+    message = (
+        'pop_editset: Data sampling rate must be a positive number (got "abc"). Enter the rate in Hz, for example 128.'
+    )
+
+    def enter(dialog):
+        dialog.findChild(QLineEdit, "srate").setText("abc")
+        accept(dialog)
+
+    def error(dialog):
+        assert isinstance(dialog, QMessageBox)
+        assert dialog.text() == message
+        parent = dialog.parent()
+        assert parent.findChild(QLineEdit, "srate").text() == "abc"
+        dialog.accept()
+        parent.reject()
+
+    pending.extend([enter, error])
+    try:
+        window.dispatcher.dispatch_gui("pop_editset", window.window)
+        assert not session.ALLCOM
+        assert seen[0]
+    finally:
+        window.window.close()
+
+
 @pytest.mark.parametrize(
     "action,field,value,message",
     [
-        ("pop_editset", "srate", "abc", "could not convert string to float: 'abc'"),
         ("pop_select", "chans", "XYZ", "Channels not found: ['XYZ']"),
         ("pop_select", "trial", "99", "Wrong trial range"),
     ],
@@ -103,7 +132,8 @@ def test_f47_errors_name_function_and_preserve_source_message(qapp, dialogs, act
 
     def error(dialog):
         assert isinstance(dialog, QMessageBox)
-        assert dialog.text() == f"{action}: {message}"
+        expected = message if message.startswith(f"{action}:") else f"{action}: {message}"
+        assert dialog.text() == expected
         dialog.accept()
 
     pending.extend([enter, error])

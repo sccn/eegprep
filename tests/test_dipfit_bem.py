@@ -12,7 +12,12 @@ from eegprep import pop_loadset
 from eegprep.plugins.dipfit.dipfit_gridsearch import default_search_grids, fitting_config
 from eegprep.plugins.dipfit.dipfit_nonlinear import dipfit_nonlinear
 from eegprep.plugins.dipfit.eeglab2fieldtrip import eeglab2fieldtrip
-from eegprep.plugins.dipfit._utils import channel_template_filename, lookupchantemplate, template_by_name
+from eegprep.plugins.dipfit._utils import (
+    align_channels_to_template,
+    channel_template_filename,
+    lookupchantemplate,
+    template_by_name,
+)
 from eegprep.plugins.dipfit.ft_dipolefitting import (
     eeg_infinite_dipole,
     eeg_leadfieldb,
@@ -151,19 +156,33 @@ def test_sample_cap385_file_selects_mni_bem_and_its_coregistration():
     np.testing.assert_allclose([x_values[0], x_values[-1], z_values[0], z_values[-1]], [-85.0, 85.0, 0.0, 85.0])
 
 
-def test_missing_channel_filename_keeps_the_bem_template_transform(caplog):
+def test_unmatched_montage_without_enough_landmarks_names_the_fix():
+    eeg = create_test_eeg_with_ica(n_channels=2, n_samples=8, n_components=1)
+    eeg["chaninfo"] = {"filename": ""}
+
+    with pytest.raises(ValueError, match="pop_dipfit_settings: co-registration failed") as exc:
+        pop_dipfit_settings(eeg, model="standardBEM")
+
+    assert "coord_transform=[]" in str(exc.value)
+    spec = pop_dipfit_settings_dialog_spec(eeg)
+    assert spec.function_name == "pop_dipfit_settings"
+
+
+def test_missing_channel_filename_warps_the_montage_instead_of_using_the_identity_scale(caplog):
     eeg = pop_loadset(str(_SAMPLE))
     eeg["chaninfo"] = dict(eeg["chaninfo"])
     eeg["chaninfo"]["filename"] = ""
 
     out = pop_dipfit_settings(eeg, model="standardBEM")
 
-    np.testing.assert_allclose(out["dipfit"]["coord_transform"], [0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0])
+    expected = align_channels_to_template(eeg, "standard_BEM/elec/standard_1005.elc")
+    np.testing.assert_allclose(out["dipfit"]["coord_transform"], expected, rtol=1e-4, atol=1e-3)
+    assert abs(expected[6] - 1.0) > 0.05
     spec = pop_dipfit_settings_dialog_spec(eeg)
     coreg = next(control for control in spec.controls if control.tag == "coord_transform")
-    np.testing.assert_allclose(
-        np.fromstring(str(coreg.value), sep=" "), [0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0]
-    )
+    np.testing.assert_allclose(np.fromstring(str(coreg.value), sep=" "), expected, rtol=1e-4, atol=1e-3)
+    coregister = next(control for control in spec.controls if control.tag == "coregister")
+    assert coregister.enabled
     out["dipfit"]["coord_transform"] = []
     with caplog.at_level("WARNING"):
         _prepare_eeg(out)
@@ -328,6 +347,7 @@ def test_standard_besa_template_uses_the_four_shell_model(tmp_path):
     eeg = pop_dipfit_settings(
         create_test_eeg_with_ica(n_channels=4, n_samples=8, n_components=1),
         model="standardBESA",
+        coord_transform=[],
     )
     vol, sens = _prepare_eeg(eeg)
     assert vol is not None

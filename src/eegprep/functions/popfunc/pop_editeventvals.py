@@ -52,15 +52,23 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     fields = event_field_names(events)
     current = events[0] if events else {}
     field_tags = {field: f"field_{field}" for field in fields}
-    field_displays = tuple(
+    field_displays = [
         {field_tags[field]: _display_event_value(EEG, event, field) for field in fields} for event in events
-    )
+    ]
+    structure_ops: list[tuple[str, int]] = []
     nav_enabled = len(events) > 1
     _nav_base = {
         "eventnum_tag": "eventnum",
         "max_index": len(events),
         "field_displays": field_displays,
+        "structure_ops": structure_ops,
     }
+
+    def _structure(action: str) -> CallbackSpec:
+        return CallbackSpec(
+            "edit_event_structure",
+            params={**_nav_base, "action": action, "button": f"{action}_button"},
+        )
 
     def _nav(tag: str, delta: int) -> CallbackSpec | None:
         if not nav_enabled:
@@ -73,7 +81,13 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
 
     controls: list[ControlSpec] = [
         ControlSpec("text", f"Edit event field values (currently {len(events)} events)", font_weight="bold"),
-        ControlSpec("pushbutton", "Delete event", tag="delete_button", enabled=False),
+        ControlSpec(
+            "pushbutton",
+            "Delete event",
+            tag="delete_button",
+            enabled=bool(events),
+            callback=_structure("delete") if events else None,
+        ),
     ]
     geometry: list[tuple[float, ...]] = [(2, 0.5)]
     for field in fields:
@@ -81,7 +95,19 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         controls.extend(
             [
                 ControlSpec("spacer"),
-                ControlSpec("pushbutton", label, enabled=False),
+                ControlSpec(
+                    "pushbutton",
+                    field,
+                    tag=f"desc_{field}",
+                    callback=CallbackSpec(
+                        "show_message",
+                        params={
+                            "button": f"desc_{field}",
+                            "title": field,
+                            "message": f"{label}. This is the {field} field.",
+                        },
+                    ),
+                ),
                 ControlSpec("edit", tag=field_tags[field], value=_display_event_value(EEG, current, field)),
                 ControlSpec("spacer"),
             ]
@@ -96,13 +122,25 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            ControlSpec("pushbutton", "Insert event", tag="insert_button", enabled=False),
+            ControlSpec(
+                "pushbutton",
+                "Insert event",
+                tag="insert_button",
+                enabled=bool(events),
+                callback=_structure("insert") if events else None,
+            ),
             ControlSpec("pushbutton", "<<", tag="back10", enabled=nav_enabled, callback=_nav("back10", -10)),
             ControlSpec("pushbutton", "<", tag="back1", enabled=nav_enabled, callback=_nav("back1", -1)),
             ControlSpec("edit", tag="eventnum", value="1", callback=eventnum_callback),
             ControlSpec("pushbutton", ">", tag="next1", enabled=nav_enabled, callback=_nav("next1", 1)),
             ControlSpec("pushbutton", ">>", tag="next10", enabled=nav_enabled, callback=_nav("next10", 10)),
-            ControlSpec("pushbutton", "Append event", tag="append_button", enabled=False),
+            ControlSpec(
+                "pushbutton",
+                "Append event",
+                tag="append_button",
+                enabled=bool(events),
+                callback=_structure("append") if events else None,
+            ),
             ControlSpec("spacer"),
             ControlSpec("text", "Original value below", tag="original"),
             ControlSpec("spacer"),
@@ -126,7 +164,7 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         geometry=tuple(geometry),
         controls=tuple(controls),
         known_differences=(
-            "Delete, Insert, and Append stay disabled. Edits are kept on the event you leave and recorded together when the dialog is accepted.",
+            "Event numbers outside the dataset, including 999, jump to the last event. Field buttons show the field description. Sort is command-line only and keeps other edits.",
         ),
     )
 
@@ -140,21 +178,28 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
     result = inputgui(spec, renderer=renderer)
     if result is None:
         return None
+    if "field_displays" in result or "structure_ops" in result:
+        displays = result.get("field_displays") or []
+        structure_ops = list(result.get("structure_ops") or [])
+    else:
+        displays = _indexed_field_displays(spec, "navigate_event")
+        structure_ops = _structure_operations(spec)
+    limit = len(displays) if displays else len(events)
     try:
         event_index = int(float(result.get("eventnum") or 1))
     except (TypeError, ValueError) as exc:
         raise ValueError(
             "pop_editeventvals: the event number must be an integer from 1 to "
-            f"{len(events)}. Type an event number in that range and press Enter."
+            f"{limit}. Type an event number in that range and press Enter."
         ) from exc
-    if event_index < 1 or event_index > len(events):
+    if event_index < 1 or event_index > limit:
         raise ValueError(
-            f"pop_editeventvals: event number {event_index} is outside 1 to {len(events)}. "
+            f"pop_editeventvals: event number {event_index} is outside 1 to {limit}. "
             "Type an event number in that range and press Enter."
         )
-    displays = _indexed_field_displays(spec, "navigate_event")
-    options: list[tuple[str, Any]] = []
-    for index, event in enumerate(events, start=1):
+    projected = _events_after_structure(events, structure_ops)
+    options: list[tuple[str, Any]] = list(structure_ops)
+    for index, event in enumerate(projected, start=1):
         source = result if index == event_index else _display_row(displays, index)
         if source is None:
             continue
@@ -163,6 +208,21 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
             if value != _display_event_value(EEG, event, field):
                 options.append(("changefield", [index, field, value]))
     return options
+
+
+def _structure_operations(spec: DialogSpec) -> list[tuple[str, int]]:
+    for control in spec.controls:
+        callback = control.callback
+        if callback is not None and callback.name == "edit_event_structure":
+            return list(callback.params.get("structure_ops") or [])
+    return []
+
+
+def _short_number(value: Any) -> int | float:
+    number = float(value)
+    if number.is_integer():
+        return int(number)
+    return float(format(number, ".5g"))
 
 
 def _indexed_field_displays(spec: DialogSpec, callback_name: str) -> Any:
@@ -178,6 +238,23 @@ def _display_row(displays: Any, index: int) -> Mapping[str, Any] | None:
         return None
     row = displays[index - 1]
     return row if isinstance(row, Mapping) else None
+
+
+def _events_after_structure(events: list[dict[str, Any]], structure_ops: list[tuple[str, Any]]) -> list[dict[str, Any]]:
+    projected = [dict(event) for event in events]
+    for key, value in structure_ops:
+        action = str(key).lower()
+        if action == "delete":
+            for event_index in sorted(
+                normalize_one_based_indices(value, len(projected), label="event index"), reverse=True
+            ):
+                projected.pop(event_index)
+        elif action in {"insert", "append", "add"}:
+            event_index, new_event = _insert_args(projected, value)
+            if action == "append":
+                event_index += 1
+            projected.insert(max(0, min(event_index, len(projected))), new_event)
+    return projected
 
 
 def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -250,19 +327,18 @@ def _display_event_value(EEG: dict[str, Any], event: dict[str, Any], field: str)
         return ""
     if field == "latency":
         if int(EEG.get("trials", 1) or 1) > 1:
-            return float(
-                eeg_point2lat(
-                    float(value),
-                    event.get("epoch", 1),
-                    float(EEG.get("srate", 1)),
-                    [float(EEG.get("xmin", 0)) * 1000, float(EEG.get("xmax", 0)) * 1000],
-                    1e-3,
-                ).item()
-            )
-        return (float(value) - 1) / float(EEG.get("srate", 1)) + float(EEG.get("xmin", 0))
+            latency_ms = eeg_point2lat(
+                float(value),
+                event.get("epoch", 1),
+                float(EEG.get("srate", 1)),
+                [float(EEG.get("xmin", 0)) * 1000, float(EEG.get("xmax", 0)) * 1000],
+                1e-3,
+            ).item()
+            return _short_number(latency_ms)
+        return _short_number((float(value) - 1) / float(EEG.get("srate", 1)) + float(EEG.get("xmin", 0)))
     if field == "duration":
         scale = float(EEG.get("srate", 1)) / (1000 if int(EEG.get("trials", 1) or 1) > 1 else 1)
-        return float(value) / scale
+        return _short_number(float(value) / scale)
     return value
 
 

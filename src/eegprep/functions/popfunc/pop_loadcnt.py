@@ -126,8 +126,7 @@ def _eeg_event(event: dict[str, Any], *, keystroke: bool) -> dict[str, Any] | No
         event_type = f"keyboard{int(event['keyboard'])}"
     result: dict[str, Any] = {
         "type": event_type,
-        "latency": float(event["offset"]),
-        "duration": 0.0,
+        "latency": float(event["offset"]) + 1,
     }
     for key in ("code", "accuracy", "accept", "epochevent"):
         if key in event:

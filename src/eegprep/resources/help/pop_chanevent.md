@@ -20,4 +20,4 @@ event type; multivalued channels retain the value at each transition unless
 
 See also: POP_IMPORTEVENT
 
-Call `pop_chanevent(EEG)` for channel, transform, edge direction, transition length, duration, and deletion options. Channels are 1-based. Duration requires leading edges. Both events at a coincident rising/falling latency retain their own types. Supported transforms are comparisons such as `X>0` and `X<10`.
+Call `pop_chanevent(EEG)` for channel, transform, edge direction, transition length, duration, and deletion options. The transitions menu is marked `(click to select)`. The duration checkbox is marked `(set=yes)`, and `Delete event channel(s)?` is marked `(set = yes)`. Channels are 1-based. Duration requires leading edges. Both events at a coincident rising/falling latency retain their own types. Supported transforms are comparisons such as `X>0` and `X<10`.

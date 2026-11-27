@@ -45,15 +45,68 @@ selector. Numeric-looking string event types remain strings. When cropping
 introduces a text ``boundary`` event, event consistency can convert all types
 to strings, as in EEGLAB.
 
-Epoch cropping with ``pop_select`` includes both endpoints, as its time and
-point range documentation specifies. EEGLAB ``pop_select.m`` calls ``epoch``
-with an upper-exclusive window and drops the final sample. For the tutorial
-``eeglab_data_epochs_ica.set``, selecting epochs ``[1, 3, 5, 7, 9]`` and time
-``[-0.5, 0.5]`` therefore retains 129 points and 8 events in EEGPrep, with
-``xmax=0.5``. The recorded EEGLAB 8ac485f6 result is 128 points and 8 events,
-with ``xmax=0.4921875``. EEGPrep retains each event only if its position within
-its original epoch is inside the crop, then recalculates its concatenated
-latency using the new epoch length.
+Epoch cropping with ``pop_select`` follows ``epoch.m``: the last sample is
+``round(tmax*srate - 1)`` with MATLAB half-away-from-zero rounding, and an
+event is kept when its latency is inside that half-open window. For the
+tutorial ``eeglab_data_epochs_ica.set``, epochs ``[1, 3, 5, 7, 9]`` and time
+``[-0.5, 0.5]`` keep 128 points, 8 events, ``xmin=-0.5``, and
+``xmax=0.4921875``. A time range that does not overlap the data raises
+``ValueError`` from ``pop_select`` and leaves the caller's dataset unchanged.
+EEGLAB clips that range and continues. A range that only partly overlaps is
+still clipped to the data. A ``point`` or ``samples`` range includes both
+named samples. ``pop_fileio`` samples ``1:384`` on the tutorial epochs file
+therefore keeps all 384 points. Passing those same points through ``epoch.m``
+would drop the last one.
+
+``pop_runica`` lists Extended Infomax, Robust Extended Infomax, AMICA, Infomax
+picard, FastICA picard, SOBI, and Jade. binica is not in that list. The SOBI
+and Jade options boxes start empty. An empty SOBI run records
+``EEG = pop_runica(EEG, 'icatype', 'sobi');``, which EEGLAB can replay.
+Typed counts are stored as ``'options', {n p}``. Named SOBI text such as
+``'p', 100`` and the list ``['p', 100]`` are rejected. Pass ``{32 100}`` or
+``p=100``. EEGLAB runs ``{'p', 100}`` because ``sobi.m`` never reads ``n``,
+so the string is ignored and ``100`` is the lag count. EEGPrep does not copy
+that quirk.
+
+``pop_mergeset`` prefills the first two loaded dataset indices. EEGLAB
+prefills ``1``. The merged data, ICA, and history are unchanged.
+
+``pop_editeventvals`` shows numbers with five significant digits and jumps to
+the last event when the typed event number, including 999, is past the end.
+Field buttons show the field name; clicking one shows the description. Delete,
+insert, and append edit the event list. Sort stays a command-line action and
+keeps the other edits. EEGLAB's sort-from-the-GUI path discards the edits.
+
+``pop_selectcomps`` asks which components to plot, then opens a scalp map and a
+button for each one, 35 per window. Clicking a button opens ``pop_prop`` with
+ACCEPT/REJECT on that window. OK stores ``EEG.reject.gcompreject``; Cancel
+discards the toggles. The button label is ``Set thresholds``. EEGLAB spells that
+button ``Set threhsolds``. Both that button and ``See comp. stats`` stay
+disabled until ``pop_icathresh`` and ``EEG.stats.compenta`` exist.
+
+``pop_firpmord`` follows MATLAB ``firpmord``: relative deviations, the Herrmann
+length, ``ceil(L) - 1``, and one extra tap when the last band passes and that
+order is odd. The ``pop_firpm`` Estimate button then rounds the order up to an
+even number.
+
+``pop_dipfit_settings`` keeps a channel-file keyword transform when one
+matches. Otherwise it fills the montage warp from ``coregister(..., warp='auto')``
+instead of the unscaled ``standard_1005`` matrix. Co-register and the channel
+omit button are enabled. Ok is refused while the matrix is empty unless No
+Co-Reg is checked. EEGLAB leaves an unmatched matrix blank and waits for
+Co-register. ``coord_transform`` ``warpfiducials`` and ``alignfiducials`` warp
+nasion, LPA, and RPA. Creating a head model from an MRI and eLORETA stay
+disabled in the menu: FieldTrip MRI segmentation and ``ft_sourceanalysis``
+eLORETA are not available, and a partial solver would not match EEGLAB.
+Direct calls still raise ``DIPFITUnavailableError`` with the same reason.
+Dipole plots draw the packaged avg152t1 volume for spherical BESA models and
+the packaged standard_mri volume for MNI models. Slice extents use the voxel
+size, so a 2 mm avg152t1 voxel stays 2 mm in the image. A custom MRI is
+refused. Fine-fit Plot map titles the figure ``IC n``. OK stores the dipole on
+screen, including a flipped moment, and records those coordinates so history
+replays them without another fit. Plot dipole
+draws only the dipoles whose fit checkbox is selected. EEGLAB draws a second
+dipole whenever its position is nonzero, including when that checkbox is clear.
 
 ``pop_selectevent`` emits a warning when no events match the selection, with
 instructions to check type names/codes and field ranges. Continuous data can
@@ -403,6 +456,17 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        plain ``mean()`` at ``pop_rmbase.m`` line 202, so one baseline NaN
        turns the channel NaN and boundaries are ignored. EEGPrep always
        ignores NaN and always respects boundaries.
+   * - ``pop_biosig`` dialog and reader options
+     - The dialog has no "Import using alternative BIOSIG method (mexSLOAD)"
+       checkbox, because EEGPrep reads with MNE-Python, and no "Import as
+       memory mapped file" checkbox, because the file is loaded into memory;
+       ``memorymapped`` stays a command-line option. ``uncalibrated="on"``
+       returns the stored integers of EDF and BDF files, identical to
+       EEGLAB's on ``test.bdf`` and ``test.edf``. ``overflow="on"`` changes
+       nothing for EDF and BDF in either program (``sopen.m`` lines 604-612
+       turn it off) and raises ``ValueError`` for GDF in EEGPrep.
+       ``blockepoch="on"``, which gives one epoch per data record in EEGLAB
+       from the command line only, raises ``ValueError``.
    * - BDF ``bdfeventmode``
      - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
        ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,
@@ -603,6 +667,28 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``pop_editset`` evaluates it. EEGPrep has no caller workspace.
        ``test_reference_importevent_original_named_workspace_variables``
        passes the same arrays and checks the latencies ``1`` and ``50``.
+   * - ``topoplot`` ``plotchans``
+     - 1-based indices from ``1`` through ``len(chan_locs)``. Empty draws
+       every channel that has ``theta``. This matches EEGLAB ``topoplot.m``
+       lines 605-608 and 703-716, including the intersection with located
+       channels, and it matches ``envtopo`` and ``headplot``. A value
+       outside ``1 .. n`` raises ``ValueError`` naming ``topoplot``, the
+       bad values, and that range. ``'plotchans', [1 2 3]`` in
+       ``pop_topoplot`` option text selects those channels.
+   * - ``topoplot`` common reference
+     - When there is one more channel location than value, and the last
+       location is selected, that location is dropped. ``topoplot.m`` lines
+       749-753 do the same. NaN and Inf values are removed from the
+       locations and the values together (lines 760-779). A single
+       ``plotchans`` index is kept, including ``[1]`` (``topoplot.m`` lines
+       918-923).
+   * - One ``topoplot`` location
+     - The map needs two distinct sensor locations. One selected channel, or
+       sensors that average to one point, raises ``ValueError`` from
+       ``topoplot griddata_v4``. MATLAB ``griddata`` returns a non-finite map
+       and warns. Duplicate coordinates are averaged when both axis gaps are
+       strictly inside ``spacing(0.5 * span) ** (1/3)``; a gap equal to that
+       tolerance stays separate, as in ``mergesimpts``.
    * - Empty ``topoplot`` locations
      - An interpolated ``topoplot`` raises ``ValueError`` when channel
        locations are ``None`` or empty. The message names ``topoplot`` and
@@ -615,6 +701,95 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        358-362, then passes that filename to ``readlocs``.
        ``test_missing_or_empty_channel_locations_name_the_problem`` locks
        the EEGPrep error.
+
+File menu and data I/O
+=======================
+
+These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
+
+* Datasets stay ``float64``. ``option_single`` is shown in Preferences and has
+  no effect. Applying it would change results that are already checked against
+  EEGLAB.
+* ``pop_chanevent`` accepts comparisons, arithmetic, ``abs``, ``round``,
+  ``bitand``, ``&``, ``|``, and parentheses. It does not evaluate arbitrary
+  MATLAB text. ``pop_chanevent.m`` line 225 prefixes ``X =`` only when the
+  expression contains no ``=``, so ``round(X) == -3``, ``>=``, ``<=``, and
+  ``~=`` leave the channel unchanged in EEGLAB. EEGPrep evaluates those
+  comparisons. ``bitand`` on a negative or non-integer channel raises an
+  error that names ``pop_chanevent`` and tells you to round or take the
+  absolute value first. EEGLAB errors on those inputs as well, and it also
+  rejects ``bitand(abs(round(X)),1)`` when ``EEG.data`` is single precision.
+* ``pop_participantinfo`` records
+  ``[EEG, STUDY, command] = pop_participantinfo(EEG, STUDY);``, the line
+  EEGLAB writes (``pop_participantinfo.m``). EEGLAB's function is
+  interactive-only: a ``'rows'`` argument opens the table and does not apply
+  the rows, so a batch MATLAB session hangs. EEGPrep's ``rows`` argument
+  scripts that table. Replay the recorded line in EEGLAB to open the dialog.
+* A Neuroscan CNT import keeps the file length. EEGLAB's reader can append
+  three extra samples. ``loadcnt`` stores the same 0-based sample offset as
+  MATLAB ``loadcnt``, and ``pop_loadcnt`` adds 1, matching ``pop_loadcnt.m``
+  line 152. The first boundary is kept because its duration is left unset.
+* File-IO names an empty discontinuity annotation ``boundary``. EEGLAB's
+  file-io plugin can leave that type empty.
+* ``pop_saveset`` creates a missing folder. EEGLAB errors when the folder does
+  not exist. A failed save does not leave a partial ``.set`` or ``.fdt``, and
+  it does not replace a file that was already there.
+* BIDS import writes the derivative ``.set`` datasets and the ``.study`` file
+  to disk under ``derivatives/eeglab``, next to the data. A read-only location
+  such as a DataLad or OpenNeuro mount fails because those files cannot be
+  written there. Copy the dataset to a writable folder and import that copy.
+  The import does not modify the raw BIDS
+  folder. Resave of a file inside the raw folder is refused. A folder import
+  records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not pass
+  ``return_study``, which EEGLAB rejects. A recording with no ``ses-`` folder
+  is written under ``sub-<label>/eeg``.
+* File > Quit asks before discarding unsaved datasets. EEGLAB's Quit callback
+  (``eeglab.m`` line 619) closes the window without asking. Cancel keeps
+  EEGPrep open so the datasets can be saved first.
+* An MFF clock latency is the exact microsecond difference between the event
+  ``beginTime`` and the recording ``recordTime``, times ``srate``. On the
+  bundled ``testmff`` recording the first ``stm+`` is 203960 microseconds
+  after the record time, which is 50.99 samples at 250 Hz, and the epoch
+  latency is -2.042 ms. EEGLAB reports 50.990568 samples.
+  ``mff_decodetime.m`` uses ``1.15251e-11`` days per microsecond, about 0.42%
+  below ``1e-6/86400`` (``1.157407e-11``). MATLAB's string ``datenum`` then
+  mis-parses the timestamp by 0.16 to 2.44 microseconds. EEGPrep does not
+  copy either error. ``classid`` is ``EVNT`` when the XML omits it, which is
+  ``Event.getClassID()``. ``mffkeys`` is ``char(keylist)`` with a space after
+  each colon: ``[cel#: 1, obs#: 3, ...]``. Category events use the same key
+  text, for example ``[#seg: 15, subj: ...]``, keep ``classid`` empty, and
+  include ``mffkeysbackup``. Category segments keep the ``status`` attribute
+  from ``<seg status="...">``, and track events carry the same field.
+* The BIDS export wizard opens from an empty session: a welcome page, then a
+  file grid with one task per file. The welcome button is ``Continue``. The
+  grid shows 10 numbered rows per page, a ``browse`` column header, a browse
+  button and a ``Clear`` button on each row, and ``<`` ``>`` page buttons.
+  The Clear column has no header. ``pop_studywizard.m`` writes the button as
+  ``CLear``; ``supergui`` displays ``Clear``, and that is the label EEGPrep
+  uses. ``Clear`` empties that row. ``pop_studywizard`` has the same per-row
+  button.
+  Participant info is one row per dataset, and event-field Levels, LongName,
+  Description, and Units are written to one ``task-<task>_events.json`` at
+  the dataset root. Power-line frequency is stored as a number when the EEG
+  or the prompt supplies 50 or 60, and stays ``n/a`` when a scripted export
+  has no value. The export asks for the frequency when that field is still
+  ``n/a``.
+* BIDS coordinate-system names drop ``task-``, ``desc-``, and ``run-``.
+  EEGLAB's electrode writer drops only ``task-`` and ``desc-`` and can emit a
+  ``run-`` name that the BIDS validator rejects. The ``sample`` column in
+  ``events.tsv`` is the integer sample index.
+* EDF export keeps events as EDF+ annotations and does not pad the recording.
+  EEGLAB can add an event channel and drop annotations.
+* ``pop_studyerp`` fills subject codes ``S01``, ``S02``, ... from the subject
+  index. EEGLAB does the same with ``sprintf('S%2.2d', index)`` and does not
+  wait for those codes to be typed. Each dataset cell has a browse button,
+  and the commands are ordered with condition as the outer loop.
+* The task-info dialog scrolls. EEGLAB draws a dialog taller than a laptop
+  screen.
+* ``pop_importerplab`` Cancel returns without changing the dataset. EEGLAB
+  errors on Cancel.
+* The main-window size in MB rounds half away from zero to one decimal.
+  Python object sizes can still differ from MATLAB ``whos``.
 
 Plugin Migration
 ================

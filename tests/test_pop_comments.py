@@ -16,7 +16,8 @@ from tests.fixtures import SAMPLE_DATASET_PATH
 @pytest.mark.parametrize("filename", ["eeglab_data.set", "eeglab_data_epochs_ica.set"])
 def test_tutorial_comments_preserve_lines_in_widget_and_saved_text(qt_dialogs, filename):
     eeg = pop_loadset(str(SAMPLE_DATASET_PATH.with_name(filename)))
-    expected = "\n".join(str(row).rstrip() for row in eeg["comments"])
+    comments = eeg["comments"]
+    expected = comments if isinstance(comments, str) else "\n".join(str(row).rstrip() for row in comments)
 
     class Renderer:
         def run(self, spec, initial_values=None):

@@ -351,7 +351,8 @@ def test_bids_import_prefers_the_value_column(tmp_path):
         "0.5\t0\t50\tnan\tnan\n",
         encoding="utf-8",
     )
-    imported = pop_importbids(root)
+    _study, datasets = pop_importbids(root)
+    imported = datasets[0]
     assert [event["type"] for event in imported["event"][:2]] == ["stimulus", "response"]
     assert imported["event"][2]["type"] == ""
     assert imported["etc"]["event_column"] == "value"
@@ -387,15 +388,17 @@ def test_bids_import_prefers_the_value_column(tmp_path):
     controls = controls_by_tag(spec)
     assert controls["bidstaskstr"].style == "popupmenu"
     assert "oddball" in controls["bidstaskstr"].string.split("|")
-    assert controls["bidsrunsstr"].style == "listbox"
     assert controls["folder"].value.endswith("derivatives/eeglab")
-    assert not (tmp_path / "derivatives" / "eeglab").exists()
+    copied = tmp_path / "derivatives" / "eeglab" / "sub-01" / "eeg"
+    assert any(copied.glob("*.set"))
+    assert (root / "dataset_description.json").read_text(encoding="utf-8")
     assert pop_importbids(root, gui=True, renderer=_Renderer(None), return_com=True) == (None, "")
 
 
 def test_imported_bids_dataset_can_be_saved(tmp_path):
     root = pop_exportbids(_eeg(), tmp_path / "bids")
-    imported = pop_importbids(root)
+    _study, datasets = pop_importbids(root)
+    imported = datasets[0]
     chaninfo = imported["chaninfo"]
     assert chaninfo["plotrad"] is not None
     assert chaninfo["shrink"] is not None
@@ -408,16 +411,17 @@ def test_imported_bids_dataset_can_be_saved(tmp_path):
 def test_pop_exportbids_writes_required_sidecars_and_value_column(tmp_path):
     eeg = _eeg(events=[{"type": 1.0, "latency": 6.0, "duration": 0.0, "trial_type": "oddball"}])
     root = Path(pop_exportbids(eeg, tmp_path / "bids", task="oddball"))
-    prefix = root / "sub-01" / "eeg" / "sub-01_task-oddball_run-01"
+    prefix = root / "sub-01" / "eeg" / "sub-01_task-oddball"
     assert (root / "README").read_text(encoding="utf-8").startswith("# ")
     sidecar = (prefix.parent / f"{prefix.name}_eeg.json").read_text(encoding="utf-8")
     assert '"TaskName": "oddball"' in sidecar
     assert '"PowerLineFrequency": "n/a"' in sidecar
-    electrodes = prefix.parent / "sub-01_run-01_electrodes.tsv"
+    electrodes = prefix.parent / "sub-01_electrodes.tsv"
     assert electrodes.exists()
     assert "task-" not in electrodes.name
     assert "desc-" not in electrodes.name
-    coords = json.loads((prefix.parent / "sub-01_run-01_coordsystem.json").read_text(encoding="utf-8"))
+    assert "run-" not in electrodes.name
+    coords = json.loads((prefix.parent / "sub-01_coordsystem.json").read_text(encoding="utf-8"))
     assert coords["EEGCoordinateSystem"] == "CTF"
     assert coords["EEGCoordinateUnits"] == "mm"
     rows = list(csv.reader((prefix.parent / f"{prefix.name}_events.tsv").open(encoding="utf-8"), delimiter="\t"))
@@ -548,7 +552,7 @@ def test_import_dialog_participant_indices_are_one_based(tmp_path):
     datasets[0]["subject"] = "001"
     datasets[1]["subject"] = "002"
     root = Path(pop_exportbids(datasets, tmp_path / "bids", task="oddball"))
-    imported, command = pop_importbids(
+    _study, datasets, command = pop_importbids(
         root,
         gui=True,
         return_com=True,
@@ -564,9 +568,10 @@ def test_import_dialog_participant_indices_are_one_based(tmp_path):
             }
         ),
     )
+    imported = datasets[0]
     assert imported["subject"] == "002"
     assert "'subjects', [2]" in command
-    both, both_command = pop_importbids(
+    _study, both, both_command = pop_importbids(
         root,
         gui=True,
         return_com=True,
@@ -611,17 +616,17 @@ def test_import_dialog_subject_history_replays_the_same_participants(tmp_path):
         "bidssubjects": True,
         "folder": str(tmp_path / "derivatives" / "eeglab"),
     }
-    imported, command = pop_importbids(
+    _study, datasets, command = pop_importbids(
         root,
         gui=True,
         return_com=True,
         renderer=_Renderer({**dialog, "bidssubjectsstr": "2"}),
     )
-    assert imported["subject"] == "002"
+    assert datasets[0]["subject"] == "002"
     assert _imported_subjects(_replay_history(command)) == ["002"]
-    assert pop_importbids(root, subjects=[2])["subject"] == "002"
+    assert pop_importbids(root, subjects=[2])[1][0]["subject"] == "002"
 
-    both, both_command = pop_importbids(
+    _study, both, both_command = pop_importbids(
         root,
         gui=True,
         return_com=True,
@@ -629,7 +634,7 @@ def test_import_dialog_subject_history_replays_the_same_participants(tmp_path):
     )
     assert _imported_subjects(both) == ["001", "002"]
     assert _imported_subjects(_replay_history(both_command)) == ["001", "002"]
-    assert _imported_subjects(pop_importbids(root, subjects=[1, 2])) == ["001", "002"]
+    assert _imported_subjects(pop_importbids(root, subjects=[1, 2])[1]) == ["001", "002"]
     with pytest.raises(ValueError, match="pop_importbids: participant index 0"):
         pop_importbids(root, subjects=[0])
     with pytest.raises(ValueError, match="pop_importbids: participant index 3"):
@@ -737,6 +742,10 @@ def _replay_history(command: str):
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session)
     exec(_console_python_command(command), workspace.namespace)  # noqa: S102
+    if command.lstrip().startswith("[STUDY"):
+        alleeg = workspace.namespace["ALLEEG"]
+        if isinstance(alleeg, list) and alleeg and isinstance(alleeg[0], dict):
+            return alleeg
     replayed = workspace.namespace["EEG"]
     return replayed.eeg if hasattr(replayed, "eeg") else replayed
 
@@ -750,8 +759,8 @@ def test_bids_metadata_dialogs_store_structured_fields():
     eeg = _eeg()
     task_labels = [control.string for control in pop_taskinfo_dialog_spec().controls]
     for label in (
-        "Dataset name",
-        "Task name (no space)",
+        "* Dataset name",
+        "* Task name (no space)",
         "README",
         "Participant task description",
         "Participant instructions",
@@ -839,7 +848,7 @@ def test_export_menu_uses_dialogs_and_requires_a_study(monkeypatch):
 
 
 def test_electrode_basename_strips_task_and_desc():
-    assert _electrode_basename("sub-01_ses-01_task-GoNogo_desc-preproc_run-01") == "sub-01_ses-01_run-01"
+    assert _electrode_basename("sub-01_ses-01_task-GoNogo_desc-preproc_run-01") == "sub-01_ses-01"
     assert _electrode_basename("sub-01_task-oddball") == "sub-01"
 
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
+import pytest
 
 from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.functions.popfunc.eeg_runica import eeg_runica
@@ -24,6 +27,110 @@ def _epoched_eeg(offset=0):
 
 def _eeglab_flattened(data):
     return np.concatenate([data[:, :, trial] for trial in range(data.shape[2])], axis=1)
+
+
+def test_pop_runica_passes_the_eeglab_learning_rate(monkeypatch):
+    """pop_runica.m passes lrate 0.001 unless the caller already supplied one."""
+    from eegprep.functions.popfunc.eeg_runica import eeg_runica
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+
+    eeg = _continuous_eeg()
+    captured = []
+
+    def fake_runica(data, **kwargs):
+        captured.append(kwargs)
+        return np.eye(2), np.eye(2), np.zeros(2), np.zeros((2, 1)), np.ones((2, 1)), []
+
+    monkeypatch.setattr("eegprep.functions.popfunc.eeg_runica.runica", fake_runica)
+
+    eeg_runica(eeg, extended=1, maxsteps=1)
+    _output, command = pop_runica(eeg, icatype="runica", extended=1, gui=False, return_com=True)
+    pop_runica(eeg, icatype="runica", extended=1, lrate=1e-5, gui=False, return_com=True)
+    _output, explicit = pop_runica(eeg, icatype="runica", extended=1, lrate=1e-5, gui=False, return_com=True)
+
+    assert [call["lrate"] for call in captured] == [0.001, 0.001, 1e-5, 1e-5]
+    assert "lrate" not in command
+    assert "'lrate', 1e-05" in explicit
+
+
+def test_named_sobi_option_text_names_the_positional_form():
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+
+    eeg = _continuous_eeg()
+    with pytest.raises(ValueError, match=r"pop_runica:.*\{32 100\}.*p=100") as caught:
+        pop_runica(eeg, icatype="sobi", options="'p', 100", gui=False)
+    assert "sobi" in str(caught.value)
+    with pytest.raises(ValueError, match=r"pop_runica:.*\{32 100\}.*p=100") as caught:
+        pop_runica(eeg, icatype="sobi", options=["p", 100], gui=False)
+    assert "sobi" in str(caught.value)
+    with pytest.raises(ValueError, match=r"pop_runica:") as caught:
+        pop_runica(eeg, icatype="sobi", options=("p", 100), gui=False)
+    assert "p=100" in str(caught.value)
+    _output, command = pop_runica(eeg, icatype="sobi", options="2 1", gui=False, return_com=True)
+    assert command == "EEG = pop_runica(EEG, 'icatype', 'sobi', 'options', {2 1});"
+
+
+@pytest.mark.matlab_oracle
+@pytest.mark.slow
+@pytest.mark.timeout(1800)
+def test_seeded_pop_runica_on_eeglab_data_matches_pythoncompat(eeglab_backend):
+    """Seeded pop_runica matches EEGLAB when MATLAB runica has pythoncompat on.
+
+    Both sides load sample_data/eeglab_data.set and use extended=1. EEGLAB then
+    passes lrate 0.001, which eeg_runica supplies when the caller does not.
+    The MATLAB dataset comes from pop_loadset so the batch transport keeps a struct.
+    """
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+    from tests.eeglab_tests import assert_matlab_near
+
+    dataset = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    eeg = pop_loadset(str(dataset))
+    matlab_eeg = eeglab_backend("pop_loadset", str(dataset))
+    python_out, command = pop_runica(eeg, icatype="runica", extended=1, gui=False, return_com=True)
+    matlab_out = eeglab_backend(
+        "pop_runica",
+        matlab_eeg,
+        "icatype",
+        "runica",
+        "extended",
+        1.0,
+        "pythoncompat",
+        "on",
+    )
+    assert "lrate" not in command
+    for field in ("icaweights", "icasphere", "icawinv"):
+        assert_matlab_near(python_out[field], np.asarray(matlab_out[field], dtype=float))
+
+
+def test_jader_uses_general_eig_when_the_cumulant_is_not_exactly_symmetric(monkeypatch):
+    from eegprep.functions.sigprocfunc.jader import jader
+
+    data = np.random.default_rng(0).standard_normal((6, 200))
+    real_eigh = np.linalg.eigh
+    real_eig = np.linalg.eig
+    general = []
+
+    def eigh(matrix, *args, **kwargs):
+        array = np.asarray(matrix)
+        if array.shape[0] == array.shape[1] and not np.array_equal(array, array.T):
+            raise AssertionError("eigh used where MATLAB eig takes the general path")
+        return real_eigh(array, *args, **kwargs)
+
+    def eig(matrix, *args, **kwargs):
+        array = np.asarray(matrix)
+        if array.shape[0] == array.shape[1] and not np.array_equal(array, array.T):
+            general.append(array.copy())
+        return real_eig(array, *args, **kwargs)
+
+    monkeypatch.setattr(np.linalg, "eigh", eigh)
+    monkeypatch.setattr(np.linalg, "eig", eig)
+
+    separating = jader(data)
+
+    assert general
+    assert np.max(np.abs(general[0] - general[0].T)) > 0
+    assert np.isfinite(separating).all()
 
 
 def test_eeg_runica_flattens_and_reshapes_epoched_data_like_eeglab(monkeypatch):
@@ -163,3 +270,71 @@ def test_finalize_ica_fields_recomputes_stale_backend_inverse_after_sorting():
     out = finalize_ica_fields(eeg, sortcomps=True, posact=False)
 
     np.testing.assert_allclose(out["icawinv"], pinv(out["icaweights"] @ out["icasphere"]))
+
+
+def test_sobi_and_jader_recover_independent_sources():
+    from eegprep.functions.popfunc.pop_runica import pop_runica
+
+    rng = np.random.default_rng(1)
+    samples = 1000
+
+    def autoregressive(coefficient):
+        values = np.zeros(samples)
+        noise = rng.standard_normal(samples)
+        for index in range(1, samples):
+            values[index] = coefficient * values[index - 1] + noise[index]
+        return values
+
+    sources = np.vstack([autoregressive(0.95), autoregressive(0.4), np.sin(np.linspace(0, 80, samples))])
+    mixing = np.array([[1.0, 0.4, 0.1], [0.2, 1.0, 0.3], [0.3, 0.2, 1.0]])
+    eeg = {
+        "data": mixing @ sources,
+        "nbchan": 3,
+        "pnts": samples,
+        "trials": 1,
+        "srate": 250.0,
+        "chanlocs": [{}, {}, {}],
+    }
+
+    _blank, blank_command = pop_runica(eeg, icatype="sobi", gui=False, return_com=True)
+    assert blank_command == "EEG = pop_runica(EEG, 'icatype', 'sobi');"
+    sobi_out, sobi_command = pop_runica(eeg, icatype="sobi", options={"p": 10}, gui=False, return_com=True)
+    jade_out, jade_command = pop_runica(eeg, icatype="jade", gui=False, return_com=True)
+    assert sobi_command == "EEG = pop_runica(EEG, 'icatype', 'sobi', 'options', {3 10});"
+    assert jade_command == "EEG = pop_runica(EEG, 'icatype', 'jader');"
+    for output in (sobi_out, jade_out):
+        weights = output["icaweights"] @ output["icasphere"]
+        np.testing.assert_allclose(output["icawinv"] @ weights, np.eye(3), atol=1e-6)
+        np.testing.assert_allclose(np.linalg.norm(output["icawinv"], axis=0), np.sqrt(3), rtol=1e-6)
+        recovered = weights @ eeg["data"]
+        correlation = np.abs(np.corrcoef(sources[:2], recovered)[:2, 2:])
+        assert np.all(correlation.max(axis=1) > 0.9)
+
+
+def test_sobi_whitener_uses_the_right_singular_vectors():
+    """MATLAB [~,S,VV] = svd(X.','0'); Q = pinv(S)*VV.' numpy's Vh is that VV.'"""
+    from eegprep.functions.sigprocfunc.sobi import sobi
+
+    data = np.array([[1.0, 2.0, 3.0, 4.0, 2.5], [0.5, -1.0, 0.25, 1.5, -0.4], [0.2, 0.7, -0.3, 0.9, 1.1]])
+    mixing = sobi(data, p=2)
+    centered = data - data.mean(axis=1, keepdims=True)
+    _left, scales, vectors = np.linalg.svd(centered.T, full_matrices=False)
+    whitener = np.linalg.pinv(np.diag(scales)) @ vectors
+    unmixing = np.linalg.pinv(mixing)
+    product = whitener @ np.linalg.pinv(unmixing)
+    np.testing.assert_allclose(product @ product.T, np.eye(data.shape[0]), atol=1e-6)
+
+
+@pytest.mark.matlab
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+def test_sobi_mixing_matches_matlab_on_eeglab_data(eeglab_matlab_engine):
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
+    from eegprep.functions.sigprocfunc.sobi import sobi
+    from tests.eeglab_tests import assert_matlab_near
+    from tests.eeglab_tests.backend import call_matlab
+
+    dataset = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    data = np.asarray(pop_loadset(str(dataset))["data"], dtype=float)
+    reference = call_matlab(eeglab_matlab_engine, "sobi", data, nargout=1)
+    assert_matlab_near(sobi(data), np.asarray(reference, dtype=float))

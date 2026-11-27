@@ -277,7 +277,7 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
     if annotations is not None and len(annotations):
         eeg["event"] = [
             {
-                "type": str(annotation["description"]),
+                "type": str(annotation["description"]).strip() or "boundary",
                 "latency": float(annotation["onset"]) * float(raw.info["sfreq"]) + 1,
                 "duration": float(annotation["duration"]) * float(raw.info["sfreq"]),
             }
@@ -311,7 +311,7 @@ def eeg_to_mne_raw(eeg: dict[str, Any]) -> mne.io.RawArray:
 
 def write_json(path: str | Path, payload: dict[str, Any]) -> None:
     """Write JSON using EEGPrep-safe conversion for NumPy containers."""
-    with Path(path).open("w", encoding="utf-8") as stream:
+    with Path(path).open("w", encoding="utf-8", newline="\n") as stream:
         json.dump(json_safe(payload), stream, indent=2, sort_keys=True)
         stream.write("\n")
 

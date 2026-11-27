@@ -19,6 +19,19 @@ def _read_set_h5(file_name):
         return {key: _read_value(value, key) for key, value in group.items() if not key.startswith('#')}
 
 
+def _class_bytes(value) -> bytes:
+    """Return a MATLAB class attribute as raw ASCII bytes."""
+    if isinstance(value, str):
+        return value.encode('ascii')
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return b''
+        value = value.reshape(-1)[0]
+        if isinstance(value, str):
+            return value.encode('ascii')
+    return bytes(value)
+
+
 def _read_value(node, field=None):
     if isinstance(node, h5py.Group):
         children = list(node.items())
@@ -40,9 +53,15 @@ def _read_value(node, field=None):
         return apply_field_rules(field, value)
 
     raw = node[()]
-    matlab_class = node.attrs.get('MATLAB_class', b'')
+    matlab_class = _class_bytes(node.attrs.get('MATLAB_class', b''))
     if node.attrs.get('MATLAB_empty', False):
-        value = '' if matlab_class == b'char' else np.empty(tuple(int(n) for n in raw.reshape(-1)))
+        dims = tuple(int(n) for n in np.atleast_1d(raw).reshape(-1))
+        if matlab_class == b'char':
+            value = ''
+        elif matlab_class == b'cell':
+            value = np.empty(dims, dtype=object)
+        else:
+            value = np.empty(dims)
     elif matlab_class == b'char':
         rows = np.atleast_2d(raw.T)
         texts = [np.asarray(row, dtype='<u2').tobytes().decode('utf-16-le') for row in rows]

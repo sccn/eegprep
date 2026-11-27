@@ -862,6 +862,8 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
                 if action == "pop_comments":
                     pop_func.assert_called_once_with(mock.ANY, "Comments of dataset: demo", return_com=True)
+                elif action == "pop_editset":
+                    pop_func.assert_called_once_with(mock.ANY, alleeg=mock.ANY, return_com=True)
                 else:
                     pop_func.assert_called_once_with(mock.ANY, return_com=True)
                 self.assertEqual(session.EEG["setname"], setname)
@@ -1082,7 +1084,10 @@ class MenuActionDispatcherTests(unittest.TestCase):
         loadbv.assert_called_once_with("/tmp/recording.vhdr", gui=True, return_com=True)
         self.assertEqual(session.EEG["setname"], "brainvision")
         self.assertEqual(session.CURRENTSET, [1])
-        self.assertEqual(session.ALLCOM[-2:], [command, "[ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG, 0);"])
+        self.assertEqual(
+            session.ALLCOM[-2:],
+            [command, "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 0, 'gui', 'off');"],
+        )
 
     def test_preferences_dialog_updates_menu_and_file_dialog_options(self):
         pytest.importorskip("PySide6")
@@ -1180,14 +1185,12 @@ class MenuActionDispatcherTests(unittest.TestCase):
             mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
             mock.patch(
                 "eegprep.functions.studyfunc.pop_savestudy.pop_savestudy",
-                return_value=(saved, "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');"),
+                return_value=(saved, [], "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');"),
             ) as pop_savestudy,
         ):
             dispatcher.dispatch("pop_savestudy")
 
-        pop_savestudy.assert_called_once_with(
-            mock.ANY, session.ALLEEG, "/tmp/study.study", savemode=None, return_com=True
-        )
+        pop_savestudy.assert_called_once_with(mock.ANY, session.ALLEEG, "/tmp/study.study", savemode=None)
         self.assertEqual(session.STUDY["saved"], "yes")
         self.assertEqual(session.ALLCOM[-1], "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');")
 

@@ -325,7 +325,7 @@ def test_quit_requires_explicit_choice_for_unsaved_datasets(qapp, dialogs, disca
     def choose(dialog):
         assert isinstance(dialog, QMessageBox)
         assert "unsaved" in dialog.text().lower()
-        button = dialog.button(QMessageBox.Discard if discard else QMessageBox.Cancel)
+        button = dialog.button(QMessageBox.No if discard else QMessageBox.Cancel)
         button.click()
 
     pending.append(choose)

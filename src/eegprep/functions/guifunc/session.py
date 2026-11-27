@@ -448,6 +448,7 @@ class EEGPrepSession:
         command: str = "",
         mark_saved: bool = False,
         index: int | list[int] | None = None,
+        record_dataset_history: bool = True,
     ) -> int | list[int]:
         """Store ``eeg`` in ALLEEG and select it."""
         if index is not None:
@@ -474,7 +475,8 @@ class EEGPrepSession:
         self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, store_index)
         self.EEG = checked
         self.CURRENTSET = normalize_dataset_indices(stored_index, allow_empty=False)
-        self._append_current_dataset_history(command)
+        if record_dataset_history:
+            self._append_current_dataset_history(command)
         if mark_saved:
             self.mark_current_saved()
         self.add_history(command, notify=False)
