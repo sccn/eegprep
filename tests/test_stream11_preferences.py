@@ -22,6 +22,7 @@ from eegprep.functions.adminfunc.pop_editoptions import (
 )
 from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.qt import QtDialogRenderer
+from eegprep.functions.guifunc.theme import EEGLAB_BACKGROUND
 from tests.test_console_workspace import _FakeShell
 from tests.test_stream11_datasets import accept, dialogs as dialogs
 from tests.test_stream11_menus import qapp as qapp
@@ -226,6 +227,18 @@ def test_f89_default_options_are_visible_without_scrolling(qapp, options, long_p
         viewport = dialog.findChild(QScrollArea).viewport()
         cache = widgets["option_cachesize"]
         assert viewport.rect().contains(cache.rect().translated(cache.mapTo(viewport, cache.rect().topLeft())))
+    finally:
+        dialog.close()
+
+
+def test_preferences_list_sits_on_the_eeglab_blue_background(qapp, options):
+    _, dialog, _widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(dict(EEG_OPTIONS), options))
+    dialog.show()
+    qapp.processEvents()
+    try:
+        scroll = dialog.findChild(QScrollArea)
+        inside = dialog.grab().toImage().pixelColor(scroll.x() + scroll.width() - 30, scroll.y() + 4)
+        assert inside.name() == EEGLAB_BACKGROUND
     finally:
         dialog.close()
 

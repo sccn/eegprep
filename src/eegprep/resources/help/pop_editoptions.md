@@ -17,7 +17,7 @@ These EEGLAB options have no meaning in Python and are not in the window:
 Their keys stay in `EEG_OPTIONS` with their defaults, so EEGLAB scripts and
 saved option files still load.
 
-Disabled preferences have no runtime connection yet: ICA caching, remembered
+The greyed preferences have no effect yet: ICA caching, remembered
 folders, startup update checks, STUDY cache size, and the MATLAB save version.
 Their registry values remain available to scripts but do not change these
 workflows. Use explicit function arguments where available. Use Help > Check

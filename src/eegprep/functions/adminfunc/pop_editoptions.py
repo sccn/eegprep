@@ -141,7 +141,7 @@ def pop_editoptions_dialog_spec(options: dict[str, Any], path: Path | None = Non
     option_file = str(path or eegprep_options_path())
     controls = [
         ControlSpec("text", f"Option file: {option_file}", tooltip=option_file),
-        ControlSpec("text", "Disabled preferences are not supported in EEGPrep; see Help for details."),
+        ControlSpec("text", "The greyed options have no effect in EEGPrep yet; see Help for details."),
     ]
     geometry: list[tuple[float, ...]] = [(1,), (1,)]
     for key, label in _OPTION_LABELS.items():
