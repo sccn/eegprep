@@ -17,6 +17,10 @@ Unreleased
   Epochs are concatenated and ``icachansind`` selects the channels.
   A missing, non-square or singular decomposition, and non-finite data, raise ``ValueError``.
 
+- EDF, BDF, GDF and other MNE-read imports remove the ``EEG`` prefix of channel labels
+  (``EEG Fp1`` and ``EEG-Fp1`` become ``Fp1``), as EEGLAB does for every import, unless
+  30 or more labels are numbered. The labels then match channel location files. (#746)
+
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
   Names match without regard to case, so ``MNI152NLin6Asym``, the schema's spelling from BIDS 1.11.0, is RAS as ``MNI152NLin6ASym`` is;
