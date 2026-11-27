@@ -525,6 +525,5 @@ def test_importdata_rows_share_the_window_height_and_show_the_chanlocs_note(app)
         assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
         tops = [widgets[tag].mapTo(dialog, widgets[tag].rect().topLeft()).y() for tag in ('setname', 'srate', 'pnts')]
         assert tops[1] - tops[0] > 1.8 * (tops[2] - tops[1])
-        assert dialog.height() <= dialog.layout().sizeHint().height() + 4
     finally:
         dialog.close()

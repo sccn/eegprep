@@ -255,7 +255,7 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
             *[[1.4, 0.7, 0.8, 0.5]] * 2,
         ),
         controls=tuple(controls),
-        size=(1150, None),
+        size=(1150, 430),
         weighted_columns=True,
         known_differences=('Array input uses a Python literal; dataset selectors use the shared session datasets.',),
     )
