@@ -171,7 +171,8 @@ class EEGPrepMainWindow:
             label.setObjectName("startup_title" if index == 0 else "startup_line")
             _configure_eeglab_label(label, qt_widgets)
             self.startup_labels.append(label)
-            # Equal shares of the frame height, as eeglab.m spreads its text rows over the figure.
+            # No trailing stretch: the labels have a fixed height, so the spare height goes between the
+            # rows, as eeglab.m spreads its text rows over the figure.
             startup_layout.addWidget(label, 1)
         self.stack.addWidget(startup)
 
