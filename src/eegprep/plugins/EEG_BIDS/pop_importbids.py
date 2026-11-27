@@ -18,7 +18,7 @@ from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.functions.studyfunc._study_utils import ensure_study
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
-from eegprep.plugins.EEG_BIDS.sidecar import read_bids_table
+from eegprep.plugins.EEG_BIDS.sidecar import decode_bids_text, read_bids_table
 
 _TYPE_FIELDS = ("value", "trial_type", "type", "event_type", "HED", "code")
 _TIMING_COLUMNS = {"onset", "duration", "sample", "stim_file", "response_time"}
@@ -122,6 +122,9 @@ def pop_importbids(
 # listbox is greyed like the other disabled controls.
 _DIALOG_BASE_HEIGHT = 70
 _DIALOG_ROW_HEIGHT = 30
+# Width in pixels of EEGLAB's pop_importbids window (1077.6 px, measured on the Mac
+# screen capture of EEGLAB; inputgui sizes it from its longest checkbox label).
+_DIALOG_WIDTH = 1078
 _LISTBOX_STYLESHEET = f"""
     QListWidget {{
         min-height: 38px;
@@ -214,7 +217,7 @@ def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = 
         controls=tuple(controls),
         help_text="pop_importbids",
         weighted_columns=True,
-        size=(1078, _DIALOG_BASE_HEIGHT + round(_DIALOG_ROW_HEIGHT * sum(geomvert))),
+        size=(_DIALOG_WIDTH, _DIALOG_BASE_HEIGHT + round(_DIALOG_ROW_HEIGHT * sum(geomvert))),
         extra_stylesheet=_LISTBOX_STYLESHEET,
         known_differences=(
             "Imported datasets are saved under derivatives/eeglab (or the chosen output folder). "
@@ -372,10 +375,11 @@ def _event_columns(source: Path) -> tuple[str, ...]:
     found: set[str] = set()
     for events in source.rglob("*events.tsv"):
         try:
-            with events.open(encoding="utf-8") as stream:
-                found.update(stream.readline().rstrip("\r\n").split("\t"))
-        except (OSError, UnicodeError):
+            with events.open("rb") as stream:
+                header = decode_bids_text(stream.readline(), suffix=".tsv")
+        except OSError:
             continue
+        found.update(header.rstrip("\r\n").split("\t"))
     fields = sorted(found - _TIMING_COLUMNS - {""})
     if "value" in fields:
         fields.remove("value")

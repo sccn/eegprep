@@ -846,6 +846,8 @@ def test_importbids_dialog_lists_event_columns_and_aligns_filters_like_eeglab(qa
     for run, header in (("1", "onset\tduration\tvalue\tfeedback"), ("2", "onset\tduration\tevent_code\tvalue")):
         (eeg_dir / f"sub-01_task-x_run-{run}_eeg.set").write_bytes(b"")
         (eeg_dir / f"sub-01_task-x_run-{run}_events.tsv").write_text(header + "\n0\t0\ta\tb\n")
+    # A UTF-8 BOM (Excel export) must not turn "onset" into a selectable column.
+    (eeg_dir / "sub-01_task-x_run-3_events.tsv").write_text("onset\tduration\tvalue\n", encoding="utf-8-sig")
     fields = _event_columns(tmp_path)
     assert fields == ("value", "event_code", "feedback")
     _app, dialog, widgets = QtDialogRenderer().build_dialog(pop_importbids_dialog_spec(tmp_path, fields))
