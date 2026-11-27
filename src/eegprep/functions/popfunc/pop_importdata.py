@@ -15,6 +15,7 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc._file_io import eeg_from_data, infer_dataformat, load_data_array
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc.pop_comments import pop_comments
 from eegprep.functions.popfunc.pop_editset import _history_value, pop_editset
 
 _DATA_FORMATS = ('array', 'ascii', 'float32le', 'float32be', 'matlab', 'auto')
@@ -172,17 +173,33 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
         ('Time points per epoch (0->continuous)', 'pnts', '0', 'Task condition', 'condition'),
         ('Start time (sec) (only for data epochs)', 'xmin', '0', 'Session number', 'session'),
         ('Number of channels (0->set from data)', 'nbchan', '0', 'Subject group', 'group'),
-        ('Ref. channel indices or mode (see help)', 'ref', '', 'About this dataset', 'comments'),
     ]:
         controls.extend(
             [
-                ControlSpec('text', left),
+                ControlSpec('text', left, font_weight='bold' if left_tag == 'srate' else None),
                 ControlSpec('edit', tag=left_tag, value=default),
                 ControlSpec('text', right),
                 ControlSpec('edit', tag=right_tag),
             ]
         )
-    controls.append(ControlSpec('spacer'))
+    controls.extend(
+        [
+            ControlSpec('text', 'Ref. channel indices or mode (see help)'),
+            ControlSpec('edit', tag='ref', value=''),
+            ControlSpec('text', 'About this dataset'),
+            ControlSpec(
+                'pushbutton',
+                'Enter comments',
+                tag='comments',
+                value='',
+                callback=CallbackSpec(
+                    'run_dialog_action',
+                    {'button': 'comments', 'function': 'pop_importdata', 'action': _edit_comments},
+                ),
+            ),
+            ControlSpec('spacer'),
+        ]
+    )
     for label, tag in [
         ('Channel location file or info', 'chanlocs'),
         ('ICA weights array or text/binary file (if any)', 'icaweights'),
@@ -190,7 +207,7 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
     ]:
         controls.extend(
             [
-                ControlSpec('text', label),
+                ControlSpec('text', label, font_weight='bold' if tag == 'chanlocs' else None),
                 ControlSpec(
                     'pushbutton',
                     'From other dataset',
@@ -223,6 +240,10 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
 
 def _browse(tag):
     return CallbackSpec('select_file', {'button': 'browse_' + tag, 'target': tag, 'caption': 'Select a file'})
+
+
+def _edit_comments(values, update):
+    update({'comments': pop_comments(values['comments'], 'Edit comments of current dataset')})
 
 
 def _dataset_selector(datasets, field):
