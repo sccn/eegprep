@@ -1,13 +1,10 @@
 function result = eegprep_dipfit_bem_reference(dataset)
 %EEGPREP_DIPFIT_BEM_REFERENCE FieldTrip leadfield and EEGLAB pop_multifit positions.
-if exist('fminunc', 'file') ~= 2 || ~license('test', 'optimization_toolbox')
-    error('eegprep:missingOptimizationToolbox', ...
-        'Optimization Toolbox (fminunc) is required for DIPFIT BEM nonlinear parity.');
-end
 if exist('ft_compute_leadfield', 'file') ~= 2 || exist('pop_multifit', 'file') ~= 2
     error('eegprep_dipfit_bem_reference:MissingBackend', ...
         'FieldTrip and DIPFIT must be on the path.');
 end
+eegprep_require_fminunc('DIPFIT BEM nonlinear parity');
 
 EEG = pop_loadset(dataset);
 EEG = pop_dipfit_settings(EEG, 'model', 'standardBEM');
