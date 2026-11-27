@@ -540,12 +540,14 @@ classes.</p>
 <section id="two-file-set-fdt-datasets">
 <h2>Two-File <code class="docutils literal notranslate"><span class="pre">.set</span></code> / <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> Datasets<a class="headerlink" href="#two-file-set-fdt-datasets" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> saves new datasets as one-file <code class="docutils literal notranslate"><span class="pre">.set</span></code> files by default. To write a two-file
-<code class="docutils literal notranslate"><span class="pre">.set</span></code> header plus float32 data sidecar, pass <code class="docutils literal notranslate"><span class="pre">savemode=&quot;twofiles&quot;</span></code>.
-<code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS[&quot;option_savetwofiles&quot;]</span></code> is not read: a plain save of a new
-dataset always writes one file.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
+<code class="docutils literal notranslate"><span class="pre">.set</span></code> header plus float32 data sidecar, pass <code class="docutils literal notranslate"><span class="pre">savemode=&quot;twofiles&quot;</span></code> or set
+<code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS[&quot;option_savetwofiles&quot;]</span> <span class="pre">=</span> <span class="pre">1</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
 
 <span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;subject01.set&quot;</span><span class="p">,</span> <span class="n">savemode</span><span class="o">=</span><span class="s2">&quot;twofiles&quot;</span><span class="p">)</span>
+
+<span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_savetwofiles&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;subject02.set&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar uses EEGLAB’s channel-fast float32 layout. Continuous data
@@ -573,7 +575,7 @@ the <code class="docutils literal notranslate"><span class="pre">.set</span></co
 mark the dataset saved. A missing parent folder is created when that is
 possible. Save as also preserves a loaded dataset’s two-file layout, naming
 both files after the new target. Use <code class="docutils literal notranslate"><span class="pre">savemode=&quot;onefile&quot;</span></code> to embed samples
-explicitly. New datasets are saved in one file.</p>
+explicitly. New datasets follow <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code>.</p>
 <p>MATLAB v7.3 datasets load through the same API, preserving complete Unicode
 labels and event types, nested metadata, and empty events. Companion references
 in the header must be bare filenames without directories, drives, or path
@@ -584,10 +586,11 @@ headers apply the same rule to their sample and marker files.</p>
 </section>
 <section id="memory-mapped-data">
 <h2>Memory-Mapped Data<a class="headerlink" href="#memory-mapped-data" title="Link to this heading">#</a></h2>
-<p>With <code class="docutils literal notranslate"><span class="pre">memmap=True</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> loads two-file
+<p>When <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS[&quot;option_memmapdata&quot;]</span> <span class="pre">=</span> <span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> loads two-file
 datasets through a NumPy-compatible <code class="docutils literal notranslate"><span class="pre">MemmapData</span></code> handle instead of copying
 the full sidecar into memory:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="s2">&quot;subject01.set&quot;</span><span class="p">,</span> <span class="n">memmap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_memmapdata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="s2">&quot;subject01.set&quot;</span><span class="p">)</span>
 
 <span class="n">first_channel</span> <span class="o">=</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
 <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>

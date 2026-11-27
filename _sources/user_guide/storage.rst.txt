@@ -13,15 +13,17 @@ Two-File ``.set`` / ``.fdt`` Datasets
 =====================================
 
 ``pop_saveset`` saves new datasets as one-file ``.set`` files by default. To write a two-file
-``.set`` header plus float32 data sidecar, pass ``savemode="twofiles"``.
-``EEG_OPTIONS["option_savetwofiles"]`` is not read: a plain save of a new
-dataset always writes one file.
+``.set`` header plus float32 data sidecar, pass ``savemode="twofiles"`` or set
+``EEG_OPTIONS["option_savetwofiles"] = 1``:
 
 .. code-block:: python
 
-   from eegprep import pop_loadset, pop_saveset
+   from eegprep import EEG_OPTIONS, pop_loadset, pop_saveset
 
    pop_saveset(EEG, "subject01.set", savemode="twofiles")
+
+   EEG_OPTIONS["option_savetwofiles"] = 1
+   pop_saveset(EEG, "subject02.set")
 
 The ``.fdt`` sidecar uses EEGLAB's channel-fast float32 layout. Continuous data
 round-trips as ``(nbchan, pnts)`` and epoched data round-trips as
@@ -49,7 +51,7 @@ the ``.set`` file that will be written. If the parent folder cannot be created o
 mark the dataset saved. A missing parent folder is created when that is
 possible. Save as also preserves a loaded dataset's two-file layout, naming
 both files after the new target. Use ``savemode="onefile"`` to embed samples
-explicitly. New datasets are saved in one file.
+explicitly. New datasets follow ``option_savetwofiles``.
 
 MATLAB v7.3 datasets load through the same API, preserving complete Unicode
 labels and event types, nested metadata, and empty events. Companion references
@@ -62,13 +64,14 @@ headers apply the same rule to their sample and marker files.
 Memory-Mapped Data
 ==================
 
-With ``memmap=True``, ``pop_loadset`` loads two-file
+When ``EEG_OPTIONS["option_memmapdata"] = 1``, ``pop_loadset`` loads two-file
 datasets through a NumPy-compatible ``MemmapData`` handle instead of copying
 the full sidecar into memory:
 
 .. code-block:: python
 
-   EEG = pop_loadset("subject01.set", memmap=True)
+   EEG_OPTIONS["option_memmapdata"] = 1
+   EEG = pop_loadset("subject01.set")
 
    first_channel = EEG["data"][0, :]
    EEG["data"][0, 0] = 0
