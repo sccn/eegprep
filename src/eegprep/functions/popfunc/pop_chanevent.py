@@ -408,7 +408,7 @@ def pop_chanevent_dialog_spec() -> DialogSpec:
         ControlSpec('spacer'),
         ControlSpec('text', 'Delete event channel(s)?'),
         ControlSpec('checkbox', tag='delchan', value=True),
-        ControlSpec('text', '        (set = yes)'),
+        ControlSpec('text', '(set = yes)'),
         ControlSpec('text', 'Delete old events if any?'),
         ControlSpec('checkbox', tag='delevent', value=True),
         ControlSpec('spacer'),

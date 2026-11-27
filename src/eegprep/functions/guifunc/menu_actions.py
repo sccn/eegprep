@@ -2025,7 +2025,10 @@ class MenuActionDispatcher:
         action = self.session.active_gui_action().partition(":")[0]
         if action and not message.startswith(action):
             if action in {"pop_loadset", "pop_fileio", "pop_fileio_eeg", "pop_biosig"}:
-                message = f"{action}: could not read the selected data file. Check the filename and file format; re-export the file if it is damaged.\n{message}"
+                message = (
+                    f"{action}: the dataset was not loaded, for the reason below. If the file cannot be read, "
+                    f"check the filename and file format; re-export the file if it is damaged.\n{message}"
+                )
             else:
                 message = f"{action}: {message}"
         qt_widgets = _qt_widgets()

@@ -620,6 +620,15 @@ def _run_console(workspace, source):
     workspace.after_execute(source)
 
 
+def test_datasets_menu_lists_a_dataset_whose_name_is_an_empty_array():
+    """A dataset built outside pop_loadset can still carry MATLAB's empty name as an array."""
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["setname"] = np.zeros((0, 0))
+    session.store_current(eeg, new=True)
+    assert session.dataset_summaries() == [(1, "Dataset 1:(no dataset name)", True)]
+
+
 def test_console_pop_delset_keeps_dataset_numbers_and_moves_selection():
     session, workspace = _delset_console_session(2)
 

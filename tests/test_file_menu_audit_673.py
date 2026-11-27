@@ -718,7 +718,7 @@ def test_chanevent_expression_matches_matlab_round_bitand_and_chaining():
     assert _dialog_row(spec, hint) == (1.5, 1, 1)
     delete = next(control for control in spec.controls if control.string == "Delete event channel(s)?")
     assert _dialog_row(spec, delete) == (1.5, 1, 1)
-    assert spec.controls[spec.controls.index(delete) + 2].string.strip() == "(set = yes)"
+    assert spec.controls[spec.controls.index(delete) + 2].string == "(set = yes)"
     assert sum(len(row) == 1 for row in spec.geometry) == 2
 
 
@@ -1630,9 +1630,11 @@ def test_chanevent_labels_fit_their_column(qapp):
         assert label.width() >= label.sizeHint().width()
     assert found["(click to select)"].text() == "(click to select)"
     assert found["(set=yes)"].text() == "(set=yes)"
-    assert found["        (set = yes)"].text() == "        (set = yes)"
+    assert found["(set=yes)"].x() == found["(set = yes)"].x()
     boxes = [_widgets[tag] for tag in ("chan", "oper", "edge", "edgelen", "duration", "delchan", "delevent", "nbtype")]
     assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
+    tops = [box.mapTo(dialog, box.rect().topLeft()).y() for box in boxes]
+    assert tops[1] - tops[0] > 1.8 * (tops[2] - tops[1])
     layout = dialog.layout()
     assert dialog.height() <= layout.sizeHint().height() + 4
     dialog.close()
