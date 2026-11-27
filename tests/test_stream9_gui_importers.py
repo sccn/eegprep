@@ -525,3 +525,22 @@ def test_importdata_rows_share_the_window_height_and_show_the_chanlocs_note(app)
         assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
     finally:
         dialog.close()
+
+
+def test_importepoch_edit_boxes_share_one_left_edge(app):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.popfunc.pop_importepoch import pop_importepoch_dialog_spec
+
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(pop_importepoch_dialog_spec({'event': []}))
+    dialog.show()
+    app.processEvents()
+    try:
+        tags = ('filename', 'fieldlist', 'latencyfields', 'durationfields', 'typefield', 'timeunit', 'headerlines')
+        lefts = {widgets[tag].mapTo(dialog, widgets[tag].rect().topLeft()).x() for tag in (*tags, 'clearevents')}
+        # The file row is exact for a window about 900 pixels wide (Mac, Linux) and drifts by 0.2 percent of
+        # the width beyond: 4 pixels on the Windows test machine, whose font makes the window 1880 wide.
+        assert max(lefts) - min(lefts) <= max(2, dialog.width() // 250)
+        for label in dialog.findChildren(QtWidgets.QLabel):
+            assert label.width() >= label.sizeHint().width(), label.text()
+    finally:
+        dialog.close()

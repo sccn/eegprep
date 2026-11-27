@@ -317,8 +317,12 @@ def pop_importepoch_dialog_spec(EEG) -> DialogSpec:
         function_name='pop_importepoch',
         help_text='pop_importepoch',
         eeglab_source='functions/popfunc/pop_importepoch.m',
-        geometry=([1, 1, 1.86], 1, *[[2.5, 1, 1]] * 4, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.3, 0.7]),
+        # One edit column. The file row has two cells before its edit box, and each cell gives up a fixed share
+        # of the row to spacing, so its first two weights sum to 2.708, not 2.5, to land on the same pixel.
+        # The third column keeps weight 1 (0.6 in EEGLAB) because EEGPrep's hints are longer than NOTE.
+        geometry=([1.708, 1, 1.792], 1, *[[2.5, 1, 1]] * 4, 1, *[[2.5, 1, 1]] * 3),
         controls=tuple(controls),
         weighted_columns=True,
+        fit_weighted_labels=True,
         size=(900, 350),
     )
