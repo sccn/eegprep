@@ -64,7 +64,8 @@ class DialogSpec:
     geometry: tuple[Any, ...]
     function_name: str
     eeglab_source: str
-    size: tuple[int, int] | None = None
+    # (width, height); a height of None keeps the height the content needs.
+    size: tuple[int, int | None] | None = None
     help_text: str | None = None
     help_label: str = "Help"
     show_help_button: bool = True
@@ -82,6 +83,8 @@ class DialogSpec:
     # Size every control by its geometry weight alone, as EEGLAB's supergui does,
     # instead of by its content; column_spacing is the gap between controls in a row.
     weighted_columns: bool = False
+    # Widen a weighted_columns window beyond ``size`` when a wider font would cut a label.
+    fit_weighted_labels: bool = False
     validate: Any = None
     column_spacing: int = 4
 

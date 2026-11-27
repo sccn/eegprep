@@ -972,7 +972,33 @@ def _apply_button_size(button: Any, requested: tuple[int, int] | None) -> None:
 def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:
     if spec.size is None:
         return
-    dialog.resize(*spec.size)
+    width, height = spec.size
+    if spec.fit_weighted_labels:
+        width = max(width, _width_fitting_weighted_labels(dialog, spec))
+    dialog.resize(width, dialog.height() if height is None else height)
+
+
+def _width_fitting_weighted_labels(dialog: Any, spec: DialogSpec) -> int:
+    """Return the window width at which no label of a weighted row is cut.
+
+    Weighted columns ignore the size of their content, so a font wider than
+    the one the dialog was sized for would cut its labels.
+    """
+    left, _top, right, _bottom = spec.content_margins
+    needed = 0
+    layout = dialog.layout()
+    for index in range(layout.count()):
+        container = layout.itemAt(index).widget()
+        row = container.layout() if container is not None else None
+        if row is None:
+            continue
+        total = sum(row.stretch(column) for column in range(row.count()))
+        gaps = (spec.column_spacing + 1) * (row.count() - 1)  # one pixel per column for the rounding of the shares
+        for column in range(row.count()):
+            widget = row.itemAt(column).widget()
+            if row.stretch(column) and _qt_isinstance(widget, "QLabel", "QCheckBox"):
+                needed = max(needed, math.ceil(widget.sizeHint().width() * total / row.stretch(column)) + gaps)
+    return needed + left + right
 
 
 def _apply_font_hints(widget: Any, control: ControlSpec) -> None:

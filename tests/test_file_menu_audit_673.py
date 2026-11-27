@@ -723,7 +723,7 @@ def test_chanevent_expression_matches_matlab_round_bitand_and_chaining():
     hint = next(control for control in spec.controls if control.string == "Optional. Ex: X>3")
     assert _dialog_row(spec, hint) == (1.5, 1, 1)
     delete = next(control for control in spec.controls if control.string == "Delete event channel(s)?")
-    assert _dialog_row(spec, delete) == (1.5, 0.21, 1)
+    assert _dialog_row(spec, delete) == (1.5, 1, 1)
     assert spec.controls[spec.controls.index(delete) + 2].string.strip() == "(set = yes)"
     assert sum(len(row) == 1 for row in spec.geometry) == 2
 
@@ -1614,6 +1614,8 @@ def test_chanevent_labels_fit_their_column(qapp):
     assert found["(click to select)"].text() == "(click to select)"
     assert found["(set=yes)"].text() == "(set=yes)"
     assert found["        (set = yes)"].text() == "        (set = yes)"
+    boxes = [_widgets[tag] for tag in ("chan", "oper", "edge", "edgelen", "duration", "delchan", "delevent", "nbtype")]
+    assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
     layout = dialog.layout()
     assert dialog.height() <= layout.sizeHint().height() + 4
     dialog.close()
