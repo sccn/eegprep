@@ -18,6 +18,8 @@ from eegprep.functions.popfunc.pop_loadset_h5 import _read_set_h5
 logger = logging.getLogger(__name__)
 
 default_empty = np.array([])
+# Text fields that eeg_emptyset.m initializes to ''.
+TEXT_FIELDS = ("setname", "subject", "group", "condition", "comments")
 
 
 def loadset(file_path):
@@ -82,6 +84,10 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
             f"pop_loadset: {file_path!r} is not a valid EEG .set dataset (required fields are missing). "
             "Re-export the dataset from its source."
         )
+
+    for field in TEXT_FIELDS:
+        if field in EEG and _is_empty_data(EEG[field]):
+            EEG[field] = ""
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
