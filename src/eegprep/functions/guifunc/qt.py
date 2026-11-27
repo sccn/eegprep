@@ -776,6 +776,8 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
         }}
         QLabel, QCheckBox, QRadioButton {{
             color: {EEGLAB_TEXT};
+        }}
+        QLabel {{
             background: transparent;
         }}
         QLabel:disabled, QCheckBox:disabled, QRadioButton:disabled {{

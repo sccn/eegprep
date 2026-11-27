@@ -259,3 +259,13 @@ def test_mirrored_edits_copy_only_when_both_are_filled(qt_dialogs):
     widgets["coher"].setText("8 12")
     widgets["coher"].editingFinished.emit()
     assert widgets["phase"].text() == "8 12"
+
+
+def test_checkbox_and_radio_button_keep_an_opaque_palette_for_their_box(qt_dialogs):
+    """The Linux style draws the square and the circle with the palette base, so it must not be transparent."""
+    controls = (ControlSpec("checkbox", tag="box", value=True), ControlSpec("radio", tag="radio", value=True))
+    spec = DialogSpec(title="states", controls=controls, geometry=((1, 1),), function_name="states", eeglab_source="")
+    widgets = qt_dialogs.build(spec)
+    qt_dialogs.dialogs[-1].show()
+    assert widgets["box"].palette().base().color().alpha() == 255
+    assert widgets["radio"].palette().base().color().alpha() == 255
