@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- The ``pop_chanevent`` window has its two blank rows back between groups of
+  options, and its two ``(set = yes)`` notes start at the same position. A
+  dialog shares its height among its rows only when that height is fixed. (#771)
+
 - File > Import data names its two reader menus Using the EEG-IO interface
   (``pop_fileio``) and Using the MNE-IO interface (``pop_biosig``), in place of
   EEGLAB's FILE-IO and BIOSIG. EDF, BDF and GDF files open only through
