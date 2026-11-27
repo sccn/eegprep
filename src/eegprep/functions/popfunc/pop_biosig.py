@@ -149,12 +149,14 @@ def _import_bdf_status_channel(
     status word. Mode 7 also reads the file's first status sample, because its
     active level is relative to that sample.
     """
-    labels = [_channel_label(loc) for loc in list(eeg.get("chanlocs", []))]
-    if _STATUS_LABEL not in labels or not _is_biosemi(path):
+    if not _is_biosemi(path):
         return eeg
-    if import_events:
+    # As in EEGLAB, triggers come from the file's Status channel even when the channel list leaves it out.
+    file_labels = [str(label).strip() for label in openbdf(path)["Head"]["Label"]]
+    if import_events and _STATUS_LABEL in file_labels:
         _replace_events(eeg, _blockrange_status_events(path, blockrange, event_mode))
-    if remove_event_channel:
+    labels = [_channel_label(loc) for loc in list(eeg.get("chanlocs", []))]
+    if remove_event_channel and _STATUS_LABEL in labels:
         _drop_channel(eeg, labels.index(_STATUS_LABEL))
     return eeg
 
