@@ -14,8 +14,8 @@ half-open, seconds-based read of continuous EDF, BDF, and other MNE-backed
 formats. A window or a whole recording with fewer samples than channels stays
 channel-major. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (default
 4, rising edges of the lower 16 bits), stores those triggers when
-``importevent`` is ``on``, and removes ``Status`` when ``rmeventchan`` is
-``on``. A requested time range reads only the overlapping BDF records.
+``importevent`` is ``on`` (also when ``channels`` leaves ``Status`` out),
+and removes ``Status`` when ``rmeventchan`` is ``on``. A requested time range reads only the overlapping BDF records.
 ``pop_fileio`` does not use FieldTrip's File-IO library. It picks a reader
 from the file extension: EEGPrep's ``pop_loadset``, ``pop_loadcnt``,
 ``pop_loadbv``, ``pop_readegi``, ``loadeeg``, and ``pop_importdata`` for

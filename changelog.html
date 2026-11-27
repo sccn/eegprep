@@ -563,6 +563,8 @@ settings: <code class="docutils literal notranslate"><span class="pre">do_reject
 <code class="docutils literal notranslate"><span class="pre">n_good_samples</span></code> and <code class="docutils literal notranslate"><span class="pre">n_rejected_samples</span></code>, counts only. With rejection
 on, <code class="docutils literal notranslate"><span class="pre">returned_iter</span></code> is the iterate the weights come from and <code class="docutils literal notranslate"><span class="pre">best_iter</span></code>
 is omitted. (#674)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> keeps the BDF trigger events when <code class="docutils literal notranslate"><span class="pre">channels</span></code> leaves out the
+<code class="docutils literal notranslate"><span class="pre">Status</span></code> channel, as EEGLAB does. (#747)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">topoplot</span></code> averages sensors that MATLAB <code class="docutils literal notranslate"><span class="pre">griddata</span></code> treats as the same
 point. A separation equal to the axis tolerance stays separate, matching
 <code class="docutils literal notranslate"><span class="pre">mergesimpts</span></code> strict <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>. <code class="docutils literal notranslate"><span class="pre">plotchans</span></code> selects 1-based channel indices,
