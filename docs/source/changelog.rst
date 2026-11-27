@@ -38,7 +38,11 @@ Unreleased
   variables, the parallel toolbox, memory-mapped arrays, single precision, the
   EEG object, RMS scaling of ICA activities, Show advanced options, plugins
   pending approval, and HTML in graphics. The header of ``pop_editoptions``
-  says why for each. Their keys and defaults stay in ``EEG_OPTIONS``. (#709)
+  says why for each. Their keys and defaults stay in ``EEG_OPTIONS``.
+  ``pop_saveset`` no longer reads ``option_savetwofiles`` and ``pop_loadset``
+  no longer reads ``option_memmapdata``: a new dataset is saved in one file
+  unless ``savemode="twofiles"`` is passed, and a sidecar is memory-mapped
+  only with ``memmap=True``. (#709)
 - File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
   ``derivatives/eeglab`` and refuses to resave a raw BIDS file. ``pop_saveset``
   replaces the ``.set`` and ``.fdt`` only after both temporary files are

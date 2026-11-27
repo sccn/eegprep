@@ -9,7 +9,7 @@ import numpy as np
 import scipy.io
 from scipy.io.matlab import MatReadError
 
-from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
+from eegprep.functions.adminfunc.storage import memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
 from eegprep.functions.popfunc._matlab_fields import dataset_from_mat
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
@@ -189,7 +189,7 @@ def _load_options(file_path, args, kwargs, loadmode, memmap):
     path = Path(os.fspath(filename))
     if filepath not in {None, ""} and not path.is_absolute():
         path = Path(os.fspath(filepath)) / path
-    use_memmap = memmap_enabled() if memmap is None else is_on(memmap)
+    use_memmap = memmap is not None and is_on(memmap)
     return str(path), loadmode, use_memmap
 
 

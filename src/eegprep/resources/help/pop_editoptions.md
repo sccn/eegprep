@@ -7,15 +7,18 @@ visibility, numerical boundary events, and native file dialogs.
 
 These EEGLAB options have no meaning in Python and are not in the window:
 
-- Two-file saving: EEGPrep saves a dataset in one file.
+- Two-file saving: EEGPrep saves a new dataset in one file. Use
+  `pop_saveset(..., savemode="twofiles")` for a `.fdt` sidecar.
 - Saving fields as individual variables (the 2021 format): always on.
 - Parallel toolbox, EEG object, HTML in graphics: MATLAB features.
-- Memory-mapped arrays and single precision: not preferences in Python.
+- Memory-mapped arrays and single precision: not preferences in Python. Use
+  `pop_loadset(..., memmap=True)` to map a `.fdt` sidecar.
 - RMS scaling of ICA activities: always on.
 - Show advanced options and plugins pending approval: nothing to show.
 
 Their keys stay in `EEG_OPTIONS` with their defaults, so EEGLAB scripts and
-saved option files still load.
+saved option files still load. `pop_saveset` and `pop_loadset` do not read
+the two-file or memory-map keys.
 
 The greyed preferences have no effect yet: ICA caching, remembered
 folders, startup update checks, STUDY cache size, and the MATLAB save version.

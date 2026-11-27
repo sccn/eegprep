@@ -26,7 +26,7 @@ Continuous `icaact` reloads as `(ncomp, pnts)` after it is recomputed from
 the decomposition and the data. Event and channel indices load as integers,
 and integral `run` and `session` labels stay integers.
 
-When `EEG_OPTIONS["option_memmapdata"] = 1`, two-file datasets saved with an
+With `memmap=True`, two-file datasets saved with an
 `.fdt` sidecar load through a NumPy-compatible memory map. Single-file `.set`
 datasets still load into memory.
 

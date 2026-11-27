@@ -3,11 +3,13 @@
 The Preferences window leaves out these options of EEGLAB's ``pop_editoptions``
 because they have no meaning in Python:
 
-- ``option_savetwofiles``: EEGPrep saves a dataset in one file.
+- ``option_savetwofiles``: EEGPrep saves a new dataset in one file;
+  ``pop_saveset(..., savemode="twofiles")`` still writes a ``.fdt`` sidecar.
 - ``option_saveasstruct``: dataset fields are always saved as individual
   variables (the EEGLAB 2021 format), with no switch to undo it.
 - ``option_parallel``: it drives MATLAB's parallel toolbox.
-- ``option_memmapdata``: memory-mapped arrays are not a preference in Python.
+- ``option_memmapdata``: memory-mapped arrays are not a preference in Python;
+  ``pop_loadset(..., memmap=True)`` maps a ``.fdt`` sidecar.
 - ``option_single``: precision is not a preference; the option has no effect.
 - ``option_eegobject``: the EEG object is a MATLAB class; EEG is a dict here.
 - ``option_scaleicarms``: ICA activities are always scaled to RMS microvolt.
@@ -18,7 +20,8 @@ because they have no meaning in Python:
 
 The toolbox option and the -99 boundary option are kept. The options left out
 keep their key and default in ``EEG_OPTIONS`` so EEGLAB scripts and saved
-option files still load.
+option files still load; ``pop_saveset`` and ``pop_loadset`` do not read
+``option_savetwofiles`` or ``option_memmapdata``.
 """
 
 from __future__ import annotations

@@ -17,9 +17,7 @@ from eegprep.functions.adminfunc.storage import (
     OffloadedData,
     dataset_datfile_path,
     dataset_set_path,
-    memmap_enabled,
     memmap_fdt,
-    savetwofiles_enabled,
     write_fdt,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
@@ -656,7 +654,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     EEG['filepath'] = save_dir
     EEG['datfile'] = datfile_name if save_two_files else ''
     EEG['saved'] = 'yes'
-    if save_two_files and (isinstance(data_value, MemmapData) or memmap_enabled()):
+    if save_two_files and isinstance(data_value, MemmapData):
         EEG['data'] = memmap_fdt(Path(save_dir) / datfile_name, EEG)
     elif not save_two_files and isinstance(data_value, MemmapData):
         EEG['data'] = np.asarray(data_value).copy()
@@ -774,7 +772,7 @@ def _save_two_files(EEG, savemode):
     if savemode == 'twofiles':
         return True
     datfile = dataset_datfile_path(EEG)
-    return bool(datfile) or savetwofiles_enabled()
+    return bool(datfile)
 
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).

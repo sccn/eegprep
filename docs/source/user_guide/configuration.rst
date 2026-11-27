@@ -16,7 +16,7 @@ storage, compatibility, and GUI behavior that really is global.
 
    print(dict(EEG_OPTIONS))
    EEG_OPTIONS["option_allmenus"] = 1
-   EEG_OPTIONS["option_savetwofiles"] = 1
+   EEG_OPTIONS["option_boundary99"] = 1
 
 Save the previous values when a script changes global options:
 
@@ -26,7 +26,7 @@ Save the previous values when a script changes global options:
 
    old_options = dict(EEG_OPTIONS)
    try:
-       EEG_OPTIONS["option_memmapdata"] = 1
+       EEG_OPTIONS["option_storedisk"] = 1
        # Load or save datasets here.
    finally:
        EEG_OPTIONS.clear()
@@ -44,11 +44,6 @@ Common Global Options
      - Show advanced and legacy menu entries in the main GUI.
    * - ``option_storedisk``
      - Keep saved non-current ``ALLEEG`` datasets on disk to reduce memory use.
-   * - ``option_savetwofiles``
-     - Make ``pop_saveset`` write a ``.set`` header plus ``.fdt`` sidecar by
-       default.
-   * - ``option_memmapdata``
-     - Memory-map two-file ``.fdt`` data when loading with ``pop_loadset``.
    * - ``option_boundary99``
      - Treat numeric ``-99`` events as boundary events for ERPLAB-style data.
    * - ``option_computeica``
@@ -106,7 +101,10 @@ fields as individual variables (always on), the parallel toolbox, memory-mapped
 arrays, single precision, the EEG object, RMS scaling of ICA activities (always
 on), Show advanced options, plugins pending approval, and HTML in graphics.
 Their keys stay in ``EEG_OPTIONS`` with their defaults, so EEGLAB scripts and
-saved option files still load.
+saved option files still load, but ``pop_saveset`` and ``pop_loadset`` no
+longer read ``option_savetwofiles`` or ``option_memmapdata``. To write a
+``.set`` header plus ``.fdt`` sidecar, pass ``savemode="twofiles"``. To
+memory-map a sidecar, pass ``memmap=True`` to ``pop_loadset``.
 
 Some preferences are visible but disabled because their global switches are
 not connected to EEGPrep workflows: ICA precomputation, remembered folders,
@@ -233,9 +231,9 @@ functions are configured through explicit keyword arguments.
 Memory-Mapped Loading Did Not Happen
 ------------------------------------
 
-``option_memmapdata`` applies to two-file ``.set``/``.fdt`` datasets. Save with
-``savemode="twofiles"`` or set ``option_savetwofiles`` before saving, then load
-again with ``option_memmapdata`` enabled.
+Memory mapping applies to two-file ``.set``/``.fdt`` datasets and is asked for
+with ``pop_loadset(..., memmap=True)``; ``option_memmapdata`` is not read. Save
+with ``savemode="twofiles"`` first, then load with ``memmap=True``.
 
 Menu Entries Did Not Change
 ---------------------------
