@@ -817,6 +817,10 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
             max-height: 74px;
             color: {EEGLAB_TEXT};
         }}
+        QListWidget:disabled {{
+            background: {EEGLAB_CONTROL_DISABLED_BACKGROUND};
+            color: {EEGLAB_DISABLED_TEXT};
+        }}
         QPushButton {{
             background: {EEGLAB_BUTTON_BACKGROUND};
             border: 1px solid {EEGLAB_CONTROL_BORDER};
