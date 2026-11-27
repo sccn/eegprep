@@ -110,10 +110,8 @@ def pop_export_dialog_spec() -> DialogSpec:
         eeglab_source="functions/popfunc/pop_export.m",
         geometry=(
             [1, 2, 0.5],
-            *[[1.7, 0.25, 0.7, 0.6]] * 5,
-            [3, 0.7, 0.8, 0.6],
-            [3, 2, 0.05, 0.05],
-            [3, 2, 0.05, 0.05],
+            *[[3, 0.7, 0.8, 0.6]] * 6,
+            *[[3, 1.5, 0.3, 0.3]] * 2,
         ),
         controls=(
             ControlSpec("text", "Output file name"),
@@ -152,6 +150,9 @@ def pop_export_dialog_spec() -> DialogSpec:
             ControlSpec("text", ""),
             ControlSpec("text", ""),
         ),
+        help_text="pophelp('pop_export')",
+        weighted_columns=True,
+        size=(852, 300),
         known_differences=("The label says significant digits, but pop_export.m:179 writes %.Nf decimal places.",),
     )
 
