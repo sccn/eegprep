@@ -674,9 +674,9 @@ File menu and data I/O
 
 These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
 
-* Datasets stay ``float64``. ``option_single`` is shown in Preferences and has
-  no effect. Applying it would change results that are already checked against
-  EEGLAB.
+* Datasets stay ``float64``. ``option_single`` is not shown in Preferences and
+  has no effect. Applying it would change results that are already checked
+  against EEGLAB.
 * ``pop_chanevent`` accepts comparisons, arithmetic, ``abs``, ``round``,
   ``bitand``, ``&``, ``|``, and parentheses. It does not evaluate arbitrary
   MATLAB text. ``pop_chanevent.m`` line 225 prefixes ``X =`` only when the

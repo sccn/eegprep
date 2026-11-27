@@ -821,16 +821,6 @@ def storedisk_enabled() -> bool:
     return bool(int(EEG_OPTIONS.get("option_storedisk", 0) or 0))
 
 
-def memmap_enabled() -> bool:
-    """Return whether sidecar data should load through ``numpy.memmap``."""
-    return bool(int(EEG_OPTIONS.get("option_memmapdata", 0) or 0))
-
-
-def savetwofiles_enabled() -> bool:
-    """Return whether ``pop_saveset`` should default to ``.set`` plus ``.fdt``."""
-    return bool(int(EEG_OPTIONS.get("option_savetwofiles", 0) or 0))
-
-
 def _metadata_int(eeg: dict[str, Any], key: str, default: int) -> int:
     """Return one EEG count, keeping an explicit 0."""
     value = eeg.get(key, default)

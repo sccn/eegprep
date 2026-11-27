@@ -268,6 +268,9 @@ class QtDialogRenderer:
             if not spec.horizontal_scroll:
                 scroll_area.setHorizontalScrollBarPolicy(qt_core.Qt.ScrollBarAlwaysOff)
             scroll_area.setWidget(content_widget)
+            # setWidget makes both fill their own grey background: let the dialog's blue show
+            scroll_area.viewport().setAutoFillBackground(False)
+            content_widget.setAutoFillBackground(False)
             layout.addWidget(scroll_area, 1)
 
         for control in spec.controls:
