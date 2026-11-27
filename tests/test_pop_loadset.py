@@ -6,6 +6,7 @@ import pytest
 import scipy.io
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc._matlab_fields import apply_field_rules
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -81,6 +82,22 @@ def test_pop_loadset_keeps_embedded_data_when_datfile_sidecar_is_missing(tmp_pat
     np.zeros(data.size, dtype=np.float32).tofile(tmp_path / "stale.fdt")
     reloaded = pop_loadset(set_file)
     np.testing.assert_array_equal(reloaded["data"], data)
+
+
+def test_pop_loadset_empty_text_fields_load_as_empty_strings(tmp_path):
+    set_file = tmp_path / "nameless.set"
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+    eeg["setname"] = ""
+    eeg["comments"] = np.zeros((0, 0))
+    pop_saveset(eeg, str(set_file))
+
+    loaded = pop_loadset(set_file)
+    session = EEGPrepSession()
+    session.store_current(loaded, new=True, command="EEG = pop_loadset('nameless.set');")
+
+    for field in ("setname", "subject", "group", "condition", "comments"):
+        assert loaded[field] == ""
+    assert session.dataset_summaries() == [(1, "Dataset 1:(no dataset name)", True)]
 
 
 def test_pop_loadset_normalizes_nonempty_icachansind_to_zero_based_integers():
