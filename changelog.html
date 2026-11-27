@@ -515,6 +515,16 @@ components opens <code class="docutils literal notranslate"><span class="pre">po
 MRI head-model creation and eLORETA stay disabled, with a tooltip that
 names the missing FieldTrip step and the template or autofit alternative.
 (#675)</p></li>
+<li><p>File &gt; Preferences no longer shows the EEGLAB options that have no meaning
+in Python: two-file saving, the switch for saving fields as individual
+variables, the parallel toolbox, memory-mapped arrays, single precision, the
+EEG object, RMS scaling of ICA activities, Show advanced options, plugins
+pending approval, and HTML in graphics. The header of <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code>
+says why for each. Their keys and defaults stay in <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code>.
+<code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> no longer reads <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code>
+no longer reads <code class="docutils literal notranslate"><span class="pre">option_memmapdata</span></code>: a new dataset is saved in one file
+unless <code class="docutils literal notranslate"><span class="pre">savemode=&quot;twofiles&quot;</span></code> is passed, and a sidecar is memory-mapped
+only with <code class="docutils literal notranslate"><span class="pre">memmap=True</span></code>. (#709)</p></li>
 <li><p>File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
 <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> and refuses to resave a raw BIDS file. <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code>
 replaces the <code class="docutils literal notranslate"><span class="pre">.set</span></code> and <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> only after both temporary files are
