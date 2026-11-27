@@ -17,6 +17,7 @@ from eegprep.extras import import_optional_dependency
 if TYPE_CHECKING:
     import mne
 
+from eegprep.functions.adminfunc.eeg_checkchanlocs import eeg_checkchanlocs
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.miscfunc.matlab_inputs import struct_records
@@ -264,12 +265,14 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
         data = raw.get_data(units="uV")
     except TypeError:
         data = raw.get_data() * 1_000_000.0
+    # EEGLAB imports run eeg_checkchanlocs, which strips "EEG " label prefixes (eeg_checkchanlocs.m line 220).
+    chanlocs, _chaninfo, _all_locations = eeg_checkchanlocs([{"labels": name, "type": "EEG"} for name in raw.ch_names])
     eeg = eeg_from_data(
         data,
         srate=float(raw.info["sfreq"]),
         setname=setname,
         nbchan=len(raw.ch_names),
-        chanlocs=[{"labels": name, "type": "EEG"} for name in raw.ch_names],
+        chanlocs=chanlocs,
         filename=Path(filename).name if filename else "",
         filepath=str(Path(filename).parent) if filename else "",
     )
