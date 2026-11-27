@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- The ``pop_importdata`` window has an **Enter comments** button next to "About this dataset" that opens the ``pop_comments`` editor,
+  and shows "Data sampling rate (Hz)" and "Channel location file or info" in bold. (#756)
+
 - ``eeg_mir`` returns the mutual information reduction (MIR) of a dataset's ICA decomposition, in nats, and the variance of that estimate:
   the mutual information that ``icaweights`` removes from ``icasphere @ data``.
   It uses the binned entropy estimator of ``getMIR.m``, as ``pamica.metrics.mir`` ports it, with a fixed 256 bins instead of a count that grows with the recording,

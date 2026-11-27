@@ -1770,6 +1770,10 @@ def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
 def _run_dialog_action(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
     def update(values: Mapping[str, Any]) -> None:
         for tag, value in values.items():
+            # A pushbutton holding a value (EEGLAB figure userdata) keeps its label.
+            if _is_button(widgets[tag]) and widgets[tag].property(_VALUE_PROPERTY) is not None:
+                widgets[tag].setProperty(_VALUE_PROPERTY, value)
+                continue
             _set_widget_display_value(widgets[tag], value)
             if tag == params.get("index_tag"):
                 setattr(widgets[tag], _DISPLAYED_INDEX_ATTR, int(value))
