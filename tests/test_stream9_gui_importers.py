@@ -507,7 +507,7 @@ def test_f10_presentation_cancel_preserves_dataset(app, tmp_path):
     assert command == ''
 
 
-def test_importdata_rows_share_the_window_height_and_show_the_chanlocs_note(app):
+def test_importdata_window_has_the_height_of_its_content_and_shows_the_chanlocs_note(app):
     from eegprep.functions.guifunc.qt import QtDialogRenderer
     from eegprep.functions.popfunc.pop_importdata import pop_importdata_dialog_spec
 
@@ -521,6 +521,11 @@ def test_importdata_rows_share_the_window_height_and_show_the_chanlocs_note(app)
         ok = dialog.findChild(QtWidgets.QPushButton, 'ok')
         gap = ok.mapTo(dialog, ok.rect().topLeft()).y() - last.mapTo(dialog, last.rect().bottomLeft()).y()
         assert gap < dialog.height() / 8
+        assert dialog.height() <= dialog.layout().sizeHint().height() + 4
+        top = {
+            tag: widgets[tag].mapTo(dialog, widgets[tag].rect().topLeft()).y() for tag in ('setname', 'srate', 'pnts')
+        }
+        assert top['srate'] - top['setname'] > 1.8 * (top['pnts'] - top['srate'])  # EEGLAB's blank row is kept
         boxes = [widgets[tag] for tag in ('srate', 'pnts', 'xmin', 'nbchan', 'ref')]
         assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
     finally:
