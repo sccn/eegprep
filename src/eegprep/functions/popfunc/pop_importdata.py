@@ -14,7 +14,7 @@ from eegprep.functions.guifunc.listdlg2 import listdlg2
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc._file_io import eeg_from_data, infer_dataformat, load_data_array
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import format_history_comments, format_history_value, parse_key_value_args
 from eegprep.functions.popfunc.pop_comments import pop_comments
 from eegprep.functions.popfunc.pop_editset import _history_value, pop_editset
 
@@ -59,6 +59,9 @@ def pop_importdata(
                 ) from exc
     if "data" not in options:
         raise ValueError("pop_importdata requires a 'data' file or array")
+    if isinstance(options.get("comments"), (list, tuple)):
+        # A replayed history command gives multi-line comments as a cell of lines.
+        options["comments"] = "\n".join(str(line) for line in options["comments"])
     data_source = options["data"]
     nbchan = _optional_int(options.get("nbchan"))
     dataformat = infer_dataformat(
@@ -136,7 +139,9 @@ def _history_command(options: dict[str, Any], dataformat: str) -> str:
         "icasphere",
     ]:
         if key in values and _history_value_present(values[key]):
-            pieces.extend([format_history_value(key), _history_value(values[key])])
+            text = key == "comments" and isinstance(values[key], str)
+            value = format_history_comments(values[key]) if text else _history_value(values[key])
+            pieces.extend([format_history_value(key), value])
     return f"EEG = pop_importdata({', '.join(pieces)});"
 
 

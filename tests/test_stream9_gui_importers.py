@@ -425,11 +425,16 @@ def test_pop_importdata_enter_comments_button_opens_pop_comments(app, tmp_path):
     timer.timeout.connect(step)
     timer.start(10)
     try:
-        eeg = module.pop_importdata(data=str(path), dataformat='ascii', gui=True)
+        eeg, com = module.pop_importdata(data=str(path), dataformat='ascii', gui=True, return_com=True)
     finally:
         timer.stop()
     assert 'Read/Enter text -- pop_comments()' in titles
     assert eeg['comments'] == 'line one\nline two'
+    # Multi-line comments go into history as a cell of lines, on one line that replays.
+    assert '\n' not in com
+    assert "'comments', {'line one' 'line two'}" in com
+    replayed = module.pop_importdata(data=str(path), dataformat='ascii', comments=['line one', 'line two'])
+    assert replayed['comments'] == 'line one\nline two'
 
 
 @pytest.mark.parametrize('name', ['pop_loadbv', 'pop_fileio', 'pop_readegi', 'pop_biosig'])
