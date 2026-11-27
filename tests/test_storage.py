@@ -49,8 +49,7 @@ def test_pop_saveset_twofiles_roundtrips_epoched_data_as_memmap(tmp_path: Path):
     set_file = tmp_path / "epoched.set"
 
     pop_saveset(_eeg(data, name="epoched"), set_file, savemode="twofiles")
-    EEG_OPTIONS["option_memmapdata"] = 1
-    loaded = pop_loadset(set_file)
+    loaded = pop_loadset(set_file, memmap=True)
 
     assert (tmp_path / "epoched.fdt").exists()
     assert isinstance(loaded["data"], MemmapData)
@@ -80,16 +79,19 @@ def test_zero_trial_sidecar_loads_empty_data(tmp_path: Path):
     assert loaded["data"].size == 0
 
 
-def test_option_savetwofiles_defaults_to_sidecar_storage(tmp_path: Path):
+def test_stale_storage_options_still_save_one_file(tmp_path: Path):
+    """A saved options.json with these keys on must not bring back two files (#709)."""
     EEG_OPTIONS["option_savetwofiles"] = 1
+    EEG_OPTIONS["option_memmapdata"] = 1
     data = np.arange(12, dtype=np.float32).reshape((3, 4))
     set_file = tmp_path / "option.set"
 
     saved = pop_saveset(_eeg(data), set_file)
     loaded = pop_loadset(set_file)
 
-    assert saved["datfile"] == "option.fdt"
-    assert (tmp_path / "option.fdt").exists()
+    assert saved["datfile"] == ""
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["option.set"]
+    assert not isinstance(loaded["data"], MemmapData)
     np.testing.assert_allclose(loaded["data"], data)
 
 

@@ -191,21 +191,14 @@ resident:
 
    from pathlib import Path
 
-   from eegprep import EEG_OPTIONS, pop_loadset, pop_saveset
+   from eegprep import pop_loadset, pop_saveset
 
-   old_options = dict(EEG_OPTIONS)
-   try:
-       EEG_OPTIONS["option_savetwofiles"] = 1
-       EEG_OPTIONS["option_memmapdata"] = 1
-       EEG = pop_loadset("sample_data/eeglab_data.set")
-       output_dir = Path("tutorial_outputs") / "storage"
-       output_dir.mkdir(parents=True, exist_ok=True)
-       output_file = output_dir / "subject01.set"
-       pop_saveset(EEG, output_file)
-       EEG = pop_loadset(output_file)
-   finally:
-       EEG_OPTIONS.clear()
-       EEG_OPTIONS.update(old_options)
+   EEG = pop_loadset("sample_data/eeglab_data.set")
+   output_dir = Path("tutorial_outputs") / "storage"
+   output_dir.mkdir(parents=True, exist_ok=True)
+   output_file = output_dir / "subject01.set"
+   pop_saveset(EEG, output_file, savemode="twofiles")
+   EEG = pop_loadset(output_file, memmap=True)
 
 See :ref:`large_dataset_storage` for ``option_storedisk`` and two-file storage
 details.

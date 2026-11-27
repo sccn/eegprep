@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_comments
 
 
 def pop_comments(
@@ -115,17 +115,10 @@ def _truthy_concat(value: bool | int) -> bool:
 
 def _history_command(newcomments: str, *, concat: bool, is_eeg: bool) -> str:
     target = "EEG" if is_eeg else "comments"
-    command = f"{target} = pop_comments({target}, '', {_history_comments_value(newcomments)}"
+    command = f"{target} = pop_comments({target}, '', {format_history_comments(newcomments)}"
     if concat:
         command += ", 1"
     return command + ");"
-
-
-def _history_comments_value(comments: str) -> str:
-    if "\n" not in comments:
-        return format_history_value(comments)
-    lines = [line if line else " " for line in comments.split("\n")]
-    return format_history_value(lines, cell_for_sequence="always")
 
 
 __all__ = ["pop_comments", "pop_comments_dialog_spec"]

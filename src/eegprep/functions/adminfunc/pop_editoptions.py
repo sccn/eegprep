@@ -1,4 +1,28 @@
-"""Edit and persist EEGPrep workflow preferences."""
+"""Edit and persist EEGPrep workflow preferences.
+
+The Preferences window leaves out these options of EEGLAB's ``pop_editoptions``
+because they have no meaning in Python:
+
+- ``option_savetwofiles``: EEGPrep saves a new dataset in one file;
+  ``pop_saveset(..., savemode="twofiles")`` still writes a ``.fdt`` sidecar.
+- ``option_saveasstruct``: dataset fields are always saved as individual
+  variables (the EEGLAB 2021 format), with no switch to undo it.
+- ``option_parallel``: it drives MATLAB's parallel toolbox.
+- ``option_memmapdata``: memory-mapped arrays are not a preference in Python;
+  ``pop_loadset(..., memmap=True)`` maps a ``.fdt`` sidecar.
+- ``option_single``: precision is not a preference; the option has no effect.
+- ``option_eegobject``: the EEG object is a MATLAB class; EEG is a dict here.
+- ``option_scaleicarms``: ICA activities are always scaled to RMS microvolt.
+- ``option_showadvanced``: no advanced options are left to reveal.
+- ``option_showpendingplugins``: extensions are Python packages, with no list
+  of plugins pending approval.
+- ``option_htmlingraphics``: it controls HTML in MATLAB graphics.
+
+The toolbox option and the -99 boundary option are kept. The options left out
+keep their key and default in ``EEG_OPTIONS`` so EEGLAB scripts and saved
+option files still load; ``pop_saveset`` and ``pop_loadset`` do not read
+``option_savetwofiles`` or ``option_memmapdata``.
+"""
 
 from __future__ import annotations
 
@@ -16,56 +40,29 @@ from eegprep.functions.popfunc._pop_utils import format_history_value
 
 _OPTION_LABELS = {
     "option_storedisk": "Keep at most one dataset in memory (save other datasets to disk)",
-    "option_savetwofiles": "Save two files for each dataset (header and data)",
     "option_saveversion6": "Write files in MATLAB v6.5 format",
-    "option_saveasstruct": "Save EEG fields as individual variables in the file",
-    "option_parallel": "Use the parallel toolbox when processing multiple datasets",
-    "option_single": "Use single precision (32-bit instead of 64-bit) in memory",
-    "option_memmapdata": "Use memory-mapped arrays when loading two-file datasets",
-    "option_eegobject": "Use the MATLAB EEG object instead of a structure",
     "option_computeica": "Precompute ICA activations (requires more RAM)",
-    "option_scaleicarms": "Scale ICA component activities to RMS microvolt",
     "option_rememberfolder": "Remember the previous dataset folder when browsing",
     "option_donotusetoolboxes": "Do not use additional MATLAB toolboxes",
-    "option_showadvanced": "Show advanced options (reopen this dialog)",
     "option_boundary99": "Use type -99 for boundary events with numerical event types",
-    "option_showpendingplugins": "Show plugins pending approval",
     "option_allmenus": "Show all menu items from previous EEGLAB versions",
-    "option_htmlingraphics": "Allow HTML in graphics",
     "option_checkversion": "Check for new versions at startup",
     "option_cachesize": "STUDY cache size in MB",
     "option_native_dialogs": "Use native OS file dialogs",
 }
-_DEFAULT_OPTIONS = {
-    "option_storedisk",
-    "option_savetwofiles",
-    "option_parallel",
-    "option_computeica",
-    "option_rememberfolder",
-    "option_showadvanced",
-    "option_boundary99",
-    "option_allmenus",
-    "option_checkversion",
-    "option_cachesize",
-    "option_native_dialogs",
-}
-_MATLAB_ONLY_OPTIONS = {"option_parallel", "option_eegobject", "option_donotusetoolboxes"}
+_MATLAB_ONLY_OPTIONS = {"option_donotusetoolboxes"}
 _SUPPORTED_OPTIONS = {
     "option_storedisk",
-    "option_savetwofiles",
-    "option_memmapdata",
-    "option_showadvanced",
     "option_boundary99",
     "option_allmenus",
     "option_native_dialogs",
 }
 _OPTION_SECTIONS = {
     "option_storedisk": "STUDY and file options",
-    "option_single": "Memory options",
     "option_computeica": "ICA options",
     "option_rememberfolder": "Folder options",
     "option_donotusetoolboxes": "Toolbox options",
-    "option_showadvanced": "EEGPrep connectivity and support",
+    "option_boundary99": "EEGPrep connectivity and support",
     "option_native_dialogs": "EEGPrep interface",
 }
 
@@ -143,24 +140,20 @@ def load_eegprep_options(options_path: str | Path | None = None) -> None:
 
 
 def pop_editoptions_dialog_spec(options: dict[str, Any], path: Path | None = None) -> DialogSpec:
-    """Return the memory-options dialog, including advanced preferences."""
+    """Return the memory-options dialog with the options that have a meaning in Python."""
     option_file = str(path or eegprep_options_path())
     controls = [
         ControlSpec("text", f"Option file: {option_file}", tooltip=option_file),
-        ControlSpec("text", "Disabled preferences are not supported in EEGPrep; see Help for details."),
+        ControlSpec("text", "The greyed options have no effect in EEGPrep yet; see Help for details."),
     ]
     geometry: list[tuple[float, ...]] = [(1,), (1,)]
     for key, label in _OPTION_LABELS.items():
-        if key not in _DEFAULT_OPTIONS and not options["option_showadvanced"]:
-            continue
         if key in _OPTION_SECTIONS:
             controls.append(ControlSpec("text", _OPTION_SECTIONS[key], font_weight="bold"))
             geometry.append((1,))
         enabled = key in _SUPPORTED_OPTIONS
         tooltip = None
-        if key == "option_single":
-            tooltip = "option_single has no effect in EEGPrep. Datasets stay float64 so existing numeric results do not change."
-        elif not enabled:
+        if not enabled:
             tooltip = (
                 "Requires MATLAB; unavailable in standalone EEGPrep."
                 if key in _MATLAB_ONLY_OPTIONS

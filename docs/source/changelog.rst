@@ -10,12 +10,26 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- File > Import data names its two reader menus Using the EEG-IO interface
+  (``pop_fileio``) and Using the MNE-IO interface (``pop_biosig``), in place of
+  EEGLAB's FILE-IO and BIOSIG. EDF, BDF and GDF files open only through
+  MNE-IO, and the EEG-IO data-format list no longer offers an MNE entry.
+  Scripts are unchanged: ``pop_fileio(..., dataformat="biosig")`` still works.
+  (#761)
+
+- The ``pop_importdata`` window has an **Enter comments** button next to "About this dataset" that opens the ``pop_comments`` editor,
+  and shows "Data sampling rate (Hz)" and "Channel location file or info" in bold. (#756)
+
 - ``eeg_mir`` returns the mutual information reduction (MIR) of a dataset's ICA decomposition, in nats, and the variance of that estimate:
   the mutual information that ``icaweights`` removes from ``icasphere @ data``.
   It uses the binned entropy estimator of ``getMIR.m``, as ``pamica.metrics.mir`` ports it, with a fixed 256 bins instead of a count that grows with the recording,
   so MIR no longer drifts with recording length; it needs no optional dependency.
   Epochs are concatenated and ``icachansind`` selects the channels.
   A missing, non-square or singular decomposition, and non-finite data, raise ``ValueError``.
+
+- EDF, BDF, GDF and other MNE-read imports remove the ``EEG`` prefix of channel labels
+  (``EEG Fp1`` and ``EEG-Fp1`` become ``Fp1``), as EEGLAB does for every import, unless
+  30 or more labels are numbered. The labels then match channel location files. (#746)
 
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
@@ -24,12 +38,6 @@ Unreleased
   ``Other``, a name the appendix does not list, or a coordsystem that names no system leaves the channel locations unset,
   with a report warning that names the coordsystem file, instead of being read as RAS. (#692)
 
-- The ``pop_biosig`` dialog has the controls of EEGLAB's dialog, without the
-  mexSLOAD and memory-mapping checkboxes, which have no Python counterpart.
-  ``uncalibrated="on"`` returns the integers stored in an EDF or BDF file.
-  ``overflow="on"`` leaves EDF and BDF data unchanged, as BIOSIG does, and
-  ``blockepoch="on"`` raises ``ValueError``. A dialog import writes to the
-  history only the options that leave their default. (#701)
 - Edit and Tools follow the November 23 GUI audit. Epoched ``pop_select``
   keeps the ``epoch.m`` half-open window (128 points and ``xmax=0.4921875``
   on the tutorial crop) and rejects a time range that misses the data.
@@ -40,6 +48,16 @@ Unreleased
   MRI head-model creation and eLORETA stay disabled, with a tooltip that
   names the missing FieldTrip step and the template or autofit alternative.
   (#675)
+- File > Preferences no longer shows the EEGLAB options that have no meaning
+  in Python: two-file saving, the switch for saving fields as individual
+  variables, the parallel toolbox, memory-mapped arrays, single precision, the
+  EEG object, RMS scaling of ICA activities, Show advanced options, plugins
+  pending approval, and HTML in graphics. The header of ``pop_editoptions``
+  says why for each. Their keys and defaults stay in ``EEG_OPTIONS``.
+  ``pop_saveset`` no longer reads ``option_savetwofiles`` and ``pop_loadset``
+  no longer reads ``option_memmapdata``: a new dataset is saved in one file
+  unless ``savemode="twofiles"`` is passed, and a sidecar is memory-mapped
+  only with ``memmap=True``. (#709)
 - File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
   ``derivatives/eeglab`` and refuses to resave a raw BIDS file. ``pop_saveset``
   replaces the ``.set`` and ``.fdt`` only after both temporary files are
@@ -58,6 +76,11 @@ Unreleased
   Replacing a mapped ``.fdt`` leaves an open array view readable; on Windows
   that resave is refused until the view is closed or the dataset is saved
   as a new file. (#673)
+- Dialogs with a fixed window size share the window height among their rows, as
+  EEGLAB's ``supergui`` does, instead of stacking the rows at the top above an
+  empty band. About fifty dialogs of the File, Edit, Tools and Plot menus take
+  their whole window. ``pop_importdata`` sizes its columns by their weights and
+  shows EEGLAB's note on channel location files. (#700)
 - ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
   settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
   3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,

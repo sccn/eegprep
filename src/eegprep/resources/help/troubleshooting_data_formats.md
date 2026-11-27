@@ -10,7 +10,9 @@ If import fails:
 - Confirm the file extension matches the selected menu action.
 - Use `pop_loadset` for EEGLAB `.set` files.
 - Use `pop_importdata` for numeric arrays and text/NumPy/MATLAB array files.
-- Use `pop_fileio` or the File-IO plugin menu items for EDF/BDF/GDF,
+- Use File > Import data > Using the MNE-IO interface (`pop_biosig`) for
+  EDF/BDF/GDF files.
+- Use File > Import data > Using the EEG-IO interface (`pop_fileio`) for
   BrainVision, MFF, CNT, and EEG formats.
 - Use `pop_importbids` for BIDS folders or supported BIDS EEG files.
 - Check that MNE is installed in the environment used to launch EEGPrep.

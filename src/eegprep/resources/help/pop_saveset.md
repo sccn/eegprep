@@ -10,8 +10,7 @@ pop_saveset(EEG, "cleaned.set", savemode="twofiles")
 ```
 
 `savemode="twofiles"` writes a `.set` header and an EEGLAB-style `.fdt`
-float32 sidecar. The same layout is used by default when
-`EEG_OPTIONS["option_savetwofiles"] = 1`.
+float32 sidecar. `EEG_OPTIONS["option_savetwofiles"]` is not read.
 
 Use `savemode="resave"` to keep an existing two-file dataset in its `.fdt`
 sidecar. Resave only writes a dataset that already has a `.set` filename.
@@ -20,8 +19,8 @@ saved yet: pass a `.set` path, or use File > Save current dataset as. Resave
 will not replace the original recording. Any other filename is stored as
 `.set`, including a name whose extension is not `.set`.
 
-A plain save follows the current `option_savetwofiles` setting and
-may inline data into the `.set` file when that option is disabled.
+A plain save of a new dataset writes one `.set` file with the data inside.
+A dataset loaded from a `.set` and `.fdt` pair keeps its two files.
 A missing parent folder is created. If the path still cannot be written,
 `pop_saveset` raises an error and leaves the dataset unsaved.
 

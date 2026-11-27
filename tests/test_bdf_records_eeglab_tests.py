@@ -192,34 +192,6 @@ def test_pop_biosig_reads_status_events_when_channel_list_omits_status(tmp_path:
     assert _event_pairs(eeg) == [(5, 3), (7, 7)]
     assert _event_pairs(pop_biosig(path, channels=[1, 2], importevent="off")) == []
 
-
-def test_pop_biosig_uncalibrated_returns_stored_bdf_integers(tmp_path: Path) -> None:
-    path = tmp_path / "digital.bdf"
-    first = [np.array([1, -2, 3, 40]), np.array([7, 8, -9, 10]), np.array([0, 0, 5, 0])]
-    second = [np.array([11, 12, 13, 14]), np.array([-1, -2, -3, -4]), np.array([0, 0, 0, 0])]
-    _write_bdf(
-        path,
-        labels=["A1", "A2", "Status"],
-        samples_per_record=[4, 4, 4],
-        records=[first, second],
-        physical_minimum=[-262144, -262144, -8388608],
-        physical_maximum=[262144, 262144, 8388607],
-        digital_minimum=[-8388608, -8388608, -8388608],
-        digital_maximum=[8388607, 8388607, 8388607],
-    )
-    stored = np.array([np.r_[first[0], second[0]], np.r_[first[1], second[1]]])
-
-    calibrated = pop_biosig(path)
-    digital, command = pop_biosig(path, uncalibrated="on", return_com=True)
-    np.testing.assert_array_equal(digital["data"], stored)
-    gain = 524288 / 16777215
-    np.testing.assert_allclose(calibrated["data"], stored * gain - 262144 + 8388608 * gain)
-    assert _event_pairs(digital) == [(5, 3)]
-    assert "'uncalibrated', 'on'" in command
-    window = pop_biosig(path, uncalibrated="on", blockrange=[0, 4 / digital["srate"]], channels=[2, 3])
-    np.testing.assert_array_equal(window["data"], stored[[1], :4])
-
-
 def test_pop_biosig_rejects_unsupported_bdf_event_options(tmp_path: Path) -> None:
     path = tmp_path / "options.bdf"
     _write_status_bdf(path, [np.array([0, 5, 0, 0])])
