@@ -74,6 +74,14 @@ def format_history_value(
     return str(value)
 
 
+def format_history_comments(comments: str) -> str:
+    """Format dataset comments for history, multi-line text as a cell of lines."""
+    if "\n" not in comments:
+        return format_history_value(comments)
+    lines = [line if line else " " for line in comments.split("\n")]
+    return format_history_value(lines, cell_for_sequence="always")
+
+
 def _is_nested_sequence(value: Any) -> bool:
     return isinstance(value, np.ndarray) or (isinstance(value, (list, tuple)) and not isinstance(value, (str, bytes)))
 

@@ -224,7 +224,7 @@ class QtDialogRenderer:
         for row_index, row_geometry in enumerate(spec.geometry):
             weights = self._row_weights(row_geometry)
             row_container = qt_widgets.QWidget()
-            if spec.geomvert is None:
+            if spec.geomvert is None and not _rows_share_height(spec):
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
@@ -255,6 +255,8 @@ class QtDialogRenderer:
                 index += 1
             if added_visible_widget:
                 content_layout.addWidget(row_container, self._row_stretch(spec, row_index))
+            elif _rows_share_height(spec):
+                content_layout.addStretch(self._row_stretch(spec, row_index))
             else:
                 content_layout.addSpacing(self._spacer_row_height(spec, row_index))
 
@@ -266,6 +268,9 @@ class QtDialogRenderer:
             if not spec.horizontal_scroll:
                 scroll_area.setHorizontalScrollBarPolicy(qt_core.Qt.ScrollBarAlwaysOff)
             scroll_area.setWidget(content_widget)
+            # setWidget makes both fill their own grey background: let the dialog's blue show
+            scroll_area.viewport().setAutoFillBackground(False)
+            content_widget.setAutoFillBackground(False)
             layout.addWidget(scroll_area, 1)
 
         for control in spec.controls:
@@ -777,6 +782,8 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
         }}
         QLabel, QCheckBox, QRadioButton {{
             color: {EEGLAB_TEXT};
+        }}
+        QLabel {{
             background: transparent;
         }}
         QLabel:disabled, QCheckBox:disabled, QRadioButton:disabled {{
@@ -907,9 +914,23 @@ def _supergui_stretch(weight: float, row_total: float, most_columns: int) -> int
     return max(1, round((weight / row_total - 1.5 * spacing) * 10000))
 
 
+def _rows_share_height(spec: DialogSpec) -> bool:
+    """Whether the rows split the height of a fixed-size window evenly.
+
+    EEGLAB's supergui gives every row the same share of the figure height when
+    no geomvert is given. A text area keeps the spare height for itself.
+    """
+    return (
+        spec.geomvert is None
+        and spec.size is not None
+        and not spec.scrollable
+        and not any(control.style.lower() == "textarea" for control in spec.controls)
+    )
+
+
 def _row_stretch(spec: DialogSpec, row_index: int) -> int:
     if spec.geomvert is None:
-        return 0
+        return 100 if _rows_share_height(spec) else 0
     value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
     return max(1, round(float(value) * 100))
 
@@ -928,7 +949,7 @@ def _add_buttons(
     dialog: Any,
     widgets: dict[str, Any],
 ) -> None:
-    if spec.geomvert is None and spec.size is not None and not spec.scrollable:
+    if spec.geomvert is None and spec.size is not None and not spec.scrollable and not _rows_share_height(spec):
         layout.addStretch(1)
     button_container = QtWidgets.QWidget()
     button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
@@ -977,7 +998,33 @@ def _apply_button_size(button: Any, requested: tuple[int, int] | None) -> None:
 def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:
     if spec.size is None:
         return
-    dialog.resize(*spec.size)
+    width, height = spec.size
+    if spec.fit_weighted_labels:
+        width = max(width, _width_fitting_weighted_labels(dialog, spec))
+    dialog.resize(width, dialog.height() if height is None else height)
+
+
+def _width_fitting_weighted_labels(dialog: Any, spec: DialogSpec) -> int:
+    """Return the window width at which no label of a weighted row is cut.
+
+    Weighted columns ignore the size of their content, so a font wider than
+    the one the dialog was sized for would cut its labels.
+    """
+    left, _top, right, _bottom = spec.content_margins
+    needed = 0
+    layout = dialog.layout()
+    for index in range(layout.count()):
+        container = layout.itemAt(index).widget()
+        row = container.layout() if container is not None else None
+        if row is None:
+            continue
+        total = sum(row.stretch(column) for column in range(row.count()))
+        gaps = (spec.column_spacing + 1) * (row.count() - 1)  # one pixel per column for the rounding of the shares
+        for column in range(row.count()):
+            widget = row.itemAt(column).widget()
+            if row.stretch(column) and _qt_isinstance(widget, "QLabel", "QCheckBox"):
+                needed = max(needed, math.ceil(widget.sizeHint().width() * total / row.stretch(column)) + gaps)
+    return needed + left + right
 
 
 def _apply_font_hints(widget: Any, control: ControlSpec) -> None:
@@ -1731,6 +1778,10 @@ def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
 def _run_dialog_action(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
     def update(values: Mapping[str, Any]) -> None:
         for tag, value in values.items():
+            # A pushbutton holding a value (EEGLAB figure userdata) keeps its label.
+            if _is_button(widgets[tag]) and widgets[tag].property(_VALUE_PROPERTY) is not None:
+                widgets[tag].setProperty(_VALUE_PROPERTY, value)
+                continue
             _set_widget_display_value(widgets[tag], value)
             if tag == params.get("index_tag"):
                 setattr(widgets[tag], _DISPLAYED_INDEX_ATTR, int(value))

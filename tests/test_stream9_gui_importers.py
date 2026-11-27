@@ -91,17 +91,7 @@ def test_f18_mff_picker_selects_directory(app, tmp_path, monkeypatch):
         (
             'pop_biosig',
             {'filename': 'unused.edf'},
-            {
-                'channels',
-                'blockrange',
-                'ref',
-                'bdfeventmode',
-                'importevent',
-                'blockepoch',
-                'overflow',
-                'uncalibrated',
-                'importannot',
-            },
+            {'channels', 'blockrange', 'ref', 'bdfeventmode', 'importevent', 'rmeventchan'},
         ),
         ('pop_loadbv', {'path': 'unused.vhdr'}, {'chans', 'srange'}),
         ('pop_fileio', {'filename': 'unused.eeg'}, {'channels', 'samples', 'trials'}),
@@ -317,11 +307,24 @@ def test_f8_import_menu_keeps_pinned_labels_and_order():
     labels = [item.label for item in native.children if item.action]
     assert labels[:3] == [
         'From ASCII/float file or MATLAB array',
-        'From Biosemi BDF file (BIOSIG toolbox)',
-        'From EDF/EDF+/GDF files (BIOSIG toolbox)',
+        'From Biosemi BDF file (MNE-IO)',
+        'From EDF/EDF+/GDF files (MNE-IO)',
     ]
     actions = [item.action for item in native.children]
     assert actions.index('pop_fileio_mff') < actions.index('pop_fileio_cnt') < actions.index('pop_fileio_brainvision')
+    interfaces = {item.action: item.label for item in imported.children if item.action in ('pop_fileio', 'pop_biosig')}
+    assert interfaces == {'pop_fileio': 'Using the EEG-IO interface', 'pop_biosig': 'Using the MNE-IO interface'}
+
+
+def test_eeg_io_menu_sends_files_read_through_mne_to_the_mne_io_menu(app, tmp_path, monkeypatch):
+    path = _write_edf_bids_dataset(tmp_path)
+    monkeypatch.setattr(QtWidgets.QFileDialog, 'getOpenFileName', lambda *args, **kwargs: (str(path), ''))
+    shown = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, 'information', lambda _parent, _title, text, *_args: shown.append(text))
+    session = EEGPrepSession()
+    MenuActionDispatcher(session, native_file_dialogs=False).dispatch('pop_fileio')
+    assert len(shown) == 1 and 'MNE-IO' in shown[0]
+    assert session.CURRENTSET == []
 
 
 @pytest.mark.parametrize('action', ['pop_importpres', 'pop_importerplab'])
@@ -402,6 +405,41 @@ def test_f21_supplied_ascii_format_survives_options_dialog(app, tmp_path):
     np.testing.assert_array_equal(eeg['data'], data)
 
 
+def test_pop_importdata_enter_comments_button_opens_pop_comments(app, tmp_path):
+    path = tmp_path / 'input.txt'
+    np.savetxt(path, np.arange(12).reshape(2, 6))
+    module = importlib.import_module('eegprep.functions.popfunc.pop_importdata')
+    titles = []
+
+    def step():
+        dialog = app.activeModalWidget()
+        if dialog is None:
+            return
+        titles.append(dialog.windowTitle())
+        if dialog.windowTitle() == 'Read/Enter text -- pop_comments()':
+            dialog.findChild(QtWidgets.QTextEdit, 'comments').setPlainText('line one\nline two')
+            dialog.accept()
+        elif len(titles) == 1:
+            QtCore.QTimer.singleShot(0, dialog.findChild(QtWidgets.QPushButton, 'comments').click)
+        else:
+            dialog.accept()
+
+    timer = QtCore.QTimer()
+    timer.timeout.connect(step)
+    timer.start(10)
+    try:
+        eeg, com = module.pop_importdata(data=str(path), dataformat='ascii', gui=True, return_com=True)
+    finally:
+        timer.stop()
+    assert 'Read/Enter text -- pop_comments()' in titles
+    assert eeg['comments'] == 'line one\nline two'
+    # Multi-line comments go into history as a cell of lines, on one line that replays.
+    assert '\n' not in com
+    assert "'comments', {'line one' 'line two'}" in com
+    replayed = module.pop_importdata(data=str(path), dataformat='ascii', comments=['line one', 'line two'])
+    assert replayed['comments'] == 'line one\nline two'
+
+
 @pytest.mark.parametrize('name', ['pop_loadbv', 'pop_fileio', 'pop_readegi', 'pop_biosig'])
 def test_f10_reader_options_apply_selection_and_replay(app, tmp_path, name):
     data = np.arange(40).reshape(2, 20) + 1
@@ -467,3 +505,23 @@ def test_f10_presentation_cancel_preserves_dataset(app, tmp_path):
         timer.stop()
     assert out is eeg
     assert command == ''
+
+
+def test_importdata_rows_share_the_window_height_and_show_the_chanlocs_note(app):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.popfunc.pop_importdata import pop_importdata_dialog_spec
+
+    spec = pop_importdata_dialog_spec()
+    assert any('use menu "Edit > Channel locations"' in control.string for control in spec.controls)
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(spec)
+    dialog.show()
+    app.processEvents()
+    try:
+        last = widgets['icasphere']
+        ok = dialog.findChild(QtWidgets.QPushButton, 'ok')
+        gap = ok.mapTo(dialog, ok.rect().topLeft()).y() - last.mapTo(dialog, last.rect().bottomLeft()).y()
+        assert gap < dialog.height() / 8
+        boxes = [widgets[tag] for tag in ('srate', 'pnts', 'xmin', 'nbchan', 'ref')]
+        assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
+    finally:
+        dialog.close()

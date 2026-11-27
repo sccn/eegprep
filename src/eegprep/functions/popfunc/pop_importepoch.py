@@ -290,20 +290,21 @@ def pop_importepoch_dialog_spec(EEG) -> DialogSpec:
         ControlSpec('spacer'),
         ControlSpec('text', 'File input field (col.) names', font_weight='bold'),
         ControlSpec('edit', tag='fieldlist'),
+        ControlSpec('spacer'),
     ]
     for label, tag, hint in [
         ('Field name(s) containing event latencies', 'latencyfields', '(Ex: RT)'),
         ('Field name(s) containing event durations', 'durationfields', '0 = no duration'),
-        ('Field containing time-locking event type(s)', 'typefield', 'Default: TLE'),
+        ('Field name containing time-locking event type(s)', 'typefield', 'Default: TLE'),
     ]:
         controls.extend([ControlSpec('text', label), ControlSpec('edit', tag=tag), ControlSpec('text', hint)])
     controls.extend(
         [
             ControlSpec('spacer'),
-            ControlSpec('text', 'Time unit (sec)'),
+            ControlSpec('text', 'Latency time unit rel. to seconds. Ex: ms -> 1E-3 (NaN -> samples)'),
             ControlSpec('edit', tag='timeunit', value='1'),
             ControlSpec('spacer'),
-            ControlSpec('text', 'Number of file header lines'),
+            ControlSpec('text', 'Number of file header lines to ignore'),
             ControlSpec('edit', tag='headerlines', value='0'),
             ControlSpec('spacer'),
             ControlSpec('text', 'Remove old epoch and event info (set = yes)'),
@@ -316,8 +317,8 @@ def pop_importepoch_dialog_spec(EEG) -> DialogSpec:
         function_name='pop_importepoch',
         help_text='pop_importepoch',
         eeglab_source='functions/popfunc/pop_importepoch.m',
-        geometry=([1, 1, 1.86], 1, [1, 0.66], *[[2.5, 1, 1]] * 3, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.3, 0.7]),
+        geometry=([1, 1, 1.86], 1, *[[2.5, 1, 1]] * 4, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.3, 0.7]),
         controls=tuple(controls),
         weighted_columns=True,
-        size=(820, 350),
+        size=(900, 350),
     )
