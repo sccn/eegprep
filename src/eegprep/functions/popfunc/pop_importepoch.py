@@ -290,6 +290,7 @@ def pop_importepoch_dialog_spec(EEG) -> DialogSpec:
         ControlSpec('spacer'),
         ControlSpec('text', 'File input field (col.) names', font_weight='bold'),
         ControlSpec('edit', tag='fieldlist'),
+        ControlSpec('spacer'),
     ]
     for label, tag, hint in [
         ('Field name(s) containing event latencies', 'latencyfields', '(Ex: RT)'),
@@ -316,7 +317,7 @@ def pop_importepoch_dialog_spec(EEG) -> DialogSpec:
         function_name='pop_importepoch',
         help_text='pop_importepoch',
         eeglab_source='functions/popfunc/pop_importepoch.m',
-        geometry=([1, 1, 1.86], 1, [1, 0.66], *[[2.5, 1, 1]] * 3, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.3, 0.7]),
+        geometry=([1, 1, 1.86], 1, *[[2.5, 1, 1]] * 4, 1, [2, 0.5, 0.5], [2, 0.5, 0.5], [2, 0.3, 0.7]),
         controls=tuple(controls),
         weighted_columns=True,
         size=(820, 350),
