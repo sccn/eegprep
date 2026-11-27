@@ -1630,9 +1630,13 @@ def test_chanevent_labels_fit_their_column(qapp):
         assert label.width() >= label.sizeHint().width()
     assert found["(click to select)"].text() == "(click to select)"
     assert found["(set=yes)"].text() == "(set=yes)"
-    assert found["        (set = yes)"].text() == "        (set = yes)"
+    assert found["(set = yes)"].x() == found["(set=yes)"].x()
     boxes = [_widgets[tag] for tag in ("chan", "oper", "edge", "edgelen", "duration", "delchan", "delevent", "nbtype")]
     assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
+    top = {tag: box.mapTo(dialog, box.rect().topLeft()).y() for tag, box in _widgets.items()}
+    row = top["edge"] - top["oper"]
+    assert top["oper"] - top["chan"] > 1.8 * row  # EEGLAB's blank row after the event channel
+    assert top["delchan"] - top["duration"] > 1.8 * row  # and before the three delete and type checkboxes
     layout = dialog.layout()
     assert dialog.height() <= layout.sizeHint().height() + 4
     dialog.close()
