@@ -192,6 +192,7 @@ def test_pop_biosig_reads_status_events_when_channel_list_omits_status(tmp_path:
     assert _event_pairs(eeg) == [(5, 3), (7, 7)]
     assert _event_pairs(pop_biosig(path, channels=[1, 2], importevent="off")) == []
 
+
 def test_pop_biosig_rejects_unsupported_bdf_event_options(tmp_path: Path) -> None:
     path = tmp_path / "options.bdf"
     _write_status_bdf(path, [np.array([0, 5, 0, 0])])
