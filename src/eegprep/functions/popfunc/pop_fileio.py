@@ -14,6 +14,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.extras import import_optional_dependency
 
+from eegprep.functions.adminfunc.eeg_checkchanlocs import eeg_checkchanlocs
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc._file_io import eeg_from_data, mne_raw_to_eeg
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
@@ -138,7 +139,8 @@ def pop_fileio(
         raw = reader(str(path), preload=True, verbose=False)
         if blockrange is not None:
             _crop_raw_to_blockrange(raw, blockrange)
-        eeg = mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))
+        # eeg_checkchanlocs removes the EDF label prefix (EEG Fp1 becomes Fp1), as every EEGLAB import does
+        eeg = eeg_checkchanlocs(mne_raw_to_eeg(raw, setname=path.stem, filename=str(path)))
     eeg = _select_imported_data(eeg, channels=channels, samples=samples, trials=trials)
     command = _history_command(source_path, history_options)
     eeg["history"] = command
@@ -172,7 +174,7 @@ def _read_requested_format(
             path.suffix.lower() if path.suffix.lower() in {".edf", ".bdf", ".gdf"} else ".edf", feature
         )
         raw = reader(str(path), preload=True, verbose=False)
-        return mne_raw_to_eeg(raw, setname=path.stem, filename=str(path)), channels
+        return eeg_checkchanlocs(mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))), channels
     if dataformat == "egi-mff":
         loaded = pop_mffimport(path)
         return loaded, channels

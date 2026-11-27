@@ -7,6 +7,7 @@ from eegprep import pop_loadbv
 from tests.test_pop_loadbv import _write_binary_brainvision
 
 import numpy as np
+import pyedflib
 import pytest
 
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
@@ -93,3 +94,28 @@ def test_f10_edf_annotations_are_independent_of_marker_events(tmp_path):
     annotations = pop_biosig(path, importevent='off')
     assert len(original['event']) > 0
     assert [event['type'] for event in annotations['event']] == [event['type'] for event in original['event']]
+
+
+def test_edf_labels_lose_the_eeg_prefix_as_in_eeglab(tmp_path):
+    path = tmp_path / "prefix.edf"
+    writer = pyedflib.EdfWriter(str(path), 2)
+    writer.setSignalHeaders(
+        [
+            {
+                "label": label,
+                "dimension": "uV",
+                "sample_frequency": 100,
+                "physical_min": -100,
+                "physical_max": 100,
+                "digital_min": -32768,
+                "digital_max": 32767,
+                "transducer": "",
+                "prefilter": "",
+            }
+            for label in ("EEG Fp1", "EEG Fp2")
+        ]
+    )
+    writer.writeSamples([np.zeros(100), np.ones(100)])
+    writer.close()
+    for reader in (pop_biosig, pop_fileio):
+        assert [loc["labels"] for loc in reader(path)["chanlocs"]] == ["Fp1", "Fp2"]
