@@ -24,7 +24,8 @@ are accepted; any other value raises `ValueError`. Modes 3 and 5 keep each
 trigger code on the edge that produced it. `importevent` defaults to `on` and
 replaces file annotations with those triggers; `off` leaves the annotations in
 place. Triggers are read from the file's `Status` channel even when
-`channels` leaves it out. `rmeventchan` defaults to `on` and removes `Status`; `off` keeps it.
+`channels` leaves it out. `rmeventchan` defaults to `on` and removes
+`Status`; `off` keeps it.
 Values other than `on` and `off` raise `ValueError`.
 
 Use `pop_fileio` for other formats such as BrainVision, EGI MFF, CNT, or
