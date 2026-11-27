@@ -735,7 +735,8 @@ class EEGPrepSession:
         for index, dataset in enumerate(self.ALLEEG, start=1):
             if not isinstance(dataset, dict) or not dataset:
                 continue
-            setname = str(dataset.get("setname") or "(no dataset name)")
+            setname = dataset.get("setname")
+            setname = setname if isinstance(setname, str) and setname else "(no dataset name)"
             summaries.append((index, f"Dataset {index}:{setname}", index in self.CURRENTSET))
         return summaries
 
