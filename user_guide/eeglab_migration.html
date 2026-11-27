@@ -997,24 +997,12 @@ plain <code class="docutils literal notranslate"><span class="pre">mean()</span>
 turns the channel NaN and boundaries are ignored. EEGPrep always
 ignores NaN and always respects boundaries.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> dialog and reader options</p></td>
-<td><p>The dialog has no “Import using alternative BIOSIG method (mexSLOAD)”
-checkbox, because EEGPrep reads with MNE-Python, and no “Import as
-memory mapped file” checkbox, because the file is loaded into memory;
-<code class="docutils literal notranslate"><span class="pre">memorymapped</span></code> stays a command-line option. <code class="docutils literal notranslate"><span class="pre">uncalibrated=&quot;on&quot;</span></code>
-returns the stored integers of EDF and BDF files, identical to
-EEGLAB’s on <code class="docutils literal notranslate"><span class="pre">test.bdf</span></code> and <code class="docutils literal notranslate"><span class="pre">test.edf</span></code>. <code class="docutils literal notranslate"><span class="pre">overflow=&quot;on&quot;</span></code> changes
-nothing for EDF and BDF in either program (<code class="docutils literal notranslate"><span class="pre">sopen.m</span></code> lines 604-612
-turn it off) and raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> for GDF in EEGPrep.
-<code class="docutils literal notranslate"><span class="pre">blockepoch=&quot;on&quot;</span></code>, which gives one epoch per data record in EEGLAB
-from the command line only, raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p>BDF <code class="docutils literal notranslate"><span class="pre">bdfeventmode</span></code></p></td>
+<tr class="row-odd"><td><p>BDF <code class="docutils literal notranslate"><span class="pre">bdfeventmode</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> decodes modes 1-8 and 99. EEGLAB passes the mode to
 <code class="docutils literal notranslate"><span class="pre">sopen</span></code> as <code class="docutils literal notranslate"><span class="pre">BDF:[n]</span></code>. The <code class="docutils literal notranslate"><span class="pre">sopen</span></code> regexp matches <code class="docutils literal notranslate"><span class="pre">BDF:n</span></code> only,
 so the brackets are ignored and EEGLAB always decodes mode 4.</p></td>
 </tr>
-<tr class="row-odd"><td><p>BDF <code class="docutils literal notranslate"><span class="pre">blockrange</span></code> event types</p></td>
+<tr class="row-even"><td><p>BDF <code class="docutils literal notranslate"><span class="pre">blockrange</span></code> event types</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> keeps each trigger code on the latency of its own edge
 when <code class="docutils literal notranslate"><span class="pre">blockrange</span></code> starts after an earlier event.
 <code class="docutils literal notranslate"><span class="pre">biosig2eeglabevent</span></code> writes the latency on <code class="docutils literal notranslate"><span class="pre">event(count)</span></code> and the
@@ -1023,7 +1011,7 @@ type on <code class="docutils literal notranslate"><span class="pre">event(index
 event’s type or an empty type that EEGLAB returns as NaN. The
 latencies match.</p></td>
 </tr>
-<tr class="row-even"><td><p>BDF window shorter than the channel count</p></td>
+<tr class="row-odd"><td><p>BDF window shorter than the channel count</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> keeps a short window channel-major. One second of
 <code class="docutils literal notranslate"><span class="pre">jo1_3.bdf</span></code> is 256 channels by 256 samples after <code class="docutils literal notranslate"><span class="pre">Status</span></code> is
 removed, at 256 Hz, from sample <code class="docutils literal notranslate"><span class="pre">start</span> <span class="pre">*</span> <span class="pre">srate</span></code> inclusive through
@@ -1036,14 +1024,14 @@ returned data is the transpose, and <code class="docutils literal notranslate"><
 window keeps trigger 34 at sample 96. The <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code> window has no
 events.</p></td>
 </tr>
-<tr class="row-odd"><td><p>BDF trigger codes</p></td>
+<tr class="row-even"><td><p>BDF trigger codes</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> stores the integer Status code, including codes above
 255. With no <code class="docutils literal notranslate"><span class="pre">blockrange</span></code>, EEGLAB’s <code class="docutils literal notranslate"><span class="pre">importannot</span></code> (default on)
 maps codes above 255 through BioSig <code class="docutils literal notranslate"><span class="pre">eventcodes.txt</span></code>, so <code class="docutils literal notranslate"><span class="pre">0x105</span></code>
 becomes <code class="docutils literal notranslate"><span class="pre">artifact:Failing</span> <span class="pre">Electrode</span></code>. <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> then stores
 every event type as a string.</p></td>
 </tr>
-<tr class="row-even"><td><p>BioSemi Status channel</p></td>
+<tr class="row-odd"><td><p>BioSemi Status channel</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> removes <code class="docutils literal notranslate"><span class="pre">Status</span></code> only when <code class="docutils literal notranslate"><span class="pre">rmeventchan</span></code> is
 <code class="docutils literal notranslate"><span class="pre">on</span></code>. <code class="docutils literal notranslate"><span class="pre">rmeventchan=&quot;off&quot;</span></code> keeps the channel both when triggers are
 imported and when <code class="docutils literal notranslate"><span class="pre">importevent=&quot;off&quot;</span></code>. <code class="docutils literal notranslate"><span class="pre">importevent=&quot;off&quot;</span></code> leaves
@@ -1052,20 +1040,20 @@ deletes the Status column from <code class="docutils literal notranslate"><span 
 1037-1038) for every BDF file before the samples are read, so the
 returned data never contains <code class="docutils literal notranslate"><span class="pre">Status</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>BDF event modes 3 and 5</p></td>
+<tr class="row-even"><td><p>BDF event modes 3 and 5</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> keeps each trigger code on the rising or falling edge
 that produced it. <code class="docutils literal notranslate"><span class="pre">bdf2biosig_events.m</span></code> lines 88-89 and 104-105 build
 <code class="docutils literal notranslate"><span class="pre">POS</span></code> in time order and <code class="docutils literal notranslate"><span class="pre">TYP</span></code> as all rises followed by all falls,
 so those two arrays no longer correspond.</p></td>
 </tr>
-<tr class="row-even"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> pauses</p></td>
+<tr class="row-odd"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> pauses</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_readegi</span></code> renames every <code class="docutils literal notranslate"><span class="pre">epoc</span></code> event to <code class="docutils literal notranslate"><span class="pre">boundary</span></code> when no
 <code class="docutils literal notranslate"><span class="pre">tim0</span></code> event is present. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">index</span> <span class="pre">=</span> <span class="pre">indepoc</span></code> walks a
 column vector once. A single pause is renamed. Two or more pauses make
 <code class="docutils literal notranslate"><span class="pre">EEG.event(index).type</span></code> fail, the surrounding <code class="docutils literal notranslate"><span class="pre">try</span></code> discards the
 error, and every pause stays <code class="docutils literal notranslate"><span class="pre">epoc</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> with <code class="docutils literal notranslate"><span class="pre">tim0</span></code></p></td>
+<tr class="row-even"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> with <code class="docutils literal notranslate"><span class="pre">tim0</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_readegi</span></code> reshapes a continuous recording when both codes are
 present, the sample count divides evenly by the number of <code class="docutils literal notranslate"><span class="pre">epoc</span></code>
 events plus one, and the <code class="docutils literal notranslate"><span class="pre">epoc</span></code> latencies are exactly <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">*</span> <span class="pre">pnts</span></code>
@@ -1080,7 +1068,7 @@ back to 1, so the samples stay continuous and only the first event
 is removed. When the length does not divide evenly, EEGLAB leaves
 the events in place.</p></td>
 </tr>
-<tr class="row-even"><td><p>Epoched event sort</p></td>
+<tr class="row-odd"><td><p>Epoched event sort</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">eeg_checkset(...,</span> <span class="pre">'eventconsistency')</span></code> sorts by epoch, then by
 latency. EEGLAB asks <code class="docutils literal notranslate"><span class="pre">pop_editeventvals</span></code> to sort on epoch and then
 latency, but that function takes the epoch order from the unsorted
@@ -1089,7 +1077,7 @@ latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
 and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
 out Z, Y, X here and X, Z, Y in EEGLAB.</p></td>
 </tr>
-<tr class="row-odd"><td><p>One-value <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> <code class="docutils literal notranslate"><span class="pre">valuelim</span></code></p></td>
+<tr class="row-even"><td><p>One-value <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> <code class="docutils literal notranslate"><span class="pre">valuelim</span></code></p></td>
 <td><p>A single limit is a symmetric exclusive bound. <code class="docutils literal notranslate"><span class="pre">valuelim=[50]</span></code>
 keeps an epoch only when every sample is strictly inside (-50, 50).
 The value 50 itself is an outlier. With limits <code class="docutils literal notranslate"><span class="pre">[-0.5,</span> <span class="pre">-0.1]</span></code> at
@@ -1105,7 +1093,7 @@ above 50, which is why the same two windows come back empty.
 <code class="docutils literal notranslate"><span class="pre">test_single_valuelim_is_a_symmetric_bound</span></code> locks the EEGPrep
 result.</p></td>
 </tr>
-<tr class="row-even"><td><p>Continuous rejection with <code class="docutils literal notranslate"><span class="pre">trials</span></code> 0</p></td>
+<tr class="row-odd"><td><p>Continuous rejection with <code class="docutils literal notranslate"><span class="pre">trials</span></code> 0</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> sets <code class="docutils literal notranslate"><span class="pre">trials</span></code> from the data shape before checking
 events, so a stored 0 does not delete events past sample 1.
 <code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 440-449 remove latencies above
@@ -1120,38 +1108,38 @@ Continuous data is one trial (lines 49-50). <code class="docutils literal notran
 at latency 0.5. A full rejection whose stored count is already 1
 stays 1 in EEGLAB as well. A continuous recording carries <code class="docutils literal notranslate"><span class="pre">trials</span></code> 1.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Extended properties on the Plot menu</p></td>
+<tr class="row-even"><td><p>Extended properties on the Plot menu</p></td>
 <td><p>EEGLAB <code class="docutils literal notranslate"><span class="pre">d0963be9</span></code> shows extended component properties under Tools &gt;
 Classify components using ICLabel. EEGPrep also lists View extended
 channel properties and View extended component properties on the Plot
 menu.</p></td>
 </tr>
-<tr class="row-even"><td><p>LORETA-KEY leadfield</p></td>
+<tr class="row-odd"><td><p>LORETA-KEY leadfield</p></td>
 <td><p>The LORETA-KEY choice builds a 20 mm grid inside a 75 mm radius. The
 leadfield uses the selected head model. FieldTrip’s LORETA-KEY atlas and eLORETA source
 analysis are not bundled. <code class="docutils literal notranslate"><span class="pre">pop_dipfit_loreta</span></code> asks for
 <code class="docutils literal notranslate"><span class="pre">pop_leadfield</span></code> when <code class="docutils literal notranslate"><span class="pre">EEG.dipfit.sourcemodel</span></code> is missing, then
 reports the missing FieldTrip backend.</p></td>
 </tr>
-<tr class="row-odd"><td><p>DIPFIT history</p></td>
+<tr class="row-even"><td><p>DIPFIT history</p></td>
 <td><p>Settings, fitting, leadfield, and dipole-plot commands are stored as
 Python keywords so <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> can replay them. EEGLAB stores
 the same calls as <code class="docutils literal notranslate"><span class="pre">'key',</span> <span class="pre">value</span></code> pairs. A <code class="docutils literal notranslate"><span class="pre">linspace</span></code> string entered
 for the coarse-fit grid is kept as that string.</p></td>
 </tr>
-<tr class="row-even"><td><p>DIPFIT co-registration</p></td>
+<tr class="row-odd"><td><p>DIPFIT co-registration</p></td>
 <td><p>The Co-register button stays disabled. The FieldTrip coregistration
 window is not bundled. No Co-Reg. remains available for an empty
 transform.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Numeric boundary types</p></td>
+<tr class="row-even"><td><p>Numeric boundary types</p></td>
 <td><p>Consecutive equal-latency boundaries are merged whether <code class="docutils literal notranslate"><span class="pre">type</span></code> is
 the string <code class="docutils literal notranslate"><span class="pre">boundary</span></code> or the number <code class="docutils literal notranslate"><span class="pre">-99</span></code> with
 <code class="docutils literal notranslate"><span class="pre">option_boundary99</span></code> on. EEGLAB skips that merge when the first
 event type is numeric, so two <code class="docutils literal notranslate"><span class="pre">-99</span></code> boundaries with durations 1
 and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.</p></td>
 </tr>
-<tr class="row-even"><td><p>Quoted channel-selection text</p></td>
+<tr class="row-odd"><td><p>Quoted channel-selection text</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_chansel</span></code> keeps an empty quoted token as an empty label, and
 it removes leading and trailing braces. <code class="docutils literal notranslate"><span class="pre">'',</span> <span class="pre">Cz</span></code> selects an
 empty label and <code class="docutils literal notranslate"><span class="pre">Cz</span></code>. <code class="docutils literal notranslate"><span class="pre">{Cz,</span> <span class="pre">Fp1}</span></code> selects <code class="docutils literal notranslate"><span class="pre">Cz</span></code> and <code class="docutils literal notranslate"><span class="pre">Fp1</span></code>.
@@ -1163,17 +1151,17 @@ from <code class="docutils literal notranslate"><span class="pre">'',</span> <sp
 <code class="docutils literal notranslate"><span class="pre">test_pop_chansel_reads_a_brace_wrapped_channel_list</span></code> lock the
 EEGPrep selections.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Spectrum frequency range</p></td>
+<tr class="row-even"><td><p>Spectrum frequency range</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">spectopo</span></code> requires <code class="docutils literal notranslate"><span class="pre">freqrange</span></code> as <code class="docutils literal notranslate"><span class="pre">[lo</span> <span class="pre">hi]</span></code> with
 <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;=</span> <span class="pre">lo</span> <span class="pre">&lt;</span> <span class="pre">hi</span> <span class="pre">&lt;=</span> <span class="pre">Nyquist</span></code> and names the function in the error.
 EEGLAB <code class="docutils literal notranslate"><span class="pre">spectopo.m</span></code> line 183 rejects the same input inside
 <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> with a message that does not name the frequency bounds.</p></td>
 </tr>
-<tr class="row-even"><td><p>Identical dataset comparison</p></td>
+<tr class="row-odd"><td><p>Identical dataset comparison</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> on two identical datasets plots the near-zero
 difference. EEGLAB can raise an axes-limit error on that difference.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Component-envelope dataset indices</p></td>
+<tr class="row-even"><td><p>Component-envelope dataset indices</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> records <code class="docutils literal notranslate"><span class="pre">EEG([i</span> <span class="pre">j])</span></code> when the dialog or an explicit
 <code class="docutils literal notranslate"><span class="pre">subindices</span></code> value names that pair in <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>. A two-dataset list
 with no indices is recorded as <code class="docutils literal notranslate"><span class="pre">pop_envtopo(EEG,</span> <span class="pre">...)</span></code>. Replaying
@@ -1182,26 +1170,26 @@ write <code class="docutils literal notranslate"><span class="pre">EEG([subindic
 <code class="docutils literal notranslate"><span class="pre">subindices</span></code>. A scripted two-dataset call leaves that history line
 unset, so the returned command does not name the datasets.</p></td>
 </tr>
-<tr class="row-even"><td><p>Component head-plot color scale</p></td>
+<tr class="row-odd"><td><p>Component head-plot color scale</p></td>
 <td><p>Component <code class="docutils literal notranslate"><span class="pre">pop_headplot</span></code> maps use per-map <code class="docutils literal notranslate"><span class="pre">absmax</span></code> limits and the
 <code class="docutils literal notranslate"><span class="pre">jet</span></code> colormap. EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_headplot.m</span></code> lines 424-439 fix component
 <code class="docutils literal notranslate"><span class="pre">maplimits</span></code> at <code class="docutils literal notranslate"><span class="pre">[-1</span> <span class="pre">1]</span></code>. <code class="docutils literal notranslate"><span class="pre">icadefs.m</span></code> selects <code class="docutils literal notranslate"><span class="pre">turbo</span></code> when
 MATLAB is newer than 20.01 and <code class="docutils literal notranslate"><span class="pre">jet</span></code> otherwise. Per-map <code class="docutils literal notranslate"><span class="pre">absmax</span></code>
 keeps small component weights visible.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Head-plot history assignment</p></td>
+<tr class="row-even"><td><p>Head-plot history assignment</p></td>
 <td><p>EEGLAB prefixes <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span></code> when a spline file is computed because
 <code class="docutils literal notranslate"><span class="pre">pop_headplot</span></code> returns the dataset. EEGPrep writes the spline file
 onto the dataset during the call and returns the figures, so the
 history command does not assign over <code class="docutils literal notranslate"><span class="pre">EEG</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p>DIPFIT <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> forward model</p></td>
+<tr class="row-odd"><td><p>DIPFIT <code class="docutils literal notranslate"><span class="pre">standardBESA</span></code> forward model</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">model=&quot;standardBESA&quot;</span></code> uses the four-shell concentric sphere in
 <code class="docutils literal notranslate"><span class="pre">standard_BESA.mat</span></code> (radii 71, 72, 79, and 85 mm; conductivities
 0.33, 1, 0.0042, and 0.33). The grid and nonlinear fit follow DIPFIT.
 <code class="docutils literal notranslate"><span class="pre">model=&quot;standardBEM&quot;</span></code> uses the packaged dipoli volume described above.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Degenerate electrode positions</p></td>
+<tr class="row-even"><td><p>Degenerate electrode positions</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>, spherical <code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code>, <code class="docutils literal notranslate"><span class="pre">spheric_spline</span></code>,
 <code class="docutils literal notranslate"><span class="pre">sphericalSplineInterpolate</span></code>, and <code class="docutils literal notranslate"><span class="pre">headplot</span></code> raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
 when Cartesian electrode positions are identical or collinear. Planar
@@ -1224,7 +1212,7 @@ Two identical source channels raise. EEGLAB
 come back as a channel deletion or an interpolation that does not
 reflect the recording.</p></td>
 </tr>
-<tr class="row-even"><td><p>Named workspace variables</p></td>
+<tr class="row-odd"><td><p>Named workspace variables</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">importevent</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_importdata</span></code> take the event array or data
 array directly. <code class="docutils literal notranslate"><span class="pre">importevent.m</span></code> lines 199 and 228 call
 <code class="docutils literal notranslate"><span class="pre">evalin('caller',</span> <span class="pre">event)</span></code> when the event argument is a character
@@ -1234,7 +1222,7 @@ name and no file of that name exists. <code class="docutils literal notranslate"
 <code class="docutils literal notranslate"><span class="pre">test_reference_importevent_original_named_workspace_variables</span></code>
 passes the same arrays and checks the latencies <code class="docutils literal notranslate"><span class="pre">1</span></code> and <code class="docutils literal notranslate"><span class="pre">50</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">topoplot</span></code> <code class="docutils literal notranslate"><span class="pre">plotchans</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">topoplot</span></code> <code class="docutils literal notranslate"><span class="pre">plotchans</span></code></p></td>
 <td><p>1-based indices from <code class="docutils literal notranslate"><span class="pre">1</span></code> through <code class="docutils literal notranslate"><span class="pre">len(chan_locs)</span></code>. Empty draws
 every channel that has <code class="docutils literal notranslate"><span class="pre">theta</span></code>. This matches EEGLAB <code class="docutils literal notranslate"><span class="pre">topoplot.m</span></code>
 lines 605-608 and 703-716, including the intersection with located
@@ -1243,7 +1231,7 @@ outside <code class="docutils literal notranslate"><span class="pre">1</span> <s
 bad values, and that range. <code class="docutils literal notranslate"><span class="pre">'plotchans',</span> <span class="pre">[1</span> <span class="pre">2</span> <span class="pre">3]</span></code> in
 <code class="docutils literal notranslate"><span class="pre">pop_topoplot</span></code> option text selects those channels.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">topoplot</span></code> common reference</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">topoplot</span></code> common reference</p></td>
 <td><p>When there is one more channel location than value, and the last
 location is selected, that location is dropped. <code class="docutils literal notranslate"><span class="pre">topoplot.m</span></code> lines
 749-753 do the same. NaN and Inf values are removed from the
@@ -1251,7 +1239,7 @@ locations and the values together (lines 760-779). A single
 <code class="docutils literal notranslate"><span class="pre">plotchans</span></code> index is kept, including <code class="docutils literal notranslate"><span class="pre">[1]</span></code> (<code class="docutils literal notranslate"><span class="pre">topoplot.m</span></code> lines
 918-923).</p></td>
 </tr>
-<tr class="row-odd"><td><p>One <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> location</p></td>
+<tr class="row-even"><td><p>One <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> location</p></td>
 <td><p>The map needs two distinct sensor locations. One selected channel, or
 sensors that average to one point, raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> from
 <code class="docutils literal notranslate"><span class="pre">topoplot</span> <span class="pre">griddata_v4</span></code>. MATLAB <code class="docutils literal notranslate"><span class="pre">griddata</span></code> returns a non-finite map
@@ -1259,7 +1247,7 @@ and warns. Duplicate coordinates are averaged when both axis gaps are
 strictly inside <code class="docutils literal notranslate"><span class="pre">spacing(0.5</span> <span class="pre">*</span> <span class="pre">span)</span> <span class="pre">**</span> <span class="pre">(1/3)</span></code>; a gap equal to that
 tolerance stays separate, as in <code class="docutils literal notranslate"><span class="pre">mergesimpts</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p>Empty <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> locations</p></td>
+<tr class="row-odd"><td><p>Empty <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> locations</p></td>
 <td><p>An interpolated <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when channel
 locations are <code class="docutils literal notranslate"><span class="pre">None</span></code> or empty. The message names <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> and
 says to load locations with <code class="docutils literal notranslate"><span class="pre">pop_chanedit</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_readlocs</span></code>.

@@ -656,20 +656,6 @@
 <code class="docutils literal notranslate"><span class="pre">on</span></code>) stores those triggers, and <code class="docutils literal notranslate"><span class="pre">rmeventchan</span></code> (default <code class="docutils literal notranslate"><span class="pre">on</span></code>) removes
 <code class="docutils literal notranslate"><span class="pre">Status</span></code> from the data. Unsupported values raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.
 Options may be keywords or positional name/value pairs.</p>
-<p><code class="docutils literal notranslate"><span class="pre">uncalibrated='on'</span></code> returns the integers stored in an EDF or BDF file
-instead of physical values. <code class="docutils literal notranslate"><span class="pre">overflow='on'</span></code> leaves EDF and BDF data
-unchanged, as BIOSIG does for these two formats. <code class="docutils literal notranslate"><span class="pre">blockepoch='off'</span></code> (the
-default) imports continuous data; <code class="docutils literal notranslate"><span class="pre">'on'</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p>
-<p>The dialog has the controls of EEGLAB’s <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> dialog except two:</p>
-<ul class="simple">
-<li><p>“Import using alternative BIOSIG method (mexSLOAD)” is left out because
-mexSLOAD is a compiled BIOSIG reader and EEGPrep reads with MNE-Python.</p></li>
-<li><p>“Import as memory mapped file” is left out because the Python reader
-loads the file into memory; <code class="docutils literal notranslate"><span class="pre">memorymapped='on'</span></code> only moves the loaded
-samples to a temporary mapping and stays a command-line option.</p></li>
-</ul>
-<p><code class="docutils literal notranslate"><span class="pre">rmeventchan</span></code> has no checkbox in EEGLAB’s dialog and is a command-line
-option here too.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
