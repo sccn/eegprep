@@ -896,11 +896,14 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
             border: 1px solid {EEGLAB_CONTROL_BORDER};
         }}
         """
-    dialog.setStyleSheet(base_stylesheet + eeglab_floating_dialog_stylesheet() + (spec.extra_stylesheet or ""))
-    # A new QDialog allocated at the address of a destroyed unshown dialog (such as
-    # build_listdlg2_dialog) keeps the old parsed rule list in Qt's styleSheetCache
-    # until unpolished.
-    dialog.style().unpolish(dialog)
+    stylesheet = base_stylesheet + eeglab_floating_dialog_stylesheet() + (spec.extra_stylesheet or "")
+    dialog.setStyleSheet(stylesheet)
+    # Qt caches the parsed sheet of a dialog by its address and forgets it only when a polished dialog is
+    # destroyed. A dialog that was styled but never shown (build_listdlg2_dialog) leaves its sheet behind,
+    # and a new dialog at the same address was drawn with it. Qt parses the sheet afresh only when it is
+    # set on a polished widget, hence polish, then set again.
+    dialog.ensurePolished()
+    dialog.setStyleSheet(stylesheet)
 
 
 def _row_weights(row_geometry: Any) -> list[float]:
