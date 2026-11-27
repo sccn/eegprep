@@ -302,9 +302,12 @@ class QtDialogRenderer:
         elif style == "checkbox":
             widget = QtWidgets.QCheckBox(control.string)
             widget.setChecked(bool(value))
+            # The macOS style lays checkboxes out by a larger rect: taller rows, box starts 2 px left.
+            widget.setAttribute(QtCore.Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
         elif style in {"radio", "radiobutton"}:
             widget = QtWidgets.QRadioButton(control.string)
             widget.setChecked(bool(value))
+            widget.setAttribute(QtCore.Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
         elif style == "popupmenu":
             widget = QtWidgets.QComboBox()
             widget.addItems([item.strip() for item in control.string.split("|")])
