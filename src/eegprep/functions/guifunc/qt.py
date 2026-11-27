@@ -224,7 +224,7 @@ class QtDialogRenderer:
         for row_index, row_geometry in enumerate(spec.geometry):
             weights = self._row_weights(row_geometry)
             row_container = qt_widgets.QWidget()
-            if spec.geomvert is None:
+            if spec.geomvert is None and not _rows_share_height(spec):
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
@@ -255,6 +255,8 @@ class QtDialogRenderer:
                 index += 1
             if added_visible_widget:
                 content_layout.addWidget(row_container, self._row_stretch(spec, row_index))
+            elif _rows_share_height(spec):
+                content_layout.addStretch(self._row_stretch(spec, row_index))
             else:
                 content_layout.addSpacing(self._spacer_row_height(spec, row_index))
 
@@ -904,9 +906,23 @@ def _supergui_stretch(weight: float, row_total: float, most_columns: int) -> int
     return max(1, round((weight / row_total - 1.5 * spacing) * 10000))
 
 
+def _rows_share_height(spec: DialogSpec) -> bool:
+    """Whether the rows split the height of a fixed-size window evenly.
+
+    EEGLAB's supergui gives every row the same share of the figure height when
+    no geomvert is given. A text area keeps the spare height for itself.
+    """
+    return (
+        spec.geomvert is None
+        and spec.size is not None
+        and not spec.scrollable
+        and not any(control.style.lower() == "textarea" for control in spec.controls)
+    )
+
+
 def _row_stretch(spec: DialogSpec, row_index: int) -> int:
     if spec.geomvert is None:
-        return 0
+        return 100 if _rows_share_height(spec) else 0
     value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
     return max(1, round(float(value) * 100))
 
@@ -925,7 +941,7 @@ def _add_buttons(
     dialog: Any,
     widgets: dict[str, Any],
 ) -> None:
-    if spec.geomvert is None and spec.size is not None and not spec.scrollable:
+    if spec.geomvert is None and spec.size is not None and not spec.scrollable and not _rows_share_height(spec):
         layout.addStretch(1)
     button_container = QtWidgets.QWidget()
     button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)

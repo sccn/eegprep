@@ -52,6 +52,11 @@ Unreleased
   Replacing a mapped ``.fdt`` leaves an open array view readable; on Windows
   that resave is refused until the view is closed or the dataset is saved
   as a new file. (#673)
+- Dialogs with a fixed window size share the window height among their rows, as
+  EEGLAB's ``supergui`` does, instead of stacking the rows at the top above an
+  empty band. About fifty dialogs of the File, Edit, Tools and Plot menus take
+  their whole window. ``pop_importdata`` sizes its columns by their weights and
+  shows EEGLAB's note on channel location files. (#700)
 - ``EEG["etc"]["pamica"]`` records pAMICA sample rejection with the EEGLAB
   settings: ``do_reject`` off, ``maxrej`` 3 (EEGLAB's ``numrej``), ``rejsig``
   3.0, ``rejstart`` 2 and ``rejint`` 3. The outcome is ``rejection_passes``,

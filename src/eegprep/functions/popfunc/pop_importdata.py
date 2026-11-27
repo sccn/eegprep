@@ -188,6 +188,14 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
         ('ICA weights array or text/binary file (if any)', 'icaweights'),
         ('ICA sphere array or text/binary file (if any)', 'icasphere'),
     ]:
+        if tag == 'icaweights':
+            controls.append(
+                ControlSpec(
+                    'text',
+                    '      (note: autodetect file format using file extension; '
+                    'use menu "Edit > Channel locations" for more importing options)',
+                )
+            )
         controls.extend(
             [
                 ControlSpec('text', label),
@@ -214,9 +222,19 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
         function_name='pop_importdata',
         help_text='pop_importdata',
         eeglab_source='functions/popfunc/pop_importdata.m',
-        geometry=([1.4, 0.7, 0.8, 0.5], [2, 3.02], 1, *[[2.5, 1, 1.5, 1.5]] * 5, 1, *[[1.4, 0.7, 0.8, 0.5]] * 3),
+        geometry=(
+            [1.4, 0.7, 0.8, 0.5],
+            [2, 3.02],
+            1,
+            *[[2.5, 1, 1.5, 1.5]] * 5,
+            1,
+            [1.4, 0.7, 0.8, 0.5],
+            1,
+            *[[1.4, 0.7, 0.8, 0.5]] * 2,
+        ),
         controls=tuple(controls),
-        size=(1000, 480),
+        size=(1150, 480),
+        weighted_columns=True,
         known_differences=('Array input uses a Python literal; dataset selectors use the shared session datasets.',),
     )
 

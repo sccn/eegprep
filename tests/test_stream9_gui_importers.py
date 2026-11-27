@@ -457,3 +457,23 @@ def test_f10_presentation_cancel_preserves_dataset(app, tmp_path):
         timer.stop()
     assert out is eeg
     assert command == ''
+
+
+def test_importdata_rows_share_the_window_height_and_show_the_chanlocs_note(app):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.popfunc.pop_importdata import pop_importdata_dialog_spec
+
+    spec = pop_importdata_dialog_spec()
+    assert any('use menu "Edit > Channel locations"' in control.string for control in spec.controls)
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(spec)
+    dialog.show()
+    app.processEvents()
+    try:
+        last = widgets['icasphere']
+        ok = dialog.findChild(QtWidgets.QPushButton, 'ok')
+        gap = ok.mapTo(dialog, ok.rect().topLeft()).y() - last.mapTo(dialog, last.rect().bottomLeft()).y()
+        assert gap < dialog.height() / 8
+        boxes = [widgets[tag] for tag in ('srate', 'pnts', 'xmin', 'nbchan', 'ref')]
+        assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
+    finally:
+        dialog.close()
