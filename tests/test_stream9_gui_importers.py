@@ -402,6 +402,37 @@ def test_f21_supplied_ascii_format_survives_options_dialog(app, tmp_path):
     np.testing.assert_array_equal(eeg['data'], data)
 
 
+def test_importdata_has_eeglab_comments_button_and_bold_labels(app, tmp_path):
+    path = tmp_path / 'input.txt'
+    np.savetxt(path, np.arange(12).reshape(2, 6))
+    module = importlib.import_module('eegprep.functions.popfunc.pop_importdata')
+    bold = []
+
+    def drive():
+        dialog = app.activeModalWidget()
+        if dialog is None:
+            return
+        editor = dialog.findChild(QtWidgets.QTextEdit)
+        if editor is not None:
+            editor.setPlainText('recorded at rest')
+            dialog.accept()
+        elif not bold:
+            bold.extend(label.text() for label in dialog.findChildren(QtWidgets.QLabel) if label.font().bold())
+            QtCore.QTimer.singleShot(0, dialog.findChild(QtWidgets.QPushButton, 'enter_comments').click)
+        else:
+            dialog.accept()
+
+    timer = QtCore.QTimer()
+    timer.timeout.connect(drive)
+    timer.start(10)
+    try:
+        eeg = module.pop_importdata(data=str(path), dataformat='ascii', gui=True)
+    finally:
+        timer.stop()
+    assert {'Data sampling rate (Hz)', 'Channel location file or info'} <= set(bold)
+    assert eeg['comments'] == 'recorded at rest'
+
+
 @pytest.mark.parametrize('name', ['pop_loadbv', 'pop_fileio', 'pop_readegi', 'pop_biosig'])
 def test_f10_reader_options_apply_selection_and_replay(app, tmp_path, name):
     data = np.arange(40).reshape(2, 20) + 1

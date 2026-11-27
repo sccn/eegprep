@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import ast
 import re
@@ -15,9 +16,11 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc._file_io import eeg_from_data, infer_dataformat, load_data_array
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc.pop_comments import pop_comments
 from eegprep.functions.popfunc.pop_editset import _history_value, pop_editset
 
 _DATA_FORMATS = ('array', 'ascii', 'float32le', 'float32be', 'matlab', 'auto')
+_BOLD_LABELS = ('Data sampling rate (Hz)', 'Channel location file or info')  # bold in pop_importdata.m
 
 
 def pop_importdata(
@@ -29,11 +32,12 @@ def pop_importdata(
         initial = dict(options)
         if 'dataformat' in initial:
             initial['dataformat'] = _DATA_FORMATS.index(initial['dataformat']) + 1
-        result = inputgui(pop_importdata_dialog_spec(datasets), initial_values=initial, renderer=renderer)
+        comments = {key: initial.pop(key) for key in ('comments',) if key in initial}
+        result = inputgui(pop_importdata_dialog_spec(datasets, comments), initial_values=initial, renderer=renderer)
         if result is None:
             empty = eeg_emptyset()
             return (empty, '') if return_com else empty
-        options = {key: value for key, value in result.items() if value != ''}
+        options = {key: value for key, value in (result | comments).items() if value != ''}
         options['dataformat'] = _DATA_FORMATS[int(result['dataformat']) - 1]
         for key in ('srate', 'xmin'):
             options[key] = float(result[key] or 0)
@@ -151,8 +155,24 @@ def _optional_int(value: Any) -> int | None:
     return int(value)
 
 
-def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
-    """Return the data import form, with channel and ICA dataset selectors."""
+def pop_importdata_dialog_spec(datasets=(), comments=None) -> DialogSpec:
+    """Return the data import form, with channel and ICA dataset selectors.
+
+    The Enter comments button writes the edited text into ``comments['comments']``.
+    """
+    comments_button = ControlSpec(
+        'pushbutton',
+        'Enter comments',
+        tag='enter_comments',
+        callback=CallbackSpec(
+            'run_dialog_action',
+            {
+                'button': 'enter_comments',
+                'function': 'pop_importdata',
+                'action': _enter_comments({} if comments is None else comments),
+            },
+        ),
+    )
     controls = [
         ControlSpec('text', 'Data file/array (select the format)', font_weight='bold'),
         ControlSpec(
@@ -179,7 +199,7 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
                 ControlSpec('text', left),
                 ControlSpec('edit', tag=left_tag, value=default),
                 ControlSpec('text', right),
-                ControlSpec('edit', tag=right_tag),
+                comments_button if right_tag == 'comments' else ControlSpec('edit', tag=right_tag),
             ]
         )
     controls.append(ControlSpec('spacer'))
@@ -209,7 +229,11 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
                 ControlSpec('pushbutton', 'Browse', tag='browse_' + tag, callback=_browse(tag)),
             ]
         )
+    controls = [
+        replace(control, font_weight='bold') if control.string in _BOLD_LABELS else control for control in controls
+    ]
     return DialogSpec(
+        extra_stylesheet='QPushButton#enter_comments { min-width: 185px; }',  # as wide as the edit boxes above it
         title='Import dataset info -- pop_importdata()',
         function_name='pop_importdata',
         help_text='pop_importdata',
@@ -219,6 +243,13 @@ def pop_importdata_dialog_spec(datasets=()) -> DialogSpec:
         size=(1000, 480),
         known_differences=('Array input uses a Python literal; dataset selectors use the shared session datasets.',),
     )
+
+
+def _enter_comments(store):
+    def edit(_values, _update):
+        store['comments'] = pop_comments(store.get('comments', ''), 'Edit comments of current dataset')
+
+    return edit
 
 
 def _browse(tag):
