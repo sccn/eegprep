@@ -231,6 +231,8 @@ def test_pop_runscript_runs_a_matlab_assignment_and_names_an_unsupported_line(tm
 def test_fileio_dialog_offers_an_explicit_data_format():
     controls = controls_by_tag(pop_fileio_dialog_spec())
     assert "auto" in controls["dataformat"].string
+    # EDF, BDF and GDF open through the MNE-IO menu only (#761).
+    assert "MNE" not in controls["dataformat"].string
 
 
 def test_empty_fileio_annotation_is_named_boundary():

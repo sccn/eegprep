@@ -407,7 +407,7 @@ def pop_biosig_dialog_spec() -> DialogSpec:
     ]:
         controls.append(ControlSpec('checkbox', label, tag=tag, value=default))
     return DialogSpec(
-        title='Load data using BIOSIG -- pop_biosig()',
+        title='Load data using MNE-IO -- pop_biosig()',
         function_name='pop_biosig',
         help_text='pop_biosig',
         eeglab_source='functions/popfunc/pop_biosig.m',

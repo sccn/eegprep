@@ -45,6 +45,7 @@ def _with_file_dialog_override(method: Callable[..., Any]) -> Callable[..., Any]
 # Action handlers import user-facing pop/plugin modules lazily so launching the
 # main GUI does not eagerly load heavier signal-processing and optional stacks.
 _EXTENSION_FILE_PARAMETERS = ("filename", "filepath", "path")
+_MNE_IO_SUFFIXES = {".edf", ".bdf", ".gdf"}  # read through MNE-Python: the MNE-IO menu imports them
 
 IMPLEMENTED_ACTIONS = {
     "clear_study",
@@ -743,6 +744,14 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_mffimport import pop_mffimport
 
                 eeg_out, command = pop_mffimport(filename, gui=True, return_com=True)
+            elif action == "pop_fileio" and Path(filename).suffix.lower() in _MNE_IO_SUFFIXES:
+                _require_qt_widgets().QMessageBox.information(
+                    parent,
+                    "EEG-IO",
+                    "EDF, BDF and GDF files are read through MNE-Python. "
+                    "Use File > Import data > Using the MNE-IO interface.",
+                )
+                return
             else:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
@@ -764,7 +773,7 @@ class MenuActionDispatcher:
             )
         filters = {
             "pop_importdata": "Data arrays (*.txt *.csv *.tsv *.mat *.npy *.npz *.fdt);;All files (*)",
-            "pop_biosig": "BIOSIG files (*.bdf *.edf *.gdf);;All files (*)",
+            "pop_biosig": "MNE-IO files (*.bdf *.edf *.gdf);;All files (*)",
             "pop_fileio_mff": "EGI MFF (*.mff);;All files (*)",
             "pop_fileio_cnt": "Neuroscan CNT (*.cnt);;All files (*)",
             "pop_fileio_eeg": "Neuroscan EEG (*.eeg *.EEG);;All files (*)",

@@ -1,9 +1,12 @@
-# POP_FILEIO - Import EEG files through EEGPrep and MNE-Python readers
+# POP_FILEIO - Import EEG files through EEG-IO
 
 `pop_fileio` is the function behind File > Import data > Using the EEG-IO
 interface. It imports EEG files with EEGPrep's own readers and conversions,
-chosen from the file extension or from the Data format popup. It does not use
-FieldTrip's File-IO library, which EEGLAB's File-IO menu calls.
+chosen from the file extension or from the Data format popup. That menu sends
+EDF, BDF, and GDF files to Using the MNE-IO interface (`pop_biosig`), and its
+data-format list has no MNE entry; scripts can still read them with
+`pop_fileio`, including `dataformat="biosig"`. It does not use FieldTrip's
+File-IO library, which EEGLAB's File-IO menu calls.
 
 EEGPrep's own readers:
 
