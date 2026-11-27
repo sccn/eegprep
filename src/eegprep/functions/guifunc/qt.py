@@ -299,12 +299,12 @@ class QtDialogRenderer:
             widget.setDefault(False)
             if value is not None:
                 widget.setProperty(_VALUE_PROPERTY, value)
-        elif style == "checkbox":
-            widget = QtWidgets.QCheckBox(control.string)
+        elif style in {"checkbox", "radio", "radiobutton"}:
+            widget = (QtWidgets.QCheckBox if style == "checkbox" else QtWidgets.QRadioButton)(control.string)
             widget.setChecked(bool(value))
-        elif style in {"radio", "radiobutton"}:
-            widget = QtWidgets.QRadioButton(control.string)
-            widget.setChecked(bool(value))
+            # The Mac style lays these out by a rectangle larger than the widget: the row is then
+            # 6 pixels taller than an edit row and the box starts 2 pixels left of the edit column.
+            widget.setAttribute(_require_qt()[0].Qt.WA_LayoutUsesWidgetRect, True)
         elif style == "popupmenu":
             widget = QtWidgets.QComboBox()
             widget.addItems([item.strip() for item in control.string.split("|")])
