@@ -10,9 +10,6 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- The ``pop_importdata`` window takes the height of its content, with no blank
-  space left below the options and the Cancel and Ok buttons. (#775)
-
 - File > Import data names its two reader menus Using the EEG-IO interface
   (``pop_fileio``) and Using the MNE-IO interface (``pop_biosig``), in place of
   EEGLAB's FILE-IO and BIOSIG. EDF, BDF and GDF files open only through
@@ -33,6 +30,9 @@ Unreleased
 - EDF, BDF, GDF and other MNE-read imports remove the ``EEG`` prefix of channel labels
   (``EEG Fp1`` and ``EEG-Fp1`` become ``Fp1``), as EEGLAB does for every import, unless
   30 or more labels are numbered. The labels then match channel location files. (#746)
+
+- The ``pop_importdata`` window takes the height of its content, with no blank
+  space left below the options and the Cancel and Ok buttons. (#775)
 
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
