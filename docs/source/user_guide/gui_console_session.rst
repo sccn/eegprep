@@ -267,7 +267,9 @@ MNE-IO import exposes channels, a time range in seconds, reference channels,
 BDF event decoding, EDF+ annotations, and memory mapping. Channel and reference
 indices are 1-based; references index the loaded channel list after removing
 the Status channel. Marker events and EDF+ annotations have independent
-switches. The Python readers use calibrated continuous data; MATLAB-only
+switches. Channel labels such as ``EEG Fp1`` or ``EEG-Fp1`` are imported as
+``Fp1``, unless 30 or more labels are numbered (``EEG001``). The Python
+readers use calibrated continuous data; MATLAB-only
 BIOSIG mexSLOAD, overflow, and uncalibrated-reader switches are absent.
 BrainVision uses inclusive 1-based sample ranges and channel indices. CNT
 exposes precision, start time, duration, and keyboard-response import. EGI

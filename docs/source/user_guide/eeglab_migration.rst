@@ -434,17 +434,6 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        plain ``mean()`` at ``pop_rmbase.m`` line 202, so one baseline NaN
        turns the channel NaN and boundaries are ignored. EEGPrep always
        ignores NaN and always respects boundaries.
-   * - ``pop_biosig`` dialog and reader options
-     - The dialog has no "Import using alternative BIOSIG method (mexSLOAD)"
-       checkbox, because EEGPrep reads with MNE-Python, and no "Import as
-       memory mapped file" checkbox, because the file is loaded into memory;
-       ``memorymapped`` stays a command-line option. ``uncalibrated="on"``
-       returns the stored integers of EDF and BDF files, identical to
-       EEGLAB's on ``test.bdf`` and ``test.edf``. ``overflow="on"`` changes
-       nothing for EDF and BDF in either program (``sopen.m`` lines 604-612
-       turn it off) and raises ``ValueError`` for GDF in EEGPrep.
-       ``blockepoch="on"``, which gives one epoch per data record in EEGLAB
-       from the command line only, raises ``ValueError``.
    * - BDF ``bdfeventmode``
      - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
        ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,
@@ -685,9 +674,9 @@ File menu and data I/O
 
 These choices differ from the EEGLAB pin ``8ac485f6`` on purpose.
 
-* Datasets stay ``float64``. ``option_single`` is shown in Preferences and has
-  no effect. Applying it would change results that are already checked against
-  EEGLAB.
+* Datasets stay ``float64``. ``option_single`` is not shown in Preferences and
+  has no effect. Applying it would change results that are already checked
+  against EEGLAB.
 * ``pop_chanevent`` accepts comparisons, arithmetic, ``abs``, ``round``,
   ``bitand``, ``&``, ``|``, and parentheses. It does not evaluate arbitrary
   MATLAB text. ``pop_chanevent.m`` line 225 prefixes ``X =`` only when the

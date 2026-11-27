@@ -12,8 +12,6 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions_dialog_spec
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
@@ -244,12 +242,6 @@ def test_empty_fileio_annotation_is_named_boundary():
     raw.set_annotations(mne.Annotations([0.05], [0.0], [""]))
     eeg = mne_raw_to_eeg(raw, setname="boundary")
     assert eeg["event"][0]["type"] == "boundary"
-
-
-def test_option_single_tooltip_says_datasets_stay_float64():
-    spec = pop_editoptions_dialog_spec(dict(EEG_OPTIONS, option_showadvanced=1))
-    control = controls_by_tag(spec)["option_single"]
-    assert "float64" in (control.tooltip or "")
 
 
 def test_task_info_reaches_the_exported_description_and_eeg_json(tmp_path):
@@ -725,7 +717,7 @@ def test_chanevent_expression_matches_matlab_round_bitand_and_chaining():
     hint = next(control for control in spec.controls if control.string == "Optional. Ex: X>3")
     assert _dialog_row(spec, hint) == (1.5, 1, 1)
     delete = next(control for control in spec.controls if control.string == "Delete event channel(s)?")
-    assert _dialog_row(spec, delete) == (1.5, 0.21, 1)
+    assert _dialog_row(spec, delete) == (1.5, 1, 1)
     assert spec.controls[spec.controls.index(delete) + 2].string.strip() == "(set = yes)"
     assert sum(len(row) == 1 for row in spec.geometry) == 2
 
@@ -837,6 +829,29 @@ def test_segmented_mff_splits_categories_without_mocking_mne(tmp_path):
     with pytest.raises(Exception) as caught:
         pop_mffimport(broken)
     assert not isinstance(caught.value, AttributeError)
+
+
+def test_importbids_dialog_lists_event_columns_and_aligns_filters_like_eeglab(qapp, tmp_path):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.plugins.EEG_BIDS.pop_importbids import _event_columns, pop_importbids_dialog_spec
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    for run, header in (("1", "onset\tduration\tvalue\tfeedback"), ("2", "onset\tduration\tevent_code\tvalue")):
+        (eeg_dir / f"sub-01_task-x_run-{run}_eeg.set").write_bytes(b"")
+        (eeg_dir / f"sub-01_task-x_run-{run}_events.tsv").write_text(header + "\n0\t0\ta\tb\n")
+    # A UTF-8 BOM (Excel export) must not turn "onset" into a selectable column.
+    (eeg_dir / "sub-01_task-x_run-3_events.tsv").write_text("onset\tduration\tvalue\n", encoding="utf-8-sig")
+    fields = _event_columns(tmp_path)
+    assert fields == ("value", "event_code", "feedback")
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(pop_importbids_dialog_spec(tmp_path, fields))
+    dialog.show()
+    qapp.processEvents()
+    filters = [widgets[tag] for tag in ("bidstaskstr", "bidsrunsstr", "bidssubjectsstr")]
+    assert len({widget.mapTo(dialog, widget.rect().topLeft()).x() for widget in filters}) == 1
+    assert not widgets["bidsrunsstr"].isEnabled()
+    assert widgets["bidsrunsstr"].height() < 2 * widgets["bidstaskstr"].height()
+    dialog.close()
 
 
 def test_importbids_history_and_sessionless_derivative_path(tmp_path):
@@ -1616,6 +1631,8 @@ def test_chanevent_labels_fit_their_column(qapp):
     assert found["(click to select)"].text() == "(click to select)"
     assert found["(set=yes)"].text() == "(set=yes)"
     assert found["        (set = yes)"].text() == "        (set = yes)"
+    boxes = [_widgets[tag] for tag in ("chan", "oper", "edge", "edgelen", "duration", "delchan", "delevent", "nbtype")]
+    assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
     layout = dialog.layout()
     assert dialog.height() <= layout.sizeHint().height() + 4
     dialog.close()

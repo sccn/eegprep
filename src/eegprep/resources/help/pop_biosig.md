@@ -1,7 +1,15 @@
 # POP_BIOSIG - Import EDF, BDF, and GDF files through MNE-IO
 
-`pop_biosig` imports EDF, BDF, and GDF files through MNE-Python. In the GUI it
-is File > Import data > Using the MNE-IO interface.
+`pop_biosig` imports EDF, BDF, and GDF files with MNE-Python, not with the
+BIOSIG toolbox. It is the function behind File > Import data > Using the
+MNE-IO interface, where every file that EEGPrep reads through MNE-Python is
+imported. MNE-Python is an optional install: `pip install "eegprep[mne]"`.
+
+How it works: the samples are read with `mne.io.read_raw_edf`,
+`mne.io.read_raw_bdf`, or `mne.io.read_raw_gdf` and converted to an EEG
+structure, then the options of this window are applied. For BioSemi BDF files,
+EEGPrep's own `openbdf` and `readbdf` read the `Status` channel to decode
+trigger events.
 
 Usage:
 
@@ -31,16 +39,4 @@ EEGLAB `.set` files.
 
 See also: POP_FILEIO, POP_IMPORTDATA, POP_LOADSET
 
-Use `gui=True` for channel/range/event/reference options. References are 1-based indices in the loaded channels after Status removal. `importannot="off"` suppresses annotations independently of marker-event import. `memorymapped="on"` stores the imported samples in a temporary mapping. Install readers with `pip install "eegprep[mne]"`.
-
-`uncalibrated="on"` returns the integers stored in an EDF or BDF file instead
-of physical values. `overflow="on"` leaves EDF and BDF data unchanged, as
-BIOSIG does for these two formats, and raises `ValueError` for GDF.
-`blockepoch="off"` (the default) imports continuous data; `"on"` raises
-`ValueError`.
-
-The dialog has the controls of EEGLAB's dialog except two. "Import using
-alternative BIOSIG method (mexSLOAD)" is left out because mexSLOAD is a
-compiled BIOSIG reader and EEGPrep reads with MNE-Python. "Import as memory
-mapped file" is left out because the Python reader loads the file into memory;
-`memorymapped` stays a command-line option.
+Use `gui=True` for channel/range/event/reference options. References are 1-based indices in the loaded channels after Status removal. `importannot="off"` suppresses annotations independently of marker-event import. `memorymapped="on"` stores the imported samples in a temporary mapping. Install readers with `pip install "eegprep[mne]"`. Python readers expose calibrated continuous data; MATLAB mexSLOAD and overflow/uncalibrated options do not apply.

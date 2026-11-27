@@ -395,7 +395,8 @@ def test_upstream_mmo_original_preprocessing(
             )
             mapped = bool(np.asarray(mapped).item())
         else:
-            eeg = mmo_backend("pop_loadset", filename)
+            # EEGPrep maps a sidecar through pop_loadset's memmap argument, not option_memmapdata (#709).
+            eeg = mmo_backend("pop_loadset", filename, memmap=bool(enabled))
             if clear_events:
                 eeg["event"] = []
             if rejection.size:

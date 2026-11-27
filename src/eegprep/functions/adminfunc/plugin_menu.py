@@ -25,6 +25,7 @@ from eegprep.extension_catalog import (
     build_safe_update_commands,
     load_extension_catalog,
 )
+from eegprep.functions.guifunc.theme import EEGLAB_BACKGROUND, EEGLAB_TEXT
 
 EXTERNAL_PLUGIN_NOTICE = (
     "EEGPrep discovers installed Python extension packages through entry points and shows curated catalog metadata. "
@@ -565,6 +566,18 @@ def _build_plugin_dialog(
     dialog = QtWidgets.QDialog(parent)
     dialog.setObjectName("extension_manager")
     dialog.setWindowTitle("EEGPrep Extension Manager")
+    dialog.setStyleSheet(
+        f"""
+        QDialog#extension_manager {{
+            background: {EEGLAB_BACKGROUND};
+            color: {EEGLAB_TEXT};
+        }}
+        QDialog#extension_manager QLabel {{
+            background: transparent;
+            color: {EEGLAB_TEXT};
+        }}
+        """
+    )
     dialog.resize(1120, 620)
 
     layout = QtWidgets.QVBoxLayout(dialog)

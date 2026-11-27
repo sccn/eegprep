@@ -91,17 +91,7 @@ def test_f18_mff_picker_selects_directory(app, tmp_path, monkeypatch):
         (
             'pop_biosig',
             {'filename': 'unused.edf'},
-            {
-                'channels',
-                'blockrange',
-                'ref',
-                'bdfeventmode',
-                'importevent',
-                'blockepoch',
-                'overflow',
-                'uncalibrated',
-                'importannot',
-            },
+            {'channels', 'blockrange', 'ref', 'bdfeventmode', 'importevent', 'rmeventchan'},
         ),
         ('pop_loadbv', {'path': 'unused.vhdr'}, {'chans', 'srange'}),
         ('pop_fileio', {'filename': 'unused.eeg'}, {'channels', 'samples', 'trials'}),
@@ -415,6 +405,41 @@ def test_f21_supplied_ascii_format_survives_options_dialog(app, tmp_path):
     np.testing.assert_array_equal(eeg['data'], data)
 
 
+def test_pop_importdata_enter_comments_button_opens_pop_comments(app, tmp_path):
+    path = tmp_path / 'input.txt'
+    np.savetxt(path, np.arange(12).reshape(2, 6))
+    module = importlib.import_module('eegprep.functions.popfunc.pop_importdata')
+    titles = []
+
+    def step():
+        dialog = app.activeModalWidget()
+        if dialog is None:
+            return
+        titles.append(dialog.windowTitle())
+        if dialog.windowTitle() == 'Read/Enter text -- pop_comments()':
+            dialog.findChild(QtWidgets.QTextEdit, 'comments').setPlainText('line one\nline two')
+            dialog.accept()
+        elif len(titles) == 1:
+            QtCore.QTimer.singleShot(0, dialog.findChild(QtWidgets.QPushButton, 'comments').click)
+        else:
+            dialog.accept()
+
+    timer = QtCore.QTimer()
+    timer.timeout.connect(step)
+    timer.start(10)
+    try:
+        eeg, com = module.pop_importdata(data=str(path), dataformat='ascii', gui=True, return_com=True)
+    finally:
+        timer.stop()
+    assert 'Read/Enter text -- pop_comments()' in titles
+    assert eeg['comments'] == 'line one\nline two'
+    # Multi-line comments go into history as a cell of lines, on one line that replays.
+    assert '\n' not in com
+    assert "'comments', {'line one' 'line two'}" in com
+    replayed = module.pop_importdata(data=str(path), dataformat='ascii', comments=['line one', 'line two'])
+    assert replayed['comments'] == 'line one\nline two'
+
+
 @pytest.mark.parametrize('name', ['pop_loadbv', 'pop_fileio', 'pop_readegi', 'pop_biosig'])
 def test_f10_reader_options_apply_selection_and_replay(app, tmp_path, name):
     data = np.arange(40).reshape(2, 20) + 1
@@ -480,3 +505,23 @@ def test_f10_presentation_cancel_preserves_dataset(app, tmp_path):
         timer.stop()
     assert out is eeg
     assert command == ''
+
+
+def test_importdata_rows_share_the_window_height_and_show_the_chanlocs_note(app):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.popfunc.pop_importdata import pop_importdata_dialog_spec
+
+    spec = pop_importdata_dialog_spec()
+    assert any('use menu "Edit > Channel locations"' in control.string for control in spec.controls)
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(spec)
+    dialog.show()
+    app.processEvents()
+    try:
+        last = widgets['icasphere']
+        ok = dialog.findChild(QtWidgets.QPushButton, 'ok')
+        gap = ok.mapTo(dialog, ok.rect().topLeft()).y() - last.mapTo(dialog, last.rect().bottomLeft()).y()
+        assert gap < dialog.height() / 8
+        boxes = [widgets[tag] for tag in ('srate', 'pnts', 'xmin', 'nbchan', 'ref')]
+        assert len({box.mapTo(dialog, box.rect().topLeft()).x() for box in boxes}) == 1
+    finally:
+        dialog.close()

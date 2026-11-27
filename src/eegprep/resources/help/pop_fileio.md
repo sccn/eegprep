@@ -1,14 +1,30 @@
 # POP_FILEIO - Import EEG files through EEG-IO
 
-`pop_fileio` imports supported EEG file formats using EEGPrep's Python reader
-stack. In the GUI it is File > Import data > Using the EEG-IO interface. That
-menu sends EDF, BDF, and GDF files to Using the MNE-IO interface
-(`pop_biosig`), and its data-format list has no MNE entry; scripts can still
-read them with `pop_fileio`, including `dataformat="biosig"`.
+`pop_fileio` is the function behind File > Import data > Using the EEG-IO
+interface. It imports EEG files with EEGPrep's own readers and conversions,
+chosen from the file extension or from the Data format popup. That menu sends
+EDF, BDF, and GDF files to Using the MNE-IO interface (`pop_biosig`), and its
+data-format list has no MNE entry; scripts can still read them with
+`pop_fileio`, including `dataformat="biosig"`. It does not use FieldTrip's
+File-IO library, which EEGLAB's File-IO menu calls.
 
-Supported paths include EEGLAB `.set`, MATLAB arrays, text/NumPy arrays,
-EDF/BDF/GDF, BrainVision `.vhdr`/`.ahdr`, EGI `.mff`, Neuroscan `.cnt`, and
-`.eeg` files.
+EEGPrep's own readers:
+
+- `.set` and EEGLAB `.mat`: `pop_loadset`
+- `.cnt`: `pop_loadcnt`
+- `.vhdr`, `.ahdr`: `pop_loadbv`
+- `.raw`: `pop_readegi`
+- `.eeg` without a BrainVision header: Neuroscan epoch reader `loadeeg`
+- `.csv`, `.txt`, `.tsv`, `.npy`, `.npz`, array `.mat`: `pop_importdata`
+
+MNE-Python readers (install `pip install "eegprep[mne]"`). In the menus these
+files belong to File > Import data > Using the MNE-IO interface (`pop_biosig`).
+From a script `pop_fileio` still reads them:
+
+- `.edf`: `mne.io.read_raw_edf`
+- `.bdf`: `mne.io.read_raw_bdf`
+- `.gdf`: `mne.io.read_raw_gdf`
+- `.mff`: `mne.io.read_raw_egi`
 
 For `.eeg` or `.EEG`, a sibling header with the same stem and a `.vhdr`
 extension (or `.ahdr` if no `.vhdr` exists) selects BrainVision import.

@@ -7,6 +7,7 @@ from eegprep import pop_loadbv
 from tests.test_pop_loadbv import _write_binary_brainvision
 
 import numpy as np
+import pyedflib
 import pytest
 
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
@@ -54,31 +55,6 @@ def test_f10_biosig_reference_range_and_event_controls(tmp_path):
     assert "'ref', [2]" in command
 
 
-def test_biosig_uncalibrated_edf_returns_stored_integers(tmp_path):
-    path = _write_edf_bids_dataset(tmp_path)
-    calibrated = pop_biosig(path)
-    digital = pop_biosig(path, uncalibrated='on')
-    gain = 200 / 65535
-    offset = -100 + 32768 * gain
-    np.testing.assert_array_equal(digital['data'], np.round(digital['data']))
-    np.testing.assert_allclose(digital['data'] * gain + offset, calibrated['data'], atol=1e-4)
-    assert np.ptp(digital['data']) > 1000
-
-
-def test_biosig_rejects_options_the_python_reader_cannot_honor(tmp_path):
-    path = _write_edf_bids_dataset(tmp_path)
-    with pytest.raises(ValueError, match='blockepoch'):
-        pop_biosig(path, blockepoch='on')
-    np.testing.assert_array_equal(pop_biosig(path, blockepoch='off')['data'], pop_biosig(path)['data'])
-    np.testing.assert_array_equal(pop_biosig(path, overflow='on')['data'], pop_biosig(path)['data'])
-    gdf = path.with_suffix('.gdf')
-    gdf.write_bytes(path.read_bytes())
-    with pytest.raises(ValueError, match='uncalibrated'):
-        pop_biosig(gdf, uncalibrated='on')
-    with pytest.raises(ValueError, match='overflow'):
-        pop_biosig(gdf, overflow='on')
-
-
 def test_f23_brainvision_returns_single_precision(tmp_path):
 
     path = _write_binary_brainvision(tmp_path, 'test', np.arange(10).reshape(2, 5))
@@ -93,3 +69,29 @@ def test_f10_edf_annotations_are_independent_of_marker_events(tmp_path):
     annotations = pop_biosig(path, importevent='off')
     assert len(original['event']) > 0
     assert [event['type'] for event in annotations['event']] == [event['type'] for event in original['event']]
+
+
+def test_edf_import_removes_eeg_label_prefix_like_eeglab(tmp_path):
+    path = tmp_path / 'labels.edf'
+    labels = ['EEG Fp1', 'EEG-Fp2', 'EEG Cz']
+    writer = pyedflib.EdfWriter(str(path), len(labels), file_type=pyedflib.FILETYPE_EDFPLUS)
+    writer.setSignalHeaders(
+        [
+            {
+                'label': label,
+                'dimension': 'uV',
+                'sample_frequency': 100,
+                'physical_min': -100,
+                'physical_max': 100,
+                'digital_min': -32768,
+                'digital_max': 32767,
+                'transducer': '',
+                'prefilter': '',
+            }
+            for label in labels
+        ]
+    )
+    writer.writeSamples([np.zeros(200) for _ in labels])
+    writer.close()
+    for eeg in (pop_fileio(path), pop_biosig(path)):
+        assert [loc['labels'] for loc in eeg['chanlocs']] == ['Fp1', 'Fp2', 'Cz']
