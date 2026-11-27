@@ -306,7 +306,7 @@ def _read_neuroscan_epochs(path: Path, *, format="auto"):
 def pop_fileio_dialog_spec() -> DialogSpec:
     """Return File-IO channel, sample, and trial selections."""
     return DialogSpec(
-        title='Import data using File-IO -- pop_fileio()',
+        title='Import data using EEG-IO -- pop_fileio()',
         function_name='pop_fileio',
         help_text='pop_fileio',
         eeglab_source='plugins/fileio/pop_fileio.m',
@@ -315,7 +315,7 @@ def pop_fileio_dialog_spec() -> DialogSpec:
             ControlSpec('text', 'Data format'),
             ControlSpec(
                 'popupmenu',
-                'auto|EEGLAB .set|BrainVision|BIOSIG|Neuroscan CNT|Neuroscan EEG|EGI MFF|MATLAB array',
+                'auto|EEGLAB .set|BrainVision|MNE (EDF, BDF, GDF)|Neuroscan CNT|Neuroscan EEG|EGI MFF|MATLAB array',
                 tag='dataformat',
                 value=1,
             ),

@@ -317,11 +317,24 @@ def test_f8_import_menu_keeps_pinned_labels_and_order():
     labels = [item.label for item in native.children if item.action]
     assert labels[:3] == [
         'From ASCII/float file or MATLAB array',
-        'From Biosemi BDF file (BIOSIG toolbox)',
-        'From EDF/EDF+/GDF files (BIOSIG toolbox)',
+        'From Biosemi BDF file (MNE-IO)',
+        'From EDF/EDF+/GDF files (MNE-IO)',
     ]
     actions = [item.action for item in native.children]
     assert actions.index('pop_fileio_mff') < actions.index('pop_fileio_cnt') < actions.index('pop_fileio_brainvision')
+    interfaces = {item.action: item.label for item in imported.children if item.action in ('pop_fileio', 'pop_biosig')}
+    assert interfaces == {'pop_fileio': 'Using the EEG-IO interface', 'pop_biosig': 'Using the MNE-IO interface'}
+
+
+def test_eeg_io_menu_sends_files_read_through_mne_to_the_mne_io_menu(app, tmp_path, monkeypatch):
+    path = _write_edf_bids_dataset(tmp_path)
+    monkeypatch.setattr(QtWidgets.QFileDialog, 'getOpenFileName', lambda *args, **kwargs: (str(path), ''))
+    shown = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, 'information', lambda _parent, _title, text, *_args: shown.append(text))
+    session = EEGPrepSession()
+    MenuActionDispatcher(session, native_file_dialogs=False).dispatch('pop_fileio')
+    assert len(shown) == 1 and 'MNE-IO' in shown[0]
+    assert session.CURRENTSET == []
 
 
 @pytest.mark.parametrize('action', ['pop_importpres', 'pop_importerplab'])
