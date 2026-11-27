@@ -91,17 +91,7 @@ def test_f18_mff_picker_selects_directory(app, tmp_path, monkeypatch):
         (
             'pop_biosig',
             {'filename': 'unused.edf'},
-            {
-                'channels',
-                'blockrange',
-                'ref',
-                'bdfeventmode',
-                'importevent',
-                'blockepoch',
-                'overflow',
-                'uncalibrated',
-                'importannot',
-            },
+            {'channels', 'blockrange', 'ref', 'bdfeventmode', 'importevent', 'rmeventchan'},
         ),
         ('pop_loadbv', {'path': 'unused.vhdr'}, {'chans', 'srange'}),
         ('pop_fileio', {'filename': 'unused.eeg'}, {'channels', 'samples', 'trials'}),
