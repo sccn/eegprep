@@ -26,6 +26,7 @@ from eegprep.functions.adminfunc.plugin_menu import (
 )
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.guifunc.theme import EEGLAB_BACKGROUND
 from eegprep.extensions import ExtensionRegistry
 
 
@@ -461,6 +462,21 @@ def test_gui_extension_manager_dialog_renders_details_and_commands() -> None:
     assert "uv add eegprep-ext-catalog" in commands.toPlainText()
     copy_button.click()
     assert "uv add eegprep-ext-catalog" in qt_widgets.QApplication.clipboard().text()
+    dialog.close()
+
+
+def test_gui_extension_manager_uses_eeglab_background() -> None:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    qt_widgets = pytest.importorskip("PySide6.QtWidgets")
+    app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    plugins = plugin_menu(registry=_registry(), catalog=_catalog(), include_bundled=False, show=False)
+
+    dialog = _build_plugin_dialog(plugins, catalog_info={"catalog_source": "test catalog"})
+    dialog.show()
+    app.processEvents()
+    margin_pixel = dialog.grab().toImage().pixelColor(2, 2)
+
+    assert margin_pixel.name() == EEGLAB_BACKGROUND
     dialog.close()
 
 
