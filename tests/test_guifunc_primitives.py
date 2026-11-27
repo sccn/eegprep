@@ -8,6 +8,7 @@ import pytest
 from eegprep.functions.guifunc.inputdlg2 import inputdlg2
 from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.guifunc.theme import EEGLAB_CONTROL_BACKGROUND, EEGLAB_CONTROL_DISABLED_BACKGROUND
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
 
@@ -159,6 +160,15 @@ def test_listdlg2_selects_one_based_initial_values(qt_widgets):
 
     assert [index + 1 for index in range(list_widget.count()) if list_widget.item(index).isSelected()] == [1, 3]
     dialog.close()
+
+
+def test_disabled_list_box_is_greyed(qt_dialogs):
+    controls = (ControlSpec("listbox", "one", tag="on"), ControlSpec("listbox", "one", tag="off", enabled=False))
+    spec = DialogSpec(title="lists", controls=controls, geometry=((1, 1),), function_name="lists", eeglab_source="")
+    widgets = qt_dialogs.build(spec)
+    qt_dialogs.dialogs[-1].show()
+    below_the_item = [widget.grab().toImage().pixelColor(8, 60).name() for widget in (widgets["on"], widgets["off"])]
+    assert below_the_item == [EEGLAB_CONTROL_BACKGROUND, EEGLAB_CONTROL_DISABLED_BACKGROUND]
 
 
 def _event_dialog(fields, types, *, selectionmode="multiple"):
