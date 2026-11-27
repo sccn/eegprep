@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- The ``pop_importdata`` window takes the height of its content, with no blank
+  space left below the options and the Cancel and Ok buttons. (#775)
+
 - File > Import data names its two reader menus Using the EEG-IO interface
   (``pop_fileio``) and Using the MNE-IO interface (``pop_biosig``), in place of
   EEGLAB's FILE-IO and BIOSIG. EDF, BDF and GDF files open only through
