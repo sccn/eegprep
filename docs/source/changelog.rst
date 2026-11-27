@@ -64,6 +64,8 @@ Unreleased
   ``n_good_samples`` and ``n_rejected_samples``, counts only. With rejection
   on, ``returned_iter`` is the iterate the weights come from and ``best_iter``
   is omitted. (#674)
+- ``pop_biosig`` keeps the BDF trigger events when ``channels`` leaves out the ``Status`` channel, as EEGLAB does. (#747)
+
 - ``topoplot`` averages sensors that MATLAB ``griddata`` treats as the same
   point. A separation equal to the axis tolerance stays separate, matching
   ``mergesimpts`` strict ``<``. ``plotchans`` selects 1-based channel indices,

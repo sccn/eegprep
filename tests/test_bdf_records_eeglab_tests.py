@@ -182,6 +182,10 @@ def test_pop_biosig_honors_status_import_and_removal(tmp_path: Path) -> None:
     assert [loc["labels"] for loc in kept_without_events["chanlocs"]] == ["A1", "A2", "Status"]
     assert _event_pairs(kept_without_events) == []
 
+    selected = pop_biosig(path, channels=[1])
+    assert [loc["labels"] for loc in selected["chanlocs"]] == ["A1"]
+    assert _event_pairs(selected) == [(5, 3), (7, 7)]
+
 
 def test_pop_biosig_uncalibrated_returns_stored_bdf_integers(tmp_path: Path) -> None:
     path = tmp_path / "digital.bdf"
