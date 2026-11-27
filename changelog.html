@@ -491,6 +491,8 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">pop_importdata</span></code> window has an <strong>Enter comments</strong> button next to “About this dataset” that opens the <code class="docutils literal notranslate"><span class="pre">pop_comments</span></code> editor,
+and shows “Data sampling rate (Hz)” and “Channel location file or info” in bold. (#756)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code> returns the mutual information reduction (MIR) of a dataset’s ICA decomposition, in nats, and the variance of that estimate:
 the mutual information that <code class="docutils literal notranslate"><span class="pre">icaweights</span></code> removes from <code class="docutils literal notranslate"><span class="pre">icasphere</span> <span class="pre">&#64;</span> <span class="pre">data</span></code>.
 It uses the binned entropy estimator of <code class="docutils literal notranslate"><span class="pre">getMIR.m</span></code>, as <code class="docutils literal notranslate"><span class="pre">pamica.metrics.mir</span></code> ports it, with a fixed 256 bins instead of a count that grows with the recording,
@@ -531,6 +533,11 @@ Quit and study resave use the same raw-BIDS refusal as <code class="docutils lit
 Replacing a mapped <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> leaves an open array view readable; on Windows
 that resave is refused until the view is closed or the dataset is saved
 as a new file. (#673)</p></li>
+<li><p>Dialogs with a fixed window size share the window height among their rows, as
+EEGLAB’s <code class="docutils literal notranslate"><span class="pre">supergui</span></code> does, instead of stacking the rows at the top above an
+empty band. About fifty dialogs of the File, Edit, Tools and Plot menus take
+their whole window. <code class="docutils literal notranslate"><span class="pre">pop_importdata</span></code> sizes its columns by their weights and
+shows EEGLAB’s note on channel location files. (#700)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;pamica&quot;]</span></code> records pAMICA sample rejection with the EEGLAB
 settings: <code class="docutils literal notranslate"><span class="pre">do_reject</span></code> off, <code class="docutils literal notranslate"><span class="pre">maxrej</span></code> 3 (EEGLAB’s <code class="docutils literal notranslate"><span class="pre">numrej</span></code>), <code class="docutils literal notranslate"><span class="pre">rejsig</span></code>
 3.0, <code class="docutils literal notranslate"><span class="pre">rejstart</span></code> 2 and <code class="docutils literal notranslate"><span class="pre">rejint</span></code> 3. The outcome is <code class="docutils literal notranslate"><span class="pre">rejection_passes</span></code>,
