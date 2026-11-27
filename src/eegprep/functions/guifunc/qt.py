@@ -926,6 +926,7 @@ def _rows_share_height(spec: DialogSpec) -> bool:
     return (
         spec.geomvert is None
         and spec.size is not None
+        and spec.size[1] is not None
         and not spec.scrollable
         and not any(control.style.lower() == "textarea" for control in spec.controls)
     )
