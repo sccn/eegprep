@@ -340,6 +340,7 @@ class QtDialogRenderer:
         self._apply_font_hints(widget, control)
         self._apply_widget_size_policy(QtWidgets, widget, style)
         widget.setEnabled(control.enabled)
+        widget.style().unpolish(widget)
         return widget
 
     def _bind_index_navigation(self, widgets: dict[str, Any], params: Mapping[str, Any], index_tag: str) -> None:
