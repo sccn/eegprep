@@ -767,7 +767,9 @@ empty. A sampling rate of zero uses 1 Hz, which is also recorded in history.</p>
 BDF event decoding, EDF+ annotations, and memory mapping. Channel and reference
 indices are 1-based; references index the loaded channel list after removing
 the Status channel. Marker events and EDF+ annotations have independent
-switches. The Python readers use calibrated continuous data; MATLAB-only
+switches. Channel labels such as <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">Fp1</span></code> or <code class="docutils literal notranslate"><span class="pre">EEG-Fp1</span></code> are imported as
+<code class="docutils literal notranslate"><span class="pre">Fp1</span></code>, unless 30 or more labels are numbered (<code class="docutils literal notranslate"><span class="pre">EEG001</span></code>). The Python
+readers use calibrated continuous data; MATLAB-only
 BIOSIG mexSLOAD, overflow, and uncalibrated-reader switches are absent.
 BrainVision uses inclusive 1-based sample ranges and channel indices. CNT
 exposes precision, start time, duration, and keyboard-response import. EGI

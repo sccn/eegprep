@@ -491,12 +491,17 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">pop_importdata</span></code> window has an <strong>Enter comments</strong> button next to “About this dataset” that opens the <code class="docutils literal notranslate"><span class="pre">pop_comments</span></code> editor,
+and shows “Data sampling rate (Hz)” and “Channel location file or info” in bold. (#756)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_mir</span></code> returns the mutual information reduction (MIR) of a dataset’s ICA decomposition, in nats, and the variance of that estimate:
 the mutual information that <code class="docutils literal notranslate"><span class="pre">icaweights</span></code> removes from <code class="docutils literal notranslate"><span class="pre">icasphere</span> <span class="pre">&#64;</span> <span class="pre">data</span></code>.
 It uses the binned entropy estimator of <code class="docutils literal notranslate"><span class="pre">getMIR.m</span></code>, as <code class="docutils literal notranslate"><span class="pre">pamica.metrics.mir</span></code> ports it, with a fixed 256 bins instead of a count that grows with the recording,
 so MIR no longer drifts with recording length; it needs no optional dependency.
 Epochs are concatenated and <code class="docutils literal notranslate"><span class="pre">icachansind</span></code> selects the channels.
 A missing, non-square or singular decomposition, and non-finite data, raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p></li>
+<li><p>EDF, BDF, GDF and other MNE-read imports remove the <code class="docutils literal notranslate"><span class="pre">EEG</span></code> prefix of channel labels
+(<code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">Fp1</span></code> and <code class="docutils literal notranslate"><span class="pre">EEG-Fp1</span></code> become <code class="docutils literal notranslate"><span class="pre">Fp1</span></code>), as EEGLAB does for every import, unless
+30 or more labels are numbered. The labels then match channel location files. (#746)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> reads <code class="docutils literal notranslate"><span class="pre">EEGCoordinateSystem</span></code> by the orientation the BIDS coordinate-systems appendix gives it.
 <code class="docutils literal notranslate"><span class="pre">CTF</span></code>, <code class="docutils literal notranslate"><span class="pre">4DBti</span></code> and <code class="docutils literal notranslate"><span class="pre">KitYokogawa</span></code> are ALS and are no longer turned by 90 degrees.
 Names match without regard to case, so <code class="docutils literal notranslate"><span class="pre">MNI152NLin6Asym</span></code>, the schema’s spelling from BIDS 1.11.0, is RAS as <code class="docutils literal notranslate"><span class="pre">MNI152NLin6ASym</span></code> is;
@@ -513,6 +518,16 @@ components opens <code class="docutils literal notranslate"><span class="pre">po
 MRI head-model creation and eLORETA stay disabled, with a tooltip that
 names the missing FieldTrip step and the template or autofit alternative.
 (#675)</p></li>
+<li><p>File &gt; Preferences no longer shows the EEGLAB options that have no meaning
+in Python: two-file saving, the switch for saving fields as individual
+variables, the parallel toolbox, memory-mapped arrays, single precision, the
+EEG object, RMS scaling of ICA activities, Show advanced options, plugins
+pending approval, and HTML in graphics. The header of <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code>
+says why for each. Their keys and defaults stay in <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code>.
+<code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> no longer reads <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code>
+no longer reads <code class="docutils literal notranslate"><span class="pre">option_memmapdata</span></code>: a new dataset is saved in one file
+unless <code class="docutils literal notranslate"><span class="pre">savemode=&quot;twofiles&quot;</span></code> is passed, and a sidecar is memory-mapped
+only with <code class="docutils literal notranslate"><span class="pre">memmap=True</span></code>. (#709)</p></li>
 <li><p>File menu and data I/O follow the Nov 23, 2026 audit. BIDS import writes
 <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> and refuses to resave a raw BIDS file. <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code>
 replaces the <code class="docutils literal notranslate"><span class="pre">.set</span></code> and <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> only after both temporary files are
