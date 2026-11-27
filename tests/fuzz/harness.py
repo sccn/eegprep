@@ -1806,9 +1806,7 @@ def _channel_cleaned_asr_return_detail(
 
     ``clean_artifacts.m`` lines 270-275 ``return`` before window removal.
     Channel cleaning has already run, so the array is not the original input.
-    EEGPrep skips the burst and still removes windows. The calibration section
-    for the 2026-11-20 crop is 28 samples, under one 0.5 s RMS window
-    (``asr_calibrate.m`` line 190).
+    EEGPrep skips the burst and still removes windows.
     """
     params = _clean_rawdata_params(case)
     if params is None or not python.ok or not oracle.ok or python.data is None or oracle.data is None:
@@ -1877,7 +1875,7 @@ def _final_window_row_histogram_is_known(case: FuzzCase, eeg: dict, python: Side
         prepared = _pop_clean_rawdata_variant(eeg, params, WindowCriterion="off")
     except Exception:
         return False
-    count = _clean_windows_count(int(prepared["pnts"]), float(prepared["srate"]), 1.0, 0.66)
+    count = _clean_windows_count(int(prepared["pnts"]), float(prepared["srate"]), 1.0, _CLEAN_WINDOW_OVERLAP)
     return int(found.group(1)) == count and _fit_eeg_distribution_throws(count)
 
 
