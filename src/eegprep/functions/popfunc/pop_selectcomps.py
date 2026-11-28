@@ -223,17 +223,38 @@ def _show_component_property(EEG, component, flags, buttons, parent, qt_core, qt
     window.setWindowModality(qt_core.Qt.WindowModality.ApplicationModal)
     layout = qt_widgets.QVBoxLayout(window)
     layout.addWidget(FigureCanvasQTAgg(figure))
-    toggle = qt_widgets.QPushButton("REJECT" if flags[component - 1] else "ACCEPT")
+    # pop_prop.m: the status button only flips its own label; OK copies it to the parent grid.
+    status = {"rejected": bool(flags[component - 1])}
+    toggle = qt_widgets.QPushButton()
     toggle.setObjectName("accept_reject")
     toggle.setAutoDefault(False)
 
-    def flip() -> None:
-        flags[component - 1] = 0 if flags[component - 1] else 1
-        toggle.setText("REJECT" if flags[component - 1] else "ACCEPT")
-        paint(buttons[component], bool(flags[component - 1]))
+    def show_status() -> None:
+        toggle.setText("REJECT" if status["rejected"] else "ACCEPT")
+        paint(toggle, status["rejected"])
 
+    def flip() -> None:
+        status["rejected"] = not status["rejected"]
+        show_status()
+
+    def commit() -> None:
+        flags[component - 1] = int(status["rejected"])
+        paint(buttons[component], status["rejected"])
+        window.accept()
+
+    show_status()
     toggle.clicked.connect(flip)
-    layout.addWidget(toggle)
+    cancel = qt_widgets.QPushButton("Cancel")
+    cancel.setObjectName("cancel")
+    cancel.setAutoDefault(False)
+    cancel.clicked.connect(window.reject)
+    ok = qt_widgets.QPushButton("OK")
+    ok.setObjectName("ok")
+    ok.clicked.connect(commit)
+    actions = qt_widgets.QHBoxLayout()
+    for button in (cancel, toggle, ok):
+        actions.addWidget(button)
+    layout.addLayout(actions)
     window.finished.connect(lambda _code: plt.close(figure))
     window.exec()
 

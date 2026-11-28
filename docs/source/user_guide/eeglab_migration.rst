@@ -79,8 +79,9 @@ keeps the other edits. EEGLAB's sort-from-the-GUI path discards the edits.
 
 ``pop_selectcomps`` asks which components to plot, then opens a scalp map and a
 button for each one, 35 per window. Clicking a button opens ``pop_prop`` with
-ACCEPT/REJECT on that window. OK stores ``EEG.reject.gcompreject``; Cancel
-discards the toggles. The button label is ``Set thresholds``. EEGLAB spells that
+Cancel, ACCEPT/REJECT, and OK. OK in ``pop_prop`` returns the mark to the grid;
+Cancel there drops it. OK in the grid stores ``EEG.reject.gcompreject``; Cancel
+in the grid discards the marks. The button label is ``Set thresholds``. EEGLAB spells that
 button ``Set threhsolds``. Both that button and ``See comp. stats`` stay
 disabled until ``pop_icathresh`` and ``EEG.stats.compenta`` exist.
 
