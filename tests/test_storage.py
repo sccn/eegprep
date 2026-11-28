@@ -51,6 +51,7 @@ def test_pop_saveset_twofiles_roundtrips_epoched_data_as_memmap(tmp_path: Path):
     pop_saveset(_eeg(data, name="epoched"), set_file, savemode="twofiles")
     EEG_OPTIONS["option_memmapdata"] = 1
     in_memory = pop_loadset(set_file)
+    assert not isinstance(in_memory["data"], MemmapData)
     in_memory["data"][0, 0, 0] = -123.0
     loaded = pop_loadset(set_file, memmap=True)
 
