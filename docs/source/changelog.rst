@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- File > History scripts > Save session history script records
+  ``pop_saveh(ALLCOM, ...)`` instead of ``EEG.history``. ``pop_saveh`` writes
+  Python when the filename ends in ``.py``, and ``pop_loadset`` accepts
+  ``filename=``/``filepath=`` keywords so translated history replays. (#785)
+
 - The ``pop_chanevent`` window has its two blank rows back between groups of
   options, and its two ``(set = yes)`` notes start at the same position. A
   dialog shares its height among its rows only when that height is fixed. (#771)

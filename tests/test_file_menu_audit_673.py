@@ -23,9 +23,11 @@ from eegprep.functions.popfunc.pop_export import pop_export
 from eegprep.functions.popfunc.pop_fileio import pop_fileio_dialog_spec
 from eegprep.functions.popfunc.pop_loadcnt import _eeg_event
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_runscript import pop_runscript
 from eegprep.functions.popfunc.pop_saveh import pop_saveh
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
@@ -214,6 +216,58 @@ def test_pop_saveh_dataset_history_names_eeg_history(tmp_path):
     assert command.startswith("pop_saveh(EEG.history,")
     session = pop_saveh(["EEG = pop_reref(EEG, []);"], "session.m", tmp_path)
     assert session.startswith("pop_saveh(ALLCOM,")
+
+
+def _save_history_from_menu(session: EEGPrepSession, action: str, path: Path) -> None:
+    class QFileDialog:
+        @staticmethod
+        def getSaveFileName(*_args, **_kwargs):
+            return str(path), ""
+
+    widgets = type("FakeQt", (), {"QFileDialog": QFileDialog})
+    from unittest.mock import patch
+
+    with patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=widgets):
+        MenuActionDispatcher(session).dispatch(action)
+
+
+@pytest.mark.parametrize("suffix", [".m", ".py"])
+def test_saved_session_and_dataset_history_name_their_source_and_replay(tmp_path, suffix):
+    session = EEGPrepSession()
+    loaded = pop_loadset(str(SAMPLE))
+    loaded["history"] = ""
+    session.store_current(loaded, new=True)
+    session.add_history(f"EEG = pop_loadset('filename', {SAMPLE.name!r}, 'filepath', {str(SAMPLE.parent) + '/'!r});")
+    session.add_history("[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 0, 'gui', 'off');")
+    session.add_history("EEG = pop_reref( EEG, []);")
+    session.add_history("EEG = pop_select( EEG, 'channel', [1 2 3]);")
+    current = session.EEG
+    current["history"] = "EEG = pop_reref( EEG, []);\nEEG = pop_select( EEG, 'channel', [1 2 3]);"
+
+    session_path = tmp_path / f"session{suffix}"
+    _save_history_from_menu(session, "pop_saveh:session", session_path)
+    assert session.ALLCOM[-1].startswith("pop_saveh(ALLCOM,")
+    dataset_path = tmp_path / f"dataset{suffix}"
+    _save_history_from_menu(session, "pop_saveh:dataset", dataset_path)
+    assert session.ALLCOM[-1].startswith("pop_saveh(EEG.history,")
+
+    session_text = session_path.read_text(encoding="utf-8")
+    dataset_text = dataset_path.read_text(encoding="utf-8")
+    assert session_text.index("pop_reref") < session_text.index("pop_select")
+    assert "eegprep.eeglab()" in session_text
+    assert "eegprep.eeglab()" not in dataset_text
+    if suffix == ".m":
+        return
+    ast.parse(session_text)
+    ast.parse(dataset_text)
+    expected = pop_select(pop_reref(pop_loadset(str(SAMPLE)), []), channel=[0, 1, 2])
+    replayed: dict = {}
+    exec(session_text.replace("eegprep.eeglab()", ""), replayed)
+    assert replayed["EEG"]["nbchan"] == 3
+    np.testing.assert_allclose(replayed["EEG"]["data"], expected["data"])
+    from_start: dict = {"EEG": pop_loadset(str(SAMPLE))}
+    exec(dataset_text, from_start)
+    np.testing.assert_allclose(from_start["EEG"]["data"], expected["data"])
 
 
 def test_pop_runscript_runs_a_matlab_assignment_and_names_an_unsupported_line(tmp_path):
