@@ -81,7 +81,10 @@ sample range is inclusive. Binary and ASCII, multiplexed and vectorized data
 are supported. Voltage data is normalized to microvolts while the original
 unit and resolution remain in each channel's ``bvunit`` and ``bvresolution``
 fields. Use ``metadata=True`` to inspect dimensions, channels, and events
-without loading samples. Uniform marker-based or fixed-time segments are
+without loading samples. ``setname`` is the header filename without its
+extension; EEGLAB leaves it empty. Every event has a ``visible`` field, an
+empty string when the marker omits its seventh field, matching EEGLAB.
+Uniform marker-based or fixed-time segments are
 returned as trials rather than a flattened continuous array. BIDS import uses
 this same reader for ``.vhdr`` files.
 
