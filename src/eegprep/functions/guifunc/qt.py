@@ -905,10 +905,6 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
         }}
         """
     dialog.setStyleSheet(base_stylesheet + eeglab_floating_dialog_stylesheet() + (spec.extra_stylesheet or ""))
-    # A new QDialog allocated at the address of a destroyed unshown dialog (such as
-    # build_listdlg2_dialog) keeps the old parsed rule list in Qt's styleSheetCache
-    # until unpolished.
-    dialog.style().unpolish(dialog)
 
 
 def _row_weights(row_geometry: Any) -> list[float]:

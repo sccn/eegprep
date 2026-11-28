@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Disabled list boxes keep their grey background after a list selector closes.
+
 - The ``pop_chanevent`` window has its two blank rows back between groups of
   options, and its two ``(set = yes)`` notes start at the same position. A
   dialog shares its height among its rows only when that height is fixed. (#771)
