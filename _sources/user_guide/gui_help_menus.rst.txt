@@ -21,6 +21,9 @@ Python workspace:
 Menu State
 ==========
 
+With no dataset loaded, the main window spreads the suggested steps from
+import through plotting down the height of the frame.
+
 The File and Help menus are available at startup. Edit, Tools, Plot, Study,
 and Datasets become available when the shared session contains a compatible
 dataset or STUDY. The Datasets menu reflects ``ALLEEG`` and ``CURRENTSET`` and
