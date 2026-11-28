@@ -82,6 +82,11 @@ use seconds by default, ``timeunit=1e-3`` selects milliseconds, and
 unless ``append="no"`` is supplied. Alignment can anchor imported rows to the
 existing event stream and optionally compensate for small clock-rate drift;
 ``indices`` uses 1-based event numbers when updating selected rows.
+Field names follow the file column order, and the reserved ``latency`` and
+``type`` fields must be lowercase. In the dialog, an import error such as
+``Latency Type Position`` shows a warning and keeps the form open with the file
+and settings so you can correct them; the dataset and history change only after
+a successful import.
 
 ``pop_importepoch`` accepts one row per epoch. Text files require ``fieldlist``
 in column order and ``headerlines=1`` when the first row contains column names.

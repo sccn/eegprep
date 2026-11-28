@@ -46,13 +46,7 @@ def pop_importevent(
         result = inputgui(pop_importevent_dialog_spec(EEG), initial_values=options, renderer=renderer)
         if result is None:
             return (EEG, "") if return_com else EEG
-        options = {key: value for key, value in result.items() if value != ""}
-        options['append'] = 'yes' if result['append'] else 'no'
-        options['optimalign'] = 'on' if result['optimalign'] else 'off'
-        options['indices'] = parse_numeric_sequence(result.get('indices', ''), dtype=int)
-        options['skipline'] = int(result['skipline'])
-        options['timeunit'] = float(result['timeunit'])
-        options['align'] = float(result['align'])
+        options = _gui_options(result)
     event_source = options.get("event", options.get("filename"))
     if event_source is None:
         raise ValueError("pop_importevent requires an event file or event records")
@@ -72,6 +66,28 @@ def pop_importevent(
     return (out, command) if return_com else out
 
 
+def _gui_options(result: dict[str, Any]) -> dict[str, Any]:
+    options = {key: value for key, value in result.items() if value != ""}
+    options['append'] = 'yes' if result['append'] else 'no'
+    options['optimalign'] = 'on' if result['optimalign'] else 'off'
+    options['indices'] = parse_numeric_sequence(result.get('indices', ''), dtype=int)
+    options['skipline'] = int(result['skipline'])
+    options['timeunit'] = float(result['timeunit'])
+    options['align'] = float(result['align'])
+    return options
+
+
+def _validate_dialog_values(EEG: dict[str, Any], values: dict[str, Any]) -> None:
+    options = _gui_options(values)
+    event_source = options.get("event")
+    if event_source is None:
+        raise ValueError("pop_importevent: select an event file")
+    try:
+        _import_event_records(event_source, EEG.get("event"), float(EEG.get("srate", 1) or 1), options)
+    except OSError as exc:
+        raise ValueError(f"pop_importevent: cannot read {event_source}: {exc}") from exc
+
+
 def _import_event_records(
     event_source: Any,
     oldevent: Any,
@@ -86,8 +102,8 @@ def _import_event_records(
         for key in record
     ):
         raise ValueError(
-            "pop_importevent: event keywords must be lowercase. Supply fields=['type', 'latency'] "
-            "in column order and skipline=1 for a header, or rename the header fields."
+            "pop_importevent: the reserved fields latency and type must be lowercase. List the fields "
+            "in file column order, for example 'latency type position', and skip the header line."
         )
     old_events = events_to_records(oldevent)
     indices = _event_indices(options.get("indices"), len(old_events))
@@ -418,4 +434,5 @@ def pop_importevent_dialog_spec(EEG) -> DialogSpec:
         controls=tuple(controls),
         weighted_columns=True,
         size=(1030, 310),
+        validate=lambda values: _validate_dialog_values(EEG, values),
     )

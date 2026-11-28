@@ -227,6 +227,51 @@ def test_f10_accept_menu_import_updates_shared_session(app, tmp_path, action, sh
     bridge.close()
 
 
+def test_importevent_invalid_fields_keep_dialog_open_for_correction(app, tmp_path):
+    path = tmp_path / 'tutorial_eventtable.txt'
+    path.write_text('Latency Type Position\n0.25 square 1\n0.5 rt 2\n0.75 square 1\n')
+    session = EEGPrepSession()
+    session.store_current(_singleton_eeg(np.zeros((2, 100))), new=True)
+    before = list(session.ALLCOM)
+    reopened = []
+
+    def interact():
+        dialog = app.activeModalWidget()
+        if dialog is None:
+            return
+        if isinstance(dialog, QtWidgets.QMessageBox):
+            dialog.accept()
+            return
+        fields = dialog.findChild(QtWidgets.QLineEdit, 'fields')
+        if not fields.text():
+            dialog.findChild(QtWidgets.QLineEdit, 'event').setText(str(path))
+            dialog.findChild(QtWidgets.QLineEdit, 'skipline').setText('1')
+            dialog.findChild(QtWidgets.QLineEdit, 'align').setText('NaN')
+            fields.setText('Latency Type Position')
+        elif fields.text() == 'Latency Type Position':
+            reopened.append(
+                (
+                    dialog.findChild(QtWidgets.QLineEdit, 'event').text(),
+                    dialog.findChild(QtWidgets.QLineEdit, 'skipline').text(),
+                )
+            )
+            assert session.ALLCOM == before
+            fields.setText('latency type position')
+        dialog.findChild(QtWidgets.QPushButton, 'ok').click()
+
+    timer = QtCore.QTimer()
+    timer.timeout.connect(interact)
+    timer.start(10)
+    try:
+        MenuActionDispatcher(session, native_file_dialogs=False).dispatch('pop_importevent')
+    finally:
+        timer.stop()
+    assert reopened and reopened[0] == (str(path), '1')
+    assert [event['type'] for event in session.EEG['event']] == ['square', 'rt', 'square']
+    assert [event['latency'] for event in session.EEG['event']] == [26, 51, 76]
+    assert sum('pop_importevent(' in command for command in session.ALLCOM) == 1
+
+
 def test_f31_cancel_erplab_dialog_preserves_session(app):
     session = EEGPrepSession()
     session.store_current(_singleton_eeg(np.zeros((2, 20))), new=True)
