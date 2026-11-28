@@ -217,6 +217,7 @@ def test_menu_import_uses_the_analyzer_layout(tmp_path):
     assert eeg["filename"] == ""
     assert path.is_file()
     assert any("pop_loadbva" in command for command in session.ALLCOM)
+    assert eeg["history"].count("pop_loadbva") == 1
 
 
 def _wrap_degrees(value):
