@@ -759,7 +759,10 @@ class MenuActionDispatcher:
         if not command:
             return
         self._last_data_folder = str(Path(filename).parent) if filename else getattr(self, "_last_data_folder", "")
-        self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent, new=True)
+        # Each importer already writes its command into EEG.history.
+        self._commit_processed_dataset_from_gui(
+            eeg_out, command=command, parent=parent, new=True, record_dataset_history=False
+        )
         self._refresh()
 
     def _open_import_filename(self, action: str, parent: Any | None) -> str:
@@ -1937,6 +1940,7 @@ class MenuActionDispatcher:
         parent: Any | None,
         leading_command: str = "",
         new: bool = False,
+        record_dataset_history: bool = True,
     ) -> None:
         if not command:
             return
@@ -1971,7 +1975,7 @@ class MenuActionDispatcher:
             self.session.add_history(leading_command, notify=False)
         # An asynchronous command stored through here must pass through eeglab_history_command first.
         for dataset in current if isinstance(current, list) else [current]:
-            if isinstance(dataset, dict):
+            if isinstance(dataset, dict) and record_dataset_history:
                 eegh(command, dataset)
         self.session.echo_command(command)
         self.session.add_history(command, notify=False)
