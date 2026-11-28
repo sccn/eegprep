@@ -158,7 +158,10 @@ def _is_hdf5_file(file_path):
 
 def _load_options(file_path, args, kwargs, loadmode, memmap):
     known_keys = {"filename", "filepath", "loadmode", "memmap", "check", "verbose", "eeg"}
-    if isinstance(file_path, str) and file_path.lower() in known_keys:
+    if file_path is None:
+        options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+        filename = options.pop("filename", None)
+    elif isinstance(file_path, str) and file_path.lower() in known_keys:
         options = parse_key_value_args((file_path, *args), kwargs, lowercase_keys=True, lowercase_kwargs=True)
         filename = options.pop("filename", None)
     else:

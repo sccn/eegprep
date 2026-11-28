@@ -11,9 +11,11 @@ GUI and Console Together
    datasets opens Dataset info so you can name or save the merged result. An
    empty processing result is rejected before replacing the current dataset.
 
-   Saved session history scripts use MATLAB commands, including dataset storage,
-   concrete selection indices, and ``eeglab redraw``. These scripts are for
-   EEGLAB; File > History scripts > Run script executes Python ``.py`` files.
+   File > History scripts saves session history (``ALLCOM``) or the current
+   dataset's ``EEG.history``. A ``.m`` file keeps the recorded MATLAB commands.
+   A ``.py`` file translates every command to Python; a session ``.py`` script
+   starts from an empty workspace, and a dataset ``.py`` script expects the
+   starting ``EEG``. Only session scripts end with ``eegprep.eeglab()``.
    The console translates displayed commands to Python while preserving the
    MATLAB form in ``ALLCOM`` and dataset history.
 

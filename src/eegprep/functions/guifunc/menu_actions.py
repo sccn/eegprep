@@ -1107,8 +1107,6 @@ class MenuActionDispatcher:
             if variant == "dataset" and isinstance(self.session.EEG, dict)
             else self.session.ALLCOM
         )
-        if isinstance(history, list):
-            history = "\n".join(["[ALLEEG EEG CURRENTSET ALLCOM] = eeglab;", *history, "eeglab redraw;"])
         command = pop_saveh(history, path.name, path.parent)
         self._add_history_from_gui(command)
         self._refresh()
