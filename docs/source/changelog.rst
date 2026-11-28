@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Tools > Reject data epochs > Reject by inspection and Tools > Reject data
+  using ICA > Reject by inspection ask whether to add to previously marked
+  rejections and whether to reject marked trials before the browser opens,
+  as in EEGLAB. Cancel opens no browser. (#793)
+
 - The ``pop_chanevent`` window has its two blank rows back between groups of
   options, and its two ``(set = yes)`` notes start at the same position. A
   dialog shares its height among its rows only when that height is fixed. (#771)

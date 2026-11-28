@@ -1430,9 +1430,20 @@ class MenuActionDispatcher:
 
             out = pop_subcomp(selection, return_com=True)
         elif name == "pop_eegplot":
-            from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset, pop_eegplot
+            from eegprep.functions.popfunc.pop_eegplot import (
+                eegplot_accept_creates_dataset,
+                pop_eegplot,
+                pop_eegplot_epoch_options,
+            )
 
             icacomp, superpose, reject = _pop_eegplot_variant_options(variant)
+            # eeglab.m calls pop_eegplot(EEG, icacomp) for both Reject by inspection entries,
+            # so pop_eegplot.m asks how to apply marks before the browser opens.
+            if variant in {"reject_data", "reject_ica"} and parent is not None:
+                epoch_options = pop_eegplot_epoch_options(icacomp)
+                if epoch_options is None:
+                    return
+                superpose, reject = epoch_options
             target_index = list(self.session.CURRENTSET)
             recorded_commands: set[str] = set()
 

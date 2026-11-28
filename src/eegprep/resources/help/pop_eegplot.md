@@ -14,6 +14,13 @@ browser. Cancel, or closing the dialog, does not. Passing `reject` explicitly,
 as Plot > Channel data (scroll) does, skips the dialog. `show=False` skips it
 as well.
 
+Tools > Reject data epochs > Reject by inspection and Tools > Reject data
+using ICA > Reject by inspection ask two questions before the browser opens.
+"Add to previously marked rejections?" (default checked) sets `superpose=1`,
+which shows earlier marks and keeps them on accept. "Reject marked trials?"
+(default unchecked) sets `reject=1`; unchecked only updates marks. Cancel
+opens no browser.
+
 With epoched data, `reject=0` stores accepted marks in
 `EEG.reject.rejmanual`/`rejmanualE` or the ICA-prefixed counterparts. With
 continuous data, `reject=0` stores accepted mark windows in
