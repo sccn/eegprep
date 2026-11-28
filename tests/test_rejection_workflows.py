@@ -846,7 +846,7 @@ def test_selectcomps_map_click_stores_rejection_on_ok():
         if properties:
             properties[-1].findChild(QPushButton, "accept_reject").click()
             stage["prop"] = True
-            properties[-1].accept()
+            properties[-1].findChild(QPushButton, "ok").click()
             QTimer.singleShot(20, drive)
             return
         browsers = [
@@ -876,6 +876,56 @@ def test_selectcomps_map_click_stores_rejection_on_ok():
     assert original_flags is None or int(np.asarray(original_flags).ravel()[0]) == 0
     assert "pop_selectcomps" in command
     assert "eeg_store" in command
+
+
+@pytest.mark.modal_dialogs
+def test_selectcomps_property_window_commits_mark_only_on_ok():
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication, QPushButton
+
+    app = QApplication.instance() or QApplication([])
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=32, n_components=2)
+    property_steps = ["cancel", "ok", "ok"]
+    seen_labels: list[str] = []
+
+    def visible(name: str):
+        return [widget for widget in app.allWidgets() if widget.objectName() == name and widget.isVisible()]
+
+    def drive() -> None:
+        properties = visible("pop_prop")
+        if properties:
+            status = properties[-1].findChild(QPushButton, "accept_reject")
+            seen_labels.append(status.text())
+            step = property_steps.pop(0)
+            if property_steps:
+                status.click()
+            QTimer.singleShot(20, drive)
+            properties[-1].findChild(QPushButton, step).click()
+            return
+        browsers = [
+            widget for widget in visible("pop_selectcomps") if widget.findChild(QPushButton, "comp1") is not None
+        ]
+        if browsers and property_steps:
+            QTimer.singleShot(30, drive)
+            browsers[-1].findChild(QPushButton, "comp1").click()
+            return
+        if browsers:
+            browsers[-1].findChild(QPushButton, "ok").click()
+            return
+        prompts = visible("pop_selectcomps")
+        if prompts:
+            prompts[-1].findChild(QPushButton, "ok").click()
+        QTimer.singleShot(20, drive)
+
+    QTimer.singleShot(20, drive)
+    out = pop_selectcomps(eeg)
+
+    assert seen_labels == ["ACCEPT", "ACCEPT", "REJECT"]
+    assert np.asarray(out["reject"]["gcompreject"]).astype(int).tolist() == [1, 0]
 
 
 @pytest.mark.modal_dialogs
