@@ -2,11 +2,8 @@
 
 `pop_fileio` is the function behind File > Import data > Using the EEG-IO
 interface. It imports EEG files with EEGPrep's own readers and conversions,
-chosen from the file extension or from the Data format popup. That menu sends
-EDF, BDF, and GDF files to Using the MNE-IO interface (`pop_biosig`), and its
-data-format list has no MNE entry; scripts can still read them with
-`pop_fileio`, including `dataformat="biosig"`. It does not use FieldTrip's
-File-IO library, which EEGLAB's File-IO menu calls.
+chosen from the file extension or from the Data format popup. It works
+independently of FieldTrip's File-IO library.
 
 EEGPrep's own readers:
 
@@ -17,14 +14,20 @@ EEGPrep's own readers:
 - `.eeg` without a BrainVision header: Neuroscan epoch reader `loadeeg`
 - `.csv`, `.txt`, `.tsv`, `.npy`, `.npz`, array `.mat`: `pop_importdata`
 
-MNE-Python readers (install `pip install "eegprep[mne]"`). In the menus these
-files belong to File > Import data > Using the MNE-IO interface (`pop_biosig`).
-From a script `pop_fileio` still reads them:
+For EDF, BDF, and GDF files, choose File > Import data > Using the MNE-IO
+interface (`pop_biosig`). For an EGI MFF recording, choose Using EEGPrep
+functions and plugins > Import Magstim/EGI .mff file under File > Import data,
+then select the `.mff` folder (`pop_mffimport`).
+
+Install the MNE-Python readers with `pip install "eegprep[mne]"`. In scripts,
+`pop_fileio` selects the reader by extension:
 
 - `.edf`: `mne.io.read_raw_edf`
 - `.bdf`: `mne.io.read_raw_bdf`
 - `.gdf`: `mne.io.read_raw_gdf`
 - `.mff`: `mne.io.read_raw_egi`
+
+Scripts can also specify `dataformat="biosig"` for EDF, BDF, and GDF.
 
 For `.eeg` or `.EEG`, a sibling header with the same stem and a `.vhdr`
 extension (or `.ahdr` if no `.vhdr` exists) selects BrainVision import.
@@ -62,5 +65,4 @@ filters in the GUI.
 See also: POP_BIOSIG, POP_IMPORTDATA, POP_LOADSET
 
 Use `gui=True` to select channels and inclusive sample/trial ranges with
-1-based indices. EGI `.raw` uses `pop_readegi`. MFF recordings are directories;
-select the `.mff` folder itself and install `pip install "eegprep[mne]"`.
+1-based indices.
