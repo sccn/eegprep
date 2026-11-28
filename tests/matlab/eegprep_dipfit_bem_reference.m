@@ -4,6 +4,7 @@ if exist('ft_compute_leadfield', 'file') ~= 2 || exist('pop_multifit', 'file') ~
     error('eegprep_dipfit_bem_reference:MissingBackend', ...
         'FieldTrip and DIPFIT must be on the path.');
 end
+eegprep_require_fminunc('DIPFIT BEM nonlinear parity');
 
 EEG = pop_loadset(dataset);
 EEG = pop_dipfit_settings(EEG, 'model', 'standardBEM');

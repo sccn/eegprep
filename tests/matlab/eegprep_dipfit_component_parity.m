@@ -36,6 +36,7 @@ else
         'kind must be ''grid'', ''single'', or ''symmetric''.');
 end
 
+eegprep_require_fminunc('DIPFIT component parity');
 fitted = pop_multifit(EEG, components, 'threshold', 100, 'dipoles', dipoles, 'dipplot', 'off');
 positions = zeros(numel(components), 3 * dipoles);
 residual = zeros(1, numel(components));

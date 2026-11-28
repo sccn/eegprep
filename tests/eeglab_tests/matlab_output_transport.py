@@ -443,16 +443,16 @@ def _has_samples(eeg: dict[str, Any]) -> bool:
     return data not in (None, [])
 
 
-def _present_datasets(datasets: list[Any]) -> np.ndarray:
+def _present_datasets(datasets: list[Any], *, scalars: bool = True) -> np.ndarray:
     return _struct_row(
-        [_present_eeg(dataset, scalars=True) if isinstance(dataset, dict) else {} for dataset in datasets]
+        [_present_eeg(dataset, scalars=scalars) if isinstance(dataset, dict) else {} for dataset in datasets]
     )
 
 
 def _present_eeg_value(value: Any, *, scalars: bool) -> Any:
     if isinstance(value, list) and (not value or all(isinstance(item, dict) for item in value)):
         if value and any(key in value[0] for key in ("data", "nbchan", "setname", "trials")):
-            return _present_datasets(value)
+            return _present_datasets(value, scalars=scalars)
         presented = _present_records(value)
         return value if presented is None else presented
     if isinstance(value, dict):
@@ -472,6 +472,43 @@ def _adapt_loaded_eeg(result: Any) -> Any:
 
 def _adapt_scalar_eeg(result: Any) -> Any:
     return _adapt_eeg_value(result, scalars=True)
+
+
+def _empty_structs_to_matlab_empty(value: Any) -> Any:
+    """Map empty Python dicts to MATLAB ``[]``; EEGLAB never leaves 0-field structs on EEG."""
+    if isinstance(value, dict):
+        if not value:
+            return np.empty((0, 0))
+        return {key: _empty_structs_to_matlab_empty(item) for key, item in value.items()}
+    if isinstance(value, np.ndarray) and value.dtype.names:
+        output = np.empty(value.shape, dtype=value.dtype)
+        for index in np.ndindex(value.shape):
+            output[index] = tuple(_empty_structs_to_matlab_empty(value[field][index]) for field in value.dtype.names)
+        return output
+    if isinstance(value, np.ndarray) and value.dtype == object:
+        output = np.empty(value.shape, dtype=object)
+        for index in np.ndindex(value.shape):
+            output[index] = _empty_structs_to_matlab_empty(value[index])
+        return output
+    return value
+
+
+def _present_copyset_value(value: Any) -> Any:
+    if isinstance(value, np.ndarray) and value.dtype.names:
+        presented = np.empty(value.shape, dtype=value.dtype)
+        for index in np.ndindex(value.shape):
+            record = {field: value[field][index] for field in value.dtype.names}
+            shaped = _present_eeg(record, scalars=False)
+            presented[index] = tuple(shaped[field] for field in value.dtype.names)
+        return _empty_structs_to_matlab_empty(presented)
+    return _empty_structs_to_matlab_empty(_present_eeg_value(value, scalars=False))
+
+
+def _adapt_pop_copyset(result: Any) -> Any:
+    if not isinstance(result, tuple) or len(result) < 2:
+        return _present_copyset_value(result)
+    alleeg, eeg, *rest = result
+    return (_present_copyset_value(alleeg), _present_copyset_value(eeg), *rest)
 
 
 def _adapt_eeg_store(result: Any) -> Any:
@@ -628,7 +665,7 @@ _ADAPTERS = {
     "pcsquash": _adapt_pcsquash,
     "pop_chancenter": _adapt_pop_chancenter,
     "pop_chancoresp": _adapt_chancoresp,
-    "pop_copyset": _adapt_scalar_eeg,
+    "pop_copyset": _adapt_pop_copyset,
     "pop_newset": _adapt_scalar_eeg,
     "pop_selectevent": _adapt_scalar_eeg,
     "quantile": _adapt_quantile,
