@@ -133,7 +133,9 @@ def _presentation_records(
     if header_index is None:
         return None
     header = [value.strip() for value in rows[header_index]]
-    renamed = [_presentation_field_name(value, typefield, latfield, durfield) for value in header]
+    names = [_presentation_field_name(value, typefield, latfield, durfield) for value in header]
+    # EEGLAB pop_importpres.m L185: a repeated column gets a numbered name (Uncertainty, Uncertainty2).
+    renamed = [name if name not in names[:i] else f"{name}{names[: i + 1].count(name)}" for i, name in enumerate(names)]
     row_start = header_index + 1
     if skipline > row_start:
         row_start = skipline
