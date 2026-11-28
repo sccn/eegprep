@@ -71,12 +71,14 @@ def reref(
             locs.extend(new_locs)
 
     chansin = [idx for idx in range(work.shape[0]) if idx not in set(exclude_indices)]
-    if not chansin:
-        raise ValueError("No channels available for re-referencing")
 
     mean_data = None
-    chansin_array = np.asarray(chansin)
-    if huber is not None and not np.isnan(float(huber)) and not ref_indices:
+    chansin_array = np.asarray(chansin, dtype=int)
+    # reref.m applies a 0x0 refmatrix when every channel is excluded, so the
+    # samples come back unchanged.
+    if not chansin:
+        pass
+    elif huber is not None and not np.isnan(float(huber)) and not ref_indices:
         work[chansin_array, :] = _huber_average_reference(work[chansin_array, :], float(huber))
     elif ref_indices:
         mean_data = work[np.asarray(ref_indices), :].mean(axis=0)

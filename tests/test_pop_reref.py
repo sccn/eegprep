@@ -1064,3 +1064,39 @@ def test_pop_reref_keepref_on_keeps_a_four_sample_nan_on_its_channel():
         spread = refmatrix @ data
     assert int(np.isnan(spread).sum()) == 48
     assert int((np.isnan(output) != np.isnan(spread)).sum()) == 44
+
+
+def test_average_reference_with_every_channel_excluded_returns_the_dataset_unchanged():
+    eeg = TestPopReref().create_test_eeg(nbchan=4, pnts=20)
+    data = eeg["data"].copy()
+    icaweights = eeg["icaweights"].copy()
+    icawinv = eeg["icawinv"].copy()
+
+    result, com = pop_reref(eeg, [], exclude=[1, 2, 3, 4], keepref="off", return_com=True)
+
+    np.testing.assert_array_equal(result["data"], data)
+    assert [chan["ref"] for chan in result["chanlocs"]] == ["common"] * 4
+    assert result["ref"] == "common"
+    np.testing.assert_array_equal(result["icaweights"], icaweights)
+    np.testing.assert_array_equal(result["icawinv"], icawinv)
+    assert com == "EEG = pop_reref( EEG, [], 'exclude', [1 2 3 4]);"
+    low_level, _locs, removed, _mean = reref(data, [], exclude=[0, 1, 2, 3])
+    np.testing.assert_array_equal(low_level, data)
+    assert removed == []
+
+
+def test_average_reference_with_one_eligible_channel_zeroes_it():
+    eeg = TestPopReref().create_simple_eeg()
+
+    result = pop_reref(eeg, [], exclude=[1, 2, 3])
+
+    np.testing.assert_array_equal(result["data"][3], 0.0)
+    np.testing.assert_array_equal(result["data"][:3], eeg["data"][:3])
+    low_level, *_ = reref(eeg["data"], [], exclude=[0, 1, 2])
+    np.testing.assert_array_equal(low_level, result["data"])
+
+
+def test_excluded_reference_still_raises_when_every_channel_is_excluded():
+    eeg = TestPopReref().create_simple_eeg()
+    with pytest.raises(ValueError, match="cannot also be excluded"):
+        pop_reref(eeg, [1], exclude=[1, 2, 3, 4])

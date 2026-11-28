@@ -29,7 +29,7 @@ Inputs:
 Optional inputs:
 
 - `interpchan`: channel locations or 1-based numbers into `EEG["urchanlocs"]` to interpolate before re-referencing, `[]` to infer removed channels, or `"off"`.
-- `exclude`: 1-based channel numbers excluded from re-referencing.
+- `exclude`: 1-based channel numbers excluded from re-referencing. An average reference needs at least one channel that is not excluded. If every channel is excluded, EEGPrep logs a warning and returns the dataset unchanged, including its reference labels and ICA. EEGLAB also leaves the samples unchanged but relabels the legacy `EEG.ref` as average and removes the ICA decomposition.
 - `keepref`: `"on"` keeps reference channels in the data; `"off"` removes explicit reference channels.
 - `refloc`: previous reference-channel location to reconstruct, or its 1-based number in the non-fiducial `EEG["chaninfo"]["nodatchans"]` list.
 - `refica`: `"on"`, `"off"`, `"backwardcomp"`, or `"remove"` for ICA handling.

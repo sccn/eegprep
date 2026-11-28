@@ -113,6 +113,15 @@ def pop_reref(
     source_data = EEG["data"]
     EEG_out: dict[str, Any] = copy.deepcopy(EEG)
     resolved = _resolve_options(EEG_out, ref, options)
+    com = _history_command(ref, resolved["history_options"])
+    if _no_eligible_channels(EEG_out, resolved):
+        # EEGLAB leaves the samples unchanged but still relabels the legacy
+        # reference and drops ICA; EEGPrep keeps the dataset as it was.
+        logger.warning(
+            "pop_reref: every channel is excluded, so the data were not re-referenced. "
+            "At least one channel must be eligible to apply an average reference."
+        )
+        return (EEG_out, com) if return_com else EEG_out
 
     original_nbchan = int(EEG_out["data"].shape[0])
     original_chanlocs = _chanlocs_as_list(EEG_out.get("chanlocs", []))
@@ -147,7 +156,6 @@ def pop_reref(
     _normalise_checkset_types(EEG_out)
     EEG_out = eeg_checkset(EEG_out)
     EEG_out["data"] = mapped_output_like(source_data, EEG_out["data"])
-    com = _history_command(ref, resolved["history_options"])
     return (EEG_out, com) if return_com else EEG_out
 
 
@@ -559,6 +567,15 @@ def _is_referenceable_eeg(chan: dict[str, Any], require_eeg_type: bool) -> bool:
     if require_eeg_type:
         return chan_type == "eeg"
     return chan_type != "fid"
+
+
+def _no_eligible_channels(EEG: dict, resolved: dict[str, Any]) -> bool:
+    return (
+        not resolved["ref_indices"]
+        and _is_empty(resolved["refloc"])
+        and not resolved["interpchan"]
+        and len(resolved["exclude_indices"]) == np.shape(EEG["data"])[0]
+    )
 
 
 def _update_legacy_ref(EEG: dict, ref_indices: list[int]) -> None:
