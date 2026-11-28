@@ -603,8 +603,8 @@ def _parse_marker(value: str, marker_number: int, channel_count: int) -> dict[st
     }
     if len(fields) > 5 and fields[5].strip():
         event["bvtime"] = fields[5].strip()
-    if len(fields) > 6 and fields[6].strip():
-        event["visible"] = fields[6].strip()
+    # parsebvmrk.m L39 always creates visible, as '' when the field is omitted.
+    event["visible"] = fields[6].strip() if len(fields) > 6 else ""
     return event
 
 

@@ -23,8 +23,13 @@ are also supported. Voltage channels are returned in microvolts; each channel's
 original BrainVision unit and resolution are preserved in `bvunit` and
 `bvresolution`.
 
+The dataset name is the header filename without its extension, so
+`subject01.vhdr` loads as `subject01`. EEGLAB leaves the name empty.
+
 Marker positions and durations are measured in samples. Event latency remains
 1-based, while `urevent` pointers use EEGPrep's 0-based internal convention.
+Every event has a `visible` field. It holds the marker's seventh field, or an
+empty string when the marker omits it, as in EEGLAB.
 Marker-based or fixed-time recordings with uniformly spaced `New Segment`
 markers are returned as channel-by-sample-by-trial arrays.
 Malformed headers, invalid selections, and truncated binary data raise a clear

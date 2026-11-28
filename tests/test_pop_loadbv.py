@@ -7,8 +7,9 @@ from typing import Any
 
 import numpy as np
 import pytest
+from scipy.io import loadmat
 
-from eegprep import pop_loadbv
+from eegprep import pop_loadbv, pop_saveset
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from tests.eeglab_tests import eeglab_test
 
@@ -344,6 +345,25 @@ def test_pop_loadbv_normalizes_units_selects_samples_and_preserves_markers(tmp_p
         ("correct,fast", 2),
         ("outside", 3),
     ]
+
+
+def test_pop_loadbv_saves_omitted_marker_visibility_as_empty_like_parsebvmrk(tmp_path: Path) -> None:
+    header = _write_binary_brainvision(
+        tmp_path,
+        "visible",
+        np.arange(12, dtype=np.int16).reshape(3, 4),
+        markers=["Stimulus,A,1,1,0", "Stimulus,B,2,1,0,,1"],
+    )
+
+    eeg = pop_loadbv(header)
+    pop_saveset(eeg, str(tmp_path / "visible.set"))
+    saved = loadmat(tmp_path / "visible.set")
+
+    assert eeg["setname"] == "visible"
+    for field in ("event", "urevent"):
+        visible = [event["visible"] for event in saved[field].ravel()]
+        assert [value.dtype.kind for value in visible] == ["U", "U"]
+        assert [value.tolist() for value in visible] == [[], ["1"]]
 
 
 def test_pop_loadbv_metadata_only_keeps_dimensions_channels_and_events(tmp_path: Path) -> None:
