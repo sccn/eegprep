@@ -17,9 +17,10 @@ EEGPrep's own readers:
 - `.eeg` without a BrainVision header: Neuroscan epoch reader `loadeeg`
 - `.csv`, `.txt`, `.tsv`, `.npy`, `.npz`, array `.mat`: `pop_importdata`
 
-MNE-Python readers (install `pip install "eegprep[mne]"`). In the menus these
-files belong to File > Import data > Using the MNE-IO interface (`pop_biosig`).
-From a script `pop_fileio` still reads them:
+For an MFF folder, choose File > Import data > Using EEGPrep functions and
+plugins > Import Magstim/EGI .mff file. This opens the folder picker for
+`pop_mffimport`. In scripts, `pop_fileio` uses these MNE-Python readers
+(install with `pip install "eegprep[mne]"`):
 
 - `.edf`: `mne.io.read_raw_edf`
 - `.bdf`: `mne.io.read_raw_bdf`

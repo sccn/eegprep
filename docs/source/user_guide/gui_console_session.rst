@@ -259,9 +259,11 @@ orientation. Samples are float32; absent channel locations and names remain
 empty. A sampling rate of zero uses 1 Hz, which is also recorded in history.
 
 File > Import data has two reader menus. Using the EEG-IO interface
-(``pop_fileio``) reads BrainVision, MFF, Neuroscan CNT and EEG, EEGLAB
-``.set`` and MATLAB arrays; it sends EDF, BDF and GDF files to Using the
-MNE-IO interface (``pop_biosig``), which reads them through MNE-Python.
+(``pop_fileio``) reads BrainVision, Neuroscan CNT and EEG, EEGLAB ``.set``,
+and MATLAB arrays. For EDF, BDF, or GDF files, choose Using the MNE-IO
+interface (``pop_biosig``). For an MFF folder, choose Using EEGPrep functions
+and plugins > Import Magstim/EGI .mff file (``pop_mffimport``). Both
+``pop_biosig`` and ``pop_mffimport`` read samples through MNE-Python.
 
 MNE-IO import exposes channels, a time range in seconds, reference channels,
 BDF event decoding, EDF+ annotations, and memory mapping. Channel and reference

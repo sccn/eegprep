@@ -1,13 +1,11 @@
 # POP_FILEIO_MFF - Import EGI MFF recordings
 
-The MFF File-IO menu action imports EGI `.mff` recordings through `pop_fileio`.
-
-Usage:
+Choose File > Import data > Using EEGPrep functions and plugins > Import
+Magstim/EGI .mff file, then select the recording's `.mff` folder. The menu
+calls `pop_mffimport`, which preserves the epochs in segmented recordings.
 
 ```python
-EEG = pop_fileio("recording.mff")
+EEG = pop_mffimport("recording.mff")
 ```
 
-Select the MFF file or folder supported by the installed Python reader stack.
-
-See also: POP_FILEIO
+See also: POP_MFFIMPORT, POP_FILEIO
