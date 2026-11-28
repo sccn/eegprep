@@ -1,13 +1,12 @@
 # POP_BIOSIG - Import EDF, BDF, and GDF files through MNE-IO
 
-`pop_biosig` imports EDF, BDF, and GDF files with MNE-Python, not with the
-BIOSIG toolbox. It is the function behind File > Import data > Using the
-MNE-IO interface, where every file that EEGPrep reads through MNE-Python is
-imported. MNE-Python is an optional install: `pip install "eegprep[mne]"`.
+Choose File > Import data > Using the MNE-IO interface to load EDF, BDF, or
+GDF recordings with `pop_biosig`. EEGPrep uses MNE-Python in place of the
+BIOSIG toolbox. Install the readers with `pip install "eegprep[mne]"`.
 
-How it works: the samples are read with `mne.io.read_raw_edf`,
-`mne.io.read_raw_bdf`, or `mne.io.read_raw_gdf` and converted to an EEG
-structure, then the options of this window are applied. For BioSemi BDF files,
+`pop_fileio` reads the selected data with `mne.io.read_raw_edf`,
+`mne.io.read_raw_bdf`, or `mne.io.read_raw_gdf` and returns an EEG structure.
+`pop_biosig` applies the reference and event options. For BioSemi BDF files,
 EEGPrep's own `openbdf` and `readbdf` read the `Status` channel to decode
 trigger events.
 
