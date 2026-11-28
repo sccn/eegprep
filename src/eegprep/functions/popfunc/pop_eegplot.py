@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.adminfunc.vararg2str import matlab_array2str
+from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.questdlg2 import questdlg2
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import history_command
 import numpy as np
 
@@ -127,6 +129,36 @@ def pop_eegplot(
     if return_com and show:
         return (None, command)
     return (EEG, command) if return_com else window
+
+
+def pop_eegplot_epoch_dialog_spec(icacomp: int = 1) -> DialogSpec:
+    """Return the epoch-inspection options dialog shown before the browser opens."""
+    # pop_eegplot.m asks these two questions when called with fewer than 3 arguments on epoched data.
+    return DialogSpec(
+        title=(
+            "Manual component rejection -- pop_eegplot()"
+            if int(icacomp) == 0
+            else "Reject epochs by visual inspection -- pop_eegplot()"
+        ),
+        function_name="pop_eegplot",
+        eeglab_source="functions/popfunc/pop_eegplot.m",
+        help_text="pophelp('pop_eegplot')",
+        geometry=((2, 0.2), (2, 0.2)),
+        controls=(
+            ControlSpec("text", "Add to previously marked rejections? (checked=yes)"),
+            ControlSpec("checkbox", tag="superpose", value=True),
+            ControlSpec("text", "Reject marked trials? (checked=yes)"),
+            ControlSpec("checkbox", tag="reject", value=False),
+        ),
+    )
+
+
+def pop_eegplot_epoch_options(icacomp: int = 1, renderer: Any | None = None) -> tuple[int, int] | None:
+    """Ask how to apply epoch marks; return ``(superpose, reject)`` or ``None`` on cancel."""
+    result = inputgui(pop_eegplot_epoch_dialog_spec(icacomp), renderer=renderer)
+    if result is None:
+        return None
+    return int(bool(result.get("superpose"))), int(bool(result.get("reject")))
 
 
 def eegplot_accept_creates_dataset(input_eeg: dict[str, Any], output_eeg: dict[str, Any], reject: int = 1) -> bool:

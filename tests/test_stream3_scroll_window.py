@@ -396,6 +396,7 @@ def test_gui_epoch_reject_no_and_close_keep_trials_yes_opens_pop_newset(qapp) ->
     parent.show()
     dispatcher = MenuActionDispatcher(session)
 
+    _drive(qapp, qt_widgets, [_answer_epoch_options(reject=True)])
     dispatcher.dispatch("pop_eegplot:reject_data", parent)
     window = _browser_windows()[0]
     _mouse(window.canvas, "press", 15)
@@ -409,6 +410,7 @@ def test_gui_epoch_reject_no_and_close_keep_trials_yes_opens_pop_newset(qapp) ->
     assert len(session.ALLEEG) == 1
     assert not any("pop_rejepoch" in command for command in session.ALLCOM)
 
+    _drive(qapp, qt_widgets, [_answer_epoch_options(reject=True)])
     dispatcher.dispatch("pop_eegplot:reject_data", parent)
     window = _browser_windows()[0]
     _mouse(window.canvas, "press", 15)
@@ -420,6 +422,7 @@ def test_gui_epoch_reject_no_and_close_keep_trials_yes_opens_pop_newset(qapp) ->
     assert session.EEG["trials"] == 6
     assert not any("pop_rejepoch" in command for command in session.ALLCOM)
 
+    _drive(qapp, qt_widgets, [_answer_epoch_options(reject=True)])
     dispatcher.dispatch("pop_eegplot:reject_data", parent)
     window = _browser_windows()[0]
     _mouse(window.canvas, "press", 15)
@@ -436,6 +439,82 @@ def test_gui_epoch_reject_no_and_close_keep_trials_yes_opens_pop_newset(qapp) ->
     np.testing.assert_array_equal(session.EEG["data"], eeg["data"][:, :, [0, 2, 4, 5]])
     assert "EEG = pop_rejepoch( EEG, [2 4] ,0);" in session.ALLCOM
     assert any(command.startswith("[ALLEEG EEG CURRENTSET] = pop_newset(") for command in session.ALLCOM)
+    parent.close()
+
+
+@pytest.mark.modal_dialogs
+def test_gui_epoch_inspection_cancel_opens_no_browser(qapp) -> None:
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    qt_widgets = pytest.importorskip("PySide6.QtWidgets")
+    session = EEGPrepSession()
+    session.store_current(create_test_eeg(n_channels=2, n_samples=10, n_trials=6, srate=100), new=True)
+    parent = qt_widgets.QWidget()
+    parent.show()
+    before = {id(window) for window in _browser_windows(visible_only=False)}
+
+    state = _drive(qapp, qt_widgets, [_click_named("cancel")])
+    MenuActionDispatcher(session).dispatch("pop_eegplot:reject_data", parent)
+
+    assert state["seen"][0][0] == "Reject epochs by visual inspection -- pop_eegplot()"
+    assert [window for window in _browser_windows() if id(window) not in before] == []
+    assert session.ALLCOM == []
+    parent.close()
+
+
+@pytest.mark.modal_dialogs
+def test_gui_epoch_inspection_defaults_add_to_prior_marks_without_rejecting(qapp) -> None:
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    qt_widgets = pytest.importorskip("PySide6.QtWidgets")
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=6, srate=100)
+    eeg["reject"]["rejmanual"] = np.array([True, False, False, False, False, False])
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    parent = qt_widgets.QWidget()
+    parent.show()
+
+    _drive(qapp, qt_widgets, [_click_named("ok")])
+    MenuActionDispatcher(session).dispatch("pop_eegplot:reject_data", parent)
+    window = _browser_windows()[0]
+    _mouse(window.canvas, "press", 35)
+    _mouse(window.canvas, "release", 35)
+    _browser_button(window, "Update Marks").click()
+    qapp.processEvents()
+
+    assert session.EEG["trials"] == 6
+    np.testing.assert_array_equal(session.EEG["reject"]["rejmanual"], [True, False, False, True, False, False])
+    assert "pop_eegplot(EEG, 1, 1, 0);" in session.ALLCOM
+    assert not any("pop_rejepoch" in command for command in session.ALLCOM)
+    parent.close()
+
+
+@pytest.mark.modal_dialogs
+def test_gui_ica_epoch_inspection_rejects_when_checked(qapp) -> None:
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    qt_widgets = pytest.importorskip("PySide6.QtWidgets")
+    eeg = create_test_eeg_with_ica(n_channels=2, n_samples=10, n_trials=6, srate=100)
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    parent = qt_widgets.QWidget()
+    parent.show()
+
+    state = _drive(qapp, qt_widgets, [_answer_epoch_options(reject=True)])
+    MenuActionDispatcher(session).dispatch("pop_eegplot:reject_ica", parent)
+    window = _browser_windows()[0]
+    _mouse(window.canvas, "press", 15)
+    _mouse(window.canvas, "release", 15)
+    _drive(qapp, qt_widgets, [_click_message("YES"), _click_named("ok")])
+    _reject_button(window).click()
+    qapp.processEvents()
+
+    assert state["seen"][0][0] == "Manual component rejection -- pop_eegplot()"
+    assert session.EEG["trials"] == 5
+    assert "pop_eegplot(EEG, 0, 1, 1);" in session.ALLCOM
     parent.close()
 
 
@@ -531,6 +610,22 @@ def _reject_button(window):
     from PySide6 import QtWidgets
 
     return next(button for button in window.findChildren(QtWidgets.QPushButton) if button.text() == "Reject")
+
+
+def _browser_button(window, label: str):
+    from PySide6 import QtWidgets
+
+    return next(button for button in window.findChildren(QtWidgets.QPushButton) if button.text() == label)
+
+
+def _answer_epoch_options(*, reject: bool):
+    def answer(dialog) -> None:
+        from PySide6 import QtWidgets
+
+        dialog.findChild(QtWidgets.QCheckBox, "reject").setChecked(reject)
+        dialog.findChild(QtWidgets.QPushButton, "ok").click()
+
+    return answer
 
 
 def _drive(app, qt_widgets, actions: list) -> dict:

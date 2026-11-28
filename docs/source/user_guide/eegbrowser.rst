@@ -63,10 +63,10 @@ Browser Modes
      - ``pop_eegplot(EEG, icacomp=0, reject=0)``
    * - Epoched data rejection
      - ``Tools > Reject data epochs > Reject by inspection``
-     - ``pop_eegplot(EEG, reject=1)``
+     - ``pop_eegplot(EEG, 1, superpose, reject)`` (options dialog first)
    * - ICA rejection marks
      - ``Tools > Reject data using ICA > Reject by inspection``
-     - ``pop_eegplot(EEG, icacomp=0, reject=1)``
+     - ``pop_eegplot(EEG, 0, superpose, reject)`` (options dialog first)
 
 Marks And Rejection
 ===================
@@ -77,6 +77,13 @@ dragging does not add further epochs. ``Tools > Inspect/reject data by eye``
 explains this and waits for Continue before the browser opens. Cancel, or
 closing that dialog, leaves the dataset untouched. Plot scroll commands skip
 the dialog.
+
+Both ``Reject by inspection`` entries first ask two questions. "Add to
+previously marked rejections?" (checked by default) shows earlier marks and
+keeps them when you accept (``superpose=1``); unchecked, accepted marks replace
+them. "Reject marked trials?" (unchecked by default) chooses between Update
+Marks (``reject=0``) and removing the marked epochs (``reject=1``). Cancel
+opens no browser.
 
 On continuous data, accepted marks can be stored in
 ``EEG.reject.rejmanualwinrej`` for later review or converted through
