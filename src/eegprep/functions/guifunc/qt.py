@@ -221,16 +221,23 @@ class QtDialogRenderer:
         widgets: dict[str, Any] = {}
         index = 0
         most_columns = max((len(self._row_weights(row)) for row in spec.geometry), default=1)
+        # MATLAB supergui uses 0.02 * 5 / max_columns as horizontal spacing.
+        # getcoord subtracts 1.5 times that fraction from each control's width.
+        gap_share = 1.5 * 0.02 * 5 / most_columns
+        column_spacing = spec.column_spacing
+        if column_spacing is None:
+            column_spacing = 0 if spec.weighted_columns else 4
         for row_index, row_geometry in enumerate(spec.geometry):
             weights = self._row_weights(row_geometry)
+            row_total = sum(weights)
             row_container = qt_widgets.QWidget()
             if spec.geomvert is None and not _rows_share_height(spec):
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(spec.column_spacing)
+            row_layout.setSpacing(column_spacing)
             added_visible_widget = False
-            for weight in weights:
+            for column, weight in enumerate(weights):
                 if index >= len(spec.controls):
                     break
                 control = spec.controls[index]
@@ -239,7 +246,10 @@ class QtDialogRenderer:
                     widgets[control.tag] = widget
                 if spec.weighted_columns:
                     widget.setSizePolicy(qt_widgets.QSizePolicy.Ignored, widget.sizePolicy().verticalPolicy())
-                    row_layout.addWidget(widget, _supergui_stretch(weight, sum(weights), most_columns))
+                    if column and spec.column_spacing is None:
+                        row_layout.addStretch(round(10000 * gap_share))
+                    stretch = max(1, round(10000 * (weight / row_total - gap_share)))
+                    row_layout.addWidget(widget, stretch)
                     added_visible_widget = added_visible_widget or control.style.lower() != "spacer"
                     index += 1
                     continue
@@ -794,10 +804,8 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
         QLineEdit {{
             background: {EEGLAB_CONTROL_BACKGROUND};
             border: 1px solid {EEGLAB_CONTROL_BORDER};
-            min-height: 18px;
-            max-height: 18px;
             margin-left: 1px;
-            padding: 0 3px;
+            padding: 2px 3px;
             color: {EEGLAB_TEXT};
         }}
         QLineEdit:disabled {{
@@ -909,17 +917,6 @@ def _row_weights(row_geometry: Any) -> list[float]:
     return [1.0] * max(1, int(row_geometry))
 
 
-def _supergui_stretch(weight: float, row_total: float, most_columns: int) -> int:
-    """A control's share of its row as EEGLAB's supergui sizes it.
-
-    supergui gives each control its weight's share of the row minus 1.5 times
-    the normalized spacing (0.1 divided by the most controls in any row); with
-    the spec's column_spacing as the pixel gap this reproduces its widths.
-    """
-    spacing = 0.1 / most_columns
-    return max(1, round((weight / row_total - 1.5 * spacing) * 10000))
-
-
 def _rows_share_height(spec: DialogSpec) -> bool:
     """Whether the rows split the height of a fixed-size window evenly.
 
@@ -1026,7 +1023,7 @@ def _width_fitting_weighted_labels(dialog: Any, spec: DialogSpec) -> int:
         if row is None:
             continue
         total = sum(row.stretch(column) for column in range(row.count()))
-        gaps = (spec.column_spacing + 1) * (row.count() - 1)  # one pixel per column for the rounding of the shares
+        gaps = (row.spacing() + 1) * (row.count() - 1)  # one pixel per column for the rounding of the shares
         for column in range(row.count()):
             widget = row.itemAt(column).widget()
             if row.stretch(column) and _qt_isinstance(widget, "QLabel", "QCheckBox"):
