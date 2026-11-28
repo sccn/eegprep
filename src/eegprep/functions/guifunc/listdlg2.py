@@ -123,6 +123,7 @@ def _create_dialog(
     dialog.setObjectName("listdlg2")
     dialog.setWindowTitle(name)
     _apply_listdlg_style(dialog)
+    dialog.ensurePolished()
     cancel = QtWidgets.QPushButton(cancelstring, dialog)
     ok = QtWidgets.QPushButton(okstring, dialog)
     cancel_width = max(62, cancel.sizeHint().width())
