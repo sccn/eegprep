@@ -433,6 +433,7 @@ def test_importdata_field_height_and_weighted_gaps(app, fixed_gap):
             assert actual == pytest.approx(expected, abs=1)
         initial_height = field.height()
         field.setStyleSheet("font-size: 24px")
+        QtCore.QCoreApplication.sendPostedEvents(None, QtCore.QEvent.Type.LayoutRequest)
         app.processEvents()
         assert field.height() > initial_height
     finally:
