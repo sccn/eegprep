@@ -90,6 +90,17 @@ def test_f10_presentation_history_retains_selected_fields(tmp_path):
     assert "'Event Type', 'Time', 'Duration'" in command
 
 
+def test_f10_presentation_duplicate_columns_get_numbered_names(tmp_path):
+    path = tmp_path / 'events.log'
+    path.write_text(
+        'Event Type\tTime\tUncertainty\tDuration\tUncertainty\nPicture\t100\t2\t20\t3\nPicture\t200\t4\t20\t\n'
+    )
+    eeg = _singleton_eeg(np.zeros((2, 100)))
+    out = pop_importpres(eeg, path, typefield='Event Type', latfield='Time')
+    assert (out['event'][0]['Uncertainty'], out['event'][0]['Uncertainty2']) == (2, 3)
+    assert (out['event'][1]['Uncertainty'], out['event'][1]['Uncertainty2']) == (4, '')
+
+
 def test_f21_channel_metadata_history_replays():
     eeg, command = pop_importdata(
         data=np.arange(12).reshape(2, 6), chanlocs=[{'labels': 'Fz'}, {'labels': 'Cz'}], return_com=True
