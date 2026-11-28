@@ -28,7 +28,7 @@ from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_reref import pop_reref
-from eegprep.plugins.clean_rawdata.asr_calibrate import spectral_shaping_filter_available
+from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError, spectral_shaping_filter_available
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
@@ -1741,10 +1741,142 @@ def _asr_zero_width_index_is_known(case: FuzzCase, eeg: dict, python: SideResult
 
 def _burst_stage_skipped(eeg: dict, params: dict) -> np.ndarray:
     """``pop_clean_rawdata`` with burst repair off and the case's other options."""
-    options = dict(_clean_options(params))
-    options["BurstCriterion"] = "off"
-    cleaned = pop_clean_rawdata(copy.deepcopy(eeg), gui=False, **options)
+    cleaned = _pop_clean_rawdata_variant(eeg, params, BurstCriterion="off")
     return np.asarray(cleaned["data"], dtype=np.float64)
+
+
+def _pop_clean_rawdata_variant(eeg: dict, params: dict, **overrides):
+    options = dict(_clean_options(params))
+    options.update(overrides)
+    return pop_clean_rawdata(copy.deepcopy(eeg), gui=False, **options)
+
+
+def _clean_rawdata_params(case: FuzzCase) -> dict | None:
+    if case.function != "clean_asr":
+        return None
+    params = thaw_params(case.params)
+    if params.get("entry") != "clean_rawdata":
+        return None
+    if "BurstCriterion" not in params or "WindowCriterion" not in params:
+        return None
+    return params
+
+
+def _euclidean_burst(params: dict):
+    """Burst cutoff for the Euclidean ``clean_asr`` call, or ``None`` when that call is skipped."""
+    burst = params.get("BurstCriterion")
+    if isinstance(burst, str) or burst is None:
+        return None
+    distance = str(params.get("Distance", "euclidian")).strip().lower()
+    if distance not in ("euclidian", "euclidean"):
+        return None
+    return float(burst)
+
+
+def _calibration_failure(prepared: dict, params: dict) -> str | None:
+    """Message when ``clean_asr`` raises on the recording ``clean_artifacts`` passes it."""
+    options = _clean_options(params)
+    ref = options.get("BurstCriterionRefMaxBadChns", 0.075)
+    tolerances = options.get("BurstCriterionRefTolerances", (-np.inf, 5.5))
+    try:
+        clean_asr(
+            copy.deepcopy(prepared),
+            cutoff=float(options["BurstCriterion"]),
+            ref_maxbadchannels=ref,
+            ref_tolerances=tolerances,
+        )
+    except ASRCalibrationError as exc:
+        return str(exc)
+    return None
+
+
+def _caught_is_calibration(backend) -> bool:
+    """True when no caught error was recorded, or the record is an ASR calibration failure."""
+    identifier, stack = _caught_evidence(backend)
+    if not identifier and not stack:
+        return True
+    text = f"{identifier}\n{stack}"
+    return "reference data" in text or "asr_calibrate" in text or "fit_eeg_distribution" in text or "No enough" in text
+
+
+def _channel_cleaned_asr_return_detail(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance, backend
+) -> str | None:
+    """EEGLAB returned the channel-cleaned recording when calibration failed.
+
+    ``clean_artifacts.m`` lines 270-275 ``return`` before window removal.
+    Channel cleaning has already run, so the array is not the original input.
+    EEGPrep skips the burst and still removes windows.
+    """
+    params = _clean_rawdata_params(case)
+    if params is None or not python.ok or not oracle.ok or python.data is None or oracle.data is None:
+        return None
+    if _euclidean_burst(params) is None:
+        return None
+    if not _caught_is_calibration(backend):
+        return None
+    gap, *_rest = compare_data(python.data, oracle.data, float(python.srate), float(oracle.srate), tolerance)
+    if not gap:
+        return None
+    try:
+        prepared = _pop_clean_rawdata_variant(eeg, params, BurstCriterion="off", WindowCriterion="off")
+    except Exception:
+        return None
+    failure = _calibration_failure(prepared, params)
+    if failure is None:
+        return None
+    pre_gap, pre_class, *_rest = compare_data(
+        np.asarray(prepared["data"]),
+        oracle.data,
+        float(prepared["srate"]),
+        float(oracle.srate),
+        tolerance,
+    )
+    if pre_gap and pre_class != "srate":
+        return None
+    if pre_class == "srate" and abs(float(oracle.srate) - round(float(prepared["srate"]))) > 1e-4:
+        return None
+    try:
+        skipped = _burst_stage_skipped(eeg, params)
+    except Exception:
+        return None
+    python_gap, *_rest = compare_data(python.data, skipped, float(python.srate), float(eeg["srate"]), tolerance)
+    if python_gap:
+        return None
+    return (
+        "known EEGLAB defect: clean_artifacts.m lines 270-275 return the "
+        "channel-cleaned recording before window removal (#663). " + failure
+    )
+
+
+_WINDOW_COUNT_RE = re.compile(r"Too few windows \((\d+)\)")
+
+
+def _final_window_row_histogram_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
+    """The final ``clean_windows`` hit a rounded width of 1.
+
+    ``fit_eeg_distribution.m`` line 126 then errors in ``bsxfun`` because
+    ``histc`` of the one-row slice is a row and ``logq(1:end-1,:)`` is empty.
+    ``asr_calibrate.m`` line 397 transposes that row; this copy does not.
+    """
+    params = _clean_rawdata_params(case)
+    if params is None or python.ok or oracle.ok:
+        return False
+    if oracle.error_identifier != "MATLAB:bsxfun:arrayDimensionsMustMatch":
+        return False
+    stack = oracle.error_stack or ""
+    if "fit_eeg_distribution" not in stack or "clean_windows" not in stack:
+        return False
+    message = python.error_message or ""
+    found = _WINDOW_COUNT_RE.search(message)
+    if found is None or "clean_windows" not in message:
+        return False
+    try:
+        prepared = _pop_clean_rawdata_variant(eeg, params, WindowCriterion="off")
+    except Exception:
+        return False
+    count = _clean_windows_count(int(prepared["pnts"]), float(prepared["srate"]), 1.0, _CLEAN_WINDOW_OVERLAP)
+    return int(found.group(1)) == count and _fit_eeg_distribution_throws(count)
 
 
 def _pop_clean_rawdata_zero_width_is_known(
@@ -2056,6 +2188,16 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # clean_artifacts.m lines 270-275 return before the sampling-rate restore
         # and before the final clean_windows stage.
         return _known_wrapper_zero_width(case, eeg, oracle_backend, digest)
+    early_return = _channel_cleaned_asr_return_detail(case, eeg, python, oracle, tolerance, oracle_backend)
+    if early_return:
+        # Channel cleaning already changed the recording, then asr_calibrate
+        # rejected the calibration section. The same return skips windows.
+        outcome = _outcome(case, False, True, "match", 0.0, 0.0, early_return, digest)
+        identifier, stack = _caught_evidence(oracle_backend)
+        if identifier or stack:
+            outcome.oracle_identifier = identifier
+            outcome.oracle_stack = stack
+        return outcome
     if _low_rate_spectral_filter_is_known(case, eeg, python, oracle, tolerance):
         # Below the rate where the default breakpoints stay monotonic,
         # clean_artifacts.m catches the filter error and returns the recording.
@@ -2107,6 +2249,22 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             0.0,
             "both sides reject a recording whose clean_windows fit width rounds to 1 or less",
             digest,
+        )
+    if not python.ok and not oracle.ok and _final_window_row_histogram_is_known(case, eeg, python, oracle):
+        # fit_eeg_distribution.m:126 bsxfun-fails when the final clean_windows
+        # width rounds to 1. Burst rejection can leave that few windows.
+        return _remember_oracle(
+            _outcome(
+                case,
+                False,
+                True,
+                "match",
+                0.0,
+                0.0,
+                "known EEGLAB defect: fit_eeg_distribution.m:126 cannot broadcast a one-row histogram (#664)",
+                digest,
+            ),
+            oracle,
         )
     outcome = judge(python, oracle, tolerance, case, digest, tolerances)
     stale_trials = _stale_zero_trials_detail(case, eeg, python, oracle, tolerance) if outcome.diverged else None

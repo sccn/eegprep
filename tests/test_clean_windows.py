@@ -140,15 +140,20 @@ def test_too_few_windows_raises():
     """The width loop errors when its smallest rounded width is 1 or less.
 
     Ten windows at these defaults round to 1. Eleven windows round to 2, and
-    MATLAB fits them.
+    MATLAB fits them. Width 1 is not an index error: ``X(1:m,:)`` is a row,
+    ``histc`` returns a row, and ``fit_eeg_distribution.m`` line 126 fails in
+    ``bsxfun``. The message names ``clean_windows`` and the way out.
     """
     from pathlib import Path
 
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
     data = np.ones((4, 180), dtype=np.float64)
-    with pytest.raises(ValueError, match="Too few windows"):
+    with pytest.raises(ValueError, match="clean_windows: Too few windows") as raised:
         clean_windows(_eeg(data), 0.075, (-3.5, 2.0), 1.0)
+    message = str(raised.value)
+    assert "must be greater than 1" in message
+    assert "WindowCriterion" in message
 
     with pytest.raises(ValueError, match="Too few windows"):
         clean_windows(_eeg(np.ones((4, 521), dtype=np.float64)), 0.075, (-3.5, 2.0), 1.0)

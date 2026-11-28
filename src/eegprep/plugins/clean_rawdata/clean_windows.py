@@ -74,10 +74,14 @@ def clean_windows(
     window RMS values, and windows outside the thresholds are still removed.
     A channel whose window RMS values are all equal has scale 0 and is the
     highest score in every window, so it uses a high-amplitude bad-channel
-    slot. The fit's width
-    grid is ``round(n * (max_width:-step:min_width))``. A
-    rounded width of 1 or less raises ``ValueError``, which is the MATLAB
-    indexing error in that loop. Eleven to twenty-two windows still fit.
+    slot. The fit's width grid is ``round(n * (max_width:-step:min_width))``.
+    A rounded width of 1 or less raises ``ValueError`` from ``clean_windows``.
+    EEGLAB's ``fit_eeg_distribution.m`` descends that grid. At width 1,
+    ``X(1:m,:)`` is a row whenever the dropout grid has more than one
+    column, ``histc`` returns a row, and ``logq(1:end-1,:)`` is empty, so
+    line 126 raises ``MATLAB:bsxfun:arrayDimensionsMustMatch``. The nested
+    copy in ``asr_calibrate.m`` transposes a one-row histogram (line 397)
+    and does not hit that ``bsxfun``. Eleven to twenty-two windows still fit.
 
     Args
     ----
@@ -174,11 +178,16 @@ def clean_windows(
     max_width = float(quants[1] - quants[0])
     min_width = float(min_clean_fraction) * max_width
     width_step = float(np.asarray(step_sizes, dtype=float).reshape(-1)[1])
-    # fit_eeg_distribution.m:112 indexes X(m,:) for each rounded width. m <= 1
-    # is the MATLAB error; 11 to 22 windows still produce widths of 2 or more.
+    # fit_eeg_distribution.m descends this grid. m == 1 makes the histogram a
+    # row, and line 126 bsxfun fails. m == 0 indexes X(m,:) at line 115.
     widths = matlab_colon(max_width, -width_step, min_width)
     if widths.size and int(np.min(round_mat(W * widths))) <= 1:
-        raise ValueError(f"Too few windows ({W}) to fit the EEG distribution: round(n * width) must be greater than 1.")
+        smallest = int(np.min(round_mat(W * widths)))
+        raise ValueError(
+            f"clean_windows: Too few windows ({W}) to fit the EEG distribution: "
+            f"round(n * width) is {smallest} and must be greater than 1. "
+            "Use a longer recording or set WindowCriterion to 'off'."
+        )
 
     logger.info('Determining time window rejection thresholds...')
 
