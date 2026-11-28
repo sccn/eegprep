@@ -14,6 +14,11 @@ EEGLAB_CONTROL_BORDER = "#7f7f7f"
 EEGLAB_BUTTON_BACKGROUND = "#eeeeee"
 EEGLAB_SELECTION_BACKGROUND = "#c6d9ff"
 EEGLAB_PROGRESS_CHUNK = "#0078d7"
+# Height of one dialog row in pixels, by platform. EEGLAB's supergui.m gets the height of a figure from its
+# number of rows and one row height: the height of a line of text times a platform factor (lines 417 to 429).
+# Qt draws EEGPrep's 16 pixel font alike everywhere, so the values are close: 28 is EEGLAB's own row height
+# on Linux for the same window (27.8, pop_importdata, 450 pixels for 15 rows).
+EEGLAB_ROW_HEIGHT = {"linux": 28, "darwin": 28, "win32": 28}
 
 
 def eeglab_floating_dialog_stylesheet() -> str:

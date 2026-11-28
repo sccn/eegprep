@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 
 import numpy as np
 import pytest
@@ -8,7 +9,11 @@ import pytest
 from eegprep.functions.guifunc.inputdlg2 import inputdlg2
 from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.guifunc.theme import EEGLAB_CONTROL_BACKGROUND, EEGLAB_CONTROL_DISABLED_BACKGROUND
+from eegprep.functions.guifunc.theme import (
+    EEGLAB_CONTROL_BACKGROUND,
+    EEGLAB_CONTROL_DISABLED_BACKGROUND,
+    EEGLAB_ROW_HEIGHT,
+)
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
 
@@ -279,3 +284,28 @@ def test_checkbox_and_radio_button_keep_an_opaque_palette_for_their_box(qt_dialo
     qt_dialogs.dialogs[-1].show()
     assert widgets["box"].palette().base().color().alpha() == 255
     assert widgets["radio"].palette().base().color().alpha() == 255
+
+
+def test_window_without_a_height_is_as_high_as_its_rows(qt_dialogs):
+    """As in EEGLAB's supergui, every row takes the platform's row height, blank rows included."""
+    controls = (
+        ControlSpec("text", "name"),
+        ControlSpec("edit", tag="first"),
+        ControlSpec("spacer"),
+        ControlSpec("text", "choice"),
+        ControlSpec("checkbox", tag="second"),
+        ControlSpec("text", "kind"),
+        ControlSpec("popupmenu", "a|b", tag="third"),
+    )
+    spec = DialogSpec(
+        title="rows", controls=controls, geometry=((1, 1), 1, (1, 1), (1, 1)), function_name="rows", eeglab_source=""
+    )
+    widgets = qt_dialogs.build(spec)
+    dialog = qt_dialogs.dialogs[-1]
+    dialog.show()
+    tops = [
+        widgets[tag].parentWidget().mapTo(dialog, widgets[tag].parentWidget().rect().topLeft()).y()
+        for tag in ("first", "second", "third")
+    ]
+    row = EEGLAB_ROW_HEIGHT.get(sys.platform, EEGLAB_ROW_HEIGHT["linux"])
+    assert [tops[1] - tops[0], tops[2] - tops[1]] == [2 * row, row]

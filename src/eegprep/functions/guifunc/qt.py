@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import math
 import re
+import sys
 from typing import Any
 
 import numpy as np
@@ -20,6 +21,7 @@ from eegprep.functions.guifunc.theme import (
     EEGLAB_CONTROL_BORDER,
     EEGLAB_CONTROL_DISABLED_BACKGROUND,
     EEGLAB_DISABLED_TEXT,
+    EEGLAB_ROW_HEIGHT,
     EEGLAB_TEXT,
     eeglab_floating_dialog_stylesheet,
 )
@@ -226,6 +228,10 @@ class QtDialogRenderer:
             row_container = qt_widgets.QWidget()
             if spec.geomvert is None and not _rows_share_height(spec):
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
+            content_row_height = _content_row_height(spec, row_index)
+            if content_row_height is not None:
+                # At least one row height: a row keeps the height of a taller control, such as a list box.
+                row_container.setMinimumHeight(content_row_height)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(spec.column_spacing)
@@ -257,6 +263,9 @@ class QtDialogRenderer:
                 content_layout.addWidget(row_container, self._row_stretch(spec, row_index))
             elif _rows_share_height(spec):
                 content_layout.addStretch(self._row_stretch(spec, row_index))
+            elif content_row_height is not None:
+                # Qt puts the gap between rows on one side only of a blank space, hence the gap added here.
+                content_layout.addSpacing(content_row_height + spec.row_spacing)
             else:
                 content_layout.addSpacing(self._spacer_row_height(spec, row_index))
 
@@ -940,6 +949,18 @@ def _row_stretch(spec: DialogSpec, row_index: int) -> int:
         return 100 if _rows_share_height(spec) else 0
     value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
     return max(1, round(float(value) * 100))
+
+
+def _content_row_height(spec: DialogSpec, row_index: int) -> int | None:
+    """Height of a row of a window whose specification gives no height, None for the other windows.
+
+    As in EEGLAB's supergui, such a window is as high as its rows: each row, blank rows included, takes its
+    geomvert share (1 by default) of the platform's row height. The gap between two rows is part of it.
+    """
+    if spec.scrollable or (spec.size is not None and spec.size[1] is not None):
+        return None
+    share = 1.0 if spec.geomvert is None else float(spec.geomvert[min(row_index, len(spec.geomvert) - 1)])
+    return max(1, round(share * EEGLAB_ROW_HEIGHT.get(sys.platform, EEGLAB_ROW_HEIGHT["linux"])) - spec.row_spacing)
 
 
 def _spacer_row_height(spec: DialogSpec, row_index: int) -> int:
