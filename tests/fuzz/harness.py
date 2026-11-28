@@ -569,7 +569,7 @@ def compare_data(
     return _srate_or_match(python_srate, oracle_srate, max_abs, max_rel)
 
 
-def _same_failure(python: SideResult, oracle: SideResult) -> bool:
+def _same_failure(python: SideResult, oracle: SideResult, case: FuzzCase) -> bool:
     if python.error_type == oracle.error_type:
         return True
     message = (python.error_message or "").strip()
@@ -585,6 +585,7 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
         or _same_pop_select_channel_range(message, oracle_message)
         or _same_pop_select_notime(message, oracle_message)
         or _same_pop_epoch_eventindices(message, oracle_message)
+        or _same_pop_epoch_filtered_eventindices(message, oracle_message, case)
         or _same_empty_rms_fit(message, oracle)
     )
 
@@ -618,6 +619,21 @@ def _same_pop_epoch_eventindices(message: str, oracle_message: str) -> bool:
         return False
     folded = oracle_message.lower()
     return "index exceeds" in folded or "out of bound" in folded or "index out of" in folded
+
+
+def _same_pop_epoch_filtered_eventindices(message: str, oracle_message: str, case: FuzzCase) -> bool:
+    """pop_epoch.m keeps only the indices of events that match a type (lines 274-283).
+
+    With a type filter and every index past the end, nothing remains and EEGLAB
+    reports an empty epoch range. EEGPrep checks the indices first and names
+    the valid range.
+    """
+    bound = re.search(r"pop_epoch: eventindices .* are outside 1\.\.(\d+)\.", message)
+    if bound is None or "empty epoch range" not in oracle_message:
+        return False
+    params = thaw_params(case.params)
+    count = int(bound.group(1))
+    return bool(params.get("types")) and all(not 1 <= int(index) <= count for index in params["eventindices"])
 
 
 def _oracle_filter_unavailable(oracle: SideResult) -> bool:
@@ -658,7 +674,7 @@ def _judge_pair(
         detail = (
             f"python {python.error_type}: {python.error_message}; oracle {oracle.error_type}: {oracle.error_message}"
         )
-        if _same_failure(python, oracle):
+        if _same_failure(python, oracle, case):
             return _remember_oracle(_outcome(case, False, False, "both-error", 0.0, 0.0, detail, digest), oracle)
         error_class = f"exception-mismatch:{python.error_type}/{oracle.error_type}"
         return _remember_oracle(_outcome(case, True, False, error_class, 0.0, 0.0, detail, digest), oracle)
