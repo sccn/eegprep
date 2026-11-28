@@ -81,12 +81,13 @@ class DialogSpec:
     scrollable: bool = False
     horizontal_scroll: bool = True
     # Size every control by its geometry weight alone, as EEGLAB's supergui does,
-    # instead of by its content; column_spacing is the gap between controls in a row.
+    # instead of by its content.
     weighted_columns: bool = False
     # Widen a weighted_columns window beyond ``size`` when a wider font would cut a label.
     fit_weighted_labels: bool = False
     validate: Any = None
-    column_spacing: int = 4
+    # Explicit pixel gap, or the supergui proportion in weighted rows and 4 px otherwise.
+    column_spacing: int | None = None
 
 
 def controls_by_tag(spec: DialogSpec) -> dict[str, ControlSpec]:
