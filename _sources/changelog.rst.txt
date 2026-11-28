@@ -107,6 +107,20 @@ Unreleased
   ``ValueError`` from ``topoplot``; EEGLAB draws those markers and EEGPrep
   does not yet.
   (#670)
+- ``clean_windows`` names itself when fewer than eleven windows make a fit
+  width round to 1 or less, and the error says to use a longer recording or
+  set ``WindowCriterion`` to ``'off'``. EEGLAB's ``fit_eeg_distribution.m``
+  line 126 then fails in ``bsxfun``: ``histc`` of the one-row slice is a row
+  and ``logq(1:end-1,:)`` is empty. The nested copy in ``asr_calibrate.m``
+  transposes that row (line 397). Five windows after burst rejection is the
+  case (#664).
+- When ASR calibration is shorter than one RMS window after channel cleaning,
+  ``pop_clean_rawdata`` still removes bad windows. EEGLAB's
+  ``clean_artifacts.m`` lines 270-275 return the channel-cleaned recording
+  before that stage. The GUI preset on the 1024-sample crop starting at
+  sample 1034 keeps 26 channels either way; EEGLAB keeps all 1024 samples
+  and EEGPrep keeps 551. The calibration section has 28 samples
+  (``asr_calibrate.m`` line 190) (#663).
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's
   ``TypicalX``, and the scaled BFGS update follows MATLAB's search

@@ -582,6 +582,20 @@ comma. A cell inside <code class="docutils literal notranslate"><span class="pre
 <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> from <code class="docutils literal notranslate"><span class="pre">topoplot</span></code>; EEGLAB draws those markers and EEGPrep
 does not yet.
 (#670)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> names itself when fewer than eleven windows make a fit
+width round to 1 or less, and the error says to use a longer recording or
+set <code class="docutils literal notranslate"><span class="pre">WindowCriterion</span></code> to <code class="docutils literal notranslate"><span class="pre">'off'</span></code>. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">fit_eeg_distribution.m</span></code>
+line 126 then fails in <code class="docutils literal notranslate"><span class="pre">bsxfun</span></code>: <code class="docutils literal notranslate"><span class="pre">histc</span></code> of the one-row slice is a row
+and <code class="docutils literal notranslate"><span class="pre">logq(1:end-1,:)</span></code> is empty. The nested copy in <code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code>
+transposes that row (line 397). Five windows after burst rejection is the
+case (#664).</p></li>
+<li><p>When ASR calibration is shorter than one RMS window after channel cleaning,
+<code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> still removes bad windows. EEGLAB’s
+<code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> lines 270-275 return the channel-cleaned recording
+before that stage. The GUI preset on the 1024-sample crop starting at
+sample 1034 keeps 26 channels either way; EEGLAB keeps all 1024 samples
+and EEGPrep keeps 551. The calibration section has 28 samples
+(<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> line 190) (#663).</p></li>
 <li><p>Equivalent-dipole fits follow FieldTrip <code class="docutils literal notranslate"><span class="pre">fminunc</span></code> settings. The
 forward difference is <code class="docutils literal notranslate"><span class="pre">sqrt(eps)*sign'(x)*max(|x|,</span> <span class="pre">10</span> <span class="pre">mm)</span></code>, FieldTrip’s
 <code class="docutils literal notranslate"><span class="pre">TypicalX</span></code>, and the scaled BFGS update follows MATLAB’s search

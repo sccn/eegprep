@@ -566,10 +566,14 @@ not return a positive scale, that estimate is the median and MAD of the
 window RMS values, and windows outside the thresholds are still removed.
 A channel whose window RMS values are all equal has scale 0 and is the
 highest score in every window, so it uses a high-amplitude bad-channel
-slot. The fit’s width
-grid is <code class="docutils literal notranslate"><span class="pre">round(n</span> <span class="pre">*</span> <span class="pre">(max_width:-step:min_width))</span></code>. A
-rounded width of 1 or less raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, which is the MATLAB
-indexing error in that loop. Eleven to twenty-two windows still fit.</p>
+slot. The fit’s width grid is <code class="docutils literal notranslate"><span class="pre">round(n</span> <span class="pre">*</span> <span class="pre">(max_width:-step:min_width))</span></code>.
+A rounded width of 1 or less raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> from <code class="docutils literal notranslate"><span class="pre">clean_windows</span></code>.
+EEGLAB’s <code class="docutils literal notranslate"><span class="pre">fit_eeg_distribution.m</span></code> descends that grid. At width 1,
+<code class="docutils literal notranslate"><span class="pre">X(1:m,:)</span></code> is a row whenever the dropout grid has more than one
+column, <code class="docutils literal notranslate"><span class="pre">histc</span></code> returns a row, and <code class="docutils literal notranslate"><span class="pre">logq(1:end-1,:)</span></code> is empty, so
+line 126 raises <code class="docutils literal notranslate"><span class="pre">MATLAB:bsxfun:arrayDimensionsMustMatch</span></code>. The nested
+copy in <code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> transposes a one-row histogram (line 397)
+and does not hit that <code class="docutils literal notranslate"><span class="pre">bsxfun</span></code>. Eleven to twenty-two windows still fit.</p>
 <section id="args">
 <h2>Args<a class="headerlink" href="#args" title="Link to this heading">#</a></h2>
 <dl class="simple">
