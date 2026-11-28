@@ -100,6 +100,12 @@ field "Import only the following participant indices" takes 1-based positions in
 ``participants.tsv`` (or in the sorted ``sub-*`` folders when that file is
 missing), such as ``2`` or ``1 2``. ``pop_importbids(..., subjects=[1, 2])``
 uses that same list, including when the dialog's history command is run again.
+The event type menu lists columns from visible event tables, with ``value``
+first. Quoted column names appear as the importer reads them.
+EEGLAB filters timing and stimulus metadata when it returns from scanning
+a subdirectory. EEGPrep applies the same filter at the dataset root, so
+``onset`` and ``duration`` stay out of the menu at every level. With no event
+type column, BIDS event import starts unchecked and the menu shows ``n/a``.
 A folder import records ``[STUDY ALLEEG] = pop_importbids(...)`` and does not
 pass ``return_study``. Running that command again rebuilds the same study.
 
