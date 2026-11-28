@@ -405,6 +405,40 @@ def test_f21_supplied_ascii_format_survives_options_dialog(app, tmp_path):
     np.testing.assert_array_equal(eeg['data'], data)
 
 
+@pytest.mark.parametrize("fixed_gap", [None, 0, 11])
+def test_importdata_field_height_and_weighted_gaps(app, fixed_gap):
+    from dataclasses import replace
+
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.functions.popfunc.pop_importdata import pop_importdata_dialog_spec
+
+    spec = pop_importdata_dialog_spec()
+    if fixed_gap is not None:
+        spec = replace(spec, column_spacing=fixed_gap)
+    _, dialog, widgets = QtDialogRenderer().build_dialog(spec)
+    dialog.show()
+    try:
+        field = widgets["srate"]
+        label = next(w for w in dialog.findChildren(QtWidgets.QLabel) if w.text() == "Subject code")
+        for width in (1053, 1380):
+            dialog.resize(width, dialog.height())
+            app.processEvents()
+            assert field.height() >= field.fontMetrics().height() + 6
+            row = field.parentWidget()
+            # EEGLAB's default horizontal spacing is 0.02 * 5 / 4 columns.
+            # Its coordinate formula leaves 1.5 times this space between controls.
+            gap_share = 1.5 * 0.02 * 5 / 4
+            expected = fixed_gap if fixed_gap is not None else row.width() * gap_share / (1 - gap_share)
+            actual = label.x() - field.x() - field.width()
+            assert actual == pytest.approx(expected, abs=1)
+        initial_height = field.height()
+        field.setStyleSheet("font-size: 24px")
+        app.processEvents()
+        assert field.height() > initial_height
+    finally:
+        dialog.close()
+
+
 def test_pop_importdata_enter_comments_button_opens_pop_comments(app, tmp_path):
     path = tmp_path / 'input.txt'
     np.savetxt(path, np.arange(12).reshape(2, 6))
