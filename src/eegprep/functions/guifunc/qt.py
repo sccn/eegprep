@@ -230,7 +230,8 @@ class QtDialogRenderer:
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             content_row_height = _content_row_height(spec, row_index)
             if content_row_height is not None:
-                row_container.setFixedHeight(content_row_height)
+                # At least one row height: a row keeps the height of a taller control, such as a list box.
+                row_container.setMinimumHeight(content_row_height)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(spec.column_spacing)
