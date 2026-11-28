@@ -837,7 +837,7 @@ def test_importbids_dialog_lists_event_columns_and_aligns_filters_like_eeglab(qa
 
     eeg_dir = tmp_path / "sub-01" / "eeg"
     eeg_dir.mkdir(parents=True)
-    for run, header in (("1", "onset\tduration\tvalue\tfeedback"), ("2", "onset\tduration\tevent_code\tvalue")):
+    for run, header in (("1", "onset\tduration\tvalue\tfeedback"), ("2", 'onset\tduration\t"event_code"\tvalue')):
         (eeg_dir / f"sub-01_task-x_run-{run}_eeg.set").write_bytes(b"")
         (eeg_dir / f"sub-01_task-x_run-{run}_events.tsv").write_text(header + "\n0\t0\ta\tb\n")
     # A UTF-8 BOM (Excel export) must not turn "onset" into a selectable column.
@@ -852,6 +852,24 @@ def test_importbids_dialog_lists_event_columns_and_aligns_filters_like_eeglab(qa
     assert not widgets["bidsrunsstr"].isEnabled()
     assert widgets["bidsrunsstr"].height() < 2 * widgets["bidstaskstr"].height()
     dialog.close()
+
+
+def test_importbids_without_visible_event_fields_disables_type_menu(qapp, tmp_path):
+    from eegprep.functions.guifunc.qt import QtDialogRenderer
+    from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids_dialog_spec
+
+    cache = tmp_path / ".cache"
+    cache.mkdir()
+    (cache / "sub-01_events.tsv").write_text("onset\tvalue\n")
+    (tmp_path / "._events.tsv").write_text("onset\ttrial_type\n")
+    (tmp_path / "events.tsv").write_text("onset\tduration\n0\t1\n")
+    _app, dialog, widgets = QtDialogRenderer().build_dialog(pop_importbids_dialog_spec(tmp_path))
+    try:
+        assert not widgets["events"].isChecked()
+        assert not widgets["typefield"].isEnabled()
+        assert widgets["typefield"].currentText() == "n/a"
+    finally:
+        dialog.close()
 
 
 def test_importbids_history_and_sessionless_derivative_path(tmp_path):

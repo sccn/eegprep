@@ -17,8 +17,9 @@ EEGPrep scans for supported EEG files, copies each dataset into
 raw BIDS folder is not modified. The File menu import shows the options
 dialog first: study name, channel locations, the events column used as the
 event type, and optional task, session, run, and subject filters. The event
-type popup lists every column of the folder's `events.tsv` files except the
-timing columns, with `value` first, as EEGLAB's dialog does. Those task,
+type popup lists fields from visible `events.tsv` files with `value` first.
+It excludes onset, duration, sample, stim_file and response_time. Without an
+event type field, BIDS event import starts unchecked and the popup shows `n/a`. Those task,
 session, run, and recording choices are a popup and listboxes filled by
 scanning the folder. "Import only the following participant indices" takes
 1-based positions in `participants.tsv`, or in the sorted `sub-*` folders

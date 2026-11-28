@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,6 @@ from eegprep.functions.studyfunc._study_utils import ensure_study
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
 from eegprep.plugins.EEG_BIDS.sidecar import decode_bids_text, read_bids_table
 
-_TYPE_FIELDS = ("value", "trial_type", "type", "event_type", "HED", "code")
 _TIMING_COLUMNS = {"onset", "duration", "sample", "stim_file", "response_time"}
 _DIALOG_KEYS = {
     "gui",
@@ -118,8 +118,7 @@ def pop_importbids(
     return (result, command) if return_com else result
 
 
-# pop_importbids.m line 127 gives a listbox row 1.5 times the height of a row; a disabled
-# listbox is greyed like the other disabled controls.
+# pop_importbids.m line 127 gives listbox rows 1.5 times the ordinary row height.
 _DIALOG_BASE_HEIGHT = 70
 _DIALOG_ROW_HEIGHT = 30
 # Width in pixels of EEGLAB's pop_importbids window (1077.6 px, measured on the Mac
@@ -137,10 +136,10 @@ _LISTBOX_STYLESHEET = f"""
 """
 
 
-def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = _TYPE_FIELDS) -> DialogSpec:
+def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] | None = None) -> DialogSpec:
     """Return the import options dialog from ``pop_importbids.m`` lines 104-143."""
     folder = Path(path)
-    fields = type_fields or ("value",)
+    fields = _event_columns(folder) if type_fields is None else type_fields
     tasks, sessions, runs, recordings = _scan_bids_entities(folder)
     browse = CallbackSpec(
         "select_file",
@@ -165,10 +164,10 @@ def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = 
             "checkbox",
             "Use BIDS event.tsv files for events and use the following BIDS field for event type",
             tag="events",
-            value=True,
+            value=bool(fields),
             callback=CallbackSpec("toggle_enabled", {"source": "events", "targets": ("typefield",)}),
         ),
-        ControlSpec("popupmenu", "|".join(fields), tag="typefield", value=1),
+        ControlSpec("popupmenu", "|".join(fields) or "n/a", tag="typefield", value=1, enabled=bool(fields)),
         *_choice_row(
             "Import only the following BIDS tasks",
             "bidstask",
@@ -374,17 +373,19 @@ def _event_columns(source: Path) -> tuple[str, ...]:
     """
     found: set[str] = set()
     for events in source.rglob("*events.tsv"):
+        if any(part.startswith(".") for part in events.relative_to(source).parts):
+            continue
         try:
             with events.open("rb") as stream:
                 header = decode_bids_text(stream.readline(), suffix=".tsv")
         except OSError:
             continue
-        found.update(header.rstrip("\r\n").split("\t"))
+        found.update(next(csv.reader([header], delimiter="\t")))
     fields = sorted(found - _TIMING_COLUMNS - {""})
     if "value" in fields:
         fields.remove("value")
         fields.insert(0, "value")
-    return tuple(fields or ("value",))
+    return tuple(fields)
 
 
 def _loader_options(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, Any]:
