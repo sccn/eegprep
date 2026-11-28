@@ -10,6 +10,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import (
     component_channel_indices,
     component_maps,
@@ -44,7 +45,7 @@ def pop_envtopo(
     datasets = list(EEG) if isinstance(EEG, list) else [EEG]
     explicit_subindices = kwargs.pop("subindices", None)
     if gui is None:
-        gui = timerange is None and explicit_subindices is None and not kwargs
+        gui = timerange is None and explicit_subindices is None and not args and not kwargs
     subindices: tuple[int, int] | None = None
     if gui:
         compare_gui = len(datasets) > 1
@@ -71,7 +72,8 @@ def pop_envtopo(
     else:
         dataset = datasets[0]
         other = None
-    command_kwargs = dict(kwargs)
+    command_kwargs = parse_key_value_args(args, kwargs, lowercase_kwargs=False) if args else dict(kwargs)
+    all_options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     prepared = _component_mean(dataset, timerange)
     if other is not None:
         other_prepared = _component_mean(other, timerange)
@@ -84,27 +86,42 @@ def pop_envtopo(
         data_mean = prepared["mean"]
     times = prepared["times"]
     label_times = times if times.size else eeg_times_ms(dataset)
-    topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
-    compnums = kwargs.pop("compnums", None)
+    text_options = parse_plot_options_text(all_options.pop("options", ""))
+    envtopo_options, topoplot_options = _split_envtopo_options(text_options, all_options)
+    compnums = envtopo_options.pop("compnums", None)
     if compnums is None:  # GUI supplies "components"; the console uses "compnums"
-        compnums = kwargs.pop("components", None)
-    title = kwargs.pop("title", None)
+        compnums = envtopo_options.pop("components", None)
+    else:
+        envtopo_options.pop("components", None)
+    title = envtopo_options.pop("title", None)
     if title is None or str(title).strip() == "":
         title = _envtopo_title(dataset)
+    env_timerange = envtopo_options.pop("timerange", None)
+    if env_timerange is None or numeric_vector(env_timerange).size != 2:
+        env_timerange = [float(label_times[0]), float(label_times[-1])]
     result = envtopo(
         data_mean,
         prepared["weights"],
         chanlocs=prepared["chanlocs"],
         icawinv=prepared["maps"],
-        timerange=[float(label_times[0]), float(label_times[-1])],
-        limcontrib=kwargs.pop("limcontrib", None),
+        timerange=env_timerange,
+        limits=envtopo_options.pop("limits", None),
+        limcontrib=envtopo_options.pop("limcontrib", None),
         compnums=compnums,
-        compsplot=_first_int(kwargs.pop("compsplot", None), default=7),
-        subcomps=kwargs.pop("subcomps", 0),
-        sortvar=str(kwargs.pop("sortvar", topoplot_options.pop("sortvar", "mp"))),
-        envmode=str(kwargs.pop("envmode", topoplot_options.pop("envmode", "avg"))),
-        sumenv=str(kwargs.pop("sumenv", topoplot_options.pop("sumenv", "fill"))),
-        vert=kwargs.pop("vert", None),
+        compsplot=_first_int(envtopo_options.pop("compsplot", None), default=7),
+        subcomps=envtopo_options.pop("subcomps", 0),
+        sortvar=str(envtopo_options.pop("sortvar", "mp")),
+        pvaf=str(envtopo_options.pop("pvaf", "") or ""),
+        envmode=str(envtopo_options.pop("envmode", "avg")),
+        sumenv=str(envtopo_options.pop("sumenv", "fill")),
+        vert=envtopo_options.pop("vert", None),
+        voffsets=envtopo_options.pop("voffsets", None),
+        dispmaps=envtopo_options.pop("dispmaps", "on"),
+        actscale=envtopo_options.pop("actscale", "off"),
+        fillcolor=envtopo_options.pop("fillcolor", None),
+        limcontribweight=float(envtopo_options.pop("limcontribweight", 1.2)),
+        vertweight=float(envtopo_options.pop("vertweight", 2.0)),
+        plotchans=envtopo_options.pop("plotchans", None),
         title=str(title),
         topoplot_options=topoplot_options,
     )
@@ -238,6 +255,60 @@ def _component_chanlocs(EEG: dict[str, Any], maps: np.ndarray, icachansind: np.n
     if maps.shape[0] == icachansind.size and chanlocs and np.max(icachansind) < len(chanlocs):
         return [chanlocs[index] for index in icachansind]
     raise ValueError("EEG.icawinv must have one row per channel location or ICA channel")
+
+
+# EEGLAB envtopo.m options (lines 200-228) not yet implemented in EEGPrep;
+# reject them here instead of leaking them into topoplot().
+_UNIMPLEMENTED_ENVTOPO_OPTIONS = frozenset(
+    {
+        "axisoff",
+        "chanlocs",
+        "colorfile",
+        "colors",
+        "figure",
+        "fillcomp",
+        "icaact",
+        "icawinv",
+        "plotproj",
+        "topoarg",
+    }
+)
+_ENVTOPO_OPTIONS = frozenset(
+    {
+        "actscale",
+        "compnums",
+        "components",
+        "compsplot",
+        "dispmaps",
+        "envmode",
+        "fillcolor",
+        "limcontrib",
+        "limcontribweight",
+        "limits",
+        "plotchans",
+        "pvaf",
+        "sortvar",
+        "subcomps",
+        "sumenv",
+        "timerange",
+        "title",
+        "vert",
+        "vertweight",
+        "voffsets",
+    }
+)
+
+
+def _split_envtopo_options(
+    text_options: dict[str, Any], direct_options: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    merged = {**text_options, **direct_options}
+    for key in merged:
+        if key in _UNIMPLEMENTED_ENVTOPO_OPTIONS:
+            raise ValueError(f"pop_envtopo: '{key}' is an EEGLAB envtopo option that EEGPrep does not implement yet.")
+    env_opts = {key: value for key, value in merged.items() if key in _ENVTOPO_OPTIONS}
+    topo_opts = {key: value for key, value in merged.items() if key not in _ENVTOPO_OPTIONS and key != "verbose"}
+    return env_opts, topo_opts
 
 
 def _first_int(value: Any, *, default: int) -> int:

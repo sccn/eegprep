@@ -11,7 +11,9 @@ import unittest
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.collections import PathCollection
+from matplotlib.markers import MarkerStyle
 from unittest.mock import patch
 import tempfile
 import warnings
@@ -22,6 +24,8 @@ import pytest
 matplotlib.use('Agg')
 
 from eegprep.functions.sigprocfunc.topoplot import (
+    _ALLOWED_OPTIONS,
+    _UNIMPLEMENTED_EEGLAB_OPTIONS,
     _average_similar_points,
     _merge_coincident_points,
     griddata_v4,
@@ -664,16 +668,24 @@ def test_topoplot_rejects_unknown_options_and_keeps_compat_allowlist():
     ]
     data = np.array([1.0, 2.0, -1.0, 0.5])
 
-    for bad_key, bad_val in (
-        ("foobar", 1),
-        ("headrad", 0.5),
-        ("plotgrid", [[1, 2]]),
-        ("dipole", [0.0, 0.0, 1.0, 0.0, 0.0]),
-    ):
+    assert _ALLOWED_OPTIONS.isdisjoint(_UNIMPLEMENTED_EEGLAB_OPTIONS)
+
+    # Truly unknown parameters raise 'Unknown input parameter'.
+    for bad_key, bad_val in (("foobar", 1), ("not_a_topoplot_opt", "on")):
         with pytest.raises(ValueError, match=rf"topoplot: Unknown input parameter '{bad_key}'"):
             topoplot(data, locs, noplot="on", **{bad_key: bad_val})
         with pytest.raises(ValueError, match=rf"topoplot: Unknown input parameter '{bad_key}'"):
             topoplot([], locs, style="blank", noplot="on", **{bad_key: bad_val})
+
+    # Valid EEGLAB topoplot.m options not yet implemented raise an actionable message.
+    for unimpl_key in sorted(_UNIMPLEMENTED_EEGLAB_OPTIONS):
+        pattern = rf"topoplot: '{unimpl_key}' is an EEGLAB topoplot option that EEGPrep does not implement yet\. Remove it from the call\."
+        with pytest.raises(ValueError, match=pattern):
+            topoplot(data, locs, noplot="on", **{unimpl_key: 1})
+    for unimpl_key in ("headrad", "plotgrid", "dipole", "whitebk", "shading", "nosedir"):
+        pattern = rf"topoplot: '{unimpl_key}' is an EEGLAB topoplot option that EEGPrep does not implement yet\. Remove it from the call\."
+        with pytest.raises(ValueError, match=pattern):
+            topoplot([], locs, style="blank", noplot="on", **{unimpl_key: 1})
 
     # Explicitly ignored / caller-compat keys remain accepted.
     _handle, zi, *_rest = topoplot(
@@ -712,6 +724,7 @@ def test_topoplot_emarker_draws_marker_color_size_linewidth_and_autosize():
         plt.close(fig)
 
     # Empty size placeholder triggers EEGLAB channel-count auto-size table.
+    # For '.', size_sq = (2 * pt / 3) ** 2 and linewidths == 0 to match MATLAB MarkerSize / 3.
     for n_chans, expected_pt in ((8, 10.0), (32, 8.0), (48, 6.0), (64, 5.0), (80, 4.0), (100, 3.0)):
         ring_locs = [
             {"labels": f"E{i + 1}", "theta": i * (360.0 / n_chans), "radius": 0.4 if i else 0.0} for i in range(n_chans)
@@ -722,10 +735,20 @@ def test_topoplot_emarker_draws_marker_color_size_linewidth_and_autosize():
             topoplot(ring_data, ring_locs, axes=ax, electrodes="on", emarker=[".", "r", [], 1.5])
             marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
             assert len(marker_col.get_offsets()) == n_chans
-            np.testing.assert_allclose(marker_col.get_sizes(), [expected_pt**2])
+            np.testing.assert_allclose(marker_col.get_sizes(), [(2.0 * expected_pt / 3.0) ** 2])
+            np.testing.assert_allclose(marker_col.get_linewidth(), [0.0])
             np.testing.assert_allclose(marker_col.get_facecolor()[0], [1.0, 0.0, 0.0, 1.0])
         finally:
             plt.close(fig)
+
+    # Legacy markersize= kwarg stays backward-compatible when no emarker size / emsize is given.
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data, locs, axes=ax, markersize=25)
+        marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
+        np.testing.assert_allclose(marker_col.get_sizes(), [25.0])
+    finally:
+        plt.close(fig)
 
     # Left-to-right option precedence between emarker and emsize/ecolor.
     fig, ax = plt.subplots()
@@ -737,8 +760,8 @@ def test_topoplot_emarker_draws_marker_color_size_linewidth_and_autosize():
     finally:
         plt.close(fig)
 
-    # Unfilled line markers ('+', 'x') draw with zero matplotlib warnings; 'none' skips drawing.
-    for sym in ("+", "x"):
+    # Unfilled line markers ('+', 'x', '*') draw with zero matplotlib warnings; 'none' skips drawing.
+    for sym in ("+", "x", "*"):
         fig, ax = plt.subplots()
         try:
             with warnings.catch_warnings(record=True) as caught:
@@ -761,6 +784,104 @@ def test_topoplot_emarker_draws_marker_color_size_linewidth_and_autosize():
     for bad_emarker in ([], [".", "k", 8, 1, "extra"], "not_a_marker", [".", "not_a_color"]):
         with pytest.raises(ValueError, match="topoplot"):
             topoplot(data, locs, noplot="on", emarker=bad_emarker)
+
+
+def test_topoplot_dot_marker_diameter_matches_matlab_one_third_rule():
+    """Rendered '.' dot diameter at 600 DPI matches MATLAB's MarkerSize / 3 rule (~3.24 pt at 10, ~6.60 pt at 20)."""
+    locs = [{"labels": "Cz", "theta": 0.0, "radius": 0.0}]
+    dpi = 600
+
+    def _measured_dot_diameter_pt(emarkersize: float, linewidth: float = 1.0) -> tuple[float, float]:
+        fig, ax = plt.subplots(figsize=(2.0, 2.0), dpi=dpi)
+        try:
+            fig.patch.set_facecolor("white")
+            topoplot(
+                1,
+                locs,
+                style="blank",
+                electrodes="off",
+                emarker=[".", "k", emarkersize, linewidth],
+                emarkersize1chan=emarkersize,
+                axes=ax,
+                title="",
+            )
+            marker_col = next(c for c in ax.collections if isinstance(c, PathCollection))
+            np.testing.assert_allclose(marker_col.get_linewidth(), [0.0])
+            canvas = fig.canvas
+            assert isinstance(canvas, FigureCanvasAgg)
+            canvas.draw()
+            rgba = np.asarray(canvas.buffer_rgba())
+            # Selected dot is red [255, 0, 0] at Cz (center); isolate red pixels cleanly from black head outline.
+            red_mask = (rgba[:, :, 0] > 180) & (rgba[:, :, 1] < 80) & (rgba[:, :, 2] < 80)
+            ys, xs = np.nonzero(red_mask)
+            assert xs.size > 0 and ys.size > 0
+            width_pt = (int(xs.max()) - int(xs.min()) + 1) * 72.0 / dpi
+            height_pt = (int(ys.max()) - int(ys.min()) + 1) * 72.0 / dpi
+            return width_pt, height_pt
+        finally:
+            plt.close(fig)
+
+    w10, h10 = _measured_dot_diameter_pt(10.0, linewidth=1.0)
+    w10_thick, h10_thick = _measured_dot_diameter_pt(10.0, linewidth=5.0)
+    w20, h20 = _measured_dot_diameter_pt(20.0, linewidth=1.0)
+
+    # MATLAB MarkerSize / 3: 10 pt -> ~3.24 pt (not ~5.88 pt), 20 pt -> ~6.60 pt (not ~10.88 pt).
+    assert 2.9 <= w10 <= 3.6 and 2.9 <= h10 <= 3.6
+    assert 6.1 <= w20 <= 7.1 and 6.1 <= h20 <= 7.1
+    # LineWidth does not inflate '.' dot diameter, matching MATLAB.
+    assert w10_thick == pytest.approx(w10, abs=0.15)
+    assert h10_thick == pytest.approx(h10, abs=0.15)
+
+
+def test_topoplot_matlab_star_and_asterisk_marker_mappings():
+    """'*' draws an unfilled 8-spoke asterisk; 'p'/'pentagram' and 'h'/'hexagram' draw fillable stars."""
+    locs = [
+        {"labels": "Fz", "theta": 0.0, "radius": 0.3},
+        {"labels": "Cz", "theta": 0.0, "radius": 0.0},
+        {"labels": "Pz", "theta": 180.0, "radius": 0.3},
+        {"labels": "C3", "theta": 270.0, "radius": 0.4},
+    ]
+    data = np.array([1.0, 2.0, -1.0, 0.5])
+
+    # MATLAB '*' -> 8-spoke unfilled line asterisk in both emarker and emarker2 with zero warnings.
+    fig, ax = plt.subplots()
+    try:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            topoplot(data, locs, axes=ax, emarker=["*", "b", 10, 1.5], emarker2=[[1], "*", "r", 12, 2.0])
+            fig.canvas.draw()
+        assert not any("unfilled marker" in str(item.message) for item in caught)
+        pcs = sorted((c for c in ax.collections if isinstance(c, PathCollection)), key=lambda c: c.get_zorder())
+        assert len(pcs) == 2
+        # Unfilled 8-spoke asterisk matches Matplotlib's transformed (8, 2, 0) path.
+        asterisk_style = MarkerStyle((8, 2, 0))
+        expected_asterisk = asterisk_style.get_path().transformed(asterisk_style.get_transform()).vertices
+        assert not asterisk_style.is_filled()
+        np.testing.assert_allclose(pcs[0].get_paths()[0].vertices, expected_asterisk)
+        np.testing.assert_allclose(pcs[1].get_paths()[0].vertices, expected_asterisk)
+    finally:
+        plt.close(fig)
+
+    # MATLAB 'p'/'pentagram' (5-point star) and 'h'/'hexagram' (6-point star): hollow in emarker, filled in emarker2.
+    for sym, expected_points in (("p", 5), ("pentagram", 5), ("h", 6), ("hexagram", 6)):
+        fig, ax = plt.subplots()
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                topoplot(data, locs, axes=ax, emarker=[sym, "b", 10, 1.5], emarker2=[[1], sym, "r", 12, 1.5])
+                fig.canvas.draw()
+            assert not any("unfilled marker" in str(item.message) for item in caught)
+            pcs = sorted((c for c in ax.collections if isinstance(c, PathCollection)), key=lambda c: c.get_zorder())
+            assert len(pcs) == 2
+            emarker_col, emarker2_col = pcs
+            assert np.asarray(emarker_col.get_facecolor()).size == 0  # hollow outline in emarker
+            np.testing.assert_allclose(emarker_col.get_edgecolor()[0], [0.0, 0.0, 1.0, 1.0])
+            np.testing.assert_allclose(emarker2_col.get_facecolor()[0], [1.0, 0.0, 0.0, 1.0])  # filled in emarker2
+            # 5-point star has 10 alternating outer/inner vertices (+ closing); 6-point star has 12 (+ closing).
+            verts = emarker2_col.get_paths()[0].vertices
+            assert len(verts) in (2 * expected_points, 2 * expected_points + 1)
+        finally:
+            plt.close(fig)
 
 
 def test_topoplot_emarker2_indexing_plotchans_plotrad_and_electrodes_modes():
@@ -853,6 +974,25 @@ def test_topoplot_emarker2_indexing_plotchans_plotrad_and_electrodes_modes():
     finally:
         plt.close(fig)
 
+    # Unlocated channels (empty theta/radius, e.g. EOG1/EOG2) are dropped before emarker2 indexing (topoplot.m:694-915).
+    locs_with_eog = [
+        {"labels": "Fz", "theta": 0.0, "radius": 0.3},
+        {"labels": "EOG1", "theta": np.empty((0, 0)), "radius": np.empty((0, 0))},
+        {"labels": "C3", "theta": -90.0, "radius": 0.4},
+        {"labels": "C4", "theta": 90.0, "radius": 0.4},
+    ]
+    data_with_eog = np.array([1.0, 99.0, -1.0, 0.5])
+    fig, ax = plt.subplots()
+    try:
+        topoplot(data_with_eog, locs_with_eog, axes=ax, electrodes="off", emarker2=[[2], "o", "r", 12, 2])
+        pcs = [c for c in ax.collections if isinstance(c, PathCollection)]
+        assert len(pcs) == 1
+        assert len(pcs[0].get_offsets()) == 1
+        # Located channels are [Fz, C3, C4], so emarker2 index 2 marks C3 on the left (screen_x < 0).
+        assert pcs[0].get_offsets()[0, 0] < 0
+    finally:
+        plt.close(fig)
+
     # emarker2 on style='blank' raises ValueError matching EEGLAB even with noplot='on'.
     with pytest.raises(ValueError, match="emarker2 not defined for style 'blank'"):
         topoplot([], locs, style="blank", noplot="on", emarker2=[[1]])
@@ -867,7 +1007,7 @@ def test_topoplot_blank_marks_selected_channels_with_emarkersize1chan():
         {"labels": "C4", "theta": 90.0, "radius": 0.4},
     ]
 
-    # Single channel index with emarkersize1chan draws one red marker at C3 sized by pt**2.
+    # Single channel index with emarkersize1chan draws one red '.' marker sized by (2 * pt / 3) ** 2.
     fig, ax = plt.subplots()
     try:
         topoplot(4, locs, style="blank", electrodes="off", emarkersize1chan=12, axes=ax)
@@ -875,7 +1015,8 @@ def test_topoplot_blank_marks_selected_channels_with_emarkersize1chan():
         assert len(pcs) == 1
         assert len(pcs[0].get_offsets()) == 1
         assert pcs[0].get_offsets()[0, 0] < 0  # C3 on left
-        np.testing.assert_allclose(pcs[0].get_sizes(), [144.0])
+        np.testing.assert_allclose(pcs[0].get_sizes(), [(2.0 * 12.0 / 3.0) ** 2])
+        np.testing.assert_allclose(pcs[0].get_linewidth(), [0.0])
         np.testing.assert_allclose(pcs[0].get_facecolor()[0], [1.0, 0.0, 0.0, 1.0])
     finally:
         plt.close(fig)
@@ -888,7 +1029,7 @@ def test_topoplot_blank_marks_selected_channels_with_emarkersize1chan():
         assert len(pcs) == 2
         assert len(pcs[0].get_offsets()) == 5
         assert len(pcs[1].get_offsets()) == 2
-        np.testing.assert_allclose(pcs[1].get_sizes(), [225.0])
+        np.testing.assert_allclose(pcs[1].get_sizes(), [(2.0 * 15.0 / 3.0) ** 2])
     finally:
         plt.close(fig)
 
@@ -897,7 +1038,7 @@ def test_topoplot_blank_marks_selected_channels_with_emarkersize1chan():
         topoplot(5, locs, style="blank", electrodes="off", axes=ax)
         pcs = [c for c in ax.collections if isinstance(c, PathCollection)]
         assert len(pcs) == 1
-        np.testing.assert_allclose(pcs[0].get_sizes(), [400.0])  # default EMARKERSIZE1CHAN=20
+        np.testing.assert_allclose(pcs[0].get_sizes(), [(2.0 * 20.0 / 3.0) ** 2])  # default EMARKERSIZE1CHAN=20
     finally:
         plt.close(fig)
 

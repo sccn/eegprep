@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import (
     data_time_slice,
     history_command,
@@ -46,29 +47,48 @@ def pop_timtopo(
             return (None, "") if return_com else None
         plottimes = result["plottimes"]
         kwargs.update(result["options"])
-    command_kwargs = dict(kwargs)
+    command_kwargs = parse_key_value_args(args, kwargs, lowercase_kwargs=False) if args else dict(kwargs)
+    all_options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
+    text_options = parse_plot_options_text(all_options.pop("options", ""))
+    command_kwargs.pop("options", None)
+    merged_options = {**text_options, **all_options}
     if timerange is None:
-        timerange = command_kwargs.pop("timerange", None)
+        timerange = merged_options.pop("timerange", None)
     else:
-        command_kwargs.pop("timerange", None)
+        merged_options.pop("timerange", None)
+    command_kwargs.pop("timerange", None)
+    if plottimes is None and "plottimes" in merged_options:
+        plottimes = merged_options.pop("plottimes")
+    else:
+        merged_options.pop("plottimes", None)
     if plottitle is None:
-        plot_title = str(command_kwargs.pop("title", EEG.get("setname") or "Channel ERPs"))
+        plot_title = str(merged_options.pop("title", EEG.get("setname") or "Channel ERPs"))
     else:
-        command_kwargs.pop("title", None)
+        merged_options.pop("title", None)
         plot_title = str(plottitle)
-    winsize_value = command_kwargs.pop("winsize", None)
+    command_kwargs.pop("title", None)
+    winsize_value = merged_options.pop("winsize", None)
+    command_kwargs.pop("winsize", None)
+    limits_value = merged_options.pop("limits", None)
+    voffsets_value = merged_options.pop("voffsets", None)
+    plotchans_value = merged_options.pop("plotchans", None)
+    plotenvelope_value = merged_options.pop("plotenvelope", 0)
+    merged_options.pop("verbose", None)
     data, times = data_time_slice(EEG, timerange)
     erp = np.nanmean(data, axis=2)
     winsize = _first_float(winsize_value, default=0.0)
-    topoplot_options = parse_plot_options_text(command_kwargs.pop("options", ""))
     figure = timtopo(
         erp,
         EEG.get("chanlocs", []),
         times=times,
+        limits=limits_value,
         plottimes=numeric_vector(plottimes).tolist(),
         winsize=winsize,
+        plotchans=plotchans_value,
+        voffsets=voffsets_value,
+        plotenvelope=plotenvelope_value,
         title=plot_title,
-        topoplot_options=topoplot_options,
+        topoplot_options=merged_options,
     )
     history_range = timerange
     if history_range is None or history_range == []:

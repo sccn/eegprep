@@ -28,6 +28,7 @@ def compute_spectra(
     winsize: int | None = None,
     overlap: int = 0,
     nfft: int | None = None,
+    freqfac: int = 1,
     mapnorm: Any = None,
     wintype: str = "hamming",
     blckhn: int = 2,
@@ -87,6 +88,9 @@ def compute_spectra(
     window_type = str(wintype).strip().lower()
     if window_type not in {"hamming", "blackmanharris"}:
         raise ValueError("wintype must be 'hamming' or 'blackmanharris'")
+    if isinstance(freqfac, (bool, np.bool_)) or int(freqfac) < 1:
+        raise ValueError(f"freqfac must be a positive integer, got {freqfac!r}")
+    factor = int(freqfac)
     nperseg = int(winsize or min(int(round_mat(srate)), pnts))
     if window_type == "blackmanharris":
         divisor = int(blckhn)
@@ -98,7 +102,9 @@ def compute_spectra(
     # EEGLAB uses symmetric windows and disables detrending in pwelch.
     window = get_window(window_type, nperseg, fftbins=False)
     if window_type == "blackmanharris":
-        nfft = 1 << int(np.ceil(np.log2(nperseg)))
+        nfft = (1 << int(np.ceil(np.log2(nperseg)))) * factor
+    elif nfft is None and factor > 1:
+        nfft = nperseg * factor
     freqs = None
     psd_sum: np.ndarray | None = None
     for index in range(trials):

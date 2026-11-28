@@ -74,14 +74,22 @@ def envtopo(
     chanlocs: Any = None,
     icawinv: Any = None,
     timerange: Any = None,
+    limits: Any = None,
     limcontrib: Any = None,
     compnums: Any = None,
     compsplot: int = 7,
     subcomps: Any = 0,
     sortvar: str = "mp",
+    pvaf: str = "",
     envmode: str = "avg",
     sumenv: str = "fill",
     vert: Any = None,
+    voffsets: Any = None,
+    dispmaps: str | bool = "on",
+    actscale: str | bool = "off",
+    fillcolor: Any = None,
+    limcontribweight: float = 1.2,
+    vertweight: float = 2.0,
     plotchans: Any = None,
     title: str = "",
     topoplot_options: dict[str, Any] | None = None,
@@ -126,10 +134,15 @@ def envtopo(
     n_components = weight_matrix.shape[0]
 
     maps = np.linalg.pinv(weight_matrix) if _is_empty(icawinv) else np.asarray(icawinv, dtype=float)
+    if isinstance(pvaf, str) and pvaf.strip():
+        sortvar = pvaf
     metric_mode = _normalize_sortvar(sortvar)
     if sumenv not in ("on", "off", "fill"):
         raise ValueError(f"envtopo: sumenv must be 'on', 'off' or 'fill', got {sumenv!r}")
+    show_maps = _flag_is_on(dispmaps, "dispmaps")
+    scale_by_act = _flag_is_on(actscale, "actscale")
     times_ms = _time_axis(timerange, n_frames)
+    plot_xlim, plot_ylim = _parse_limits(limits, times_ms)
     plot_channels = _resolve_channels(plotchans, n_chans)
     compnums, compsplot = _legacy_component_selection(compnums, compsplot)
     candidates = _resolve_components(compnums, n_components)
@@ -175,6 +188,14 @@ def envtopo(
         envmode=envmode,
         sumenv=sumenv,
         vert=vert,
+        voffsets=_resolve_voffsets(voffsets, n_topos),
+        dispmaps=show_maps,
+        actscale=scale_by_act,
+        plot_xlim=plot_xlim,
+        plot_ylim=plot_ylim,
+        fillcolor=_FILLCOLOR if _is_empty(fillcolor) else tuple(np.asarray(fillcolor, dtype=float).ravel()[:3]),
+        limcontribweight=float(limcontribweight),
+        vertweight=float(vertweight),
         title=title,
         topoplot_options=topoplot_options,
     )
@@ -354,6 +375,14 @@ def _build_figure(
     envmode,
     sumenv,
     vert,
+    voffsets,
+    dispmaps,
+    actscale,
+    plot_xlim,
+    plot_ylim,
+    fillcolor,
+    limcontribweight,
+    vertweight,
     title,
     topoplot_options,
 ):
@@ -365,7 +394,7 @@ def _build_figure(
     locs = chanlocs_as_list(chanlocs) if chanlocs is not None else []
     if plot_channels.size < len(locs):  # full chanlocs given with a plotchans subset -> align to plotted channels
         locs = [locs[int(index)] for index in plot_channels]
-    draw_maps = bool(locs)
+    draw_maps = bool(locs) and dispmaps
     n_topos = plotted_labels.size
     times = np.asarray(times_ms, dtype=float) / 1000.0  # EEGLAB envtopo plots the time axis in seconds
 
@@ -386,6 +415,11 @@ def _build_figure(
             metric_label,
             vert,
             sumenv,
+            plot_xlim=plot_xlim,
+            plot_ylim=plot_ylim,
+            fillcolor=fillcolor,
+            limcontribweight=limcontribweight,
+            vertweight=vertweight,
         )
 
     draw_env(env_ax)
@@ -403,6 +437,8 @@ def _build_figure(
             metric_mode,
             plot_channels,
             locs,
+            voffsets,
+            actscale,
             topoplot_options,
             redraws,
         )
@@ -425,13 +461,19 @@ def _draw_envelope(
     metric_label,
     vert,
     sumenv,
+    *,
+    plot_xlim=None,
+    plot_ylim=None,
+    fillcolor=_FILLCOLOR,
+    limcontribweight=1.2,
+    vertweight=2.0,
 ):
     """Draw the data envelope, the summed contribution and per-component envelopes."""
     if sumenv == "fill":
-        ax.fill_between(times, summed_env[1], summed_env[0], color=_FILLCOLOR, linewidth=0.0, zorder=1)
+        ax.fill_between(times, summed_env[1], summed_env[0], color=fillcolor, linewidth=0.0, zorder=1)
     elif sumenv == "on":
-        ax.plot(times, summed_env[0], color=_FILLCOLOR, linewidth=3.0, zorder=2)
-        ax.plot(times, summed_env[1], color=_FILLCOLOR, linewidth=3.0, zorder=2)
+        ax.plot(times, summed_env[0], color=fillcolor, linewidth=3.0, zorder=2)
+        ax.plot(times, summed_env[1], color=fillcolor, linewidth=3.0, zorder=2)
     for position in range(n_topos):
         color = _COMP_COLORS[position % len(_COMP_COLORS)]
         ax.plot(times, comp_envelopes[position, 0], color=color, linewidth=1.0, zorder=3)
@@ -439,20 +481,23 @@ def _draw_envelope(
     ax.plot(times, data_env[0], color="k", linewidth=2.0, zorder=4)
     ax.plot(times, data_env[1], color="k", linewidth=2.0, zorder=4)
 
-    ax.set_xlim(float(times[0]), float(times[-1]))
+    x_low, x_high = plot_xlim if plot_xlim is not None else (float(times[0]), float(times[-1]))
+    ax.set_xlim(x_low, x_high)
+    if plot_ylim is not None and plot_ylim[1] > plot_ylim[0]:
+        ax.set_ylim(plot_ylim[0], plot_ylim[1])
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("RMS (µV)" if str(envmode).lower() == "rms" else "Potential (µV)")
     # Denser y-ticks (~5 µV spacing) to match EEGLAB rather than matplotlib's sparse default.
     ax.yaxis.set_major_locator(MaxNLocator(nbins=11, steps=[1, 2, 5, 10], min_n_ticks=8))
     ax.grid(True, axis="y", linestyle=":")
-    if times[0] < 0 < times[-1]:
+    if x_low < 0 < x_high:
         ax.axvline(0.0, color="k", linewidth=1.5, zorder=2)
     if limcontrib_ms is not None:
         for edge in limcontrib_ms:
-            ax.axvline(float(edge) / 1000.0, color="k", linestyle=":", linewidth=1.2, zorder=2)
+            ax.axvline(float(edge) / 1000.0, color="k", linestyle=":", linewidth=limcontribweight, zorder=2)
     if not _is_empty(vert):
         for latency in np.asarray(vert, dtype=float).ravel():
-            ax.axvline(latency / 1000.0, color="k", linestyle="--", linewidth=2.0, zorder=2)
+            ax.axvline(latency / 1000.0, color="k", linestyle="--", linewidth=vertweight, zorder=2)
     # EEGLAB prints the summed sort metric (ppaf/pvaf/rp) in the lower-left of the panel.
     ax.text(0.02, 0.04, f"{metric_label} {summed_metric:.2f}%", transform=ax.transAxes, fontsize=8, fontweight="bold")
 
@@ -469,6 +514,8 @@ def _draw_maps_row(
     metric_mode,
     plot_channels,
     locs,
+    voffsets,
+    actscale,
     topoplot_options,
     redraws,
 ):
@@ -479,7 +526,16 @@ def _draw_maps_row(
     left, right = 0.10, 0.88
     slot = (right - left) / n_topos
     map_w = min(slot * 0.9, 0.22)
-    options = {"electrodes": "on" if map_w >= 0.12 else "off", "maplimits": "absmax", **(topoplot_options or {})}
+    default_maplimits: Any = "absmax"
+    if actscale and n_topos > 0:
+        maxvolt = float(np.nanmax(np.abs(max_projections[plot_channels, :])))
+        if np.isfinite(maxvolt) and maxvolt > 0:
+            default_maplimits = [-maxvolt, maxvolt]
+    options = {
+        "electrodes": "on" if map_w >= 0.12 else "off",
+        "maplimits": default_maplimits,
+        **(topoplot_options or {}),
+    }
     popup_options = {**options, "electrodes": "on"}  # the enlarged pop-out always shows electrodes
 
     for column, source in enumerate(temporal):
@@ -491,9 +547,13 @@ def _draw_maps_row(
         _topo_map(topo_ax, values, locs, options, label)
 
         color = _COMP_COLORS[source % len(_COMP_COLORS)]
+        base_y = float(comp_envelopes[source, 0, plotted_frames[source]])
+        offset = float(voffsets[column]) if column < voffsets.size else 0.0
+        if offset > 0.0:
+            env_ax.plot([latency, latency], [base_y, base_y + offset], color=color, linewidth=1.0, zorder=3)
         figure.add_artist(
             ConnectionPatch(
-                xyA=(latency, comp_envelopes[source, 0, plotted_frames[source]]),
+                xyA=(latency, base_y + offset),
                 coordsA=env_ax.transData,
                 xyB=(0.5, 0.0),
                 coordsB=topo_ax.transAxes,
@@ -528,6 +588,51 @@ def _redraw_map_popup(ax, values, locs, options, label, metric_mode, metric_valu
         f"{metric_mode}: {metric_value:.2f} µV²" if metric_mode == "mp" else f"{metric_mode}: {metric_value:.2f}%"
     )
     ax.text(0.5, -0.03, annotation, transform=ax.transAxes, ha="center", va="top")
+
+
+def _flag_is_on(value: Any, name: str) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text == "on":
+            return True
+        if text == "off":
+            return False
+    raise ValueError(f"envtopo: '{name}' must be 'on', 'off', True, or False, got {value!r}")
+
+
+def _parse_limits(limits: Any, times_ms: np.ndarray) -> tuple[tuple[float, float] | None, tuple[float, float] | None]:
+    if _is_empty(limits):
+        return None, None
+    vals = np.asarray(limits, dtype=float).ravel()
+    if vals.size == 1 and vals[0] == 0.0:
+        return None, None
+    if vals.size not in (2, 4):
+        raise ValueError("envtopo: limits must be 0, [minms maxms], or [minms maxms minuV maxuV]")
+    xmin_s, xmax_s = float(times_ms[0]) / 1000.0, float(times_ms[-1]) / 1000.0
+    plot_xlim = None
+    if np.isfinite(vals[0]) and np.isfinite(vals[1]) and (vals[0] != 0.0 or vals[1] != 0.0):
+        pmin = max(float(vals[0]) / 1000.0, xmin_s)
+        pmax = min(float(vals[1]) / 1000.0, xmax_s)
+        if pmax > pmin:
+            plot_xlim = (pmin, pmax)
+    plot_ylim = None
+    if vals.size == 4 and np.isfinite(vals[2]) and np.isfinite(vals[3]) and (vals[2] != 0.0 or vals[3] != 0.0):
+        plot_ylim = (float(vals[2]), float(vals[3]))
+    return plot_xlim, plot_ylim
+
+
+def _resolve_voffsets(voffsets: Any, n_topos: int) -> np.ndarray:
+    if n_topos <= 0 or _is_empty(voffsets):
+        return np.zeros(max(n_topos, 0), dtype=float)
+    vals = np.asarray(voffsets, dtype=float).ravel()
+    if vals.size == 1 and vals[0] == 0.0:
+        return np.zeros(n_topos, dtype=float)
+    if vals.size < n_topos:
+        pad = np.full(n_topos - vals.size, vals[-1], dtype=float)
+        vals = np.concatenate([vals, pad])
+    return vals[:n_topos]
 
 
 def _is_empty(value):

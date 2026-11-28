@@ -68,11 +68,12 @@ def pop_spectopo(
     freqs = numeric_vector(options.pop("freqs", options.pop("freq", []))).tolist()
     freqrange = numeric_vector(options.pop("freqrange", [])).tolist()
     percent = float(options.pop("percent", 100))
+    title = str(options.pop("title", "") or "")
 
     if dataflag:
         nicamaps = np.asarray([], dtype=int)
         icamaps = np.asarray([], dtype=int)
-        spectral_options, topoplot_options = _split_spectopo_options(options)
+        spectral_options, plot_options, topoplot_options = _split_spectopo_options(options)
         plot_data = _channel_spectral_data(data, process)
         channel_locations = chanlocs_as_list(EEG.get("chanlocs", []))
         if freqs and not any(channel_has_coordinates(loc) for loc in channel_locations):
@@ -89,8 +90,9 @@ def pop_spectopo(
             freqrange=freqrange,
             chanlocs=channel_locations,
             topoplot_options=topoplot_options,
-            title="",  # EEGLAB spectopo adds no default suptitle
+            title=title,  # EEGLAB spectopo adds no default suptitle unless requested
             **spectral_options,
+            **plot_options,
         )
     else:
         _raise_for_unsupported_component_options(options)
@@ -98,11 +100,14 @@ def pop_spectopo(
         icawinv, chanlocs = component_map_data(EEG)
         nicamaps = numeric_vector(options.pop("nicamaps", []), dtype=int)
         icamaps = numeric_vector(options.pop("icamaps", []), dtype=int)
-        spectral_options, topoplot_options = _split_spectopo_options(options)
+        spectral_options, plot_options, topoplot_options = _split_spectopo_options(options)
+        # Component mode computes spectra from activations directly; reref/mapnorm/plotchans are channel-only.
+        comp_spectral = {k: v for k, v in spectral_options.items() if k not in {"reref", "mapnorm", "plotchans"}}
+        chan_spectral = {k: v for k, v in spectral_options.items() if k not in {"mapnorm", "plotchans"}}
         # EEGLAB rescales each component's whole-scalp spectrum by its projection
         # strength: add 10*log10(sqrt(mean(icawinv_col^4))) (spectopo 'normal' icamode).
         comp_spectra, frequency_values, speccomp, contrib, specstd, _ = spectopo(
-            comp_data, int(comp_data.shape[1]), srate, percent=percent, plot="off", **spectral_options
+            comp_data, int(comp_data.shape[1]), srate, percent=percent, plot="off", **comp_spectral
         )
         projection = np.asarray(icawinv, dtype=float)[:, component_numbers - 1]
         comp_spectra = comp_spectra + (10.0 * np.log10(np.sqrt(np.nanmean(projection**4, axis=0))))[:, None]
@@ -113,7 +118,7 @@ def pop_spectopo(
             srate,
             percent=percent,
             plot="off",
-            **spectral_options,
+            **chan_spectral,
         )
         figure = plot_component_spectra(
             comp_spectra,
@@ -125,9 +130,11 @@ def pop_spectopo(
             channel_chanlocs=EEG.get("chanlocs", []),
             freq=freqs,
             freqrange=freqrange,
+            limits=plot_options.get("limits"),
             nicamaps=int(nicamaps[0]) if nicamaps.size else 5,
             icamaps=icamaps.tolist() if icamaps.size else None,
             topoplot_options=topoplot_options,
+            title=title,
         )
         spectra = comp_spectra
 
@@ -308,23 +315,62 @@ def _raise_for_unsupported_component_options(options: dict[str, Any]) -> None:
             )
 
 
-def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    spectral_keys = {"winsize", "overlap", "nfft", "wintype", "blckhn"}
+# EEGLAB spectopo.m options (lines 179-211) not yet implemented in EEGPrep;
+# reject them here instead of leaking them into topoplot().
+_UNIMPLEMENTED_SPECTOPO_OPTIONS = frozenset(
+    {
+        "boundaries",
+        "chanlocs",
+        "freqdata",
+        "icachansind",
+        "icawinv",
+        "mapchans",
+        "mapframes",
+        "specdata",
+        "weights",
+    }
+)
+
+
+def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    for key in options:
+        if key in _UNIMPLEMENTED_SPECTOPO_OPTIONS:
+            raise ValueError(f"pop_spectopo: '{key}' is an EEGLAB spectopo option that EEGPrep does not implement yet.")
+    if "memory" in options and str(options["memory"]).strip().lower() not in {"low", "high"}:
+        raise ValueError(f"pop_spectopo: 'memory' must be 'low' or 'high', got {options['memory']!r}")
+    spectral_keys = {
+        "winsize",
+        "overlap",
+        "nfft",
+        "wintype",
+        "blckhn",
+        "freqfac",
+        "mapnorm",
+        "reref",
+        "rmdc",
+        "plotchans",
+    }
+    plot_keys = {"limits", "plotmean"}
+    consumed_keys = (
+        spectral_keys | plot_keys | {"memory", "verbose", "icacomps", "icamaps", "nicamaps", "plotchan", "icamode"}
+    )
     spectral = {key: options[key] for key in spectral_keys if key in options}
-    if "winsize" in spectral:
-        spectral["winsize"] = int(numeric_vector(spectral["winsize"])[0])
-    if "overlap" in spectral:
-        spectral["overlap"] = int(numeric_vector(spectral["overlap"])[0])
-    if "nfft" in spectral:
-        spectral["nfft"] = int(numeric_vector(spectral["nfft"])[0])
+    for int_key in ("winsize", "overlap", "nfft", "blckhn", "freqfac"):
+        if int_key in spectral:
+            vec = numeric_vector(spectral[int_key])
+            if vec.size == 0:
+                spectral.pop(int_key)
+            else:
+                spectral[int_key] = int(vec[0])
     if "wintype" in spectral:
         spectral["wintype"] = str(spectral["wintype"])
-    if "blckhn" in spectral:
-        spectral["blckhn"] = int(numeric_vector(spectral["blckhn"])[0])
-    topoplot = {key: value for key, value in options.items() if key not in spectral_keys}
-    for unused in {"icacomps", "icamaps", "nicamaps", "plotchan", "icamode"}:
-        topoplot.pop(unused, None)
-    return spectral, topoplot
+    if "reref" in spectral:
+        spectral["reref"] = str(spectral["reref"])
+    if "mapnorm" in spectral and numeric_vector(spectral["mapnorm"]).size == 0:
+        spectral.pop("mapnorm")
+    plot_options = {key: options[key] for key in plot_keys if key in options}
+    topoplot = {key: value for key, value in options.items() if key not in consumed_keys}
+    return spectral, plot_options, topoplot
 
 
 __all__ = ["pop_spectopo", "pop_spectopo_dialog_spec"]

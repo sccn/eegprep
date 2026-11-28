@@ -44,6 +44,46 @@ _IMPLEMENTED_OPTIONS = frozenset(
 # existing callers/tests pass 'verbose', 'chaninfo', and 'masksurf'.
 _COMPAT_IGNORED_OPTIONS = frozenset({"iclabel", "verbose", "chaninfo", "masksurf"})
 _ALLOWED_OPTIONS = _IMPLEMENTED_OPTIONS | _COMPAT_IGNORED_OPTIONS
+# Valid EEGLAB topoplot.m (lines 389-616) options/aliases not yet implemented in EEGPrep.
+_UNIMPLEMENTED_EEGLAB_OPTIONS = frozenset(
+    {
+        "ccolor",
+        "chantype",
+        "circgrid",
+        "contourcolor",
+        "contourvals",
+        "conv",
+        "dipcolor",
+        "diplen",
+        "dipnorm",
+        "dipnormmax",
+        "dipole",
+        "diporient",
+        "dipscale",
+        "dipsphere",
+        "drawaxis",
+        "efontsize",
+        "efsize",
+        "emarkercolors",
+        "forprint",
+        "gridplot",
+        "hcolor",
+        "headcolor",
+        "headlimits",
+        "headrad",
+        "interplimits",
+        "intsquare",
+        "nosedir",
+        "plotdisk",
+        "plotgrid",
+        "pmask",
+        "scatter",
+        "shading",
+        "shrink",
+        "whiteback",
+        "whitebk",
+    }
+)
 
 _ELECTRODE_ALIASES = {
     "on": "on",
@@ -68,11 +108,11 @@ _ELECTRODE_ALIASES = {
     "numspts": "numpoint",
 }
 
-_MATLAB_MARKERS = {
+_MATLAB_MARKERS: dict[str, str | tuple[int, int, int]] = {
     ".": ".",
     "o": "o",
     "+": "+",
-    "*": "*",
+    "*": (8, 2, 0),  # MATLAB '*' is an 8-spoke line asterisk, not a 5-point star
     "x": "x",
     "s": "s",
     "square": "s",
@@ -82,10 +122,10 @@ _MATLAB_MARKERS = {
     "v": "v",
     "<": "<",
     ">": ">",
-    "p": "p",
-    "pentagram": "p",
-    "h": "h",
-    "hexagram": "h",
+    "p": "*",  # MATLAB pentagram -> Matplotlib 5-point fillable star
+    "pentagram": "*",
+    "h": (6, 1, 0),  # MATLAB hexagram -> Matplotlib 6-point fillable star
+    "hexagram": (6, 1, 0),
 }
 _BLANK_COLOR_ARRAY = ((1.0, 0.0, 0.0, 1.0), (0.5, 0.0, 0.0, 1.0), (0.0, 0.0, 0.0, 1.0))
 _DEFAULT_EMARKERSIZE1CHAN = 20.0
@@ -233,6 +273,21 @@ def _plot_channel_indices(plotchans, located, n_channels):
     return np.intersect1d(requested - 1, located)
 
 
+def _scalar_finite_coord(loc: dict, field: str) -> float:
+    if field not in loc:
+        return np.nan
+    value = loc[field]
+    if value is None or isinstance(value, (str, bytes, bool, np.bool_)):
+        return np.nan
+    try:
+        arr = np.asarray(value, dtype=float).ravel()
+    except (TypeError, ValueError):
+        return np.nan
+    if arr.size != 1 or not np.isfinite(arr[0]):
+        return np.nan
+    return float(arr[0])
+
+
 def _require_channel_locations(chan_locs) -> None:
     if chan_locs is None or len(chan_locs) == 0:
         raise ValueError(
@@ -257,12 +312,14 @@ def _normalize_electrodes(value) -> str:
     raise ValueError(f"topoplot: Unknown value for keyword 'electrodes': {value!r}")
 
 
-def _parse_marker_symbol(value, option_name: str) -> str:
+def _parse_marker_symbol(value, option_name: str) -> str | tuple[int, int, int]:
     if not isinstance(value, str):
         raise ValueError(f"topoplot: invalid {option_name} marker {value!r}")
     if value.lower() == "none":
         return "none"
-    mapped = _MATLAB_MARKERS.get(value) or _MATLAB_MARKERS.get(value.lower())
+    mapped = _MATLAB_MARKERS.get(value)
+    if mapped is None:
+        mapped = _MATLAB_MARKERS.get(value.lower())
     if mapped is None:
         raise ValueError(f"topoplot: invalid {option_name} marker {value!r}")
     return mapped
@@ -353,6 +410,11 @@ def _parse_topoplot_options(kwargs: dict) -> dict:
     for raw_key, value in kwargs.items():
         key = str(raw_key).lower()
         if key not in _ALLOWED_OPTIONS:
+            if key in _UNIMPLEMENTED_EEGLAB_OPTIONS:
+                raise ValueError(
+                    f"topoplot: '{raw_key}' is an EEGLAB topoplot option that EEGPrep does not implement yet. "
+                    "Remove it from the call."
+                )
             raise ValueError(f"topoplot: Unknown input parameter '{raw_key}'")
         opts[key] = value
         if key == "electrodes":
@@ -396,22 +458,57 @@ def _parse_topoplot_options(kwargs: dict) -> dict:
     }
 
 
+def _matlab_marker_size_sq(marker: str | tuple[int, int, int], pt: float) -> float:
+    """Convert MATLAB ``MarkerSize`` (pt) to Matplotlib ``scatter(..., s=...)`` area.
+
+    MATLAB renders the point marker ``'.'`` at ``MarkerSize / 3`` ignoring
+    ``LineWidth``. Matplotlib renders ``'.'`` with diameter ``sqrt(s) / 2``
+    when ``linewidths=0``, so ``s = (2 * pt / 3) ** 2`` matches MATLAB's dot
+    diameter (~3.24 pt at 10 pt, ~6.60 pt at 20 pt).
+    """
+    if marker == ".":
+        return (2.0 * float(pt) / 3.0) ** 2
+    return float(pt) ** 2
+
+
 def _resolve_emarker_size_sq(marker_style: dict, n_channels: int, legacy_markersize) -> float:
     if marker_style["size"] is not None:
-        return float(marker_style["size"]) ** 2
+        return _matlab_marker_size_sq(marker_style["marker"], marker_style["size"])
     if legacy_markersize is not None:
         return float(legacy_markersize)
-    return _default_emarkersize(n_channels) ** 2
+    return _matlab_marker_size_sq(marker_style["marker"], _default_emarkersize(n_channels))
 
 
-def _draw_markers(ax, x, y, *, marker: str, color, size_sq: float, linewidth: float, filled: bool, zorder: int):
+def _draw_markers(
+    ax,
+    x,
+    y,
+    *,
+    marker: str | tuple[int, int, int],
+    color,
+    size_sq: float,
+    linewidth: float,
+    filled: bool,
+    zorder: int,
+):
     x_arr = np.asarray(x, dtype=float).ravel()
     y_arr = np.asarray(y, dtype=float).ravel()
     if x_arr.size == 0 or marker == "none" or color == "none":
         return None
+    if marker == ".":
+        return ax.scatter(
+            x_arr,
+            y_arr,
+            marker=".",
+            s=size_sq,
+            facecolors=color,
+            edgecolors="none",
+            linewidths=0.0,
+            zorder=zorder,
+        )
     if not MarkerStyle(marker).is_filled():
         return ax.scatter(x_arr, y_arr, marker=marker, s=size_sq, color=color, linewidths=linewidth, zorder=zorder)
-    facecolors = color if (filled or marker in {".", "*"}) else "none"
+    facecolors = color if filled else "none"
     return ax.scatter(
         x_arr,
         y_arr,
@@ -437,8 +534,11 @@ def topoplot(datavector, chan_locs, **kwargs):
         ``None`` raises ``ValueError``. An empty list raises ``ValueError``
         for an interpolated map. A blank map with an empty list draws the head.
     kwargs : dict
-        Case-insensitive options from an explicit allow-list. Unknown keys raise
-        ``ValueError`` naming ``topoplot`` and the key. Implemented options:
+        Case-insensitive options from an explicit allow-list. Valid EEGLAB
+        ``topoplot.m`` options that EEGPrep does not implement yet raise
+        ``ValueError`` naming the option and explaining that it is not
+        implemented yet; truly unknown keys raise ``ValueError`` naming
+        ``topoplot`` and the key. Implemented options:
         ``noplot``, ``plotchans`` (1-based indices), ``electrodes`` (``on``/``pts``,
         ``off``, ``labels``, ``numbers``/``nums``, ``labelpoint``/``ptslabels``,
         ``numpoint``/``ptsnumbers``), ``emarker`` (``marker`` or
@@ -533,19 +633,10 @@ def topoplot(datavector, chan_locs, **kwargs):
 
     tmpeloc = chan_locs
     labels = [loc['labels'] for loc in tmpeloc]
-    indices = [i for i, loc in enumerate(tmpeloc) if 'theta' in loc]
-    Th = np.array(
-        [
-            tmpeloc[i]['theta'] if i in indices and not isinstance(tmpeloc[i]['theta'], np.ndarray) else np.nan
-            for i in range(len(tmpeloc))
-        ]
-    )
-    Rd = np.array(
-        [
-            tmpeloc[i]['radius'] if i in indices and not isinstance(tmpeloc[i]['radius'], np.ndarray) else np.nan
-            for i in range(len(tmpeloc))
-        ]
-    )
+    Th = np.array([_scalar_finite_coord(loc, 'theta') for loc in tmpeloc], dtype=float)
+    Rd = np.array([_scalar_finite_coord(loc, 'radius') for loc in tmpeloc], dtype=float)
+    # Match readlocs() in topoplot.m:694-716: only channels with finite coordinates are located.
+    indices = np.flatnonzero(np.isfinite(Th) & np.isfinite(Rd)).tolist()
     Th = np.deg2rad(Th)
     allchansind = list(range(len(Th)))
     plotchans = _plot_channel_indices(plotchans, indices, len(tmpeloc))
@@ -695,7 +786,7 @@ def topoplot(datavector, chan_locs, **kwargs):
                 screen_y[mark2_mask],
                 marker=marker2_style["marker"],
                 color=marker2_style["color"],
-                size_sq=float(marker2_style["size"]) ** 2,
+                size_sq=_matlab_marker_size_sq(marker2_style["marker"], marker2_style["size"]),
                 linewidth=marker2_style["linewidth"],
                 filled=True,
                 zorder=6,
@@ -820,7 +911,7 @@ def _blank_topoplot(
         )
     if datavector is not None and datavector.size > 0:
         selected = _blank_selected_markers(datavector, len(chan_locs), location_indices, screen_x, screen_y)
-        selected_size_sq = float(emarkersize1chan) ** 2
+        selected_size_sq = _matlab_marker_size_sq(marker_style["marker"], emarkersize1chan)
         for color, points in selected.items():
             xs = [pt[0] for pt in points]
             ys = [pt[1] for pt in points]

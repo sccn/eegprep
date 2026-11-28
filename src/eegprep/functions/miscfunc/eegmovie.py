@@ -92,12 +92,15 @@ def eegmovie(
         for output_index, data_index in enumerate(frame_indices):
             map_axis.clear()
             if mode == "2D":
+                frame_topoplot_options = {
+                    "maplimits": limits,
+                    **{str(k).lower(): v for k, v in topoplot_options.items()},
+                }
                 topoplot(
                     values[:, data_index],
                     locs,
                     axes=map_axis,
-                    maplimits=limits,
-                    **topoplot_options,
+                    **frame_topoplot_options,
                 )
             else:
                 headplot(
@@ -217,7 +220,7 @@ def _plot_options(value: Any) -> dict[str, Any]:
         return {}
     if isinstance(value, dict):
         return dict(value)
-    sequence = list(value)
+    sequence = value.ravel().tolist() if isinstance(value, np.ndarray) else list(value)
     if len(sequence) % 2:
         raise TypeError("plot options must be name/value pairs")
     return {str(sequence[index]): sequence[index + 1] for index in range(0, len(sequence), 2)}

@@ -591,6 +591,7 @@ def _plot_channel_topographies(
     fig, axes = plt.subplots(rows, columns, squeeze=False, figsize=(4 * columns, 3.8 * rows))
     limits = np.asarray(caxis, dtype=float).ravel() if caxis is not None else np.asarray([])
     topo_kwargs = _topoplot_options(topoplotopt)
+    topo_kwargs.setdefault("colorbar", False)
     if limits.size == 2:
         topo_kwargs["maplimits"] = limits
     for condition_index, condition in enumerate(grouped.conditions):
@@ -600,7 +601,7 @@ def _plot_channel_topographies(
             )
             axis = axes[condition_index, group_index]
             if np.isfinite(values).any():
-                topoplot(values, chanlocs, axes=axis, colorbar=False, **topo_kwargs)
+                topoplot(values, chanlocs, axes=axis, **topo_kwargs)
             else:
                 axis.axis("off")
             axis.set_title(f"{condition} / {group}")
@@ -652,7 +653,7 @@ def _topoplot_options(value: Any) -> dict[str, Any]:
     if value is None:
         return {}
     if isinstance(value, dict):
-        return dict(value)
+        return {str(key).lower(): item for key, item in value.items()}
     if not isinstance(value, (list, tuple)) or len(value) % 2:
         raise ValueError("topoplotopt must be a dictionary or key/value sequence")
     return {str(value[index]).lower(): value[index + 1] for index in range(0, len(value), 2)}

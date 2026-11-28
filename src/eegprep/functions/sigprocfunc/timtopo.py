@@ -31,8 +31,12 @@ def timtopo(
     chanlocs: Any,
     *,
     times: Any = None,
+    limits: Any = None,
     plottimes: Any = None,
     winsize: float = 0.0,
+    plotchans: Any = None,
+    voffsets: Any = None,
+    plotenvelope: Any = 0,
     title: str = "",
     topoplot_options: dict[str, Any] | None = None,
 ):
@@ -50,14 +54,19 @@ def timtopo(
     if values.ndim != 2:
         raise ValueError("timtopo data must be channels x points")
     points = values.shape[1]
-    x_values = (
-        np.asarray(times, dtype=float).ravel()
-        if times is not None and len(np.asarray(times).ravel())
-        else np.arange(points)
-    )
+    plot_xlim, plot_ylim = _parse_limits(limits)
+    if times is not None and len(np.asarray(times).ravel()):
+        x_values = np.asarray(times, dtype=float).ravel()
+    elif plot_xlim is not None:
+        x_values = np.linspace(plot_xlim[0], plot_xlim[1], points)
+    else:
+        x_values = np.arange(points, dtype=float)
     if x_values.size != points:
         raise ValueError("times must match the number of data points")
+    trace_chans = _resolve_plotchans(plotchans, values.shape[0])
+    trace_values = values[trace_chans]
     map_times = _plot_times(values, x_values, plottimes)
+    resolved_voffsets = _resolve_voffsets(voffsets, map_times.size)
     locs = chanlocs_as_list(chanlocs)
     draw_maps = bool(locs)
 
@@ -67,20 +76,35 @@ def timtopo(
     else:
         fig, trace_ax = plt.subplots(figsize=(8, 4))
 
-    trace_ax.plot(x_values, values.T, linewidth=0.7)
+    trace_ax.plot(x_values, trace_values.T, linewidth=0.7)
+    if _truthy_flag(plotenvelope):
+        trace_ax.plot(x_values, np.nanmax(values, axis=0), color="k", linewidth=2.0, zorder=3)
+        trace_ax.plot(x_values, np.nanmin(values, axis=0), color="k", linewidth=2.0, zorder=3)
     trace_ax.set_xlabel("Latency (ms)")
     trace_ax.set_ylabel("Potential (µV)")
     trace_ax.grid(True, axis="y", linestyle=":")
-    trace_ax.set_xlim(float(x_values[0]), float(x_values[-1]))
-    y_low, y_high = float(np.nanmin(values)), float(np.nanmax(values))
-    if y_high > y_low:
+    x_low, x_high = plot_xlim if plot_xlim is not None else (float(x_values[0]), float(x_values[-1]))
+    trace_ax.set_xlim(x_low, x_high)
+    y_low, y_high = (
+        plot_ylim if plot_ylim is not None else (float(np.nanmin(trace_values)), float(np.nanmax(trace_values)))
+    )
+    if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
         trace_ax.set_ylim(y_low, y_high)
-    if x_values[0] < 0 < x_values[-1]:
+    if x_low < 0 < x_high:
         trace_ax.axvline(0, color="k", linestyle=":", linewidth=1.5)
 
     if draw_maps:
         target_ax, plot_options, target_leader = _draw_maps_row(
-            fig, trace_ax, values, x_values, map_times, locs, winsize, topoplot_options
+            fig,
+            trace_ax,
+            values,
+            trace_values,
+            x_values,
+            map_times,
+            locs,
+            winsize,
+            resolved_voffsets,
+            topoplot_options,
         )
         _enable_click_maps(fig, trace_ax, target_ax, target_leader, values, x_values, locs, winsize, plot_options)
     else:
@@ -102,10 +126,12 @@ def _draw_maps_row(
     fig: Any,
     trace_ax: Any,
     values: np.ndarray,
+    trace_values: np.ndarray,
     x_values: np.ndarray,
     map_times: np.ndarray,
     locs: list,
     winsize: float,
+    voffsets: np.ndarray,
     topoplot_options: dict[str, Any] | None,
 ) -> tuple[Any, dict[str, Any], Any]:
     """Draw the top row of scalp maps, the blue latency markers with oblique leader
@@ -135,16 +161,17 @@ def _draw_maps_row(
 
         # Blue vertical line through the data range at this latency, over a white
         # underlay so it reads clearly against the multicolored traces (EEGLAB).
-        column = values[:, frame]
+        column = trace_values[:, frame]
         v_low, v_high = float(np.nanmin(column)), float(np.nanmax(column))
-        trace_ax.plot([latency, latency], [v_low, v_high], color="w", linewidth=2.0, zorder=3)
-        trace_ax.plot([latency, latency], [v_low, v_high], color="b", linewidth=1.5, zorder=4)
+        v_top = v_high + (float(voffsets[index]) if index < voffsets.size else 0.0)
+        trace_ax.plot([latency, latency], [v_low, v_top], color="w", linewidth=2.0, zorder=3)
+        trace_ax.plot([latency, latency], [v_low, v_top], color="b", linewidth=1.5, zorder=4)
 
         # Oblique leader line from the marker's top to the bottom-center of the map,
         # cycling MATLAB's default color order the way EEGLAB does.
         leader = fig.add_artist(
             ConnectionPatch(
-                xyA=(latency, v_high),
+                xyA=(latency, v_top),
                 coordsA=trace_ax.transData,
                 xyB=(0.5, 0.0),
                 coordsB=topo_ax.transAxes,
@@ -223,6 +250,55 @@ def _latency_values(values: np.ndarray, x_values: np.ndarray, latency: float, wi
     if not np.any(mask):
         raise ValueError("winsize does not include any samples around requested latency")
     return np.nanmean(values[:, mask], axis=1)
+
+
+def _parse_limits(limits: Any) -> tuple[tuple[float, float] | None, tuple[float, float] | None]:
+    if limits is None:
+        return None, None
+    vals = np.asarray(limits, dtype=float).ravel()
+    if vals.size == 0 or (vals.size == 1 and vals[0] == 0.0):
+        return None, None
+    if vals.size not in (2, 4):
+        raise ValueError("timtopo: limits must be 0, [minms maxms], or [minms maxms minval maxval]")
+    plot_xlim = None
+    if np.isfinite(vals[0]) and np.isfinite(vals[1]) and (vals[0] != 0.0 or vals[1] != 0.0):
+        if vals[1] <= vals[0]:
+            raise ValueError("timtopo: in limits, maxms must be > minms")
+        plot_xlim = (float(vals[0]), float(vals[1]))
+    plot_ylim = None
+    if vals.size == 4 and np.isfinite(vals[2]) and np.isfinite(vals[3]) and (vals[2] != 0.0 or vals[3] != 0.0):
+        if vals[3] <= vals[2]:
+            raise ValueError("timtopo: in limits, maxval must be > minval")
+        plot_ylim = (float(vals[2]), float(vals[3]))
+    return plot_xlim, plot_ylim
+
+
+def _resolve_plotchans(plotchans: Any, n_chans: int) -> np.ndarray:
+    if plotchans is None:
+        return np.arange(n_chans, dtype=int)
+    vals = np.asarray(plotchans, dtype=int).ravel()
+    if vals.size == 0 or (vals.size == 1 and vals[0] == 0):
+        return np.arange(n_chans, dtype=int)
+    indices = vals - 1
+    if np.any(indices < 0) or np.any(indices >= n_chans):
+        raise ValueError(f"timtopo: plotchans must be 1-based indices in 1..{n_chans}")
+    return indices
+
+
+def _resolve_voffsets(voffsets: Any, n_topos: int) -> np.ndarray:
+    if n_topos <= 0 or voffsets is None:
+        return np.zeros(max(n_topos, 0), dtype=float)
+    vals = np.asarray(voffsets, dtype=float).ravel()
+    if vals.size == 0 or (vals.size == 1 and vals[0] == 0.0):
+        return np.zeros(n_topos, dtype=float)
+    return np.resize(vals, n_topos)
+
+
+def _truthy_flag(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"on", "yes", "true", "1"}
+    arr = np.asarray(value).ravel()
+    return bool(arr.size and arr[0])
 
 
 __all__ = ["timtopo"]

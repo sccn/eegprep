@@ -669,14 +669,29 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``test_missing_or_empty_channel_locations_name_the_problem`` locks
        the EEGPrep error.
    * - ``topoplot`` marker options and unknown parameters
-     - ``topoplot`` draws ``emarker`` (hollow for geometric shapes, solid for
-       ``.`` and ``*``), ``emarker2`` (filled, still drawn when
-       ``electrodes='off'``, and indexed against the plotted channel list as in
-       ``topoplot.m`` lines 913-914), ``emarkersize`` / ``emsize``,
-       ``electcolor`` / ``ecolor``, and ``emarkersize1chan`` /
-       ``emarkersizemark`` on blank selected-channel maps (applied directly
-       without requiring ``plotdisk='on'``). Unknown parameters raise
-       ``ValueError`` naming ``topoplot`` and the option; ``iclabel``,
+     - ``topoplot`` draws ``emarker`` (solid point for ``.`` scaled to
+       MATLAB's ``MarkerSize / 3`` diameter with zero linewidth; unfilled line
+       markers for ``+``, ``x``, and ``*`` as an 8-spoke asterisk; hollow
+       outlines for fillable geometric shapes including ``p``/``pentagram``
+       5-point stars and ``h``/``hexagram`` 6-point stars), ``emarker2``
+       (filled for fillable shapes and ``.``, still drawn when
+       ``electrodes='off'``, and indexed against the filtered plotted channel
+       list after located-channel, ``plotchans``, and finite-value filtering
+       (with channels outside ``plotrad`` omitted without renumbering, as in
+       ``topoplot.m`` lines 885 and 913-914)), ``emarkersize`` / ``emsize``, ``electcolor`` /
+       ``ecolor``, and ``emarkersize1chan`` / ``emarkersizemark`` on blank
+       selected-channel maps (applied directly without requiring
+       ``plotdisk='on'``). Unimplemented EEGLAB ``topoplot.m`` options raise
+       ``ValueError`` stating that EEGPrep does not implement the option yet
+       (``conv``, ``shading``, ``whitebk``/``whiteback``/``forprint``,
+       ``headrad``, ``efontsize``/``efsize``, ``nosedir``,
+       ``interplimits``/``headlimits``, ``headcolor``/``hcolor``,
+       ``contourcolor``/``ccolor``, ``plotdisk``, ``plotgrid``/``gridplot``,
+       ``intsquare``, ``chantype``, ``drawaxis``, ``circgrid``, ``shrink``,
+       ``emarkercolors``, ``scatter``, ``dipole``, ``dipsphere``,
+       ``dipnorm``/``dipnormmax``, ``diplen``, ``dipscale``, ``diporient``,
+       ``dipcolor``, ``contourvals``, ``pmask``); truly unknown parameters
+       raise ``ValueError`` naming ``topoplot`` and the key. ``iclabel``,
        ``verbose``, ``chaninfo``, and ``masksurf`` stay allowed for caller
        compatibility.
 

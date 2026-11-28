@@ -37,6 +37,8 @@ def spectopo(
     percent: float = 100,
     freqs: Any = None,
     freqrange: Any = None,
+    limits: Any = None,
+    plotchans: Any = None,
     chanlocs: Any = None,
     topoplot_options: dict[str, Any] | None = None,
     title: str = "",
@@ -44,6 +46,11 @@ def spectopo(
     winsize: int | None = None,
     overlap: int = 0,
     nfft: int | None = None,
+    freqfac: int = 1,
+    mapnorm: Any = None,
+    reref: str = "off",
+    rmdc: str | bool = "off",
+    plotmean: str | bool = "off",
     wintype: str = "hamming",
     blckhn: int = 2,
 ):
@@ -55,14 +62,37 @@ def spectopo(
     locations are available.
     """
     _validate_freqrange(freqrange, float(srate) / 2.0)
+    values = np.asarray(data, dtype=float)
+    orig_nchans = values.shape[0] if values.ndim >= 2 else 0
+    channel_subset = _resolve_plotchans(plotchans, orig_nchans)
+    effective_chanlocs = chanlocs
+    effective_mapnorm = mapnorm
+    if channel_subset is not None:
+        values = values[channel_subset]
+        locs_list = chanlocs_as_list(chanlocs)
+        if locs_list:
+            effective_chanlocs = [locs_list[int(idx)] for idx in channel_subset]
+        if effective_mapnorm is not None:
+            norm_arr = np.asarray(effective_mapnorm, dtype=float).ravel()
+            if norm_arr.size == orig_nchans:
+                effective_mapnorm = norm_arr[channel_subset]
+    reref_mode = str(reref).strip().lower()
+    if reref_mode not in {"off", "no", "averef"}:
+        raise ValueError(f"spectopo: 'reref' must be 'off', 'no', or 'averef', got {reref!r}")
+    if reref_mode == "averef" and values.ndim >= 2 and values.shape[0] > 1:
+        values = values - np.nanmean(values, axis=0, keepdims=True)
+    if _flag_is_on(rmdc, "rmdc"):
+        values = values - np.nanmean(values, axis=1, keepdims=True)
     spectra, frequency_values, specstd = compute_spectra(
-        data,
+        values,
         frames,
         srate,
         percent=percent,
         winsize=winsize,
         overlap=overlap,
         nfft=nfft,
+        freqfac=freqfac,
+        mapnorm=effective_mapnorm,
         wintype=wintype,
         blckhn=blckhn,
     )
@@ -73,9 +103,11 @@ def spectopo(
             frequency_values,
             freqs=freqs,
             freqrange=freqrange,
-            chanlocs=chanlocs,
+            limits=limits,
+            chanlocs=effective_chanlocs,
             topoplot_options=topoplot_options,
             title=title,
+            plotmean=plotmean,
             nyquist=float(srate) / 2.0,
         )
     return spectra, frequency_values, None, None, specstd, figure
@@ -87,9 +119,11 @@ def plot_spectra(
     *,
     freqs: Any = None,
     freqrange: Any = None,
+    limits: Any = None,
     chanlocs: Any = None,
     topoplot_options: dict[str, Any] | None = None,
     title: str = "",
+    plotmean: str | bool = "off",
     nyquist: float | None = None,
 ):
     """Plot spectra and optional scalp maps, mirroring EEGLAB ``spectopo``.
@@ -98,6 +132,7 @@ def plot_spectra(
     frequency markers by leader lines, with a ``+``/``-`` polarity colorbar on the
     right, as in EEGLAB.
     """
+    x_lim, y_lim, c_lim = _parse_limits(limits)
     requested_freqs = np.sort(_numeric_values(freqs))
     scalp_values, scalp_labels = _scalp_maps(spectra, frequency_values, requested_freqs)
     locs = chanlocs_as_list(chanlocs)
@@ -110,22 +145,35 @@ def plot_spectra(
         fig, spec_ax = plt.subplots(figsize=(7, 4))
 
     trace_labels = {}
-    for index, channel_spectrum in enumerate(spectra):
+    plot_mean = _flag_is_on(plotmean, "plotmean")
+    traces = np.nanmean(spectra, axis=0, keepdims=True) if plot_mean else spectra
+    for index, channel_spectrum in enumerate(traces):
         (line,) = spec_ax.plot(
             frequency_values, channel_spectrum, color=_TRACE_COLORS[(index + 1) % len(_TRACE_COLORS)], linewidth=2.0
         )
-        trace_labels[line] = f"Channel {index + 1}"
+        trace_labels[line] = "Mean" if plot_mean else f"Channel {index + 1}"
     _enable_trace_identification(fig, trace_labels)
     spec_ax.set_xlabel("Frequency (Hz)")
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
     spec_ax.spines[["top", "right"]].set_visible(False)
 
-    low, high, min_idx, max_idx = frequency_window(frequency_values, requested_freqs, freqrange, nyquist=nyquist)
+    effective_freqrange = _effective_freqrange(freqrange, x_lim)
+    low, high, min_idx, max_idx = frequency_window(
+        frequency_values, requested_freqs, effective_freqrange, nyquist=nyquist
+    )
+    if _numeric_values(effective_freqrange).size < 2:
+        if x_lim[0] is not None:
+            low = x_lim[0]
+            min_idx = int(np.argmin(np.abs(frequency_values - low)))
+        if x_lim[1] is not None:
+            high = x_lim[1]
+            max_idx = int(np.argmin(np.abs(frequency_values - high)))
     spec_ax.set_xlim(low, high)
-    y_low, y_high = spectra_ylim(spectra, min_idx, max_idx)
+    y_low, y_high = _resolved_ylim(spectra, min_idx, max_idx, y_lim)
     if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
         spec_ax.set_ylim(y_low, y_high)
 
+    map_options = _merge_clim_options(topoplot_options, c_lim)
     if draw_maps:
         _draw_maps_row(
             fig,
@@ -136,7 +184,7 @@ def plot_spectra(
             requested_freqs,
             frequency_values,
             spectra,
-            topoplot_options,
+            map_options,
         )
 
     if title:
@@ -144,6 +192,91 @@ def plot_spectra(
     if not draw_maps:
         fig.tight_layout()
     return fig
+
+
+def _flag_is_on(value: Any, name: str) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text == "on":
+            return True
+        if text == "off":
+            return False
+    raise ValueError(f"spectopo: '{name}' must be 'on', 'off', True, or False, got {value!r}")
+
+
+def _resolve_plotchans(plotchans: Any, n_chans: int) -> np.ndarray | None:
+    vals = _numeric_values(plotchans)
+    if vals.size == 0:
+        return None
+    if not np.all(np.isfinite(vals)) or np.any(vals != np.trunc(vals)):
+        raise ValueError(f"spectopo: plotchans must be 1-based integers in 1..{n_chans}, got {plotchans!r}")
+    indices = vals.astype(int) - 1
+    if np.any(indices < 0) or np.any(indices >= n_chans):
+        raise ValueError(
+            f"spectopo: plotchans must be 1-based indices in 1..{n_chans}, got {vals.astype(int).tolist()}"
+        )
+    return indices
+
+
+def _parse_limits(
+    limits: Any,
+) -> tuple[tuple[float | None, float | None], tuple[float | None, float | None], tuple[float, float] | None]:
+    vals = _numeric_values(limits)
+    if vals.size == 0:
+        return (None, None), (None, None), None
+    if vals.size > 6:
+        raise ValueError("spectopo: limits must have at most 6 values [xmin xmax ymin ymax cmin cmax]")
+
+    def _opt(index: int) -> float | None:
+        if index >= vals.size or not np.isfinite(vals[index]):
+            return None
+        return float(vals[index])
+
+    x_lim = (_opt(0), _opt(1))
+    y_lim = (_opt(2), _opt(3))
+    c_min, c_max = _opt(4), _opt(5)
+    if (c_min is None) != (c_max is None):
+        raise ValueError("spectopo: limits 5 and 6 must both be finite or both be NaN")
+    c_lim = (c_min, c_max) if (c_min is not None and c_max is not None) else None
+    return x_lim, y_lim, c_lim
+
+
+def _effective_freqrange(freqrange: Any, x_lim: tuple[float | None, float | None]) -> Any:
+    if _numeric_values(freqrange).size >= 2:
+        return freqrange
+    if x_lim[0] is not None and x_lim[1] is not None:
+        return [x_lim[0], x_lim[1]]
+    return freqrange
+
+
+def _resolved_ylim(
+    spectra: np.ndarray, min_idx: int, max_idx: int, y_lim: tuple[float | None, float | None]
+) -> tuple[float, float]:
+    if y_lim[0] is None and y_lim[1] is None:
+        return spectra_ylim(spectra, min_idx, max_idx)
+    low_i, high_i = sorted((min_idx, max_idx))
+    window = spectra[:, low_i : high_i + 1]
+    if window.size == 0:
+        return (y_lim[0] if y_lim[0] is not None else np.nan, y_lim[1] if y_lim[1] is not None else np.nan)
+    y_low = y_lim[0] if y_lim[0] is not None else float(np.nanmin(window))
+    if y_lim[1] is not None:
+        return y_low, y_lim[1]
+    y_high = float(np.nanmax(window))
+    span = y_high - y_low
+    return (y_low if y_lim[0] is not None else y_low - span / 7.0), y_high + span / 7.0
+
+
+def _merge_clim_options(
+    topoplot_options: dict[str, Any] | None, c_lim: tuple[float, float] | None
+) -> dict[str, Any] | None:
+    if c_lim is None:
+        return topoplot_options
+    merged = dict(topoplot_options or {})
+    if not any(str(k).lower() == "maplimits" for k in merged):
+        merged["maplimits"] = [c_lim[0], c_lim[1]]
+    return merged
 
 
 def _validate_freqrange(freqrange: Any, nyquist: float) -> None:
@@ -341,6 +474,7 @@ def plot_component_spectra(
     channel_chanlocs: Any = None,
     freq: Any,
     freqrange: Any = None,
+    limits: Any = None,
     nicamaps: int = 5,
     icamaps: Any = None,
     topoplot_options: dict[str, Any] | None = None,
@@ -354,6 +488,7 @@ def plot_component_spectra(
     map plus each mapped component's scalp projection), joined to the marker by
     colored leader lines.
     """
+    x_lim, y_lim, c_lim = _parse_limits(limits)
     freqs_req = np.sort(_numeric_values(freq))  # EEGLAB sorts g.freq before taking the first
     f0 = float(freqs_req[0]) if freqs_req.size else float(frequency_values[len(frequency_values) // 2])
     fidx = int(np.argmin(np.abs(frequency_values - f0)))
@@ -391,10 +526,18 @@ def plot_component_spectra(
     spec_ax.set_xlabel("Frequency (Hz)")
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
     spec_ax.spines[["top", "right"]].set_visible(False)
-    low, high, min_idx, max_idx = frequency_window(frequency_values, freqs_req, freqrange)
+    effective_freqrange = _effective_freqrange(freqrange, x_lim)
+    low, high, min_idx, max_idx = frequency_window(frequency_values, freqs_req, effective_freqrange)
+    if _numeric_values(effective_freqrange).size < 2:
+        if x_lim[0] is not None:
+            low = x_lim[0]
+            min_idx = int(np.argmin(np.abs(frequency_values - low)))
+        if x_lim[1] is not None:
+            high = x_lim[1]
+            max_idx = int(np.argmin(np.abs(frequency_values - high)))
     spec_ax.set_xlim(low, high)
     stacked = np.vstack([comp_spectra, data_rms[None, :]])
-    y_low, y_high = spectra_ylim(stacked, min_idx, max_idx)
+    y_low, y_high = _resolved_ylim(stacked, min_idx, max_idx, y_lim)
     if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
         spec_ax.set_ylim(y_low, y_high)
 
@@ -432,7 +575,8 @@ def plot_component_spectra(
         spec_pos = spec_ax.get_position()
         marker_x = spec_pos.x0 + spec_pos.width * (f0 - low) / (high - low)
         realpos = _closestplot_slots(marker_x, slot_lefts)
-        plot_options = {"electrodes": "off", "maplimits": "absmax", **(topoplot_options or {})}
+        map_options = _merge_clim_options(topoplot_options, c_lim)
+        plot_options = {"electrodes": "off", "maplimits": "absmax", **(map_options or {})}
         for index, (values, label, colr, yval, lw, map_locs) in enumerate(map_specs):
             center = slot_lefts[realpos[index]] + slot / 2
             # Raise the composite map (index 0) so it stands out above the component row (EEGLAB spectopo).

@@ -23,6 +23,7 @@ from matplotlib.figure import Figure
 import numpy as np
 import pytest
 
+from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
 from eegprep.functions.sigprocfunc.envtopo import _limcontrib_frames, _resolve_subcomps, envtopo
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
@@ -155,3 +156,55 @@ def test_limcontrib_half_frame_rounds_away_from_zero():
     times = np.linspace(0.0, 1000.0, 11)
     lim1, _lim2 = _limcontrib_frames([250.0, 500.0], times, 11)
     assert lim1 == 3
+
+
+def test_pop_envtopo_splits_options_text_before_topoplot():
+    """envtopo options inside options= text (limits, voffsets, dispmaps, pvaf, actscale) must not leak into topoplot."""
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=64, n_trials=2, n_components=4)
+    eeg["srate"] = 128.0
+    eeg["xmin"] = 0.0
+    eeg["xmax"] = 63.0 / 128.0
+    eeg["times"] = np.linspace(0.0, 1000.0 * 63.0 / 128.0, 64)
+
+    fig_limits = pop_envtopo(
+        eeg,
+        [0, 500],
+        options="'electrodes','off','limits',[0 500 -5 5]",
+        plot="off",
+    )
+    try:
+        env_ax = fig_limits.axes[0]
+        assert env_ax.get_ylim() == pytest.approx((-5.0, 5.0))
+    finally:
+        plt.close(fig_limits)
+
+    fig_voffsets = pop_envtopo(
+        eeg,
+        [0, 500],
+        options="'electrodes','off','voffsets',[0.5 1.0],'pvaf','pv','actscale','on'",
+        plot="off",
+    )
+    try:
+        map_axes = [ax for ax in fig_voffsets.axes if ax.images]
+        assert len(map_axes) == 4
+        # actscale='on' shares one common clim across all component maps.
+        clims = [ax.images[0].get_clim() for ax in map_axes]
+        for clim in clims[1:]:
+            np.testing.assert_allclose(clim, clims[0])
+    finally:
+        plt.close(fig_voffsets)
+
+    fig_nomaps = pop_envtopo(eeg, [0, 500], options="'dispmaps','off'", plot="off")
+    try:
+        assert not [ax for ax in fig_nomaps.axes if ax.images]
+    finally:
+        plt.close(fig_nomaps)
+
+    # Unimplemented EEGLAB envtopo options raise naming pop_envtopo instead of leaking into topoplot.
+    for unimpl in ("colorfile", "fillcomp"):
+        with pytest.raises(ValueError, match=rf"pop_envtopo: '{unimpl}' is an EEGLAB envtopo option"):
+            pop_envtopo(eeg, [0, 500], options=f"'{unimpl}', 'bold'", plot="off")
+
+    # Truly unknown options still fail loudly in topoplot.
+    with pytest.raises(ValueError, match=r"topoplot: Unknown input parameter 'foobar'"):
+        pop_envtopo(eeg, [0, 500], options="'electrodes','off','foobar',1", plot="off")

@@ -13,13 +13,19 @@ Unreleased
 - ``topoplot`` draws ``emarker`` (``marker`` or ``{marker, color, size, linewidth}``),
   ``emarker2`` (``{chans, marker, color, size, linewidth}``), ``emarkersize`` / ``emsize``,
   ``electcolor`` / ``ecolor``, and ``emarkersize1chan`` / ``emarkersizemark`` for
-  selected-channel blank maps. ``electrodes`` accepts EEGLAB aliases (``pts``, ``nums``,
-  ``ptslabels``, ``ptsnumbers``), draws markers alongside labels/numbers on interpolated
-  maps, keeps ``emarker2`` visible when ``electrodes='off'``, and only auto-hides
-  electrodes above 64 channels when omitted. Unknown keyword arguments now raise
-  ``ValueError`` naming ``topoplot`` and the option instead of being silently ignored;
+  selected-channel blank maps. Point markers (``.``) match MATLAB's ``MarkerSize / 3``
+  diameter with zero linewidth, and MATLAB ``*`` (8-spoke line asterisk), ``p``/``pentagram``
+  (5-point star), and ``h``/``hexagram`` (6-point star) map to their matching Matplotlib
+  shapes. ``electrodes`` accepts EEGLAB aliases (``pts``, ``nums``, ``ptslabels``,
+  ``ptsnumbers``), draws markers alongside labels/numbers on interpolated maps, keeps
+  ``emarker2`` visible when ``electrodes='off'``, and only auto-hides electrodes above
+  64 channels when omitted. Unimplemented EEGLAB ``topoplot.m`` options raise an
+  actionable ``ValueError`` distinct from truly unknown parameters, while
   caller-compatibility keys (``iclabel``, ``verbose``, ``chaninfo``, ``masksurf``) remain
-  allowed. (#683)
+  allowed. ``pop_spectopo``, ``pop_envtopo``, and ``pop_timtopo`` now split their own
+  options (such as ``limits``, ``voffsets``, ``reref``, ``mapnorm``, ``rmdc``,
+  ``plotmean``, ``dispmaps``, ``pvaf``, and ``actscale``) before forwarding remaining
+  options to ``topoplot``. (#683)
 
 - ``pop_load_frombids`` reads ``EEGCoordinateSystem`` by the orientation the BIDS coordinate-systems appendix gives it.
   ``CTF``, ``4DBti`` and ``KitYokogawa`` are ALS and are no longer turned by 90 degrees.
@@ -72,9 +78,7 @@ Unreleased
   ``pop_topoplot`` option text follows MATLAB ``eval(['{ ' options ' }'])``:
   cells, nested brackets, commas, semicolons, doubled quotes, and a trailing
   comma. A cell inside ``[]`` or a ``%`` comment raises ``ValueError`` naming
-  ``pop_topoplot`` and the text. ``emarker`` and ``emarker2`` raise
-  ``ValueError`` from ``topoplot``; EEGLAB draws those markers and EEGPrep
-  does not yet.
+  ``pop_topoplot`` and the text.
   (#670)
 - Equivalent-dipole fits follow FieldTrip ``fminunc`` settings. The
   forward difference is ``sqrt(eps)*sign'(x)*max(|x|, 10 mm)``, FieldTrip's

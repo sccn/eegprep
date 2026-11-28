@@ -975,6 +975,49 @@ def test_timtopo_mixed_nan_plottimes_fills_slot_with_auto_latency(sample_epoch):
     plt.close(fig)
 
 
+def test_pop_timtopo_and_eegmovie_split_options_before_topoplot(sample_epoch):
+    """timtopo options in options= text (limits, voffsets, plotenvelope) are consumed rather than leaked to topoplot."""
+    from eegprep.functions.miscfunc.eegmovie import eegmovie
+
+    fig = pop_timtopo(
+        sample_epoch,
+        [-100, 200],
+        [0, 100],
+        "ERP",
+        options="'electrodes','off','limits',[-100 200 -5 5],'voffsets',[1 2],'plotenvelope',1",
+        plot="off",
+    )
+    try:
+        trace_ax = fig.axes[0]
+        assert trace_ax.get_ylim() == pytest.approx((-5.0, 5.0))
+        map_axes = [ax for ax in fig.axes if ax.images]
+        assert len(map_axes) == 2
+        assert all(not any(isinstance(c, PathCollection) for c in ax.collections) for ax in map_axes)
+    finally:
+        plt.close(fig)
+
+    with pytest.raises(ValueError, match=r"topoplot: Unknown input parameter 'foobar'"):
+        pop_timtopo(sample_epoch, [-100, 200], [0], "ERP", options="'foobar', 1", plot="off")
+
+    data = np.asarray(sample_epoch["data"][:6, :3, 0], dtype=float)
+    locs = chanlocs_as_list(sample_epoch["chanlocs"])[:6]
+    movie, _cmap = eegmovie(
+        data,
+        float(sample_epoch["srate"]),
+        locs,
+        movieframes=[1],
+        topoplotopt=["electrodes", "off", "maplimits", [-5, 5]],
+        plot="off",
+    )
+    assert movie.shape[0] == 1
+
+    from eegprep.functions.studyfunc._std_measureplot import _topoplot_options
+
+    parsed_dict = _topoplot_options({"Colorbar": True, "Electrodes": "off"})
+    parsed_dict.setdefault("colorbar", False)
+    assert parsed_dict == {"colorbar": True, "electrodes": "off"}
+
+
 def _assert_python_command(command: str) -> None:
     ast.parse(_console_python_command(command))
 
