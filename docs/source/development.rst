@@ -959,7 +959,12 @@ match when EEGPrep kept the first copy and EEGLAB's ``unique_bc`` kept the
 last (``pop_select.m`` lines 282-286); the next step starts from the
 first-copy dataset. An epoched ``pop_select`` ``notime`` that misses both
 epoch edges, and a ``pop_epoch`` ``eventindices`` past the last event, are
-the same failure on both sides. Numeric event types compare as numbers,
+the same failure on both sides. ``pop_epoch`` checks ``eventindices``
+against ``1..len(EEG.event)`` before it filters by type. ``pop_epoch.m``
+first keeps the indices of matching events (lines 274-283). When there is a
+type filter and every index is past the end, EEGLAB reports an empty epoch
+range, and the harness counts that as the same failure. If any index is
+valid, EEGLAB may still return epochs, so the mismatch is reported. Numeric event types compare as numbers,
 so ``np.int64(65)`` matches the double ``65.0``. Text types stay exact.
 Both sides
 raising on a ``clean_windows`` input whose fit width rounds to 1 or less is

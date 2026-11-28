@@ -1366,6 +1366,30 @@ def test_eventindices_past_the_end_is_the_same_failure_as_eeglab():
     assert outcome.error_class == "both-error"
 
 
+@pytest.mark.parametrize(
+    ("params", "indices", "same"),
+    [
+        ({"types": ["sq.*"], "eventindices": [1000000]}, "[1000000]", True),
+        ({"types": [], "eventindices": [1000000]}, "[1000000]", False),
+        ({"types": ["sq.*"], "eventindices": [1, 1000000]}, "[1, 1000000]", False),
+    ],
+)
+def test_filtered_eventindices_past_the_end_match_eeglab_empty_epoch_range(params, indices, same):
+    case = FuzzCase("pop_epoch", _spec(), freeze_params(params))
+    outcome = judge(
+        side_from_error(
+            ValueError(
+                f"pop_epoch: eventindices {indices} are outside 1..10. Pass 1-based indices that exist in EEG.event."
+            )
+        ),
+        side_from_error(RuntimeError("pop_epoch(): empty epoch range (no epochs were found).")),
+        Tolerance(0.0, 1e-6),
+        case,
+        "abc",
+    )
+    assert outcome.diverged is not same
+
+
 def test_one_rms_window_message_does_not_hide_a_different_error():
     outcome = judge(
         side_from_error(
