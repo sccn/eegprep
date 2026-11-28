@@ -101,7 +101,9 @@ non-fiducial reference locations. ``pop_interp`` and ``eeg_interp`` also use
 1-based channel numbers. Channel labels and location dictionaries remain
 available where documented. When starting with NumPy row indices, add 1 at
 these API boundaries. The low-level ``reref`` function still uses zero-based
-array indices.
+array indices. An average reference with every channel excluded leaves the
+dataset unchanged and logs a warning; EEGLAB instead relabels the legacy
+``EEG.ref`` as average and removes ICA without changing the samples.
 
 .. autosummary::
    :toctree: generated/
