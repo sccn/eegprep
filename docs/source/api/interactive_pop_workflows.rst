@@ -8,9 +8,10 @@ User-facing ``pop_*`` wrappers. Each accepts ``return_com=True`` and returns a r
 Loading and Saving
 ------------------
 
-``pop_biosig`` and ``pop_fileio`` accept their options as keywords or as
-positional name/value pairs. ``blockrange=[start, stop]`` requests a
-half-open, seconds-based read of continuous EDF, BDF, and other MNE-backed
+File > Import data > Using the MNE-IO interface opens ``pop_biosig`` for EDF,
+BDF, and GDF recordings. In scripts, ``pop_biosig`` and ``pop_fileio`` accept
+their options as keywords or positional name/value pairs.
+``blockrange=[start, stop]`` requests a half-open, seconds-based read of continuous EDF, BDF, and other MNE-backed
 formats. A window or a whole recording with fewer samples than channels stays
 channel-major. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (default
 4, rising edges of the lower 16 bits), stores those triggers when
