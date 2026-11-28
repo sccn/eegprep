@@ -9,10 +9,11 @@ EEGPrep's own readers handle .set and EEGLAB .mat (``pop_loadset``), .cnt
 Neuroscan .eeg epochs (``loadeeg``), and .csv/.txt/.tsv/.npy/.npz or array .mat
 (``pop_importdata``).
 
-Files read through MNE-Python belong to the MNE-IO menu (``pop_biosig``), which
-needs ``pip install "eegprep[mne]"``. From a script ``pop_fileio`` still reads
-them: .edf (``mne.io.read_raw_edf``), .bdf (``read_raw_bdf``), .gdf
-(``read_raw_gdf``), and .mff (``read_raw_egi``).
+In the GUI, choose Using the MNE-IO interface for EDF, BDF, and GDF files,
+or Import Magstim/EGI .mff file for an MFF folder. In scripts, ``pop_fileio``
+reads these formats using MNE-Python's ``read_raw_edf``, ``read_raw_bdf``,
+``read_raw_gdf``, and ``read_raw_egi``, respectively. Install the readers with
+``pip install "eegprep[mne]"``.
 """
 
 from __future__ import annotations

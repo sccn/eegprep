@@ -13,7 +13,9 @@ If import fails:
 - Use File > Import data > Using the MNE-IO interface (`pop_biosig`) for
   EDF/BDF/GDF files.
 - Use File > Import data > Using the EEG-IO interface (`pop_fileio`) for
-  BrainVision, MFF, CNT, and EEG formats.
+  BrainVision, CNT, and EEG formats.
+- For an MFF folder, choose File > Import data > Using EEGPrep functions and
+  plugins > Import Magstim/EGI .mff file.
 - Use `pop_importbids` for BIDS folders or supported BIDS EEG files.
 - Check that MNE is installed in the environment used to launch EEGPrep.
   `pop_biosig` reads EDF, BDF, and GDF, including BIDS EDF and BDF files.
