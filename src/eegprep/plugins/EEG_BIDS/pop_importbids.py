@@ -366,10 +366,11 @@ def _entity_id(name: str) -> str:
 
 
 def _event_columns(source: Path) -> tuple[str, ...]:
-    """Return the event type choices of pop_importbids.m lines 86-92.
+    """Return event type choices from the headers of visible events.tsv files.
 
-    ``bids_geteventfieldsfromfolder`` takes every column of every events.tsv file,
-    sorted, without the timing columns; ``value`` is then listed first.
+    Unquote header names and exclude empty names and timing columns. List
+    ``value`` first when present, followed by the other names in sorted order.
+    Return an empty tuple when no event type columns remain.
     """
     found: set[str] = set()
     for events in source.rglob("*events.tsv"):
